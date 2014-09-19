@@ -1,0 +1,5 @@
+[package]
+
+name = "jrforth"
+version = "0.0.1"
+authors = ["ccwu <ccwu660601@mapacode.tw>"]

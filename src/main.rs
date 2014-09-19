@@ -1,12 +1,13 @@
+#[cfg(not(test))]
 fn main() {
-	vm::hello();
-	vm::quit();
+	hello::hello();
+	vm::bye();
 }
 
-mod vm {
+mod hello {
 	pub fn hello() {
 	    println!("JrForth 0.0.1 by ccwu");
 	}
-	pub fn quit() {
-	}
 }
+
+mod vm;

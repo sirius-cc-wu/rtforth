@@ -1,5 +1,11 @@
 pub mod vm {
 
+	pub struct VM {
+		pub s_stack: Vec<int>,
+		pub r_stack: Vec<int>,
+		pub word_list: Vec<int>
+	}
+
 	pub fn quit() {
 		let mut s_stack: Vec<int> = Vec::with_capacity(16);
 		s_stack.push(0);

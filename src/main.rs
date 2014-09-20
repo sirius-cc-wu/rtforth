@@ -4,6 +4,7 @@ use jrforth::vm;
 #[cfg(not(test))]
 fn main() {
 	hello::hello();
+	vm::quit();
 	vm::bye();
 }
 

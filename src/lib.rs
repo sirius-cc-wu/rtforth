@@ -6,7 +6,7 @@ pub mod vm {
 		pub word_list: Vec<fn()>
 	}
 
-	pub fn cold() {
+	pub fn new() {
 		let mut s_stack: Vec<int> = Vec::with_capacity(16);
 		s_stack.push(0);
 		let mut r_stack: Vec<int> = Vec::with_capacity(16);

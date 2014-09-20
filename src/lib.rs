@@ -1,3 +1,5 @@
-pub fn bye() {
-	println!("Bye...");
+pub mod vm {
+	pub fn bye() {
+		println!("Bye...");
+	}
 }

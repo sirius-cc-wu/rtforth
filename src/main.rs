@@ -1,9 +1,10 @@
 extern crate jrforth;
+use jrforth::vm;
 
 #[cfg(not(test))]
 fn main() {
 	hello::hello();
-	jrforth::bye();
+	vm::bye();
 }
 
 #[cfg(not(test))]

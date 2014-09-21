@@ -5,8 +5,7 @@ use jrforth::vm;
 fn main() {
 	hello::hello();
 	let vm = vm::VM::new();
-	vm.quit();
-	vm.bye();
+	vm::VM::quit(*vm);
 }
 
 #[cfg(not(test))]

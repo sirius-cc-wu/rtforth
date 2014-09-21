@@ -4,16 +4,20 @@ pub mod vm {
 	pub struct Word {
 		vm: Box<VM>,
 		pub is_immediate: bool,
-		pub action: fn(VM)
+		pub action: fn(&VM)
 	}
 
 impl Word {
-	pub fn new(vm: Box<VM>, action: fn(VM)) -> Word {
+	pub fn new(vm: Box<VM>, action: fn(&VM)) -> Word {
 		Word {
 			vm: vm,
 			is_immediate: false,
 			action: action
 		}
+	}
+	
+	pub fn execute(&self) {
+		(self.action)(&*self.vm);
 	}
 }
 
@@ -38,8 +42,12 @@ impl Word {
 			vm
 		}
 
-		pub fn quit(vm: VM) {
+		pub fn quit(vm: &VM) {
 			println!("Quit...");
+		}
+
+		pub fn bye(vm: &VM) {
+			println!("Bye...");
 		}
 	}
 

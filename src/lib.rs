@@ -8,8 +8,8 @@ pub mod vm {
 	}
 
 impl Word {
-	pub fn new(vm: Box<VM>, action: fn(&VM)) -> Word {
-		Word {
+	pub fn new(vm: Box<VM>, action: fn(&VM)) -> Box<Word> {
+		box Word {
 			vm: vm,
 			is_immediate: false,
 			action: action
@@ -26,7 +26,7 @@ impl Word {
 		is_paused: bool,
 		pub s_stack: Box<Vec<int>>,
 		pub r_stack: Box<Vec<int>>,
-		pub word_list: Box<Vec<Word>>
+		pub word_list: Box<Vec<Box<Word>>>
 	}
 
 	impl VM {

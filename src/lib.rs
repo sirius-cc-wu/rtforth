@@ -2,31 +2,26 @@ pub mod vm {
 
 // Word
 	pub struct Word {
-		vm: Box<VM>,
-		pub is_immediate: bool,
-		pub action: fn(&VM)
+		is_immediate: bool,
+		action: fn(&VM)
 	}
 
 impl Word {
-	pub fn new(vm: Box<VM>, action: fn(&VM)) -> Box<Word> {
+	pub fn new(action: fn(&VM)) -> Box<Word> {
 		box Word {
-			vm: vm,
 			is_immediate: false,
 			action: action
 		}
 	}
 	
-	pub fn execute(&self) {
-		(self.action)(&*self.vm);
-	}
 }
 
 // Virtual machine
 	pub struct VM {
 		is_paused: bool,
-		pub s_stack: Box<Vec<int>>,
-		pub r_stack: Box<Vec<int>>,
-		pub word_list: Box<Vec<Box<Word>>>
+		s_stack: Box<Vec<int>>,
+		r_stack: Box<Vec<int>>,
+		word_list: Box<Vec<Box<Word>>>
 	}
 
 	impl VM {
@@ -42,11 +37,15 @@ impl Word {
 			vm
 		}
 
-		pub fn quit(vm: &VM) {
+		pub fn execute_word (&self, w: &Word) {
+			(w.action)(self);
+		}
+
+		pub fn quit(&self) {
 			println!("Quit...");
 		}
 
-		pub fn bye(vm: &VM) {
+		pub fn bye(&self) {
 			println!("Bye...");
 		}
 	}

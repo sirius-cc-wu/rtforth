@@ -1,7 +1,9 @@
 extern crate jrforth;
+use jrforth::vm;
 
 #[test]
 fn test_bye() {
-	jrforth::vm::bye();
+	let vm = vm::VM::new();
+	vm.bye();
 	assert!(true);
 }

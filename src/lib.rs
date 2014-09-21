@@ -24,21 +24,21 @@ impl Word {
 // Virtual machine
 	pub struct VM {
 		is_paused: bool,
-//		pub s_stack: Vec<int>,
-//		pub r_stack: Vec<int>,
+		pub s_stack: Box<Vec<int>>,
+		pub r_stack: Box<Vec<int>>,
 		pub word_list: Box<Vec<Word>>
 	}
 
 	impl VM {
 		pub fn new() -> Box<VM> {
-			let mut s_stack: Vec<int> = Vec::with_capacity(16);
-			s_stack.push(0);
-			let mut r_stack: Vec<int> = Vec::with_capacity(16);
-			r_stack.push(0);
-			let vm = box VM {
+			let mut vm = box VM {
 				is_paused: true,
+				s_stack: box Vec::with_capacity(16),
+				r_stack: box Vec::with_capacity(16),
 				word_list: box Vec::with_capacity(16)
 			};
+			vm.s_stack.push(0);
+			vm.r_stack.push(0);
 			vm
 		}
 

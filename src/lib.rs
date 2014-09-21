@@ -13,7 +13,6 @@ impl Word {
 			action: action
 		}
 	}
-	
 }
 
 // Virtual machine
@@ -41,6 +40,12 @@ impl Word {
 			(w.action)(self);
 		}
 
+// Primitives
+
+		pub fn noop (&self) {
+			// Do nothing
+		}
+		
 		pub fn quit(&self) {
 			println!("Quit...");
 		}
@@ -51,4 +56,3 @@ impl Word {
 	}
 
 }
-

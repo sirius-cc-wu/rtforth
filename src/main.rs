@@ -1,12 +1,12 @@
 extern crate jrforth;
-use jrforth::vm;
+use jrforth::vm::VM;
 
 #[cfg(not(test))]
 fn main() {
 	hello::hello();
-	let vm = vm::VM::new();
-	vm.quit();
-	vm.bye();
+	let vm = VM::new();
+	VM::quit(&*vm);
+	VM::bye(&*vm);
 }
 
 #[cfg(not(test))]

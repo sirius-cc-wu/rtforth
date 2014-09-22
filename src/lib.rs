@@ -33,6 +33,9 @@ impl Word {
 			};
 			vm.s_stack.push(0);
 			vm.r_stack.push(0);
+			vm.word_list.push (Word::new(VM::noop));
+			vm.word_list.push (Word::new(VM::quit));
+			vm.word_list.push (Word::new(VM::bye));
 			vm
 		}
 
@@ -42,15 +45,15 @@ impl Word {
 
 // Primitives
 
-		pub fn noop (&self) {
+		pub fn noop (vm: &VM) {
 			// Do nothing
 		}
 		
-		pub fn quit(&self) {
+		pub fn quit(vm: &VM) {
 			println!("Quit...");
 		}
 
-		pub fn bye(&self) {
+		pub fn bye(vm: &VM) {
 			println!("Bye...");
 		}
 	}

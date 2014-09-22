@@ -22,7 +22,8 @@ impl<'a> Word<'a> {
 		is_paused: bool,
 		s_stack: Vec<int>,
 		r_stack: Vec<int>,
-		word_list: Vec<Word<'a>>
+		word_list: Vec<Word<'a>>,
+		pub found_index: int
 	}
 
 	impl<'a> VM<'a> {
@@ -31,7 +32,8 @@ impl<'a> Word<'a> {
 				is_paused: true,
 				s_stack: Vec::with_capacity(16),
 				r_stack: Vec::with_capacity(16),
-				word_list: Vec::with_capacity(16)
+				word_list: Vec::with_capacity(16),
+				found_index: 0
 			};
 			vm.s_stack.push(0);
 			vm.r_stack.push(0);
@@ -43,6 +45,18 @@ impl<'a> Word<'a> {
 
 		pub fn execute_word (&self, w: &Word) {
 			(w.action)(self);
+		}
+
+		pub fn find (&mut self, name: &str) {
+			let mut i = 0i;
+			for x in self.word_list.iter() {
+				if x.name == name {
+					break;
+				}
+				i += 1i;
+			}
+			self.found_index = i;
+			
 		}
 
 // Primitives

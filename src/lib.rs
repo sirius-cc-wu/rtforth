@@ -8,8 +8,8 @@ pub mod vm {
 	}
 
 impl<'a> Word<'a> {
-	pub fn new(name: &'a str, action: fn(&VM)) -> Box<Word<'a>> {
-		box Word {
+	pub fn new(name: &'a str, action: fn(&VM)) -> Word<'a> {
+		Word {
 			is_immediate: false,
 			name: name,
 			action: action
@@ -20,18 +20,18 @@ impl<'a> Word<'a> {
 // Virtual machine
 	pub struct VM<'a> {
 		is_paused: bool,
-		s_stack: Box<Vec<int>>,
-		r_stack: Box<Vec<int>>,
-		word_list: Box<Vec<Box<Word<'a>>>>
+		s_stack: Vec<int>,
+		r_stack: Vec<int>,
+		word_list: Vec<Word<'a>>
 	}
 
 	impl<'a> VM<'a> {
-		pub fn new() -> Box<VM<'a>> {
-			let mut vm = box VM {
+		pub fn new() -> VM<'a> {
+			let mut vm = VM {
 				is_paused: true,
-				s_stack: box Vec::with_capacity(16),
-				r_stack: box Vec::with_capacity(16),
-				word_list: box Vec::with_capacity(16)
+				s_stack: Vec::with_capacity(16),
+				r_stack: Vec::with_capacity(16),
+				word_list: Vec::with_capacity(16)
 			};
 			vm.s_stack.push(0);
 			vm.r_stack.push(0);

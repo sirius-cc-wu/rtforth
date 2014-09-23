@@ -31,7 +31,9 @@ impl<'a> Word<'a> {
 		s_heap: Vec<int>,
 		f_heap: Vec<f64>,
 		word_list: Vec<Word<'a>>,
-		pub found_index: int
+		pub found_index: uint,
+		instruction_pointer: uint,
+		word_pointer: uint
 	}
 
 	impl<'a> VM<'a> {
@@ -43,7 +45,9 @@ impl<'a> Word<'a> {
 				s_heap: Vec::with_capacity(64),
 				f_heap: Vec::with_capacity(64),
 				word_list: Vec::with_capacity(16),
-				found_index: 0
+				found_index: 0,
+				instruction_pointer: 0,
+				word_pointer: 0
 			};
 			vm.s_stack.push(0);
 			vm.r_stack.push(0);
@@ -54,25 +58,40 @@ impl<'a> Word<'a> {
 			vm
 		}
 
-		pub fn execute_word (&self, w: &Word) {
-			(w.action)(self);
+		pub fn execute_word(&self, i: uint) {
+			(self.word_list[i].action)(self);
 		}
 
-		pub fn find (&mut self, name: &str) {
-			let mut i = 0i;
+		pub fn find(&mut self, name: &str) {
+			let mut i = 0u;
 			for x in self.word_list.iter() {
 				if x.name == name {
 					break;
 				}
-				i += 1i;
+				i += 1u;
 			}
 			self.found_index = i;
 			
 		}
 
+// Inner interpreter
+		pub fn inner_interpret(&mut self, ip: uint) {
+			self.instruction_pointer = ip;
+			self.inner();
+		}
+
+		pub fn inner(&mut self) {
+			while self.instruction_pointer > 0 && self.instruction_pointer < self.s_heap.len() {
+				self.word_pointer = self.s_heap[self.instruction_pointer] as uint;
+				self.instruction_pointer += 1;
+				self.execute_word (self.word_pointer);
+			}
+			self.instruction_pointer = 0;
+		}
+
 // Primitives
 
-		pub fn noop (vm: &VM) {
+		pub fn noop(vm: &VM) {
 			// Do nothing
 		}
 		

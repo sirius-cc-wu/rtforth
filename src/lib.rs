@@ -17,11 +17,19 @@ impl<'a> Word<'a> {
 	}
 }
 
+// Colon Definition
+	pub struct ColonDef {
+		start: int,
+		end: int
+	}
+
 // Virtual machine
 	pub struct VM<'a> {
 		is_paused: bool,
 		s_stack: Vec<int>,
 		r_stack: Vec<int>,
+		s_heap: Vec<int>,
+		f_heap: Vec<f64>,
 		word_list: Vec<Word<'a>>,
 		pub found_index: int
 	}
@@ -32,11 +40,14 @@ impl<'a> Word<'a> {
 				is_paused: true,
 				s_stack: Vec::with_capacity(16),
 				r_stack: Vec::with_capacity(16),
+				s_heap: Vec::with_capacity(64),
+				f_heap: Vec::with_capacity(64),
 				word_list: Vec::with_capacity(16),
 				found_index: 0
 			};
 			vm.s_stack.push(0);
 			vm.r_stack.push(0);
+			vm.word_list.push (Word::new("", VM::noop));
 			vm.word_list.push (Word::new("noop", VM::noop));
 			vm.word_list.push (Word::new("quit", VM::quit));
 			vm.word_list.push (Word::new("bye", VM::bye));

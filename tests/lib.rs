@@ -3,7 +3,9 @@ use jrforth::vm::VM;
 
 #[test]
 fn test_bye() {
-	let vm = & VM::new();
+	let vm = &mut VM::new();
+	vm.find("");
+	assert_eq!(0i, vm.found_index);
 	VM::noop(vm);
 	VM::quit(vm);
 	VM::bye(vm);

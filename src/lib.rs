@@ -1,17 +1,17 @@
 pub mod vm {
 
 // Word
-	pub struct Word<'a> {
+	pub struct Word {
 		is_immediate: bool,
-		name: &'a str,
+		nfa: uint,
 		action: fn(&VM)
 	}
 
-impl<'a> Word<'a> {
-	pub fn new(name: &'a str, action: fn(&VM)) -> Word<'a> {
+impl Word {
+	pub fn new(nfa: uint, action: fn(&VM)) -> Word {
 		Word {
 			is_immediate: false,
-			name: name,
+			nfa: nfa,
 			action: action
 		}
 	}
@@ -24,26 +24,28 @@ impl<'a> Word<'a> {
 	}
 
 // Virtual machine
-	pub struct VM<'a> {
+	pub struct VM {
 		is_paused: bool,
 		s_stack: Vec<int>,
 		r_stack: Vec<int>,
 		s_heap: Vec<int>,
 		f_heap: Vec<f64>,
-		word_list: Vec<Word<'a>>,
+		n_heap: Vec<char>,
+		word_list: Vec<Word>,
 		pub found_index: uint,
 		instruction_pointer: uint,
 		word_pointer: uint
 	}
 
-	impl<'a> VM<'a> {
-		pub fn new() -> VM<'a> {
+	impl VM {
+		pub fn new() -> VM {
 			let mut vm = VM {
 				is_paused: true,
 				s_stack: Vec::with_capacity(16),
 				r_stack: Vec::with_capacity(16),
 				s_heap: Vec::with_capacity(64),
 				f_heap: Vec::with_capacity(64),
+				n_heap: Vec::with_capacity(64),
 				word_list: Vec::with_capacity(16),
 				found_index: 0,
 				instruction_pointer: 0,
@@ -51,11 +53,21 @@ impl<'a> Word<'a> {
 			};
 			vm.s_stack.push(0);
 			vm.r_stack.push(0);
-			vm.word_list.push (Word::new("", VM::noop));
-			vm.word_list.push (Word::new("noop", VM::noop));
-			vm.word_list.push (Word::new("quit", VM::quit));
-			vm.word_list.push (Word::new("bye", VM::bye));
+			vm.add_primitive("", VM::noop);
+			vm.add_primitive("noop", VM::noop);
+			vm.add_primitive("quit", VM::quit);
+			vm.add_primitive("bye", VM::bye);
+			vm.word_list.push (Word::new(vm.n_heap.len(), VM::noop));
+			vm.word_list.push (Word::new(vm.n_heap.len(), VM::noop));
+			vm.word_list.push (Word::new( vm.n_heap.len(), VM::quit));
+			vm.word_list.push (Word::new(vm.n_heap.len(), VM::bye));
 			vm
+		}
+
+		pub fn add_primitive(&mut self, name: &str, action: fn(&VM)) {
+			for i in name.chars() {
+				self.n_heap.push(i);
+			}
 		}
 
 		pub fn execute_word(&self, i: uint) {
@@ -65,9 +77,9 @@ impl<'a> Word<'a> {
 		pub fn find(&mut self, name: &str) {
 			let mut i = 0u;
 			for x in self.word_list.iter() {
-				if x.name == name {
-					break;
-				}
+//				if x.name == name {
+//					break;
+//				}
 				i += 1u;
 			}
 			self.found_index = i;

@@ -3,12 +3,12 @@ pub mod vm {
 // Word
 	pub struct Word {
 		is_immediate: bool,
-		nfa: u32,
+		nfa: usize,
 		action: fn(&VM)
 	}
 
 impl Word {
-	pub fn new(nfa: u32, action: fn(&VM)) -> Word {
+	pub fn new(nfa: usize, action: fn(&VM)) -> Word {
 		Word {
 			is_immediate: false,
 			nfa: nfa,
@@ -19,22 +19,22 @@ impl Word {
 
 // Colon Definition
 	pub struct ColonDef {
-		start: i32,
-		end: i32
+		start: isize,
+		end: isize
 	}
 
 // Virtual machine
 	pub struct VM {
 		is_paused: bool,
-		s_stack: Vec<i32>,
-		r_stack: Vec<i32>,
-		s_heap: Vec<i32>,
+		s_stack: Vec<isize>,
+		r_stack: Vec<isize>,
+		s_heap: Vec<isize>,
 		f_heap: Vec<f64>,
 		n_heap: Vec<char>,
 		word_list: Vec<Word>,
-		pub found_index: u32,
-		instruction_pointer: u32,
-		word_pointer: u32
+		pub found_index: usize,
+		instruction_pointer: usize,
+		word_pointer: usize
 	}
 
 	impl VM {
@@ -70,31 +70,31 @@ impl Word {
 			}
 		}
 
-		pub fn execute_word(&self, i: u32) {
+		pub fn execute_word(&self, i: usize) {
 			(self.word_list[i].action)(self);
 		}
 
 		pub fn find(&mut self, name: &str) {
-			let mut i = 0u32;
+			let mut i = 0usize;
 			for x in self.word_list.iter() {
 //				if x.name == name {
 //					break;
 //				}
-				i += 1u32;
+				i += 1usize;
 			}
 			self.found_index = i;
 			
 		}
 
 // Inner interpreter
-		pub fn inner_interpret(&mut self, ip: u32) {
+		pub fn inner_interpret(&mut self, ip: usize) {
 			self.instruction_pointer = ip;
 			self.inner();
 		}
 
 		pub fn inner(&mut self) {
 			while self.instruction_pointer > 0 && self.instruction_pointer < self.s_heap.len() {
-				self.word_pointer = self.s_heap[self.instruction_pointer] as u32;
+				self.word_pointer = self.s_heap[self.instruction_pointer] as usize;
 				self.instruction_pointer += 1;
 				self.execute_word (self.word_pointer);
 			}

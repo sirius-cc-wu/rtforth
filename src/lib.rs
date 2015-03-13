@@ -55,6 +55,7 @@ impl Word {
             };
             vm.s_stack.push(0);
             vm.r_stack.push(0);
+            // index of 0 means not found.
             vm.add_primitive("", VM::noop);
             vm.add_primitive("noop", VM::noop);
             vm.add_primitive("exit", VM::exit);
@@ -75,10 +76,13 @@ impl Word {
             (self.word_list[i].action)(self);
         }
 
+        /// Find the word with name 'name'.
+        /// The found index is stored in 'found_index'.
+        /// If not found the value of 'found_index' is zero.
         pub fn find(&mut self, name: &str) {
             let mut i = 0usize;
+            self.found_index = 0;
             for w in self.word_list.iter() {
-                println!("{} = {} ?", w.name_len, name.len());
                 let mut j = 0usize;
                 if w.name_len == name.len() {
                     for ch in name.bytes() {
@@ -89,12 +93,12 @@ impl Word {
                     }
                 }
                 if j == name.len() {
+                    self.found_index = i;
                     break;
                 } else {
                     i += 1usize;
                 }
             }
-            self.found_index = i;
         }
 
 // Inner interpreter

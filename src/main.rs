@@ -5,11 +5,16 @@ use jrforth::vm::VM;
 fn main() {
 	hello::hello();
 	let vm = &mut VM::new();
+	vm.find("");
+	println!("vm.found_index of empty string: {}", vm.found_index);
 	vm.find("noop");
 	println!("vm.found_index of noop: {}", vm.found_index);
 	vm.find("bye");
 	println!("vm.found_index of bye: {}", vm.found_index);
 	vm.find("quit");
+	println!("vm.found_index of quit: {}", vm.found_index);
+	vm.find("not-exist");
+	println!("vm.found_index of not-exist: {}", vm.found_index);
 	VM::quit(vm);
 	VM::bye(vm);
 }

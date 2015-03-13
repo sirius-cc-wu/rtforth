@@ -97,16 +97,6 @@ impl Word {
             self.found_index = i;
         }
 
-        pub fn words(&mut self) {
-            let ref word_list = self.word_list;
-            for w in word_list {
-                for i in (0 .. w.name_len) {
-                    println!("{}", self.n_heap[w.nfa+i] as char);
-                }
-                println!("{}", ' ');
-            }
-        }
-
 // Inner interpreter
         pub fn inner_interpret(&mut self, ip: usize) {
             self.instruction_pointer = ip;

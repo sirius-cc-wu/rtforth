@@ -15,7 +15,6 @@ fn main() {
     println!("vm.found_index of quit: {}", vm.found_index);
     vm.find("not-exist");
     println!("vm.found_index of not-exist: {}", vm.found_index);
-    VM::words(vm);
     VM::quit(vm);
     VM::bye(vm);
 }

@@ -4,14 +4,16 @@ pub mod vm {
 	pub struct Word {
 		is_immediate: bool,
 		nfa: usize,
+        name_len: usize,
 		action: fn(&VM)
 	}
 
 impl Word {
-	pub fn new(nfa: usize, action: fn(&VM)) -> Word {
+	pub fn new(nfa: usize, name_len: usize, action: fn(&VM)) -> Word {
 		Word {
 			is_immediate: false,
 			nfa: nfa,
+            name_len: name_len,
 			action: action
 		}
 	}
@@ -30,7 +32,7 @@ impl Word {
 		r_stack: Vec<isize>,
 		s_heap: Vec<isize>,
 		f_heap: Vec<f64>,
-		n_heap: Vec<char>,
+		n_heap: Vec<u8>,
 		word_list: Vec<Word>,
 		pub found_index: usize,
 		instruction_pointer: usize,
@@ -57,15 +59,12 @@ impl Word {
 			vm.add_primitive("noop", VM::noop);
 			vm.add_primitive("quit", VM::quit);
 			vm.add_primitive("bye", VM::bye);
-			vm.word_list.push (Word::new(vm.n_heap.len(), VM::noop));
-			vm.word_list.push (Word::new(vm.n_heap.len(), VM::noop));
-			vm.word_list.push (Word::new( vm.n_heap.len(), VM::quit));
-			vm.word_list.push (Word::new(vm.n_heap.len(), VM::bye));
 			vm
 		}
 
 		pub fn add_primitive(&mut self, name: &str, action: fn(&VM)) {
-			for i in name.chars() {
+			self.word_list.push (Word::new(self.n_heap.len(), name.len(), action));
+			for i in name.bytes() {
 				self.n_heap.push(i);
 			}
 		}
@@ -76,14 +75,24 @@ impl Word {
 
 		pub fn find(&mut self, name: &str) {
 			let mut i = 0usize;
-			for x in self.word_list.iter() {
-//				if x.name == name {
-//					break;
-//				}
-				i += 1usize;
+			for w in self.word_list.iter() {
+                println!("{} = {} ?", w.name_len, name.len());
+                let mut j = 0usize;
+                if w.name_len == name.len() {
+                    for ch in name.bytes() {
+                        if (self.n_heap[j+w.nfa] != ch) {
+                            break;
+                        }
+                        j = j + 1;
+                    }
+                }
+                if (j == name.len()) {
+                    break;
+                } else {
+                    i += 1usize;
+                }
 			}
 			self.found_index = i;
-			
 		}
 
 // Inner interpreter

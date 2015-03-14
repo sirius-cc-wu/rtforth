@@ -31,7 +31,7 @@ impl Word {
     pub struct VM {
         is_compiling: bool,
         is_paused: bool,
-        s_stack: Vec<isize>,
+        pub s_stack: Vec<isize>,
         r_stack: Vec<usize>,
         s_heap: Vec<isize>,
         f_heap: Vec<f64>,
@@ -62,13 +62,12 @@ impl Word {
             // index of 0 means not found.
             vm.add_primitive("", VM::noop);
             vm.add_primitive("noop", VM::noop);
+            vm.add_primitive("quit", VM::quit);
+            vm.add_primitive("words", VM::words);
+            vm.add_primitive(".s", VM::dot_s);
             vm.add_primitive("lit", VM::lit);;
             vm.add_primitive("exit", VM::exit);
             vm.add_primitive("pause", VM::pause);
-            vm.add_primitive("quit", VM::quit);
-            vm.add_primitive("bye", VM::bye);
-            vm.add_primitive("words", VM::words);
-            vm.add_primitive(".s", VM::dot_s);
             vm.find("lit");
             vm.idx_lit = vm.found_index;
             // S_heap is beginning with noop, because s_heap[0] should not be used.
@@ -169,17 +168,13 @@ impl Word {
             // Do nothing
         }
 
-        pub fn lit(&mut self) {
-            self.s_stack.push (self.s_heap[self.instruction_pointer]);
-            self.instruction_pointer = self.instruction_pointer + 1;
-        }
-
         pub fn quit(&mut self) {
             println!("Quit...");
         }
 
-        pub fn bye(&mut self) {
-            println!("Bye...");
+        pub fn lit(&mut self) {
+            self.s_stack.push (self.s_heap[self.instruction_pointer]);
+            self.instruction_pointer = self.instruction_pointer + 1;
         }
 
         pub fn exit(&mut self) {

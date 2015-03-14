@@ -29,6 +29,7 @@ impl Word {
 
 // Virtual machine
     pub struct VM {
+        is_compiling: bool,
         is_paused: bool,
         s_stack: Vec<isize>,
         r_stack: Vec<usize>,
@@ -36,14 +37,16 @@ impl Word {
         f_heap: Vec<f64>,
         n_heap: Vec<u8>,
         word_list: Vec<Word>,
-        pub found_index: usize,
+        pub found_index: isize,
         instruction_pointer: usize,
-        word_pointer: usize
+        word_pointer: usize,
+        idx_lit: isize
     }
 
     impl VM {
         pub fn new() -> VM {
             let mut vm = VM {
+                is_compiling: false,
                 is_paused: true,
                 s_stack: Vec::with_capacity(16),
                 r_stack: Vec::with_capacity(16),
@@ -53,17 +56,26 @@ impl Word {
                 word_list: Vec::with_capacity(16),
                 found_index: 0,
                 instruction_pointer: 0,
-                word_pointer: 0
+                word_pointer: 0,
+                idx_lit: 0
             };
-            vm.s_stack.push(0);
             vm.r_stack.push(0);
             // index of 0 means not found.
             vm.add_primitive("", VM::noop);
             vm.add_primitive("noop", VM::noop);
+            vm.add_primitive("lit", VM::lit);;
             vm.add_primitive("exit", VM::exit);
             vm.add_primitive("pause", VM::pause);
             vm.add_primitive("quit", VM::quit);
             vm.add_primitive("bye", VM::bye);
+            vm.add_primitive("words", VM::words);
+            vm.add_primitive(".s", VM::dot_s);
+            vm.find("lit");
+            vm.idx_lit = vm.found_index;
+            // S_heap is beginning with noop, because s_heap[0] should not be used.
+            vm.find("noop");
+            let idx = vm.found_index;
+            vm.compile_word(idx);
             vm
         }
 
@@ -74,7 +86,7 @@ impl Word {
             }
         }
 
-        pub fn execute_word(& mut self, i: usize) {
+        pub fn execute_word(&mut self, i: usize) {
             (self.word_list[i].action)(self);
         }
 
@@ -82,7 +94,7 @@ impl Word {
         /// The found index is stored in 'found_index'.
         /// If not found the value of 'found_index' is zero.
         pub fn find(&mut self, name: &str) {
-            let mut i = 0usize;
+            let mut i = 0isize;
             self.found_index = 0;
             for w in self.word_list.iter() {
                 let mut j = 0usize;
@@ -98,18 +110,25 @@ impl Word {
                     self.found_index = i;
                     break;
                 } else {
-                    i += 1usize;
+                    i += 1isize;
                 }
             }
         }
 
-        pub fn words(& mut self) {
+        pub fn words(&mut self) {
             for w in self.word_list.iter() {
                 let s = match str::from_utf8(&self.n_heap[w.nfa..w.nfa+w.name_len]) {
                     Ok(v) => v,
                     Err(e) => panic!("Invalid word name.")
                 };
                 println!("{}", s );
+            }
+        }
+
+        pub fn dot_s(&mut self) {
+            println!("<{}>", self.s_stack.len());
+            for s in self.s_stack.iter() {
+                println!("{}", s);
             }
         }
 
@@ -129,34 +148,55 @@ impl Word {
             self.instruction_pointer = 0;
         }
 
+// Compiler
+
+        pub fn compile(&mut self) {
+            self.is_compiling = true;
+        }
+
+        pub fn compile_word(&mut self, word_index: isize) {
+            self.s_heap.push(word_index);
+        }
+
+        /// Compile integer 'i'.
+        pub fn compile_integer (&mut self, i: isize) {
+            self.s_heap.push(self.idx_lit);
+            self.s_heap.push(i);
+        }
+
 // Primitives
 
-        pub fn noop(vm: & mut VM) {
+        pub fn noop(&mut self) {
             // Do nothing
         }
-        
-        pub fn quit(vm: & mut VM) {
+
+        pub fn lit(&mut self) {
+            self.s_stack.push (self.s_heap[self.instruction_pointer]);
+            self.instruction_pointer = self.instruction_pointer + 1;
+        }
+
+        pub fn quit(&mut self) {
             println!("Quit...");
         }
 
-        pub fn bye(vm: & mut VM) {
+        pub fn bye(&mut self) {
             println!("Bye...");
         }
 
-        pub fn exit(vm: & mut VM) {
-            match vm.r_stack.pop() {
-                None => VM::abort (vm, "Data stack underflow"),
-                Some(x) => vm.instruction_pointer = x,
+        pub fn exit(&mut self) {
+            match self.r_stack.pop() {
+                None => VM::abort (self, "Return stack underflow"),
+                Some(x) => self.instruction_pointer = x,
             }
         }
 
-        pub fn pause(vm: & mut VM) {
-            vm.r_stack.push(vm.instruction_pointer);
-            vm.instruction_pointer = 0;
-            vm.is_paused = true;
+        pub fn pause(&mut self) {
+            self.r_stack.push(self.instruction_pointer);
+            self.instruction_pointer = 0;
+            self.is_paused = true;
         }
 
-        pub fn abort(vm: &VM, msg: &str) {
+        pub fn abort(&mut self, msg: &str) {
             // TODO
         }
     }

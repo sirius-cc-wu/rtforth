@@ -16,8 +16,20 @@ fn main() {
     vm.find("not-exist");
     println!("vm.found_index of not-exist: {}", vm.found_index);
     vm.words();
-    VM::quit(vm);
-    VM::bye(vm);
+// Test Compiler
+    vm.find("quit");
+    let idx = vm.found_index;
+    vm.compile_word(idx);
+    vm.find("bye");
+    let idx = vm.found_index;
+    vm.compile_word(idx);
+    vm.compile_integer(3);
+    vm.compile_integer(2);
+    vm.compile_integer(1);
+    vm.find(".s");
+    let idx = vm.found_index;
+    vm.compile_word(idx);
+    vm.inner_interpret(1);
 }
 
 #[cfg(not(test))]

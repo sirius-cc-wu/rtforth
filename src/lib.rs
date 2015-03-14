@@ -1,5 +1,7 @@
 pub mod vm {
 
+use std::str;
+
 // Word
     pub struct Word {
         is_immediate: bool,
@@ -98,6 +100,16 @@ impl Word {
                 } else {
                     i += 1usize;
                 }
+            }
+        }
+
+        pub fn words(& mut self) {
+            for w in self.word_list.iter() {
+                let s = match str::from_utf8(&self.n_heap[w.nfa..w.nfa+w.name_len]) {
+                    Ok(v) => v,
+                    Err(e) => panic!("Invalid word name.")
+                };
+                println!("{}", s );
             }
         }
 

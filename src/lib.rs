@@ -59,7 +59,6 @@ impl Word {
                 word_pointer: 0,
                 idx_lit: 0
             };
-            vm.r_stack.push(0);
             // index of 0 means not found.
             vm.add_primitive("", VM::noop);
             vm.add_primitive("noop", VM::noop);

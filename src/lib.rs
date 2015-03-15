@@ -2,8 +2,8 @@ use std::str;
 use std::num::SignedInt;
 
 // Error messages
-static S_STACK_UNDERFLOW: &'static str = "Data stack underflow";
-static R_STACK_UNDERFLOW: &'static str = "Return stack underflow";
+static S_STACK_UNDERFLOW: &'static [u8] = b"Data stack underflow";
+static R_STACK_UNDERFLOW: &'static [u8] = b"Return stack underflow";
 
 // Word
 pub struct Word {
@@ -34,13 +34,13 @@ pub struct ColonDef {
 pub struct VM {
     is_compiling: bool,
     is_paused: bool,
+    error_code: isize,
     pub s_stack: Vec<isize>,
     r_stack: Vec<usize>,
     s_heap: Vec<isize>,
     f_heap: Vec<f64>,
     n_heap: Vec<u8>,
     word_list: Vec<Word>,
-    found_index: isize,
     instruction_pointer: usize,
     word_pointer: usize,
     idx_lit: isize,
@@ -54,13 +54,13 @@ impl VM {
         let mut vm = VM {
             is_compiling: false,
             is_paused: true,
+            error_code: 0,
             s_stack: Vec::with_capacity(16),
             r_stack: Vec::with_capacity(16),
             s_heap: Vec::with_capacity(64),
             f_heap: Vec::with_capacity(64),
             n_heap: Vec::with_capacity(64),
             word_list: Vec::with_capacity(16),
-            found_index: 0,
             instruction_pointer: 0,
             word_pointer: 0,
             idx_lit: 0,
@@ -117,11 +117,9 @@ impl VM {
 //        vm.add_immediate("variable", VM::variable);
 //        vm.add_primitive(":", VM::colon);
 //        vm.add_immediate(";", VM::semicolon);
-        vm.find("lit");
-        vm.idx_lit = vm.found_index;
+        vm.idx_lit = vm.find(b"lit");
         // S_heap is beginning with noop, because s_heap[0] should not be used.
-        vm.find("noop");
-        let idx = vm.found_index;
+        let idx = vm.find(b"noop");
         vm.compile_word(idx);
         vm
     }
@@ -146,28 +144,28 @@ impl VM {
     }
 
     /// Find the word with name 'name'.
-    /// The found index is stored in 'found_index'.
-    /// If not found the value of 'found_index' is zero.
-    pub fn find(&mut self, name: &str) {
+    /// If not found returns zero.
+    pub fn find(&self, name: &[u8]) -> isize {
         let mut i = 0isize;
-        self.found_index = 0;
+        let mut found_index = 0;
         for w in self.word_list.iter() {
             let mut j = 0usize;
             if w.name_len == name.len() {
-                for ch in name.bytes() {
-                    if self.n_heap[j+w.nfa] != ch {
+                for ch in name {
+                    if self.n_heap[j+w.nfa] != *ch {
                         break;
                     }
                     j = j + 1;
                 }
             }
             if j == name.len() {
-                self.found_index = i;
+                found_index = i;
                 break;
             } else {
                 i += 1isize;
             }
         }
+        return found_index;
     }
 
     pub fn words(&mut self) {
@@ -220,7 +218,7 @@ impl VM {
         self.s_heap.push(i);
     }
 
-// Scanner
+// Evaluation
 
     pub fn scan(&mut self) {
         self.last_token.clear();
@@ -238,6 +236,21 @@ impl VM {
             cnt = cnt + 1;
         }
         self.input_index = self.input_index + cnt;
+    }
+
+    pub fn evaluate(&mut self) {
+        let saved_ip = self.instruction_pointer;
+        self.instruction_pointer = 0;
+        loop {
+            self.scan();
+            if self.last_token.is_empty() || self.has_error() {
+                break;
+            }
+            let found_index = self.find(&self.last_token);
+            if found_index != 0 {
+            }
+        }
+        self.instruction_pointer = saved_ip;
     }
 
 // Primitives
@@ -637,8 +650,15 @@ impl VM {
         self.is_paused = true;
     }
 
-    pub fn abort(&mut self, msg: &str) {
+// Error handlling
+
+    pub fn has_error(&self) -> bool {
+        return self.error_code != 0;
+    }
+
+    pub fn abort(&mut self, msg: &[u8]) {
         // TODO
+        println!("{}", str::from_utf8(msg).unwrap());
     }
 
 }
@@ -651,19 +671,15 @@ mod tests {
     #[test]
     fn test_find() {
         let vm = &mut VM::new();
-        vm.find("");
-        assert_eq!(0isize, vm.found_index);
-        vm.find("word-not-exist");
-        assert_eq!(0isize, vm.found_index);
-        vm.find("noop");
-        assert_eq!(1isize, vm.found_index);
+        assert_eq!(0isize, vm.find(b""));
+        assert_eq!(0isize, vm.find(b"word-not-exist"));
+        assert_eq!(1isize, vm.find(b"noop"));
     }
 
     #[test]
     fn test_inner_interpreter_without_nest () {
         let vm = &mut VM::new();
-        vm.find("noop");
-        let idx = vm.found_index;
+        let idx = vm.find(b"noop");
         vm.compile_word(idx);
         vm.compile_integer(3);
         vm.compile_integer(2);
@@ -1044,8 +1060,8 @@ mod tests {
     #[test]
     fn test_scan () {
         let vm = &mut VM::new();
-        for byte in ("hello world\t\r\n\"").bytes() {
-            vm.input_buffer.push(byte);
+        for byte in (b"hello world\t\r\n\"") {
+            vm.input_buffer.push(*byte);
         }
         vm.scan();
         assert_eq!(str::from_utf8(&vm.last_token).unwrap(), "hello");

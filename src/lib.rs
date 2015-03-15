@@ -100,6 +100,7 @@ impl VM {
         vm.add_primitive("<", VM::less_than);
         vm.add_primitive(">", VM::greater_than);
         vm.add_primitive("<>", VM::not_equals);
+        vm.add_primitive("between", VM::between);
 //        vm.add_primitive("invert", VM::invert);
 //        vm.add_primitive("and", VM::and);
 //        vm.add_primitive("or", VM::or);
@@ -528,6 +529,21 @@ impl VM {
         }
     }
 
+    pub fn between(&mut self) {
+        match self.s_stack.pop() {
+            Some(x3) =>
+                match self.s_stack.pop() {
+                    Some(x2) =>
+                        match self.s_stack.pop() {
+                            Some(x1) => self.s_stack.push(if x1>=x2 && x1<=x3 {-1} else {0}),
+                            None => self.abort(S_STACK_UNDERFLOW)
+                        },
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
     pub fn exit(&mut self) {
         match self.r_stack.pop() {
             None => self.abort (R_STACK_UNDERFLOW),
@@ -877,5 +893,36 @@ mod tests {
         vm.not_equals();
         assert_eq!(vm.s_stack, [-1]);
     }
+    #[test]
+    fn test_between () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        vm.between();
+        assert_eq!(vm.s_stack, [-1]);
+        vm.drop();
+        vm.two_drop();
+        vm.s_stack.push(1);
+        vm.s_stack.push(0);
+        vm.s_stack.push(1);
+        vm.between();
+        assert_eq!(vm.s_stack, [-1]);
+        vm.drop();
+        vm.two_drop();
+        vm.s_stack.push(0);
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        vm.between();
+        assert_eq!(vm.s_stack, [0]);
+        vm.drop();
+        vm.two_drop();
+        vm.s_stack.push(3);
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        vm.between();
+        assert_eq!(vm.s_stack, [0]);
+    }
+
 
 }

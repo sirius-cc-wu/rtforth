@@ -67,6 +67,11 @@ impl VM {
         vm.add_primitive("lit", VM::lit);;
         vm.add_primitive("exit", VM::exit);
         vm.add_primitive("pause", VM::pause);
+        vm.add_primitive("swap", VM::swap);
+        vm.add_primitive("dup", VM::dup);
+        vm.add_primitive("drop", VM::drop);
+        vm.add_primitive("nip", VM::nip);
+        vm.add_primitive("over", VM::nip);
         vm.find("lit");
         vm.idx_lit = vm.found_index;
         // S_heap is beginning with noop, because s_heap[0] should not be used.
@@ -182,10 +187,50 @@ impl VM {
     }
 
     pub fn swap(&mut self) {
-//        let top = self.s_stack.pop();
-//        let next = self.s_stack.pop();
-//        self.s_stack.push(top);
-//        self.s_stack.push(next);
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => { self.s_stack.push(t); self.s_stack.push(n); },
+                    None => self.abort("Data stack underflow")
+                },
+            None => self.abort("Data stack underflow")
+        }
+    }
+
+    pub fn dup(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => { self.s_stack.push(t); self.s_stack.push(t); },
+            None => self.abort("Data stack underflow")
+        }
+    }
+
+    pub fn drop(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => {},
+            None => self.abort("Data stack underflow")
+        }
+    }
+
+    pub fn nip(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => { self.s_stack.push(t); },
+                    None => self.abort("Data stack underflow")
+                },
+            None => self.abort("Data stack underflow")
+        }
+    }
+
+    pub fn over(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => { self.s_stack.push(n); self.s_stack.push(t); self.s_stack.push(n); },
+                    None => self.abort("Data stack underflow")
+                },
+            None => self.abort("Data stack underflow")
+        }
     }
 
     pub fn exit(&mut self) {
@@ -234,4 +279,59 @@ mod tests {
         vm.inner_interpret(1);
         assert_eq!(3usize, vm.s_stack.len());
     }
+
+    #[test]
+    fn test_drop() {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.drop();
+        assert!(vm.s_stack.len()==0);
+    }
+
+    #[test]
+    fn test_nip() {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        vm.nip();
+        assert!(vm.s_stack.len()==1);
+        assert!(vm.s_stack.last() == Some(&2));
+    }
+
+
+    #[test]
+    fn test_swap () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        vm.swap();
+        assert!(vm.s_stack.last()==Some(&1));
+        vm.drop();
+        assert_eq!(vm.s_stack.last(), Some(&2));
+    }
+
+    #[test]
+    fn test_dup () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.dup();
+        assert!(vm.s_stack.last()==Some(&1));
+        vm.drop();
+        assert_eq!(vm.s_stack.last(), Some(&1));
+    }
+
+    #[test]
+    fn test_over () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        vm.over();
+        assert!(vm.s_stack.len()==3);
+        assert!(vm.s_stack.last()==Some(&1));
+        vm.drop();
+        assert_eq!(vm.s_stack.last(), Some(&2));
+        vm.drop();
+        assert!(vm.s_stack.last()==Some(&1));
+    }
+
 }

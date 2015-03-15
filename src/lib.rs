@@ -44,7 +44,6 @@ pub struct VM {
     instruction_pointer: usize,
     word_pointer: usize,
     idx_lit: usize,
-    input_buffer: Vec<u8>,
     input_index: usize,
     last_token: Vec<u8>
 }
@@ -64,7 +63,6 @@ impl VM {
             instruction_pointer: 0,
             word_pointer: 0,
             idx_lit: 0,
-            input_buffer: Vec::with_capacity(256),
             input_index: 0,
             last_token: Vec::with_capacity(64)
         };
@@ -112,7 +110,6 @@ impl VM {
         vm.add_primitive("and", VM::and);
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
-        vm.add_primitive("scan", VM::scan);
 //        vm.add_primitive("constant", VM::constant);
 //        vm.add_immediate("variable", VM::variable);
 //        vm.add_primitive(":", VM::colon);
@@ -220,9 +217,9 @@ impl VM {
 
 // Evaluation
 
-    pub fn scan(&mut self) {
+    pub fn scan(&mut self, input_buffer: &[u8]) {
         self.last_token.clear();
-        let source = &self.input_buffer[self.input_index..self.input_buffer.len()];
+        let source = &input_buffer[self.input_index..input_buffer.len()];
         let mut cnt = 0;
         for byte in source {
             match byte {
@@ -238,12 +235,14 @@ impl VM {
         self.input_index = self.input_index + cnt;
     }
 
-    pub fn evaluate(&mut self) {
+    pub fn evaluate(&mut self, input_buffer: &[u8]) {
         let saved_ip = self.instruction_pointer;
+        let mut input_index = 0;
         self.instruction_pointer = 0;
         self.error_code = 0;
+        self.input_index = 0;
         loop {
-            self.scan();
+            self.scan(input_buffer);
             if self.last_token.is_empty() {
                 break;
             }
@@ -1072,17 +1071,25 @@ mod tests {
     #[test]
     fn test_scan () {
         let vm = &mut VM::new();
-        for byte in (b"hello world\t\r\n\"") {
-            vm.input_buffer.push(*byte);
-        }
-        vm.scan();
+        let input_buffer = b"hello world\t\r\n\"";
+        vm.input_index = 0;
+        vm.scan(input_buffer);
         assert_eq!(str::from_utf8(&vm.last_token).unwrap(), "hello");
         assert_eq!(vm.input_index, 5);
-        vm.scan();
+        vm.scan(input_buffer);
         assert_eq!(str::from_utf8(&vm.last_token).unwrap(), "world");
         assert_eq!(vm.input_index, 11);
-        vm.scan();
+        vm.scan(input_buffer);
         assert_eq!(str::from_utf8(&vm.last_token).unwrap(), "\"");
+    }
+
+    #[test]
+    fn test_evaluate () {
+        let vm = &mut VM::new();
+        let input_buffer = b"false true dup 1+";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack, [0, -1, 0]);
     }
 
 }

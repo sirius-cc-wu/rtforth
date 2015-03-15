@@ -96,9 +96,10 @@ impl VM {
         vm.add_primitive("0<", VM::zero_less);
         vm.add_primitive("0>", VM::zero_greater);
         vm.add_primitive("0<>", VM::zero_not_equals);
-//        vm.add_primitive("=", VM::equals);
-//        vm.add_primitive("<", VM::less_than);
-//        vm.add_primitive(">", VM::greater_than);
+        vm.add_primitive("=", VM::equals);
+        vm.add_primitive("<", VM::less_than);
+        vm.add_primitive(">", VM::greater_than);
+        vm.add_primitive("<>", VM::not_equals);
 //        vm.add_primitive("invert", VM::invert);
 //        vm.add_primitive("and", VM::and);
 //        vm.add_primitive("or", VM::or);
@@ -483,6 +484,50 @@ impl VM {
         }
     }
 
+    pub fn equals(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => self.s_stack.push(if t==n {-1} else {0}),
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn less_than(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => self.s_stack.push(if n<t {-1} else {0}),
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn greater_than(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => self.s_stack.push(if n>t {-1} else {0}),
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn not_equals(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => self.s_stack.push(if n!=t {-1} else {0}),
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
     pub fn exit(&mut self) {
         match self.r_stack.pop() {
             None => self.abort (R_STACK_UNDERFLOW),
@@ -764,6 +809,72 @@ mod tests {
         vm.drop();
         vm.s_stack.push(1);
         vm.zero_not_equals();
+        assert_eq!(vm.s_stack, [-1]);
+    }
+
+    #[test]
+    fn test_less_than () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(-1);
+        vm.s_stack.push(0);
+        vm.less_than();
+        assert_eq!(vm.s_stack, [-1]);
+        vm.drop();
+        vm.s_stack.push(0);
+        vm.s_stack.push(0);
+        vm.less_than();
+        assert_eq!(vm.s_stack, [0]);
+    }
+
+    #[test]
+    fn test_equals () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(0);
+        vm.s_stack.push(0);
+        vm.equals();
+        assert_eq!(vm.s_stack, [-1]);
+        vm.drop();
+        vm.s_stack.push(-1);
+        vm.s_stack.push(0);
+        vm.equals();
+        assert_eq!(vm.s_stack, [0]);
+        vm.drop();
+        vm.s_stack.push(1);
+        vm.s_stack.push(0);
+        vm.equals();
+        assert_eq!(vm.s_stack, [0]);
+    }
+
+    #[test]
+    fn test_greater_than () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(0);
+        vm.greater_than();
+        assert_eq!(vm.s_stack, [-1]);
+        vm.drop();
+        vm.s_stack.push(0);
+        vm.s_stack.push(0);
+        vm.greater_than();
+        assert_eq!(vm.s_stack, [0]);
+    }
+
+    #[test]
+    fn test_not_equals () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(0);
+        vm.s_stack.push(0);
+        vm.not_equals();
+        assert_eq!(vm.s_stack, [0]);
+        vm.drop();
+        vm.s_stack.push(-1);
+        vm.s_stack.push(0);
+        vm.not_equals();
+        assert_eq!(vm.s_stack, [-1]);
+        vm.drop();
+        vm.s_stack.push(1);
+        vm.s_stack.push(0);
+        vm.not_equals();
         assert_eq!(vm.s_stack, [-1]);
     }
 

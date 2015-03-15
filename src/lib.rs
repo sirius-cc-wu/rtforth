@@ -112,7 +112,7 @@ impl VM {
         vm.add_primitive("and", VM::and);
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
-        vm.add_primitive("scan", VM:scan);
+        vm.add_primitive("scan", VM::scan);
 //        vm.add_primitive("constant", VM::constant);
 //        vm.add_immediate("variable", VM::variable);
 //        vm.add_primitive(":", VM::colon);

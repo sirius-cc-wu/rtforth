@@ -37,7 +37,7 @@ impl Word {
         f_heap: Vec<f64>,
         n_heap: Vec<u8>,
         word_list: Vec<Word>,
-        pub found_index: isize,
+        found_index: isize,
         instruction_pointer: usize,
         word_pointer: usize,
         idx_lit: isize
@@ -62,9 +62,10 @@ impl Word {
             // index of 0 means not found.
             vm.add_primitive("", VM::noop);
             vm.add_primitive("noop", VM::noop);
-            vm.add_primitive("quit", VM::quit);
-            vm.add_primitive("words", VM::words);
+            vm.add_primitive("true", VM::p_true);
+            vm.add_primitive("false", VM::p_false);
             vm.add_primitive(".s", VM::dot_s);
+            vm.add_primitive("words", VM::words);
             vm.add_primitive("lit", VM::lit);;
             vm.add_primitive("exit", VM::exit);
             vm.add_primitive("pause", VM::pause);
@@ -168,8 +169,12 @@ impl Word {
             // Do nothing
         }
 
-        pub fn quit(&mut self) {
-            println!("Quit...");
+        pub fn p_true(&mut self) {
+            self.s_stack.push (-1);
+        }
+
+        pub fn p_false(&mut self) {
+            self.s_stack.push (0);
         }
 
         pub fn lit(&mut self) {
@@ -193,6 +198,35 @@ impl Word {
         pub fn abort(&mut self, msg: &str) {
             // TODO
         }
+
     }
 
+    #[cfg(test)]
+    mod tests {
+        use super::VM;
+
+        #[test]
+        fn test_find() {
+            let vm = &mut VM::new();
+            vm.find("");
+            assert_eq!(0isize, vm.found_index);
+            vm.find("word-not-exist");
+            assert_eq!(0isize, vm.found_index);
+            vm.find("noop");
+            assert_eq!(1isize, vm.found_index);
+        }
+
+        #[test]
+        fn test_inner_interpreter_without_nest () {
+            let vm = &mut VM::new();
+            vm.find("noop");
+            let idx = vm.found_index;
+            vm.compile_word(idx);
+            vm.compile_integer(3);
+            vm.compile_integer(2);
+            vm.compile_integer(1);
+            vm.inner_interpret(1);
+            assert_eq!(3usize, vm.s_stack.len());
+        }
+    }
 }

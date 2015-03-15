@@ -43,7 +43,10 @@ pub struct VM {
     found_index: isize,
     instruction_pointer: usize,
     word_pointer: usize,
-    idx_lit: isize
+    idx_lit: isize,
+    input_buffer: Vec<u8>,
+    input_index: usize,
+    last_token: Vec<u8>
 }
 
 impl VM {
@@ -60,7 +63,10 @@ impl VM {
             found_index: 0,
             instruction_pointer: 0,
             word_pointer: 0,
-            idx_lit: 0
+            idx_lit: 0,
+            input_buffer: Vec::with_capacity(256),
+            input_index: 0,
+            last_token: Vec::with_capacity(64)
         };
         // index of 0 means not found.
         vm.add_primitive("", VM::noop);
@@ -106,6 +112,11 @@ impl VM {
         vm.add_primitive("and", VM::and);
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
+        vm.add_primitive("scan", VM:scan);
+//        vm.add_primitive("constant", VM::constant);
+//        vm.add_immediate("variable", VM::variable);
+//        vm.add_primitive(":", VM::colon);
+//        vm.add_immediate(";", VM::semicolon);
         vm.find("lit");
         vm.idx_lit = vm.found_index;
         // S_heap is beginning with noop, because s_heap[0] should not be used.
@@ -120,6 +131,14 @@ impl VM {
         for i in name.bytes() {
             self.n_heap.push(i);
         }
+    }
+
+    pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM)) {
+        self.add_primitive (name, action);
+        match self.word_list.last_mut() {
+            Some(w) => w.is_immediate = true,
+            None => { /* Impossible */ }
+        };
     }
 
     pub fn execute_word(&mut self, i: usize) {
@@ -199,6 +218,26 @@ impl VM {
     pub fn compile_integer (&mut self, i: isize) {
         self.s_heap.push(self.idx_lit);
         self.s_heap.push(i);
+    }
+
+// Scanner
+
+    pub fn scan(&mut self) {
+        self.last_token.clear();
+        let source = &self.input_buffer[self.input_index..self.input_buffer.len()];
+        let mut cnt = 0;
+        for byte in source {
+            match byte {
+                &9u8 | &10u8 | &13u8 | &32u8 => {
+                    if !self.last_token.is_empty() {
+                        break;
+                    }
+                },
+                _ => self.last_token.push(*byte)
+            };
+            cnt = cnt + 1;
+        }
+        self.input_index = self.input_index + cnt;
     }
 
 // Primitives
@@ -607,6 +646,7 @@ impl VM {
 #[cfg(test)]
 mod tests {
     use super::VM;
+    use std::str;
 
     #[test]
     fn test_find() {
@@ -999,6 +1039,22 @@ mod tests {
         vm.s_stack.push(07);
         vm.xor();
         assert_eq!(vm.s_stack, [708]);
+    }
+
+    #[test]
+    fn test_scan () {
+        let vm = &mut VM::new();
+        for byte in ("hello world\t\r\n\"").bytes() {
+            vm.input_buffer.push(byte);
+        }
+        vm.scan();
+        assert_eq!(str::from_utf8(&vm.last_token).unwrap(), "hello");
+        assert_eq!(vm.input_index, 5);
+        vm.scan();
+        assert_eq!(str::from_utf8(&vm.last_token).unwrap(), "world");
+        assert_eq!(vm.input_index, 11);
+        vm.scan();
+        assert_eq!(str::from_utf8(&vm.last_token).unwrap(), "\"");
     }
 
 }

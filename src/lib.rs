@@ -1,4 +1,5 @@
 use std::str;
+use std::num::SignedInt;
 
 // Error messages
 static S_STACK_UNDERFLOW: &'static str = "Data stack underflow";
@@ -89,6 +90,7 @@ impl VM {
         vm.add_primitive("/", VM::slash);
         vm.add_primitive("mod", VM::p_mod);
         vm.add_primitive("/mod", VM::slash_mod);
+        vm.add_primitive("abs", VM::abs);
         vm.find("lit");
         vm.idx_lit = vm.found_index;
         // S_heap is beginning with noop, because s_heap[0] should not be used.
@@ -427,6 +429,13 @@ impl VM {
         }
     }
 
+    pub fn abs(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.s_stack.push(t.abs()),
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
     pub fn exit(&mut self) {
         match self.r_stack.pop() {
             None => self.abort (R_STACK_UNDERFLOW),
@@ -637,6 +646,14 @@ mod tests {
         vm.s_stack.push(7);
         vm.slash_mod();
         assert_eq!(vm.s_stack, [2, 4]);
+    }
+
+    #[test]
+    fn test_abs () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(-30);
+        vm.abs();
+        assert_eq!(vm.s_stack, [30]);
     }
 
 }

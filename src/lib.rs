@@ -43,7 +43,7 @@ pub struct VM {
     word_list: Vec<Word>,
     instruction_pointer: usize,
     word_pointer: usize,
-    idx_lit: isize,
+    idx_lit: usize,
     input_buffer: Vec<u8>,
     input_index: usize,
     last_token: Vec<u8>
@@ -145,9 +145,9 @@ impl VM {
 
     /// Find the word with name 'name'.
     /// If not found returns zero.
-    pub fn find(&self, name: &[u8]) -> isize {
-        let mut i = 0isize;
-        let mut found_index = 0;
+    pub fn find(&self, name: &[u8]) -> usize {
+        let mut i = 0usize;
+        let mut found_index = 0usize;
         for w in self.word_list.iter() {
             let mut j = 0usize;
             if w.name_len == name.len() {
@@ -162,7 +162,7 @@ impl VM {
                 found_index = i;
                 break;
             } else {
-                i += 1isize;
+                i += 1usize;
             }
         }
         return found_index;
@@ -208,13 +208,13 @@ impl VM {
         self.is_compiling = true;
     }
 
-    pub fn compile_word(&mut self, word_index: isize) {
-        self.s_heap.push(word_index);
+    pub fn compile_word(&mut self, word_index: usize) {
+        self.s_heap.push(word_index as isize);
     }
 
     /// Compile integer 'i'.
     pub fn compile_integer (&mut self, i: isize) {
-        self.s_heap.push(self.idx_lit);
+        self.s_heap.push(self.idx_lit as isize);
         self.s_heap.push(i);
     }
 
@@ -241,13 +241,25 @@ impl VM {
     pub fn evaluate(&mut self) {
         let saved_ip = self.instruction_pointer;
         self.instruction_pointer = 0;
+        self.error_code = 0;
         loop {
             self.scan();
-            if self.last_token.is_empty() || self.has_error() {
+            if self.last_token.is_empty() {
                 break;
             }
             let found_index = self.find(&self.last_token);
             if found_index != 0 {
+                if !self.is_compiling || self.word_list[found_index].is_immediate {
+                    self.execute_word(found_index);
+                    if self.instruction_pointer != 0 {
+                        self.inner();
+                    }
+                } else {
+                    self.compile_word(found_index);
+                }
+            }
+            if self.has_error() {
+                break;
             }
         }
         self.instruction_pointer = saved_ip;
@@ -671,9 +683,9 @@ mod tests {
     #[test]
     fn test_find() {
         let vm = &mut VM::new();
-        assert_eq!(0isize, vm.find(b""));
-        assert_eq!(0isize, vm.find(b"word-not-exist"));
-        assert_eq!(1isize, vm.find(b"noop"));
+        assert_eq!(0usize, vm.find(b""));
+        assert_eq!(0usize, vm.find(b"word-not-exist"));
+        assert_eq!(1usize, vm.find(b"noop"));
     }
 
     #[test]

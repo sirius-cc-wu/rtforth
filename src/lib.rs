@@ -91,6 +91,18 @@ impl VM {
         vm.add_primitive("mod", VM::p_mod);
         vm.add_primitive("/mod", VM::slash_mod);
         vm.add_primitive("abs", VM::abs);
+        vm.add_primitive("negate", VM::negate);
+        vm.add_primitive("0=", VM::zero_equals);
+        vm.add_primitive("0<", VM::zero_less);
+        vm.add_primitive("0>", VM::zero_greater);
+        vm.add_primitive("0<>", VM::zero_not_equals);
+//        vm.add_primitive("=", VM::equals);
+//        vm.add_primitive("<", VM::less_than);
+//        vm.add_primitive(">", VM::greater_than);
+//        vm.add_primitive("invert", VM::invert);
+//        vm.add_primitive("and", VM::and);
+//        vm.add_primitive("or", VM::or);
+//        vm.add_primitive("xor", VM::xor);
         vm.find("lit");
         vm.idx_lit = vm.found_index;
         // S_heap is beginning with noop, because s_heap[0] should not be used.
@@ -436,6 +448,41 @@ impl VM {
         }
     }
 
+    pub fn negate(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.s_stack.push(-t),
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn zero_less(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.s_stack.push(if t<0 {-1} else {0}),
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn zero_equals(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.s_stack.push(if t==0 {-1} else {0}),
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn zero_greater(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.s_stack.push(if t>0 {-1} else {0}),
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn zero_not_equals(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.s_stack.push(if t!=0 {-1} else {0}),
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
     pub fn exit(&mut self) {
         match self.r_stack.pop() {
             None => self.abort (R_STACK_UNDERFLOW),
@@ -654,6 +701,70 @@ mod tests {
         vm.s_stack.push(-30);
         vm.abs();
         assert_eq!(vm.s_stack, [30]);
+    }
+
+    #[test]
+    fn test_negate () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(30);
+        vm.negate();
+        assert_eq!(vm.s_stack, [-30]);
+    }
+
+    #[test]
+    fn test_zero_less () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(-1);
+        vm.zero_less();
+        assert_eq!(vm.s_stack, [-1]);
+        vm.drop();
+        vm.s_stack.push(0);
+        vm.zero_less();
+        assert_eq!(vm.s_stack, [0]);
+    }
+
+    #[test]
+    fn test_zero_equals () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(0);
+        vm.zero_equals();
+        assert_eq!(vm.s_stack, [-1]);
+        vm.drop();
+        vm.s_stack.push(-1);
+        vm.zero_equals();
+        assert_eq!(vm.s_stack, [0]);
+        vm.drop();
+        vm.s_stack.push(1);
+        vm.zero_equals();
+        assert_eq!(vm.s_stack, [0]);
+    }
+
+    #[test]
+    fn test_zero_greater () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.zero_greater();
+        assert_eq!(vm.s_stack, [-1]);
+        vm.drop();
+        vm.s_stack.push(0);
+        vm.zero_greater();
+        assert_eq!(vm.s_stack, [0]);
+    }
+
+    #[test]
+    fn test_zero_not_equals () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(0);
+        vm.zero_not_equals();
+        assert_eq!(vm.s_stack, [0]);
+        vm.drop();
+        vm.s_stack.push(-1);
+        vm.zero_not_equals();
+        assert_eq!(vm.s_stack, [-1]);
+        vm.drop();
+        vm.s_stack.push(1);
+        vm.zero_not_equals();
+        assert_eq!(vm.s_stack, [-1]);
     }
 
 }

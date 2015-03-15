@@ -96,15 +96,16 @@ impl VM {
         vm.add_primitive("0<", VM::zero_less);
         vm.add_primitive("0>", VM::zero_greater);
         vm.add_primitive("0<>", VM::zero_not_equals);
+        vm.add_primitive("not", VM::zero_equals);
         vm.add_primitive("=", VM::equals);
         vm.add_primitive("<", VM::less_than);
         vm.add_primitive(">", VM::greater_than);
         vm.add_primitive("<>", VM::not_equals);
         vm.add_primitive("between", VM::between);
-//        vm.add_primitive("invert", VM::invert);
-//        vm.add_primitive("and", VM::and);
-//        vm.add_primitive("or", VM::or);
-//        vm.add_primitive("xor", VM::xor);
+        vm.add_primitive("invert", VM::invert);
+        vm.add_primitive("and", VM::and);
+        vm.add_primitive("or", VM::or);
+        vm.add_primitive("xor", VM::xor);
         vm.find("lit");
         vm.idx_lit = vm.found_index;
         // S_heap is beginning with noop, because s_heap[0] should not be used.
@@ -544,6 +545,46 @@ impl VM {
         }
     }
 
+    pub fn invert(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.s_stack.push(!t),
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn and(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => self.s_stack.push(t & n),
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn or(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => self.s_stack.push(t | n),
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn xor(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => self.s_stack.push(t ^ n),
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
     pub fn exit(&mut self) {
         match self.r_stack.pop() {
             None => self.abort (R_STACK_UNDERFLOW),
@@ -893,6 +934,7 @@ mod tests {
         vm.not_equals();
         assert_eq!(vm.s_stack, [-1]);
     }
+
     #[test]
     fn test_between () {
         let vm = &mut VM::new();
@@ -924,5 +966,39 @@ mod tests {
         assert_eq!(vm.s_stack, [0]);
     }
 
+    #[test]
+    fn test_invert () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(707);
+        vm.invert();
+        assert_eq!(vm.s_stack, [-708]);
+    }
+
+    #[test]
+    fn test_and () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(707);
+        vm.s_stack.push(007);
+        vm.and();
+        assert_eq!(vm.s_stack, [3]);
+    }
+
+    #[test]
+    fn test_or () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(707);
+        vm.s_stack.push(07);
+        vm.or();
+        assert_eq!(vm.s_stack, [711]);
+    }
+
+    #[test]
+    fn test_xor () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(707);
+        vm.s_stack.push(07);
+        vm.xor();
+        assert_eq!(vm.s_stack, [708]);
+    }
 
 }

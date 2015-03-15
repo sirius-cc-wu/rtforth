@@ -45,7 +45,7 @@ pub struct VM {
     word_pointer: usize,
     idx_lit: usize,
     input_index: usize,
-    last_token: Vec<u8>
+    last_token: String 
 }
 
 impl VM {
@@ -64,7 +64,7 @@ impl VM {
             word_pointer: 0,
             idx_lit: 0,
             input_index: 0,
-            last_token: Vec::with_capacity(64)
+            last_token: String::with_capacity(64)
         };
         // index of 0 means not found.
         vm.add_primitive("", VM::noop);
@@ -114,9 +114,9 @@ impl VM {
 //        vm.add_immediate("variable", VM::variable);
 //        vm.add_primitive(":", VM::colon);
 //        vm.add_immediate(";", VM::semicolon);
-        vm.idx_lit = vm.find(b"lit");
+        vm.idx_lit = vm.find("lit");
         // S_heap is beginning with noop, because s_heap[0] should not be used.
-        let idx = vm.find(b"noop");
+        let idx = vm.find("noop");
         vm.compile_word(idx);
         vm
     }
@@ -142,14 +142,14 @@ impl VM {
 
     /// Find the word with name 'name'.
     /// If not found returns zero.
-    pub fn find(&self, name: &[u8]) -> usize {
+    pub fn find(&self, name: &str) -> usize {
         let mut i = 0usize;
         let mut found_index = 0usize;
         for w in self.word_list.iter() {
             let mut j = 0usize;
             if w.name_len == name.len() {
-                for ch in name {
-                    if self.n_heap[j+w.nfa] != *ch {
+                for byte in name.bytes() {
+                    if self.n_heap[j+w.nfa] != byte {
                         break;
                     }
                     j = j + 1;
@@ -217,25 +217,25 @@ impl VM {
 
 // Evaluation
 
-    pub fn scan(&mut self, input_buffer: &[u8]) {
+    pub fn scan(&mut self, input_buffer: &str) {
         self.last_token.clear();
         let source = &input_buffer[self.input_index..input_buffer.len()];
         let mut cnt = 0;
-        for byte in source {
-            match byte {
-                &9u8 | &10u8 | &13u8 | &32u8 => {
+        for ch in source.chars() {
+            match ch {
+                '\t' | '\n' | '\r' | ' ' => {
                     if !self.last_token.is_empty() {
                         break;
                     }
                 },
-                _ => self.last_token.push(*byte)
+                _ => self.last_token.push(ch)
             };
             cnt = cnt + 1;
         }
         self.input_index = self.input_index + cnt;
     }
 
-    pub fn evaluate(&mut self, input_buffer: &[u8]) {
+    pub fn evaluate(&mut self, input_buffer: &str) {
         let saved_ip = self.instruction_pointer;
         let mut input_index = 0;
         self.instruction_pointer = 0;
@@ -682,15 +682,15 @@ mod tests {
     #[test]
     fn test_find() {
         let vm = &mut VM::new();
-        assert_eq!(0usize, vm.find(b""));
-        assert_eq!(0usize, vm.find(b"word-not-exist"));
-        assert_eq!(1usize, vm.find(b"noop"));
+        assert_eq!(0usize, vm.find(""));
+        assert_eq!(0usize, vm.find("word-not-exist"));
+        assert_eq!(1usize, vm.find("noop"));
     }
 
     #[test]
     fn test_inner_interpreter_without_nest () {
         let vm = &mut VM::new();
-        let idx = vm.find(b"noop");
+        let idx = vm.find("noop");
         vm.compile_word(idx);
         vm.compile_integer(3);
         vm.compile_integer(2);
@@ -1071,22 +1071,22 @@ mod tests {
     #[test]
     fn test_scan () {
         let vm = &mut VM::new();
-        let input_buffer = b"hello world\t\r\n\"";
+        let input_buffer = "hello world\t\r\n\"";
         vm.input_index = 0;
         vm.scan(input_buffer);
-        assert_eq!(str::from_utf8(&vm.last_token).unwrap(), "hello");
+        assert_eq!(vm.last_token, "hello");
         assert_eq!(vm.input_index, 5);
         vm.scan(input_buffer);
-        assert_eq!(str::from_utf8(&vm.last_token).unwrap(), "world");
+        assert_eq!(vm.last_token, "world");
         assert_eq!(vm.input_index, 11);
         vm.scan(input_buffer);
-        assert_eq!(str::from_utf8(&vm.last_token).unwrap(), "\"");
+        assert_eq!(vm.last_token, "\"");
     }
 
     #[test]
     fn test_evaluate () {
         let vm = &mut VM::new();
-        let input_buffer = b"false true dup 1+";
+        let input_buffer = "false true dup 1+";
         vm.evaluate(input_buffer);
         assert_eq!(vm.s_stack.len(), 3);
         assert_eq!(vm.s_stack, [0, -1, 0]);

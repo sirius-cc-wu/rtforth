@@ -86,6 +86,9 @@ impl VM {
         vm.add_primitive("-", VM::minus);
         vm.add_primitive("+", VM::plus);
         vm.add_primitive("*", VM::star);
+        vm.add_primitive("/", VM::slash);
+        vm.add_primitive("mod", VM::p_mod);
+        vm.add_primitive("/mod", VM::slash_mod);
         vm.find("lit");
         vm.idx_lit = vm.found_index;
         // S_heap is beginning with noop, because s_heap[0] should not be used.
@@ -388,6 +391,42 @@ impl VM {
         }
     }
 
+    pub fn slash(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => { self.s_stack.push(n/t); },
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn p_mod(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => { self.s_stack.push(n%t); },
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn slash_mod(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => {
+                        self.s_stack.push(n%t);
+                        self.s_stack.push(n/t);
+                    },
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
     pub fn exit(&mut self) {
         match self.r_stack.pop() {
             None => self.abort (R_STACK_UNDERFLOW),
@@ -571,6 +610,33 @@ mod tests {
         vm.s_stack.push(7);
         vm.star();
         assert_eq!(vm.s_stack, [35]);
+    }
+
+    #[test]
+    fn test_slash () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(30);
+        vm.s_stack.push(7);
+        vm.slash();
+        assert_eq!(vm.s_stack, [4]);
+    }
+
+    #[test]
+    fn test_mod () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(30);
+        vm.s_stack.push(7);
+        vm.p_mod();
+        assert_eq!(vm.s_stack, [2]);
+    }
+
+    #[test]
+    fn test_slash_mod () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(30);
+        vm.s_stack.push(7);
+        vm.slash_mod();
+        assert_eq!(vm.s_stack, [2, 4]);
     }
 
 }

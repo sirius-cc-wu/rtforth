@@ -1,5 +1,6 @@
 use std::str;
 use std::num::SignedInt;
+use std::str::FromStr;
 
 // Error messages
 static S_STACK_UNDERFLOW: &'static str = "Data stack underflow";
@@ -37,6 +38,7 @@ pub struct VM {
     error_code: isize,
     pub s_stack: Vec<isize>,
     r_stack: Vec<usize>,
+    f_stack: Vec<f64>,
     s_heap: Vec<isize>,
     f_heap: Vec<f64>,
     n_heap: String,
@@ -56,6 +58,7 @@ impl VM {
             error_code: 0,
             s_stack: Vec::with_capacity(16),
             r_stack: Vec::with_capacity(16),
+            f_stack: Vec::with_capacity(16),
             s_heap: Vec::with_capacity(64),
             f_heap: Vec::with_capacity(64),
             n_heap: String::with_capacity(64),
@@ -233,6 +236,14 @@ impl VM {
             if self.last_token.is_empty() {
                 break;
             }
+            match FromStr::from_str(&self.last_token) {
+                Ok(t) => { self.s_stack.push (t); continue },
+                Err(e) => {}
+            };
+            match FromStr::from_str(&self.last_token) {
+                Ok(t) => { self.f_stack.push (t); continue },
+                Err(e) => {}
+            };
             let found_index = self.find(&self.last_token);
             if found_index != 0 {
                 if !self.is_compiling || self.word_list[found_index].is_immediate {
@@ -1073,10 +1084,20 @@ mod tests {
     #[test]
     fn test_evaluate () {
         let vm = &mut VM::new();
-        let input_buffer = "false true dup 1+";
+        let input_buffer = "false true dup 1+ 2 -3";
         vm.evaluate(input_buffer);
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack, [0, -1, 0]);
+        assert_eq!(vm.s_stack, [0, -1, 0, 2, -3]);
     }
 
+    #[test]
+    fn test_evaluate_f64 () {
+        let vm = &mut VM::new();
+        let input_buffer = "1.0 2.5";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.f_stack.len(), 2);
+        assert!(0.99999 < vm.f_stack[0]);
+        assert!(vm.f_stack[0] < 1.00001);
+        assert!(2.49999 < vm.f_stack[1]);
+        assert!(vm.f_stack[1] < 2.50001);
+    }
 }

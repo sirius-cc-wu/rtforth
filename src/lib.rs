@@ -39,7 +39,7 @@ pub struct VM {
     r_stack: Vec<usize>,
     s_heap: Vec<isize>,
     f_heap: Vec<f64>,
-    n_heap: Vec<u8>,
+    n_heap: String,
     word_list: Vec<Word>,
     instruction_pointer: usize,
     word_pointer: usize,
@@ -58,7 +58,7 @@ impl VM {
             r_stack: Vec::with_capacity(16),
             s_heap: Vec::with_capacity(64),
             f_heap: Vec::with_capacity(64),
-            n_heap: Vec::with_capacity(64),
+            n_heap: String::with_capacity(64),
             word_list: Vec::with_capacity(16),
             instruction_pointer: 0,
             word_pointer: 0,
@@ -123,9 +123,7 @@ impl VM {
 
     pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM)) {
         self.word_list.push (Word::new(self.n_heap.len(), name.len(), action));
-        for i in name.bytes() {
-            self.n_heap.push(i);
-        }
+        self.n_heap.push_str(name);
     }
 
     pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM)) {
@@ -146,20 +144,12 @@ impl VM {
         let mut i = 0usize;
         let mut found_index = 0usize;
         for w in self.word_list.iter() {
-            let mut j = 0usize;
-            if w.name_len == name.len() {
-                for byte in name.bytes() {
-                    if self.n_heap[j+w.nfa] != byte {
-                        break;
-                    }
-                    j = j + 1;
-                }
-            }
-            if j == name.len() {
+            let n = &self.n_heap[w.nfa .. w.nfa+w.name_len];
+            if n == name {
                 found_index = i;
                 break;
             } else {
-                i += 1usize;
+                i += 1;
             }
         }
         return found_index;
@@ -167,10 +157,7 @@ impl VM {
 
     pub fn words(&mut self) {
         for w in self.word_list.iter() {
-            let s = match str::from_utf8(&self.n_heap[w.nfa..w.nfa+w.name_len]) {
-                Ok(v) => v,
-                Err(e) => panic!("Invalid word name.")
-            };
+            let s = &self.n_heap[w.nfa..w.nfa+w.name_len];
             println!("{}", s );
         }
     }

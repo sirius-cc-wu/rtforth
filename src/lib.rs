@@ -2,8 +2,8 @@ use std::str;
 use std::num::SignedInt;
 
 // Error messages
-static S_STACK_UNDERFLOW: &'static [u8] = b"Data stack underflow";
-static R_STACK_UNDERFLOW: &'static [u8] = b"Return stack underflow";
+static S_STACK_UNDERFLOW: &'static str = "Data stack underflow";
+static R_STACK_UNDERFLOW: &'static str = "Return stack underflow";
 
 // Word
 pub struct Word {
@@ -654,9 +654,9 @@ impl VM {
         return self.error_code != 0;
     }
 
-    pub fn abort(&mut self, msg: &[u8]) {
+    pub fn abort(&mut self, msg: &str) {
         // TODO
-        println!("{}", str::from_utf8(msg).unwrap());
+        println!("{}", msg);
     }
 
 }

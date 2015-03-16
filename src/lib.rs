@@ -5,6 +5,7 @@ use std::str::FromStr;
 // Error messages
 static S_STACK_UNDERFLOW: &'static str = "Data stack underflow";
 static R_STACK_UNDERFLOW: &'static str = "Return stack underflow";
+static WORD_NOT_FOUND: &'static str = "Word not found";
 
 // Word
 pub struct Word {
@@ -46,6 +47,7 @@ pub struct VM {
     instruction_pointer: usize,
     word_pointer: usize,
     idx_lit: usize,
+    idx_flit: usize,
     input_index: usize,
     last_token: String 
 }
@@ -66,6 +68,7 @@ impl VM {
             instruction_pointer: 0,
             word_pointer: 0,
             idx_lit: 0,
+            idx_flit: 0,
             input_index: 0,
             last_token: String::with_capacity(64)
         };
@@ -113,11 +116,13 @@ impl VM {
         vm.add_primitive("and", VM::and);
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
+        vm.add_primitive("flit", VM::flit);;
 //        vm.add_primitive("constant", VM::constant);
 //        vm.add_immediate("variable", VM::variable);
 //        vm.add_primitive(":", VM::colon);
 //        vm.add_immediate(";", VM::semicolon);
         vm.idx_lit = vm.find("lit");
+        vm.idx_flit = vm.find("flit");
         // S_heap is beginning with noop, because s_heap[0] should not be used.
         let idx = vm.find("noop");
         vm.compile_word(idx);
@@ -205,6 +210,13 @@ impl VM {
         self.s_heap.push(i);
     }
 
+    /// Compile float 'f'.
+    pub fn compile_float (&mut self, f: f64) {
+        self.s_heap.push(self.idx_flit as isize);
+        self.f_heap.push(f);
+        self.s_heap.push(self.f_heap.len() as isize);
+    }
+
 // Evaluation
 
     pub fn scan(&mut self, input_buffer: &str) {
@@ -237,11 +249,25 @@ impl VM {
                 break;
             }
             match FromStr::from_str(&self.last_token) {
-                Ok(t) => { self.s_stack.push (t); continue },
+                Ok(t) => {
+                    if self.is_compiling {
+                        self.compile_integer(t);
+                    } else {
+                        self.s_stack.push (t);
+                    }
+                    continue
+                },
                 Err(e) => {}
             };
             match FromStr::from_str(&self.last_token) {
-                Ok(t) => { self.f_stack.push (t); continue },
+                Ok(t) => {
+                    if self.is_compiling {
+                        self.compile_float(t);
+                    } else {
+                        self.f_stack.push (t);
+                    }
+                    continue
+                },
                 Err(e) => {}
             };
             let found_index = self.find(&self.last_token);
@@ -254,6 +280,8 @@ impl VM {
                 } else {
                     self.compile_word(found_index);
                 }
+            } else {
+                self.abort(WORD_NOT_FOUND);
             }
             if self.has_error() {
                 break;
@@ -278,6 +306,11 @@ impl VM {
 
     pub fn lit(&mut self) {
         self.s_stack.push (self.s_heap[self.instruction_pointer]);
+        self.instruction_pointer = self.instruction_pointer + 1;
+    }
+
+    pub fn flit(&mut self) {
+        self.f_stack.push (self.f_heap[self.s_heap[self.instruction_pointer] as usize]);
         self.instruction_pointer = self.instruction_pointer + 1;
     }
 

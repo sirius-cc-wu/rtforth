@@ -6,20 +6,23 @@ use std::str::FromStr;
 static S_STACK_UNDERFLOW: &'static str = "Data stack underflow";
 static R_STACK_UNDERFLOW: &'static str = "Return stack underflow";
 static WORD_NOT_FOUND: &'static str = "Word not found";
+static END_OF_INPUT: &'static str = "End of input";
 
 // Word
-pub struct Word {
+pub struct Word<'a, 'b> {
     is_immediate: bool,
     nfa: usize,
+    dfa: usize,
     name_len: usize,
-    action: fn(& mut VM)
+    action: fn(& mut VM<'a, 'b>)
 }
 
-impl Word {
-    pub fn new(nfa: usize, name_len: usize, action: fn(& mut VM)) -> Word {
+impl<'a, 'b> Word<'a, 'b> {
+    pub fn new(nfa: usize, name_len: usize, dfa: usize, action: fn(& mut VM<'a, 'b>)) -> Word<'a, 'b> {
         Word {
             is_immediate: false,
             nfa: nfa,
+            dfa: dfa,
             name_len: name_len,
             action: action
         }
@@ -33,7 +36,7 @@ pub struct ColonDef {
 }
 
 // Virtual machine
-pub struct VM {
+pub struct VM<'a, 'b> {
     is_compiling: bool,
     is_paused: bool,
     error_code: isize,
@@ -43,17 +46,18 @@ pub struct VM {
     s_heap: Vec<isize>,
     f_heap: Vec<f64>,
     n_heap: String,
-    word_list: Vec<Word>,
+    word_list: Vec<Word<'a, 'b>>,
     instruction_pointer: usize,
     word_pointer: usize,
     idx_lit: usize,
     idx_flit: usize,
+    input_buffer: &'b str,
     input_index: usize,
     last_token: String 
 }
 
-impl VM {
-    pub fn new() -> VM {
+impl<'a, 'b> VM<'a, 'b> {
+    pub fn new() -> VM<'a, 'b> {
         let mut vm = VM {
             is_compiling: false,
             is_paused: true,
@@ -69,6 +73,7 @@ impl VM {
             word_pointer: 0,
             idx_lit: 0,
             idx_flit: 0,
+            input_buffer: "",
             input_index: 0,
             last_token: String::with_capacity(64)
         };
@@ -119,7 +124,7 @@ impl VM {
         vm.add_primitive("flit", VM::flit);;
 //        vm.add_primitive("constant", VM::constant);
 //        vm.add_immediate("variable", VM::variable);
-//        vm.add_primitive(":", VM::colon);
+        vm.add_primitive(":", VM::colon);
 //        vm.add_immediate(";", VM::semicolon);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
@@ -129,8 +134,8 @@ impl VM {
         vm
     }
 
-    pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM)) {
-        self.word_list.push (Word::new(self.n_heap.len(), name.len(), action));
+    pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM<'a, 'b>)) {
+        self.word_list.push (Word::new(self.n_heap.len(), name.len(), self.s_heap.len(), action));
         self.n_heap.push_str(name);
     }
 
@@ -143,6 +148,7 @@ impl VM {
     }
 
     pub fn execute_word(&mut self, i: usize) {
+        self.word_pointer = i;
         (self.word_list[i].action)(self);
     }
 
@@ -186,19 +192,14 @@ impl VM {
 
     pub fn inner(&mut self) {
         while self.instruction_pointer > 0 && self.instruction_pointer < self.s_heap.len() {
-            self.word_pointer = self.s_heap[self.instruction_pointer] as usize;
+            let w = self.s_heap[self.instruction_pointer] as usize;
             self.instruction_pointer += 1;
-            let w = self.word_pointer;
             self.execute_word (w);
         }
         self.instruction_pointer = 0;
     }
 
 // Compiler
-
-    pub fn compile(&mut self) {
-        self.is_compiling = true;
-    }
 
     pub fn compile_word(&mut self, word_index: usize) {
         self.s_heap.push(word_index as isize);
@@ -219,9 +220,17 @@ impl VM {
 
 // Evaluation
 
-    pub fn scan(&mut self, input_buffer: &str) {
+    pub fn interpret(& mut self) {
+        self.is_compiling = false;
+    }
+
+    pub fn compile(& mut self) {
+        self.is_compiling = true;
+    }
+
+    pub fn scan(&mut self) {
         self.last_token.clear();
-        let source = &input_buffer[self.input_index..input_buffer.len()];
+        let source = &self.input_buffer[self.input_index..self.input_buffer.len()];
         let mut cnt = 0;
         for ch in source.chars() {
             match ch {
@@ -237,14 +246,15 @@ impl VM {
         self.input_index = self.input_index + cnt;
     }
 
-    pub fn evaluate(&mut self, input_buffer: &str) {
+    pub fn evaluate(&mut self, input_buffer: &'b str) {
         let saved_ip = self.instruction_pointer;
         let mut input_index = 0;
         self.instruction_pointer = 0;
         self.error_code = 0;
         self.input_index = 0;
+        self.input_buffer = input_buffer;
         loop {
-            self.scan(input_buffer);
+            self.scan();
             if self.last_token.is_empty() {
                 break;
             }
@@ -288,6 +298,26 @@ impl VM {
             }
         }
         self.instruction_pointer = saved_ip;
+    }
+
+// High level definitions
+
+    pub fn nest(&mut self) {
+        self.r_stack.push(self.instruction_pointer);
+        self.instruction_pointer = self.word_list[self.word_pointer].dfa;
+    }
+
+    pub fn colon(&mut self) {
+        self.scan();
+        if !self.last_token.is_empty() {
+            // 以下這命令無法編譯，因此展開。未來是否可以用 macro 來解決這類問題？
+            // self.add_primitive(&self.last_token, VM::nest);
+            self.word_list.push (Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), VM::nest));
+            self.n_heap.push_str(&self.last_token);
+            self.compile();
+        } else {
+            self.abort (END_OF_INPUT);
+        }
     }
 
 // Primitives
@@ -1102,15 +1132,15 @@ mod tests {
     #[test]
     fn test_scan () {
         let vm = &mut VM::new();
-        let input_buffer = "hello world\t\r\n\"";
+        vm.input_buffer = "hello world\t\r\n\"";
         vm.input_index = 0;
-        vm.scan(input_buffer);
+        vm.scan();
         assert_eq!(vm.last_token, "hello");
         assert_eq!(vm.input_index, 5);
-        vm.scan(input_buffer);
+        vm.scan();
         assert_eq!(vm.last_token, "world");
         assert_eq!(vm.input_index, 11);
-        vm.scan(input_buffer);
+        vm.scan();
         assert_eq!(vm.last_token, "\"");
     }
 

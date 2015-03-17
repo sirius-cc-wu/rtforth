@@ -154,6 +154,7 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_immediate("while", VM::imm_while);
         vm.add_immediate("repeat", VM::imm_repeat);
         vm.add_immediate("again", VM::imm_again);
+        vm.add_immediate("\\", VM::imm_backslash);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
@@ -275,6 +276,10 @@ impl<'a, 'b> VM<'a, 'b> {
             cnt = cnt + 1;
         }
         self.input_index = self.input_index + cnt;
+    }
+
+    pub fn imm_backslash(&mut self) {
+       self.input_index = self.input_buffer.len(); 
     }
 
     pub fn evaluate(&mut self, input_buffer: &'b str) {
@@ -1517,6 +1522,15 @@ mod tests {
         vm.evaluate(input_buffer);
         assert_eq!(vm.s_stack, [3]);
     }
+
+    #[test]
+    fn test_backlash () {
+        let vm = &mut VM::new();
+        let input_buffer = "1 2 3 \\ 5 6 7";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [1, 2, 3]);
+    }
+
 
 
 }

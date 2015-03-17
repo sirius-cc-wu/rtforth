@@ -132,7 +132,9 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_primitive("'", VM::tick);
         vm.add_primitive("execute", VM::execute);
         vm.add_primitive("]", VM::compile);
-        vm.add_primitive("[", VM::interpret);
+        vm.add_immediate("[", VM::interpret);
+        vm.add_primitive("here", VM::here);
+        vm.add_primitive(",", VM::comma);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_flit = vm.find("exit");
@@ -804,6 +806,17 @@ impl<'a, 'b> VM<'a, 'b> {
         };
     }
 
+    pub fn here(&mut self) {
+        self.s_stack.push(self.s_heap.len() as isize);
+    }
+
+    pub fn comma(&mut self) {
+        match self.s_stack.pop() {
+            Some(v) => self.s_heap.push(v),
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
     pub fn pause(&mut self) {
         self.r_stack.push(self.instruction_pointer);
         self.instruction_pointer = 0;
@@ -1282,6 +1295,15 @@ mod tests {
         let input_buffer = "1 2  ' swap execute";
         vm.evaluate(input_buffer);
         assert_eq!(vm.s_stack, [2, 1]);
+    }
+
+    #[test]
+    fn test_here_comma_comple_interpret () {
+        let vm = &mut VM::new();
+        let input_buffer = "here 1 , 2 , ] noop noop [ here";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [1, 5]);
+        assert_eq!(vm.s_heap, [1, 1, 2, 1, 1]);
     }
 
 }

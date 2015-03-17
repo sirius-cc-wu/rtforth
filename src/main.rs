@@ -5,10 +5,6 @@ use jrforth::VM;
 fn main() {
     hello::hello();
     let vm = &mut VM::new();
-    vm.p_false();
-    vm.p_true();
-    vm.s_stack.push(2);
-    vm.dot_s();
     vm.words();
 }
 

@@ -154,9 +154,6 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_immediate("while", VM::imm_while);
         vm.add_immediate("repeat", VM::imm_repeat);
         vm.add_immediate("again", VM::imm_again);
-        vm.add_immediate("label", VM::imm_label);
-        vm.add_immediate("goto", VM::imm_goto);
-        vm.add_immediate("resolve", VM::imm_resolve);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
@@ -480,18 +477,6 @@ impl<'a, 'b> VM<'a, 'b> {
             },
             None => self.abort(S_STACK_UNDERFLOW)
         };
-    }
-
-    pub fn imm_label(&mut self) {
-        // TODO
-    }
-
-    pub fn imm_goto(&mut self) {
-        // TODO
-    }
-
-    pub fn imm_resolve(&mut self) {
-        // TODO
     }
 
 // Primitives

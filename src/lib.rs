@@ -37,7 +37,7 @@ pub struct VM<'a, 'b> {
     is_paused: bool,
     error_code: isize,
     pub s_stack: Vec<isize>,
-    r_stack: Vec<usize>,
+    r_stack: Vec<isize>,
     f_stack: Vec<f64>,
     s_heap: Vec<isize>,
     f_heap: Vec<f64>,
@@ -135,6 +135,12 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_immediate("[", VM::interpret);
         vm.add_primitive("here", VM::here);
         vm.add_primitive(",", VM::comma);
+        vm.add_primitive(">r", VM::to_r);
+        vm.add_primitive("r>", VM::r_from);
+        vm.add_primitive("r@", VM::r_fetch);
+        vm.add_primitive("2>r", VM::two_to_r);
+        vm.add_primitive("2r>", VM::two_r_from);
+        vm.add_primitive("2r@", VM::two_r_fetch);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_flit = vm.find("exit");
@@ -313,7 +319,7 @@ impl<'a, 'b> VM<'a, 'b> {
 // High level definitions
 
     pub fn nest(&mut self) {
-        self.r_stack.push(self.instruction_pointer);
+        self.r_stack.push(self.instruction_pointer as isize);
         self.instruction_pointer = self.word_list[self.word_pointer].dfa;
     }
 
@@ -763,7 +769,7 @@ impl<'a, 'b> VM<'a, 'b> {
     pub fn exit(&mut self) {
         match self.r_stack.pop() {
             None => self.abort (R_STACK_UNDERFLOW),
-            Some(x) => self.instruction_pointer = x,
+            Some(x) => self.instruction_pointer = x as usize,
         }
     }
 
@@ -817,8 +823,68 @@ impl<'a, 'b> VM<'a, 'b> {
         }
     }
 
+    pub fn to_r(&mut self) {
+        match self.s_stack.pop() {
+            Some(v) => self.r_stack.push(v),
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn r_from(&mut self) {
+        match self.r_stack.pop() {
+            Some(v) => self.s_stack.push(v),
+            None => self.abort(R_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn r_fetch(&mut self) {
+        match self.r_stack.pop() {
+            Some(v) => {
+                self.r_stack.push(v);
+                self.s_stack.push(v);
+            },
+            None => self.abort(R_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn two_to_r(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => { self.r_stack.push(n); self.r_stack.push(t); },
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn two_r_from(&mut self) {
+        match self.r_stack.pop() {
+            Some(t) =>
+                match self.r_stack.pop() {
+                    Some(n) => { self.s_stack.push(n); self.s_stack.push(t); },
+                    None => self.abort(R_STACK_UNDERFLOW)
+                },
+            None => self.abort(R_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn two_r_fetch(&mut self) {
+        match self.r_stack.pop() {
+            Some(t) =>
+                match self.r_stack.pop() {
+                    Some(n) => {
+                        self.s_stack.push(n); self.s_stack.push(t);
+                        self.r_stack.push(n); self.r_stack.push(t);
+                    },
+                    None => self.abort(R_STACK_UNDERFLOW)
+                },
+            None => self.abort(R_STACK_UNDERFLOW)
+        }
+    }
+
     pub fn pause(&mut self) {
-        self.r_stack.push(self.instruction_pointer);
+        self.r_stack.push(self.instruction_pointer as isize);
         self.instruction_pointer = 0;
         self.is_paused = true;
     }
@@ -1304,6 +1370,22 @@ mod tests {
         vm.evaluate(input_buffer);
         assert_eq!(vm.s_stack, [1, 5]);
         assert_eq!(vm.s_heap, [1, 1, 2, 1, 1]);
+    }
+
+    #[test]
+    fn test_to_r_r_fetch_r_from () {
+        let vm = &mut VM::new();
+        let input_buffer = ": t 3 >r 2 r@ + r> + ; t";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [8]);
+    }
+
+    #[test]
+    fn test_two_to_r_two_r_fetch_two_r_from () {
+        let vm = &mut VM::new();
+        let input_buffer = ": t 1 2 2>r 2r@ + 2r> - * ; t";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [-3]);
     }
 
 }

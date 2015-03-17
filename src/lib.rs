@@ -122,12 +122,15 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
         vm.add_primitive("flit", VM::flit);;
+        vm.add_primitive("scan", VM::scan);;
         vm.add_primitive(":", VM::colon);
         vm.add_immediate(";", VM::semicolon);
         vm.add_primitive("constant", VM::constant);
         vm.add_primitive("variable", VM::variable);
         vm.add_primitive("@", VM::fetch);
         vm.add_primitive("!", VM::store);
+        vm.add_primitive("'", VM::tick);
+        vm.add_primitive("execute", VM::execute);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_flit = vm.find("exit");
@@ -778,6 +781,27 @@ impl<'a, 'b> VM<'a, 'b> {
         }
     }
 
+    pub fn tick(&mut self) {
+        self.scan();
+        if !self.last_token.is_empty() {
+            let found_index = self.find(&self.last_token);
+            if found_index != 0 {
+                self.s_stack.push(found_index as isize);
+            } else {
+                self.abort(WORD_NOT_FOUND);
+            }
+        } else {
+            self.abort(END_OF_INPUT);
+        }
+    }
+
+    pub fn execute(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.execute_word(t as usize),
+            None => self.abort(S_STACK_UNDERFLOW)
+        };
+    }
+
     pub fn pause(&mut self) {
         self.r_stack.push(self.instruction_pointer);
         self.instruction_pointer = 0;
@@ -1243,11 +1267,19 @@ mod tests {
     }
 
     #[test]
-    fn test_variable () {
+    fn test_variable_and_store_fetch () {
         let vm = &mut VM::new();
         let input_buffer = "variable x  x @  3 x !  x @";
         vm.evaluate(input_buffer);
         assert_eq!(vm.s_stack, [0, 3]);
+    }
+
+    #[test]
+    fn test_execute () {
+        let vm = &mut VM::new();
+        let input_buffer = "1 2  ' swap execute";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [2, 1]);
     }
 
 }

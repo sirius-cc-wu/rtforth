@@ -445,19 +445,41 @@ impl<'a, 'b> VM<'a, 'b> {
     }
 
     pub fn imm_begin(&mut self) {
-        // TODO
+        self.s_stack.push(self.s_heap.len() as isize);
     }
 
     pub fn imm_while(&mut self) {
-        // TODO
+        self.s_heap.push(self.idx_zero_branch as isize);
+        self.s_heap.push(0);
+        self.s_stack.push(self.s_heap.len() as isize);
     }
 
     pub fn imm_repeat(&mut self) {
-        // TODO
+        self.s_heap.push(self.idx_branch as isize);
+        match self.s_stack.pop() {
+            Some(while_part) => {
+                match self.s_stack.pop() {
+                    Some(begin_part) => {
+                        let len = self.s_heap.len() as isize;
+                        self.s_heap.push(begin_part-len);
+                        self.s_heap[(while_part+1) as usize] = len - while_part + 1;
+                    },
+                    None => self.abort(S_STACK_UNDERFLOW)
+                };
+            },
+            None => self.abort(S_STACK_UNDERFLOW)
+        };
     }
 
     pub fn imm_again(&mut self) {
-        // TODO
+        self.s_heap.push(self.idx_branch as isize);
+        match self.s_stack.pop() {
+            Some(v) => {
+                let len = self.s_heap.len() as isize;
+                self.s_heap.push(v-len);
+            },
+            None => self.abort(S_STACK_UNDERFLOW)
+        };
     }
 
     pub fn imm_label(&mut self) {
@@ -1494,5 +1516,21 @@ mod tests {
         vm.evaluate(input_buffer);
         assert_eq!(vm.s_stack, [-1]);
     }
+
+    #[test]
+    fn test_begin_again () {
+        let vm = &mut VM::new();
+        let input_buffer = ": t1 0 begin 1+ dup 3 = if exit then again ; t1";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [3]);
+    }
+
+    fn test_begin_while_repeat () {
+        let vm = &mut VM::new();
+        let input_buffer = ": t1 0 begin 1+ dup 3 <> while repeat ; t1";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [3]);
+    }
+
 
 }

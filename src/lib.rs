@@ -131,6 +131,8 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_primitive("!", VM::store);
         vm.add_primitive("'", VM::tick);
         vm.add_primitive("execute", VM::execute);
+        vm.add_primitive("]", VM::compile);
+        vm.add_primitive("[", VM::interpret);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_flit = vm.find("exit");

@@ -48,6 +48,8 @@ pub struct VM<'a, 'b> {
     idx_lit: usize,
     idx_exit: usize,
     idx_flit: usize,
+    idx_zero_branch: usize,
+    idx_branch: usize,
     input_buffer: &'b str,
     input_index: usize,
     last_token: String,
@@ -72,6 +74,8 @@ impl<'a, 'b> VM<'a, 'b> {
             idx_lit: 0,
             idx_exit: 0,
             idx_flit: 0,
+            idx_zero_branch: 0,
+            idx_branch: 0,
             input_buffer: "",
             input_index: 0,
             last_token: String::with_capacity(64),
@@ -141,9 +145,23 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_primitive("2>r", VM::two_to_r);
         vm.add_primitive("2r>", VM::two_r_from);
         vm.add_primitive("2r@", VM::two_r_fetch);
+        vm.add_primitive("0branch", VM::zero_branch);
+        vm.add_primitive("branch", VM::branch);
+        vm.add_immediate("if", VM::imm_if);
+        vm.add_immediate("else", VM::imm_else);
+        vm.add_immediate("then", VM::imm_then);
+        vm.add_immediate("begin", VM::imm_begin);
+        vm.add_immediate("while", VM::imm_while);
+        vm.add_immediate("repeat", VM::imm_repeat);
+        vm.add_immediate("again", VM::imm_again);
+        vm.add_immediate("label", VM::imm_label);
+        vm.add_immediate("goto", VM::imm_goto);
+        vm.add_immediate("resolve", VM::imm_resolve);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
-        vm.idx_flit = vm.find("exit");
+        vm.idx_exit = vm.find("exit");
+        vm.idx_branch = vm.find("branch");
+        vm.idx_zero_branch = vm.find("0branch");
         // S_heap is beginning with noop, because s_heap[0] should not be used.
         let idx = vm.find("noop");
         vm.compile_word(idx);
@@ -375,6 +393,83 @@ impl<'a, 'b> VM<'a, 'b> {
             },
             None => self.abort(S_STACK_UNDERFLOW)
         }
+    }
+
+// Control
+
+    pub fn branch(&mut self) {
+        self.instruction_pointer = ((self.instruction_pointer as isize)+ self.s_heap[self.instruction_pointer]) as usize;
+    }
+
+    pub fn zero_branch(&mut self) {
+        match self.s_stack.pop() {
+            Some(v) => {
+                if v == 0 {
+                    self.branch()
+                } else {
+                    self.instruction_pointer = self.instruction_pointer + 1;
+                }
+            },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn imm_if(&mut self) {
+        self.s_heap.push(self.idx_zero_branch as isize);
+        self.s_heap.push(0);
+        self.s_stack.push(self.s_heap.len() as isize);
+    }
+
+    pub fn imm_else(&mut self) {
+        self.s_heap.push(self.idx_branch as isize);
+        self.s_heap.push(0);
+        match self.s_stack.pop() {
+            Some(v) => {
+                let if_part = v;
+                let else_part = self.s_heap.len() as isize;
+                self.s_heap[(if_part-1) as usize] = else_part-if_part+1;
+                self.s_stack.push(else_part);
+            },
+            None => self.abort(S_STACK_UNDERFLOW)
+        };
+    }
+
+    pub fn imm_then(&mut self) {
+        match self.s_stack.pop() {
+            Some(v) => {
+                let branch_part = v;
+                self.s_heap[(branch_part-1) as usize] = (self.s_heap.len() as isize) - branch_part + 1;
+            },
+            None => self.abort(S_STACK_UNDERFLOW)
+        };
+    }
+
+    pub fn imm_begin(&mut self) {
+        // TODO
+    }
+
+    pub fn imm_while(&mut self) {
+        // TODO
+    }
+
+    pub fn imm_repeat(&mut self) {
+        // TODO
+    }
+
+    pub fn imm_again(&mut self) {
+        // TODO
+    }
+
+    pub fn imm_label(&mut self) {
+        // TODO
+    }
+
+    pub fn imm_goto(&mut self) {
+        // TODO
+    }
+
+    pub fn imm_resolve(&mut self) {
+        // TODO
     }
 
 // Primitives
@@ -1386,6 +1481,18 @@ mod tests {
         let input_buffer = ": t 1 2 2>r 2r@ + 2r> - * ; t";
         vm.evaluate(input_buffer);
         assert_eq!(vm.s_stack, [-3]);
+    }
+
+    #[test]
+    fn test_if_else_then () {
+        let vm = &mut VM::new();
+        let input_buffer = ": t1 0 if true else false then ; t1";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [0]);
+        vm.drop();
+        let input_buffer = ": t2 1 if true else false then ; t2";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [-1]);
     }
 
 }

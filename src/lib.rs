@@ -11,6 +11,7 @@ static END_OF_INPUT: &'static str = "End of input";
 // Word
 pub struct Word<'a, 'b> {
     is_immediate: bool,
+    hidden: bool,
     nfa: usize,
     dfa: usize,
     name_len: usize,
@@ -21,18 +22,13 @@ impl<'a, 'b> Word<'a, 'b> {
     pub fn new(nfa: usize, name_len: usize, dfa: usize, action: fn(& mut VM<'a, 'b>)) -> Word<'a, 'b> {
         Word {
             is_immediate: false,
+            hidden: false,
             nfa: nfa,
             dfa: dfa,
             name_len: name_len,
             action: action
         }
     }
-}
-
-// Colon Definition
-pub struct ColonDef {
-    start: isize,
-    end: isize
 }
 
 // Virtual machine
@@ -50,6 +46,7 @@ pub struct VM<'a, 'b> {
     instruction_pointer: usize,
     word_pointer: usize,
     idx_lit: usize,
+    idx_exit: usize,
     idx_flit: usize,
     input_buffer: &'b str,
     input_index: usize,
@@ -72,6 +69,7 @@ impl<'a, 'b> VM<'a, 'b> {
             instruction_pointer: 0,
             word_pointer: 0,
             idx_lit: 0,
+            idx_exit: 0,
             idx_flit: 0,
             input_buffer: "",
             input_index: 0,
@@ -123,11 +121,12 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_primitive("xor", VM::xor);
         vm.add_primitive("flit", VM::flit);;
 //        vm.add_primitive("constant", VM::constant);
-//        vm.add_immediate("variable", VM::variable);
+//        vm.add_primitive("variable", VM::variable);
         vm.add_primitive(":", VM::colon);
-//        vm.add_immediate(";", VM::semicolon);
+        vm.add_immediate(";", VM::semicolon);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
+        vm.idx_flit = vm.find("exit");
         // S_heap is beginning with noop, because s_heap[0] should not be used.
         let idx = vm.find("noop");
         vm.compile_word(idx);
@@ -139,7 +138,7 @@ impl<'a, 'b> VM<'a, 'b> {
         self.n_heap.push_str(name);
     }
 
-    pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM)) {
+    pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM<'a, 'b>)) {
         self.add_primitive (name, action);
         match self.word_list.last_mut() {
             Some(w) => w.is_immediate = true,
@@ -159,7 +158,7 @@ impl<'a, 'b> VM<'a, 'b> {
         let mut found_index = 0usize;
         for w in self.word_list.iter() {
             let n = &self.n_heap[w.nfa .. w.nfa+w.name_len];
-            if n == name {
+            if !w.hidden && n == name {
                 found_index = i;
                 break;
             } else {
@@ -312,12 +311,25 @@ impl<'a, 'b> VM<'a, 'b> {
         if !self.last_token.is_empty() {
             // 以下這命令無法編譯，因此展開。未來是否可以用 macro 來解決這類問題？
             // self.add_primitive(&self.last_token, VM::nest);
-            self.word_list.push (Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), VM::nest));
+            let mut w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), VM::nest);
+            w.hidden = true;
+            self.word_list.push (w);
             self.n_heap.push_str(&self.last_token);
             self.compile();
         } else {
             self.abort (END_OF_INPUT);
         }
+    }
+
+    pub fn semicolon(&mut self) {
+        match self.word_list.last_mut() {
+            Some(w) => {
+                w.hidden = false;
+                self.s_heap.push(self.idx_exit as isize); 
+            },
+            None => {}
+        };
+        self.interpret();
     }
 
 // Primitives
@@ -1163,4 +1175,13 @@ mod tests {
         assert!(2.49999 < vm.f_stack[1]);
         assert!(vm.f_stack[1] < 2.50001);
     }
+
+    #[test]
+    fn test_colon_and_semi_colon() {
+        let vm = &mut VM::new();
+        let input_buffer = ": 2+3 2 3 + ; 2+3";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [5]);
+    }
+
 }

@@ -50,7 +50,8 @@ pub struct VM<'a, 'b> {
     idx_flit: usize,
     input_buffer: &'b str,
     input_index: usize,
-    last_token: String 
+    last_token: String,
+    last_definition: usize
 }
 
 impl<'a, 'b> VM<'a, 'b> {
@@ -73,7 +74,8 @@ impl<'a, 'b> VM<'a, 'b> {
             idx_flit: 0,
             input_buffer: "",
             input_index: 0,
-            last_token: String::with_capacity(64)
+            last_token: String::with_capacity(64),
+            last_definition: 0
         };
         // index of 0 means not found.
         vm.add_primitive("", VM::noop);
@@ -120,8 +122,8 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
         vm.add_primitive("flit", VM::flit);;
-//        vm.add_primitive("constant", VM::constant);
-//        vm.add_primitive("variable", VM::variable);
+        vm.add_primitive("constant", VM::constant);
+        vm.add_primitive("variable", VM::variable);
         vm.add_primitive(":", VM::colon);
         vm.add_immediate(";", VM::semicolon);
         vm.idx_lit = vm.find("lit");
@@ -306,30 +308,58 @@ impl<'a, 'b> VM<'a, 'b> {
         self.instruction_pointer = self.word_list[self.word_pointer].dfa;
     }
 
-    pub fn colon(&mut self) {
+    pub fn p_var(&mut self) {
+        self.s_stack.push(self.word_list[self.word_pointer].dfa as isize);
+    }
+
+    pub fn p_const(&mut self) {
+        self.s_stack.push(self.s_heap[self.word_list[self.word_pointer].dfa]);
+    }
+
+    pub fn define(&mut self, action: fn(& mut VM<'a, 'b>)) {
         self.scan();
         if !self.last_token.is_empty() {
-            // 以下這命令無法編譯，因此展開。未來是否可以用 macro 來解決這類問題？
-            // self.add_primitive(&self.last_token, VM::nest);
-            let mut w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), VM::nest);
-            w.hidden = true;
+            let mut w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), action);
+            self.last_definition = self.word_list.len();
             self.word_list.push (w);
             self.n_heap.push_str(&self.last_token);
-            self.compile();
         } else {
+            self.last_definition = 0;
             self.abort (END_OF_INPUT);
         }
     }
 
+    pub fn colon(&mut self) {
+        self.define(VM::nest);
+        if self.last_definition != 0 {
+            self.word_list[self.last_definition].hidden = true;
+            self.compile();
+        }
+    }
+
     pub fn semicolon(&mut self) {
-        match self.word_list.last_mut() {
-            Some(w) => {
-                w.hidden = false;
-                self.s_heap.push(self.idx_exit as isize); 
-            },
-            None => {}
-        };
+        if self.last_definition != 0 {
+            self.s_heap.push(self.idx_exit as isize); 
+            self.word_list[self.last_definition].hidden = false;
+        }
         self.interpret();
+    }
+
+    pub fn variable(&mut self) {
+        self.define(VM::p_var);
+        self.s_heap.push(0);
+    }
+
+    pub fn constant(&mut self) {
+        match self.s_stack.pop() {
+            Some(v) => {
+                self.define(VM::p_const);
+                if self.last_definition != 0 {
+                    self.s_heap.push(v);
+                }
+            },
+            None => self.abort(S_STACK_UNDERFLOW)
+        }
     }
 
 // Primitives
@@ -1182,6 +1212,22 @@ mod tests {
         let input_buffer = ": 2+3 2 3 + ; 2+3";
         vm.evaluate(input_buffer);
         assert_eq!(vm.s_stack, [5]);
+    }
+
+    #[test]
+    fn test_constant () {
+        let vm = &mut VM::new();
+        let input_buffer = "5 constant x x x";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [5, 5]);
+    }
+
+    #[test]
+    fn test_variable () {
+        let vm = &mut VM::new();
+        let input_buffer = "variable x  x @  3 x !  x @";
+        vm.evaluate(input_buffer);
+        assert_eq!(vm.s_stack, [0, 3]);
     }
 
 }

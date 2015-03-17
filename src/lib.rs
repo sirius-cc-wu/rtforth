@@ -122,10 +122,12 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
         vm.add_primitive("flit", VM::flit);;
-        vm.add_primitive("constant", VM::constant);
-        vm.add_primitive("variable", VM::variable);
         vm.add_primitive(":", VM::colon);
         vm.add_immediate(";", VM::semicolon);
+        vm.add_primitive("constant", VM::constant);
+        vm.add_primitive("variable", VM::variable);
+        vm.add_primitive("@", VM::fetch);
+        vm.add_primitive("!", VM::store);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_flit = vm.find("exit");
@@ -755,6 +757,24 @@ impl<'a, 'b> VM<'a, 'b> {
         match self.r_stack.pop() {
             None => self.abort (R_STACK_UNDERFLOW),
             Some(x) => self.instruction_pointer = x,
+        }
+    }
+
+    pub fn fetch(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.s_stack.push(self.s_heap[t as usize]),
+            None => self.abort(S_STACK_UNDERFLOW)
+        };
+    }
+
+    pub fn store(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.pop() {
+                    Some(n) => { self.s_heap[t as usize] = n; },
+                    None => self.abort(S_STACK_UNDERFLOW)
+                },
+            None => self.abort(S_STACK_UNDERFLOW)
         }
     }
 

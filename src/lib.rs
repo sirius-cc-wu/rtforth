@@ -447,8 +447,8 @@ impl<'a, 'b> VM<'a, 'b> {
 
     pub fn imm_while(&mut self) {
         self.s_heap.push(self.idx_zero_branch as isize);
-        self.s_heap.push(0);
         self.s_stack.push(self.s_heap.len() as isize);
+        self.s_heap.push(0);
     }
 
     pub fn imm_repeat(&mut self) {
@@ -459,7 +459,7 @@ impl<'a, 'b> VM<'a, 'b> {
                     Some(begin_part) => {
                         let len = self.s_heap.len() as isize;
                         self.s_heap.push(begin_part-len);
-                        self.s_heap[(while_part+1) as usize] = len - while_part + 1;
+                        self.s_heap[(while_part) as usize] = len - while_part + 1;
                     },
                     None => self.abort(S_STACK_UNDERFLOW)
                 };
@@ -1510,6 +1510,7 @@ mod tests {
         assert_eq!(vm.s_stack, [3]);
     }
 
+    #[test]
     fn test_begin_while_repeat () {
         let vm = &mut VM::new();
         let input_buffer = ": t1 0 begin 1+ dup 3 <> while repeat ; t1";

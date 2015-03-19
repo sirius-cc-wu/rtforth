@@ -12,17 +12,17 @@ static WORD_NOT_FOUND: &'static str = "Word not found";
 static END_OF_INPUT: &'static str = "End of input";
 
 // Word
-pub struct Word<'a, 'b> {
+pub struct Word<'b> {
     is_immediate: bool,
     hidden: bool,
     nfa: usize,
     dfa: usize,
     name_len: usize,
-    action: fn(& mut VM<'a, 'b>)
+    action: fn(& mut VM<'b>)
 }
 
-impl<'a, 'b> Word<'a, 'b> {
-    pub fn new(nfa: usize, name_len: usize, dfa: usize, action: fn(& mut VM<'a, 'b>)) -> Word<'a, 'b> {
+impl<'b> Word<'b> {
+    pub fn new(nfa: usize, name_len: usize, dfa: usize, action: fn(& mut VM<'b>)) -> Word<'b> {
         Word {
             is_immediate: false,
             hidden: false,
@@ -35,7 +35,7 @@ impl<'a, 'b> Word<'a, 'b> {
 }
 
 // Virtual machine
-pub struct VM<'a, 'b> {
+pub struct VM<'b> {
     is_compiling: bool,
     is_paused: bool,
     error_code: isize,
@@ -45,7 +45,7 @@ pub struct VM<'a, 'b> {
     s_heap: Vec<isize>,
     f_heap: Vec<f64>,
     n_heap: String,
-    word_list: Vec<Word<'a, 'b>>,
+    word_list: Vec<Word<'b>>,
     instruction_pointer: usize,
     word_pointer: usize,
     idx_lit: usize,
@@ -59,8 +59,8 @@ pub struct VM<'a, 'b> {
     last_definition: usize
 }
 
-impl<'a, 'b> VM<'a, 'b> {
-    pub fn new() -> VM<'a, 'b> {
+impl<'b> VM<'b> {
+    pub fn new() -> VM<'b> {
         let mut vm = VM {
             is_compiling: false,
             is_paused: true,
@@ -170,12 +170,12 @@ impl<'a, 'b> VM<'a, 'b> {
         vm
     }
 
-    pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM<'a, 'b>)) {
+    pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM<'b>)) {
         self.word_list.push (Word::new(self.n_heap.len(), name.len(), self.s_heap.len(), action));
         self.n_heap.push_str(name);
     }
 
-    pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM<'a, 'b>)) {
+    pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM<'b>)) {
         self.add_primitive (name, action);
         match self.word_list.last_mut() {
             Some(w) => w.is_immediate = true,
@@ -373,7 +373,7 @@ impl<'a, 'b> VM<'a, 'b> {
         self.s_stack.push(self.s_heap[self.word_list[self.word_pointer].dfa]);
     }
 
-    pub fn define(&mut self, action: fn(& mut VM<'a, 'b>)) {
+    pub fn define(&mut self, action: fn(& mut VM<'b>)) {
         self.scan();
         if !self.last_token.is_empty() {
             let mut w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), action);

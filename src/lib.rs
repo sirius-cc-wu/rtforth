@@ -1,6 +1,9 @@
 use std::str;
 use std::num::SignedInt;
 use std::str::FromStr;
+use std::io::prelude::*;
+use std::fs::File;
+use std::io::BufReader;
 
 // Error messages
 static S_STACK_UNDERFLOW: &'static str = "Data stack underflow";
@@ -50,8 +53,8 @@ pub struct VM<'a, 'b> {
     idx_flit: usize,
     idx_zero_branch: usize,
     idx_branch: usize,
-    input_buffer: &'b str,
-    input_index: usize,
+    source: &'b str,
+    source_index: usize,
     last_token: String,
     last_definition: usize
 }
@@ -76,8 +79,8 @@ impl<'a, 'b> VM<'a, 'b> {
             idx_flit: 0,
             idx_zero_branch: 0,
             idx_branch: 0,
-            input_buffer: "",
-            input_index: 0,
+            source: "",
+            source_index: 0,
             last_token: String::with_capacity(64),
             last_definition: 0
         };
@@ -127,6 +130,7 @@ impl<'a, 'b> VM<'a, 'b> {
         vm.add_primitive("xor", VM::xor);
         vm.add_primitive("flit", VM::flit);;
         vm.add_primitive("scan", VM::scan);;
+        vm.add_primitive("evaluate", VM::evaluate);;
         vm.add_primitive(":", VM::colon);
         vm.add_immediate(";", VM::semicolon);
         vm.add_primitive("constant", VM::constant);
@@ -260,9 +264,14 @@ impl<'a, 'b> VM<'a, 'b> {
         self.is_compiling = true;
     }
 
+    pub fn set_source(&mut self, buffer: &'b str) {
+        self.source = buffer;
+        self.source_index = 0; 
+    }
+
     pub fn scan(&mut self) {
         self.last_token.clear();
-        let source = &self.input_buffer[self.input_index..self.input_buffer.len()];
+        let source = &self.source[self.source_index..self.source.len()];
         let mut cnt = 0;
         for ch in source.chars() {
             match ch {
@@ -275,20 +284,17 @@ impl<'a, 'b> VM<'a, 'b> {
             };
             cnt = cnt + 1;
         }
-        self.input_index = self.input_index + cnt;
+        self.source_index = self.source_index + cnt;
     }
 
     pub fn imm_backslash(&mut self) {
-       self.input_index = self.input_buffer.len(); 
+        self.source_index = self.source.len(); 
     }
 
-    pub fn evaluate(&mut self, input_buffer: &'b str) {
+    pub fn evaluate(&mut self) {
         let saved_ip = self.instruction_pointer;
-        let mut input_index = 0;
         self.instruction_pointer = 0;
         self.error_code = 0;
-        self.input_index = 0;
-        self.input_buffer = input_buffer;
         loop {
             self.scan();
             if self.last_token.is_empty() {
@@ -334,6 +340,22 @@ impl<'a, 'b> VM<'a, 'b> {
             }
         }
         self.instruction_pointer = saved_ip;
+    }
+
+    pub fn load(&mut self, path_name: &str) {
+        let path = Path::new(path_name);
+        let display = path.display();
+        let mut reader = match File::open(&path) {
+            Err(why) => panic!(""),
+            Ok(file) => {
+                BufReader::new(file)
+            }
+        };
+//        reader.read_line(&mut self.input_buffer);
+//        self.source = &self.input_buffer;
+//        self.source_index = 0;
+//        println!("load: {}", self.source);
+//        self.evaluate();
     }
 
 // High level definitions
@@ -1406,14 +1428,14 @@ mod tests {
     #[test]
     fn test_scan () {
         let vm = &mut VM::new();
-        vm.input_buffer = "hello world\t\r\n\"";
-        vm.input_index = 0;
+        vm.source = "hello world\t\r\n\"";
+        vm.source_index = 0;
         vm.scan();
         assert_eq!(vm.last_token, "hello");
-        assert_eq!(vm.input_index, 5);
+        assert_eq!(vm.source_index, 5);
         vm.scan();
         assert_eq!(vm.last_token, "world");
-        assert_eq!(vm.input_index, 11);
+        assert_eq!(vm.source_index, 11);
         vm.scan();
         assert_eq!(vm.last_token, "\"");
     }
@@ -1421,16 +1443,16 @@ mod tests {
     #[test]
     fn test_evaluate () {
         let vm = &mut VM::new();
-        let input_buffer = "false true dup 1+ 2 -3";
-        vm.evaluate(input_buffer);
+        vm.set_source("false true dup 1+ 2 -3");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [0, -1, 0, 2, -3]);
     }
 
     #[test]
     fn test_evaluate_f64 () {
         let vm = &mut VM::new();
-        let input_buffer = "1.0 2.5";
-        vm.evaluate(input_buffer);
+        vm.set_source("1.0 2.5");
+        vm.evaluate();
         assert_eq!(vm.f_stack.len(), 2);
         assert!(0.99999 < vm.f_stack[0]);
         assert!(vm.f_stack[0] < 1.00001);
@@ -1441,40 +1463,40 @@ mod tests {
     #[test]
     fn test_colon_and_semi_colon() {
         let vm = &mut VM::new();
-        let input_buffer = ": 2+3 2 3 + ; 2+3";
-        vm.evaluate(input_buffer);
+        vm.set_source(": 2+3 2 3 + ; 2+3");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [5]);
     }
 
     #[test]
     fn test_constant () {
         let vm = &mut VM::new();
-        let input_buffer = "5 constant x x x";
-        vm.evaluate(input_buffer);
+        vm.set_source("5 constant x x x");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [5, 5]);
     }
 
     #[test]
     fn test_variable_and_store_fetch () {
         let vm = &mut VM::new();
-        let input_buffer = "variable x  x @  3 x !  x @";
-        vm.evaluate(input_buffer);
+        vm.set_source("variable x  x @  3 x !  x @");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [0, 3]);
     }
 
     #[test]
     fn test_execute () {
         let vm = &mut VM::new();
-        let input_buffer = "1 2  ' swap execute";
-        vm.evaluate(input_buffer);
+        vm.set_source("1 2  ' swap execute");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [2, 1]);
     }
 
     #[test]
     fn test_here_comma_comple_interpret () {
         let vm = &mut VM::new();
-        let input_buffer = "here 1 , 2 , ] noop noop [ here";
-        vm.evaluate(input_buffer);
+        vm.set_source("here 1 , 2 , ] noop noop [ here");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [1, 5]);
         assert_eq!(vm.s_heap, [1, 1, 2, 1, 1]);
     }
@@ -1482,52 +1504,52 @@ mod tests {
     #[test]
     fn test_to_r_r_fetch_r_from () {
         let vm = &mut VM::new();
-        let input_buffer = ": t 3 >r 2 r@ + r> + ; t";
-        vm.evaluate(input_buffer);
+        vm.set_source(": t 3 >r 2 r@ + r> + ; t");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [8]);
     }
 
     #[test]
     fn test_two_to_r_two_r_fetch_two_r_from () {
         let vm = &mut VM::new();
-        let input_buffer = ": t 1 2 2>r 2r@ + 2r> - * ; t";
-        vm.evaluate(input_buffer);
+        vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [-3]);
     }
 
     #[test]
     fn test_if_else_then () {
         let vm = &mut VM::new();
-        let input_buffer = ": t1 0 if true else false then ; t1";
-        vm.evaluate(input_buffer);
+        vm.set_source(": t1 0 if true else false then ; t1");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [0]);
         vm.drop();
-        let input_buffer = ": t2 1 if true else false then ; t2";
-        vm.evaluate(input_buffer);
+        vm.set_source(": t2 1 if true else false then ; t2");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [-1]);
     }
 
     #[test]
     fn test_begin_again () {
         let vm = &mut VM::new();
-        let input_buffer = ": t1 0 begin 1+ dup 3 = if exit then again ; t1";
-        vm.evaluate(input_buffer);
+        vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [3]);
     }
 
     #[test]
     fn test_begin_while_repeat () {
         let vm = &mut VM::new();
-        let input_buffer = ": t1 0 begin 1+ dup 3 <> while repeat ; t1";
-        vm.evaluate(input_buffer);
+        vm.set_source(": t1 0 begin 1+ dup 3 <> while repeat ; t1");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [3]);
     }
 
     #[test]
     fn test_backlash () {
         let vm = &mut VM::new();
-        let input_buffer = "1 2 3 \\ 5 6 7";
-        vm.evaluate(input_buffer);
+        vm.set_source("1 2 3 \\ 5 6 7");
+        vm.evaluate();
         assert_eq!(vm.s_stack, [1, 2, 3]);
     }
 

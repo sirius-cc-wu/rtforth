@@ -160,6 +160,8 @@ impl VM {
         vm.add_immediate("again", VM::imm_again);
         vm.add_immediate("\\", VM::imm_backslash);
         vm.add_primitive("marker", VM::marker);
+        vm.add_primitive("quit", VM::quit);
+        vm.add_primitive("abort", VM::abort);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
@@ -336,7 +338,7 @@ impl VM {
                 }
             } else {
                 println!("{}", &self.last_token);
-                self.abort(WORD_NOT_FOUND);
+                self.abort_with_error(WORD_NOT_FOUND);
             }
             if self.has_error() {
                 break;
@@ -366,7 +368,7 @@ impl VM {
                     }
                 },
                 Err(e) => {
-                    self.abort(e.description());
+                    self.abort_with_error(e.description());
                     break;
                 }
             }
@@ -397,7 +399,7 @@ impl VM {
             self.n_heap.push_str(&self.last_token);
         } else {
             self.last_definition = 0;
-            self.abort (END_OF_INPUT);
+            self.abort_with_error (END_OF_INPUT);
         }
     }
 
@@ -430,7 +432,7 @@ impl VM {
                     self.s_heap.push(v);
                 }
             },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -473,7 +475,7 @@ impl VM {
                     self.instruction_pointer = self.instruction_pointer + 1;
                 }
             },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -493,7 +495,7 @@ impl VM {
                 self.s_heap[(if_part-1) as usize] = else_part-if_part+1;
                 self.s_stack.push(else_part);
             },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         };
     }
 
@@ -503,7 +505,7 @@ impl VM {
                 let branch_part = v;
                 self.s_heap[(branch_part-1) as usize] = (self.s_heap.len() as isize) - branch_part + 1;
             },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         };
     }
 
@@ -527,10 +529,10 @@ impl VM {
                         self.s_heap.push(begin_part-len);
                         self.s_heap[(while_part) as usize] = len - while_part + 1;
                     },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 };
             },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         };
     }
 
@@ -541,7 +543,7 @@ impl VM {
                 let len = self.s_heap.len() as isize;
                 self.s_heap.push(v-len);
             },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         };
     }
 
@@ -574,23 +576,23 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(t); self.s_stack.push(n); },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn dup(&mut self) {
         match self.s_stack.pop() {
             Some(t) => { self.s_stack.push(t); self.s_stack.push(t); },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn drop(&mut self) {
         match self.s_stack.pop() {
             Some(t) => {},
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -599,9 +601,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(t); },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -610,9 +612,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(n); self.s_stack.push(t); self.s_stack.push(n); },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -623,11 +625,11 @@ impl VM {
                     Some(n) =>
                         match self.s_stack.pop() {
                             Some(third) => { self.s_stack.push(n); self.s_stack.push(t); self.s_stack.push(third); },
-                            None => self.abort(S_STACK_UNDERFLOW)
+                            None => self.abort_with_error(S_STACK_UNDERFLOW)
                         },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -636,9 +638,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => {},
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -652,9 +654,9 @@ impl VM {
                         self.s_stack.push(n);
                         self.s_stack.push(t);
                     },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -672,13 +674,13 @@ impl VM {
                                         self.s_stack.push(x1);
                                         self.s_stack.push(x2);
                                     },
-                                    None => self.abort(S_STACK_UNDERFLOW)
+                                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                                 },
-                            None => self.abort(S_STACK_UNDERFLOW)
+                            None => self.abort_with_error(S_STACK_UNDERFLOW)
                         },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -698,13 +700,13 @@ impl VM {
                                         self.s_stack.push(x1);
                                         self.s_stack.push(x2);
                                     },
-                                    None => self.abort(S_STACK_UNDERFLOW)
+                                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                                 },
-                            None => self.abort(S_STACK_UNDERFLOW)
+                            None => self.abort_with_error(S_STACK_UNDERFLOW)
                         },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -712,7 +714,7 @@ impl VM {
         match self.s_stack.pop() {
             Some(t) =>
                 self.s_stack.push(t+1),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -720,7 +722,7 @@ impl VM {
         match self.s_stack.pop() {
             Some(t) =>
                 self.s_stack.push(t-1),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -729,9 +731,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(t+n); },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -740,9 +742,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(n-t); },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -751,9 +753,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(n*t); },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -762,9 +764,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(n/t); },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -773,9 +775,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(n%t); },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -787,51 +789,51 @@ impl VM {
                         self.s_stack.push(n%t);
                         self.s_stack.push(n/t);
                     },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn abs(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(t.abs()),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn negate(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(-t),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn zero_less(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(if t<0 {-1} else {0}),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn zero_equals(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(if t==0 {-1} else {0}),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn zero_greater(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(if t>0 {-1} else {0}),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn zero_not_equals(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(if t!=0 {-1} else {0}),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -840,9 +842,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(if t==n {-1} else {0}),
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -851,9 +853,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(if n<t {-1} else {0}),
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -862,9 +864,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(if n>t {-1} else {0}),
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -873,9 +875,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(if n!=t {-1} else {0}),
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -886,18 +888,18 @@ impl VM {
                     Some(x2) =>
                         match self.s_stack.pop() {
                             Some(x1) => self.s_stack.push(if x1>=x2 && x1<=x3 {-1} else {0}),
-                            None => self.abort(S_STACK_UNDERFLOW)
+                            None => self.abort_with_error(S_STACK_UNDERFLOW)
                         },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn invert(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(!t),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -906,9 +908,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(t & n),
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -917,9 +919,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(t | n),
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -928,15 +930,15 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(t ^ n),
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn exit(&mut self) {
         match self.r_stack.pop() {
-            None => self.abort (R_STACK_UNDERFLOW),
+            None => self.abort_with_error (R_STACK_UNDERFLOW),
             Some(x) => self.instruction_pointer = x as usize,
         }
     }
@@ -944,7 +946,7 @@ impl VM {
     pub fn fetch(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(self.s_heap[t as usize]),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         };
     }
 
@@ -953,9 +955,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_heap[t as usize] = n; },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -966,17 +968,17 @@ impl VM {
             if found_index != 0 {
                 self.s_stack.push(found_index as isize);
             } else {
-                self.abort(WORD_NOT_FOUND);
+                self.abort_with_error(WORD_NOT_FOUND);
             }
         } else {
-            self.abort(END_OF_INPUT);
+            self.abort_with_error(END_OF_INPUT);
         }
     }
 
     pub fn execute(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.execute_word(t as usize),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         };
     }
 
@@ -987,21 +989,21 @@ impl VM {
     pub fn comma(&mut self) {
         match self.s_stack.pop() {
             Some(v) => self.s_heap.push(v),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn to_r(&mut self) {
         match self.s_stack.pop() {
             Some(v) => self.r_stack.push(v),
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
     pub fn r_from(&mut self) {
         match self.r_stack.pop() {
             Some(v) => self.s_stack.push(v),
-            None => self.abort(R_STACK_UNDERFLOW)
+            None => self.abort_with_error(R_STACK_UNDERFLOW)
         }
     }
 
@@ -1011,7 +1013,7 @@ impl VM {
                 self.r_stack.push(v);
                 self.s_stack.push(v);
             },
-            None => self.abort(R_STACK_UNDERFLOW)
+            None => self.abort_with_error(R_STACK_UNDERFLOW)
         }
     }
 
@@ -1020,9 +1022,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.r_stack.push(n); self.r_stack.push(t); },
-                    None => self.abort(S_STACK_UNDERFLOW)
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
-            None => self.abort(S_STACK_UNDERFLOW)
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
 
@@ -1031,9 +1033,9 @@ impl VM {
             Some(t) =>
                 match self.r_stack.pop() {
                     Some(n) => { self.s_stack.push(n); self.s_stack.push(t); },
-                    None => self.abort(R_STACK_UNDERFLOW)
+                    None => self.abort_with_error(R_STACK_UNDERFLOW)
                 },
-            None => self.abort(R_STACK_UNDERFLOW)
+            None => self.abort_with_error(R_STACK_UNDERFLOW)
         }
     }
 
@@ -1045,9 +1047,9 @@ impl VM {
                         self.s_stack.push(n); self.s_stack.push(t);
                         self.r_stack.push(n); self.r_stack.push(t);
                     },
-                    None => self.abort(R_STACK_UNDERFLOW)
+                    None => self.abort_with_error(R_STACK_UNDERFLOW)
                 },
-            None => self.abort(R_STACK_UNDERFLOW)
+            None => self.abort_with_error(R_STACK_UNDERFLOW)
         }
     }
 
@@ -1063,11 +1065,26 @@ impl VM {
         return self.error_code != 0;
     }
 
-    pub fn abort(&mut self, msg: &str) {
-        // TODO
+    pub fn abort_with_error(&mut self, msg: &str) {
         println!("{}", msg);
+        self.abort();
     }
 
+    pub fn abort(&mut self) {
+        self.s_stack.clear();
+        self.f_stack.clear();
+        self.quit();
+    }
+
+    pub fn quit(&mut self) {
+        self.r_stack.clear();
+        self.input_buffer.clear();
+        self.source_index = 0;
+        self.instruction_pointer = 0;
+        self.last_definition = 0;
+        self.is_paused = false;
+        self.interpret();
+    }
 }
 
 #[cfg(test)]
@@ -1591,6 +1608,21 @@ mod tests {
         assert_eq!(vm.s_stack, [1, 2, 3]);
     }
 
+    #[test]
+    fn test_quit () {
+        let vm = &mut VM::new();
+        vm.set_source("1 2 3 quit 5 6 7");
+        vm.evaluate();
+        assert_eq!(vm.s_stack, [1, 2, 3]);
+        assert_eq!(vm.input_buffer.len(), 0);
+    }
 
+    #[test]
+    fn test_abort () {
+        let vm = &mut VM::new();
+        vm.set_source("1 2 3 abort 5 6 7");
+        vm.evaluate();
+        assert_eq!(vm.s_stack, []);
+    }
 
 }

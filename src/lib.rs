@@ -159,6 +159,7 @@ impl VM {
         vm.add_immediate("repeat", VM::imm_repeat);
         vm.add_immediate("again", VM::imm_again);
         vm.add_immediate("\\", VM::imm_backslash);
+        vm.add_primitive("marker", VM::marker);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
@@ -431,6 +432,30 @@ impl VM {
             },
             None => self.abort(S_STACK_UNDERFLOW)
         }
+    }
+
+    pub fn unmark(&mut self) {
+        let dfa = self.word_list[self.word_pointer].dfa;
+        let flen = self.s_heap[dfa] as usize;
+        let nlen = self.s_heap[dfa+1] as usize;
+        let wlen = self.s_heap[dfa+2] as usize;
+        let slen = self.s_heap[dfa+3] as usize;
+        self.f_heap.truncate(flen);
+        self.n_heap.truncate(nlen);
+        self.word_list.truncate(wlen);
+        self.s_heap.truncate(slen);
+    }
+
+    pub fn marker(&mut self) {
+        self.define(VM::unmark);
+        let flen = self.f_heap.len() as isize;
+        let nlen = self.n_heap.len() as isize;
+        let wlen = self.word_list.len() as isize;
+        let slen = self.s_heap.len() as isize;
+        self.s_heap.push(flen);
+        self.s_heap.push(nlen);
+        self.s_heap.push(wlen);
+        self.s_heap.push(slen);
     }
 
 // Control

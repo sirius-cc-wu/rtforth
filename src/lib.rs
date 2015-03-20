@@ -12,17 +12,17 @@ static WORD_NOT_FOUND: &'static str = "Word not found";
 static END_OF_INPUT: &'static str = "End of input";
 
 // Word
-pub struct Word<'b> {
+pub struct Word {
     is_immediate: bool,
     hidden: bool,
     nfa: usize,
     dfa: usize,
     name_len: usize,
-    action: fn(& mut VM<'b>)
+    action: fn(& mut VM)
 }
 
-impl<'b> Word<'b> {
-    pub fn new(nfa: usize, name_len: usize, dfa: usize, action: fn(& mut VM<'b>)) -> Word<'b> {
+impl Word {
+    pub fn new(nfa: usize, name_len: usize, dfa: usize, action: fn(& mut VM)) -> Word {
         Word {
             is_immediate: false,
             hidden: false,
@@ -35,7 +35,7 @@ impl<'b> Word<'b> {
 }
 
 // Virtual machine
-pub struct VM<'b> {
+pub struct VM {
     is_compiling: bool,
     is_paused: bool,
     error_code: isize,
@@ -45,7 +45,7 @@ pub struct VM<'b> {
     s_heap: Vec<isize>,
     f_heap: Vec<f64>,
     n_heap: String,
-    word_list: Vec<Word<'b>>,
+    word_list: Vec<Word>,
     instruction_pointer: usize,
     word_pointer: usize,
     idx_lit: usize,
@@ -53,14 +53,14 @@ pub struct VM<'b> {
     idx_flit: usize,
     idx_zero_branch: usize,
     idx_branch: usize,
-    source: &'b str,
+    input_buffer: String,
     source_index: usize,
     last_token: String,
     last_definition: usize
 }
 
-impl<'b> VM<'b> {
-    pub fn new() -> VM<'b> {
+impl VM {
+    pub fn new() -> VM {
         let mut vm = VM {
             is_compiling: false,
             is_paused: true,
@@ -79,7 +79,7 @@ impl<'b> VM<'b> {
             idx_flit: 0,
             idx_zero_branch: 0,
             idx_branch: 0,
-            source: "",
+            input_buffer: String::with_capacity(128),
             source_index: 0,
             last_token: String::with_capacity(64),
             last_definition: 0
@@ -170,12 +170,12 @@ impl<'b> VM<'b> {
         vm
     }
 
-    pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM<'b>)) {
+    pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM)) {
         self.word_list.push (Word::new(self.n_heap.len(), name.len(), self.s_heap.len(), action));
         self.n_heap.push_str(name);
     }
 
-    pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM<'b>)) {
+    pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM)) {
         self.add_primitive (name, action);
         match self.word_list.last_mut() {
             Some(w) => w.is_immediate = true,
@@ -264,14 +264,15 @@ impl<'b> VM<'b> {
         self.is_compiling = true;
     }
 
-    pub fn set_source(&mut self, buffer: &'b str) {
-        self.source = buffer;
-        self.source_index = 0; 
+    pub fn set_source(&mut self, s: &str) {
+        self.input_buffer.clear();
+        self.input_buffer.push_str(s);
+        self.source_index = 0;
     }
 
     pub fn scan(&mut self) {
         self.last_token.clear();
-        let source = &self.source[self.source_index..self.source.len()];
+        let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
         let mut cnt = 0;
         for ch in source.chars() {
             match ch {
@@ -288,7 +289,7 @@ impl<'b> VM<'b> {
     }
 
     pub fn imm_backslash(&mut self) {
-        self.source_index = self.source.len(); 
+        self.source_index = self.input_buffer.len(); 
     }
 
     pub fn evaluate(&mut self) {
@@ -333,6 +334,7 @@ impl<'b> VM<'b> {
                     self.compile_word(found_index);
                 }
             } else {
+                println!("{}", &self.last_token);
                 self.abort(WORD_NOT_FOUND);
             }
             if self.has_error() {
@@ -351,11 +353,23 @@ impl<'b> VM<'b> {
                 BufReader::new(file)
             }
         };
-//        reader.read_line(&mut self.input_buffer);
-//        self.source = &self.input_buffer;
-//        self.source_index = 0;
-//        println!("load: {}", self.source);
-//        self.evaluate();
+        loop {
+            self.input_buffer.clear();
+            let result = reader.read_line(&mut self.input_buffer);
+            match result {
+                Ok(v) => {
+                    self.source_index = 0;
+                    self.evaluate();
+                    if self.input_buffer.len() == 0 {
+                        break;
+                    }
+                },
+                Err(e) => {
+                    self.abort(e.description());
+                    break;
+                }
+            }
+        }
     }
 
 // High level definitions
@@ -373,7 +387,7 @@ impl<'b> VM<'b> {
         self.s_stack.push(self.s_heap[self.word_list[self.word_pointer].dfa]);
     }
 
-    pub fn define(&mut self, action: fn(& mut VM<'b>)) {
+    pub fn define(&mut self, action: fn(& mut VM)) {
         self.scan();
         if !self.last_token.is_empty() {
             let mut w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), action);
@@ -1428,8 +1442,7 @@ mod tests {
     #[test]
     fn test_scan () {
         let vm = &mut VM::new();
-        vm.source = "hello world\t\r\n\"";
-        vm.source_index = 0;
+        vm.set_source("hello world\t\r\n\"");
         vm.scan();
         assert_eq!(vm.last_token, "hello");
         assert_eq!(vm.source_index, 5);

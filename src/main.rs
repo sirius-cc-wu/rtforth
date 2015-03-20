@@ -5,7 +5,7 @@ use jrforth::VM;
 fn main() {
     hello::hello();
     let vm = &mut VM::new();
-    vm.words();
+    vm.load("lib.fs");
 }
 
 #[cfg(not(test))]

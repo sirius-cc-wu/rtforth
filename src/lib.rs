@@ -343,7 +343,7 @@ impl VM {
                     }
                     continue
                 },
-                Err(e) => {}
+                Err(_) => {}
             };
             match FromStr::from_str(&self.last_token) {
                 Ok(t) => {
@@ -354,7 +354,7 @@ impl VM {
                     }
                     continue
                 },
-                Err(e) => {}
+                Err(_) => {}
             };
             let found_index = self.find(&self.last_token);
             if found_index != 0 {
@@ -379,9 +379,8 @@ impl VM {
 
     pub fn load(&mut self, path_name: &str) {
         let path = Path::new(path_name);
-        let display = path.display();
         let mut reader = match File::open(&path) {
-            Err(why) => panic!(""),
+            Err(_) => panic!("Cannot open file"),
             Ok(file) => {
                 BufReader::new(file)
             }
@@ -390,7 +389,7 @@ impl VM {
             self.input_buffer.clear();
             let result = reader.read_line(&mut self.input_buffer);
             match result {
-                Ok(v) => {
+                Ok(_) => {
                     self.source_index = 0;
                     self.evaluate();
                     if self.input_buffer.len() == 0 {
@@ -431,7 +430,7 @@ impl VM {
     pub fn define(&mut self, action: fn(& mut VM)) {
         self.scan();
         if !self.last_token.is_empty() {
-            let mut w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), action);
+            let w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), action);
             self.last_definition = self.word_list.len();
             self.word_list.push (w);
             self.n_heap.push_str(&self.last_token);
@@ -644,7 +643,7 @@ impl VM {
 
     pub fn drop(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => {},
+            Some(_) => {},
             None => self.abort_with_error(S_STACK_UNDERFLOW)
         }
     }
@@ -653,7 +652,7 @@ impl VM {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.pop() {
-                    Some(n) => { self.s_stack.push(t); },
+                    Some(_) => { self.s_stack.push(t); },
                     None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
             None => self.abort_with_error(S_STACK_UNDERFLOW)
@@ -696,9 +695,9 @@ impl VM {
 
     pub fn two_drop(&mut self) {
         match self.s_stack.pop() {
-            Some(t) =>
+            Some(_) =>
                 match self.s_stack.pop() {
-                    Some(n) => {},
+                    Some(_) => {},
                     None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
             None => self.abort_with_error(S_STACK_UNDERFLOW)
@@ -1223,7 +1222,7 @@ impl VM {
         match self.f_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(t),
+                    Some(_) => self.f_stack.push(t),
                     None => self.abort_with_error(F_STACK_UNDERFLOW)
                 },
             None => self.abort_with_error(F_STACK_UNDERFLOW)
@@ -1242,7 +1241,7 @@ impl VM {
 
     pub fn fdrop(&mut self) {
         match self.f_stack.pop() {
-            Some(t) => { },
+            Some(_) => { },
             None => self.abort_with_error(F_STACK_UNDERFLOW)
         };
     }

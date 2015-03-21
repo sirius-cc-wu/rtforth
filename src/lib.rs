@@ -167,9 +167,14 @@ impl VM {
         vm.add_primitive ("fvariable", VM::fvariable);
         vm.add_primitive ("f!", VM::fstore);
         vm.add_primitive ("f@", VM::ffetch);
+        vm.add_primitive ("fabs", VM::fabs);
         vm.add_primitive ("fsin", VM::fsin);
         vm.add_primitive ("fcos", VM::fcos);
         vm.add_primitive ("ftan", VM::ftan);
+        vm.add_primitive ("fasin", VM::fasin);
+        vm.add_primitive ("facos", VM::facos);
+        vm.add_primitive ("fatan", VM::fatan);
+        vm.add_primitive ("fatan2", VM::fatan2);
         vm.add_primitive ("fsqrt", VM::fsqrt);
         vm.add_primitive ("fswap", VM::fswap);
         vm.add_primitive ("fdup", VM::fdup);
@@ -1117,32 +1122,79 @@ impl VM {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(n) => { self.f_heap[t as usize] = n; },
+                    Some(n) => self.f_heap[t as usize] = n,
                     None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
             None => self.abort_with_error(S_STACK_UNDERFLOW)
-        }
+        };
+    }
+
+    pub fn fabs(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) => self.f_stack.push(t.abs()),
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
     }
 
     pub fn fsin(&mut self) {
         match self.f_stack.pop() {
-            Some(t) => {
-                self.f_stack.push(t.sin());
-            },
+            Some(t) => self.f_stack.push(t.sin()),
             None => self.abort_with_error(F_STACK_UNDERFLOW)
         };
     }
 
     pub fn fcos(&mut self) {
-        // TODO
+        match self.f_stack.pop() {
+            Some(t) => self.f_stack.push(t.cos()),
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
     }
 
     pub fn ftan(&mut self) {
-        // TODO
+        match self.f_stack.pop() {
+            Some(t) => self.f_stack.push(t.tan()),
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
+    }
+
+    pub fn fasin(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) => self.f_stack.push(t.asin()),
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
+    }
+
+    pub fn facos(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) => self.f_stack.push(t.acos()),
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
+    }
+
+    pub fn fatan(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) => self.f_stack.push(t.atan()),
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
+    }
+
+    pub fn fatan2(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) => {
+                match self.f_stack.pop() {
+                    Some(n) => self.f_stack.push(n.atan2(t)),
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                }
+            },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
     }
 
     pub fn fsqrt(&mut self) {
-        // TODO
+        match self.f_stack.pop() {
+            Some(t) => self.f_stack.push(t.sqrt()),
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
     }
 
     pub fn fswap(&mut self) {
@@ -1835,6 +1887,21 @@ mod tests {
     }
 
     #[test]
+    fn test_fabs () {
+        let vm = &mut VM::new();
+        vm.set_source("-3.14 fabs");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 3.13999 && t < 3.14001
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
     fn test_fsin () {
         let vm = &mut VM::new();
         vm.set_source("3.14 fsin");
@@ -1843,6 +1910,111 @@ mod tests {
         assert!(match vm.f_stack.pop() {
             Some(t) => {
                 t > 0.0015925 && t < 0.0015927
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fcos () {
+        let vm = &mut VM::new();
+        vm.set_source("3.0 fcos");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > -0.989993 && t < -0.989991
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_ftan () {
+        let vm = &mut VM::new();
+        vm.set_source("3.0 ftan");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > -0.142547 && t < -0.142545
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fasin () {
+        let vm = &mut VM::new();
+        vm.set_source("0.3 fasin");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 0.304691 && t < 0.304693
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_facos () {
+        let vm = &mut VM::new();
+        vm.set_source("0.3 facos");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 1.266102 && t < 1.266104
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fatan () {
+        let vm = &mut VM::new();
+        vm.set_source("0.3 fatan");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 0.291455 && t < 0.291457
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fatan2 () {
+        let vm = &mut VM::new();
+        vm.set_source("3.0 4.0 fatan2");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 0.643500  && t < 0.643502
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fsqrt () {
+        let vm = &mut VM::new();
+        vm.set_source("0.3 fsqrt");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 0.547721 && t < 0.547723 
             },
             None => false
         });

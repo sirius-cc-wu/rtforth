@@ -8,6 +8,7 @@ use std::io::BufReader;
 // Error messages
 static S_STACK_UNDERFLOW: &'static str = "Data stack underflow";
 static R_STACK_UNDERFLOW: &'static str = "Return stack underflow";
+static F_STACK_UNDERFLOW: &'static str = "Floating point stack underflow";
 static WORD_NOT_FOUND: &'static str = "Word not found";
 static END_OF_INPUT: &'static str = "End of input";
 
@@ -128,7 +129,6 @@ impl VM {
         vm.add_primitive("and", VM::and);
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
-        vm.add_primitive("flit", VM::flit);;
         vm.add_primitive("scan", VM::scan);;
         vm.add_primitive("evaluate", VM::evaluate);;
         vm.add_primitive(":", VM::colon);
@@ -162,6 +162,28 @@ impl VM {
         vm.add_primitive("marker", VM::marker);
         vm.add_primitive("quit", VM::quit);
         vm.add_primitive("abort", VM::abort);
+        vm.add_primitive("flit", VM::flit);
+        vm.add_primitive ("fconstant", VM::fconstant);
+        vm.add_primitive ("fvariable", VM::fvariable);
+        vm.add_primitive ("f!", VM::fstore);
+        vm.add_primitive ("f@", VM::ffetch);
+        vm.add_primitive ("fsin", VM::fsin);
+        vm.add_primitive ("fcos", VM::fcos);
+        vm.add_primitive ("ftan", VM::ftan);
+        vm.add_primitive ("fsqrt", VM::fsqrt);
+        vm.add_primitive ("fswap", VM::fswap);
+        vm.add_primitive ("fdup", VM::fdup);
+        vm.add_primitive ("fdrop", VM::fdrop);
+        vm.add_primitive ("frot", VM::frot);
+        vm.add_primitive ("fover", VM::fover);
+        vm.add_primitive ("n>f", VM::integer_to_float);
+        vm.add_primitive ("f.", VM::fdot);
+        vm.add_primitive ("f+", VM::fadd);
+        vm.add_primitive ("f-", VM::fsub);
+        vm.add_primitive ("f*", VM::fmul);
+        vm.add_primitive ("f/", VM::fdiv);
+        vm.add_primitive ("f=", VM::fequals);
+        vm.add_primitive ("f<", VM::fless);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
@@ -390,6 +412,14 @@ impl VM {
         self.s_stack.push(self.s_heap[self.word_list[self.word_pointer].dfa]);
     }
 
+    pub fn p_fconst(&mut self) {
+        self.f_stack.push(self.f_heap[self.s_heap[self.word_list[self.word_pointer].dfa] as usize]);
+    }
+
+    pub fn p_fvar(&mut self) {
+        self.s_stack.push(self.s_heap[self.word_list[self.word_pointer].dfa]);
+    }
+
     pub fn define(&mut self, action: fn(& mut VM)) {
         self.scan();
         if !self.last_token.is_empty() {
@@ -428,11 +458,26 @@ impl VM {
         match self.s_stack.pop() {
             Some(v) => {
                 self.define(VM::p_const);
-                if self.last_definition != 0 {
-                    self.s_heap.push(v);
-                }
+                self.s_heap.push(v);
             },
             None => self.abort_with_error(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn fvariable(&mut self) {
+        self.define(VM::p_fvar);
+        self.s_heap.push(self.f_heap.len() as isize);
+        self.f_heap.push(0.0);
+    }
+
+    pub fn fconstant(&mut self) {
+        match self.f_stack.pop() {
+            Some(v) => {
+                self.define(VM::p_fconst);
+                self.s_heap.push(self.f_heap.len() as isize);
+                self.f_heap.push(v);
+            },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
         }
     }
 
@@ -1059,6 +1104,99 @@ impl VM {
         self.is_paused = true;
     }
 
+// Floating point primitives
+
+    pub fn ffetch(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.f_stack.push(self.f_heap[t as usize]),
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
+        };
+    }
+
+    pub fn fstore(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.f_stack.pop() {
+                    Some(n) => { self.f_heap[t as usize] = n; },
+                    None => self.abort_with_error(S_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(S_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn fsin(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) => {
+                self.f_stack.push(t.sin());
+            },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
+    }
+
+    pub fn fcos(&mut self) {
+        // TODO
+    }
+
+    pub fn ftan(&mut self) {
+        // TODO
+    }
+
+    pub fn fsqrt(&mut self) {
+        // TODO
+    }
+
+    pub fn fswap(&mut self) {
+        // TODO
+    }
+
+    pub fn fdup(&mut self) {
+        // TODO
+    }
+
+    pub fn fdrop(&mut self) {
+        // TODO
+    }
+
+    pub fn frot(&mut self) {
+        // TODO
+    }
+
+    pub fn fover(&mut self) {
+        // TODO
+    }
+
+    pub fn integer_to_float(&mut self) {
+        // TODO
+    }
+
+    pub fn fdot(&mut self) {
+        // TODO
+    }
+
+    pub fn fadd(&mut self) {
+        // TODO
+    }
+
+    pub fn fsub(&mut self) {
+        // TODO
+    }
+
+    pub fn fmul(&mut self) {
+        // TODO
+    }
+
+    pub fn fdiv(&mut self) {
+        // TODO
+    }
+
+    pub fn fequals(&mut self) {
+        // TODO
+    }
+
+    pub fn fless(&mut self) {
+        // TODO
+    }
+
 // Error handlling
 
     pub fn has_error(&self) -> bool {
@@ -1068,11 +1206,13 @@ impl VM {
     pub fn abort_with_error(&mut self, msg: &str) {
         println!("{}", msg);
         self.abort();
+        self.error_code = -2;
     }
 
     pub fn abort(&mut self) {
         self.s_stack.clear();
         self.f_stack.clear();
+        self.error_code = -1;
         self.quit();
     }
 
@@ -1098,6 +1238,7 @@ mod tests {
         assert_eq!(0usize, vm.find(""));
         assert_eq!(0usize, vm.find("word-not-exist"));
         assert_eq!(1usize, vm.find("noop"));
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1110,6 +1251,7 @@ mod tests {
         vm.compile_integer(1);
         vm.inner_interpret(1);
         assert_eq!(3usize, vm.s_stack.len());
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1118,6 +1260,7 @@ mod tests {
         vm.s_stack.push(1);
         vm.drop();
         assert!(vm.s_stack.len()==0);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1128,6 +1271,7 @@ mod tests {
         vm.nip();
         assert!(vm.s_stack.len()==1);
         assert!(vm.s_stack.last() == Some(&2));
+        assert_eq!(vm.error_code, 0);
     }
 
 
@@ -1138,6 +1282,7 @@ mod tests {
         vm.s_stack.push(2);
         vm.swap();
         assert_eq!(vm.s_stack, [2,1]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1146,6 +1291,7 @@ mod tests {
         vm.s_stack.push(1);
         vm.dup();
         assert_eq!(vm.s_stack, [1, 1]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1155,6 +1301,7 @@ mod tests {
         vm.s_stack.push(2);
         vm.over();
         assert_eq!(vm.s_stack, [1,2,1]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1165,6 +1312,7 @@ mod tests {
         vm.s_stack.push(3);
         vm.rot();
         assert_eq!(vm.s_stack, [2, 3, 1]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1174,6 +1322,7 @@ mod tests {
         vm.s_stack.push(2);
         vm.two_drop();
         assert!(vm.s_stack.len()==0);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1183,6 +1332,7 @@ mod tests {
         vm.s_stack.push(2);
         vm.two_dup();
         assert_eq!(vm.s_stack, [1, 2, 1, 2]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1194,6 +1344,7 @@ mod tests {
         vm.s_stack.push(4);
         vm.two_swap();
         assert_eq!(vm.s_stack, [3, 4, 1, 2]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1205,6 +1356,7 @@ mod tests {
         vm.s_stack.push(4);
         vm.two_over();
         assert_eq!(vm.s_stack, [1, 2, 3, 4, 1, 2]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1213,6 +1365,7 @@ mod tests {
         vm.s_stack.push(1);
         vm.one_plus();
         assert_eq!(vm.s_stack, [2]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1221,6 +1374,7 @@ mod tests {
         vm.s_stack.push(2);
         vm.one_minus();
         assert_eq!(vm.s_stack, [1]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1230,6 +1384,7 @@ mod tests {
         vm.s_stack.push(7);
         vm.minus();
         assert_eq!(vm.s_stack, [-2]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1239,6 +1394,7 @@ mod tests {
         vm.s_stack.push(7);
         vm.plus();
         assert_eq!(vm.s_stack, [12]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1248,6 +1404,7 @@ mod tests {
         vm.s_stack.push(7);
         vm.star();
         assert_eq!(vm.s_stack, [35]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1257,6 +1414,7 @@ mod tests {
         vm.s_stack.push(7);
         vm.slash();
         assert_eq!(vm.s_stack, [4]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1266,6 +1424,7 @@ mod tests {
         vm.s_stack.push(7);
         vm.p_mod();
         assert_eq!(vm.s_stack, [2]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1275,6 +1434,7 @@ mod tests {
         vm.s_stack.push(7);
         vm.slash_mod();
         assert_eq!(vm.s_stack, [2, 4]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1283,6 +1443,7 @@ mod tests {
         vm.s_stack.push(-30);
         vm.abs();
         assert_eq!(vm.s_stack, [30]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1291,6 +1452,7 @@ mod tests {
         vm.s_stack.push(30);
         vm.negate();
         assert_eq!(vm.s_stack, [-30]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1303,6 +1465,7 @@ mod tests {
         vm.s_stack.push(0);
         vm.zero_less();
         assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1319,6 +1482,7 @@ mod tests {
         vm.s_stack.push(1);
         vm.zero_equals();
         assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1331,6 +1495,7 @@ mod tests {
         vm.s_stack.push(0);
         vm.zero_greater();
         assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1347,6 +1512,7 @@ mod tests {
         vm.s_stack.push(1);
         vm.zero_not_equals();
         assert_eq!(vm.s_stack, [-1]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1361,6 +1527,7 @@ mod tests {
         vm.s_stack.push(0);
         vm.less_than();
         assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1380,6 +1547,7 @@ mod tests {
         vm.s_stack.push(0);
         vm.equals();
         assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1394,6 +1562,7 @@ mod tests {
         vm.s_stack.push(0);
         vm.greater_than();
         assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1413,6 +1582,7 @@ mod tests {
         vm.s_stack.push(0);
         vm.not_equals();
         assert_eq!(vm.s_stack, [-1]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1423,27 +1593,28 @@ mod tests {
         vm.s_stack.push(2);
         vm.between();
         assert_eq!(vm.s_stack, [-1]);
+        assert_eq!(vm.error_code, 0);
         vm.drop();
-        vm.two_drop();
         vm.s_stack.push(1);
         vm.s_stack.push(0);
         vm.s_stack.push(1);
         vm.between();
         assert_eq!(vm.s_stack, [-1]);
+        assert_eq!(vm.error_code, 0);
         vm.drop();
-        vm.two_drop();
         vm.s_stack.push(0);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.between();
         assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.error_code, 0);
         vm.drop();
-        vm.two_drop();
         vm.s_stack.push(3);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.between();
         assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1452,6 +1623,7 @@ mod tests {
         vm.s_stack.push(707);
         vm.invert();
         assert_eq!(vm.s_stack, [-708]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1461,6 +1633,7 @@ mod tests {
         vm.s_stack.push(007);
         vm.and();
         assert_eq!(vm.s_stack, [3]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1470,6 +1643,7 @@ mod tests {
         vm.s_stack.push(07);
         vm.or();
         assert_eq!(vm.s_stack, [711]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1479,6 +1653,7 @@ mod tests {
         vm.s_stack.push(07);
         vm.xor();
         assert_eq!(vm.s_stack, [708]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1493,6 +1668,7 @@ mod tests {
         assert_eq!(vm.source_index, 11);
         vm.scan();
         assert_eq!(vm.last_token, "\"");
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1501,6 +1677,7 @@ mod tests {
         vm.set_source("false true dup 1+ 2 -3");
         vm.evaluate();
         assert_eq!(vm.s_stack, [0, -1, 0, 2, -3]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1513,6 +1690,7 @@ mod tests {
         assert!(vm.f_stack[0] < 1.00001);
         assert!(2.49999 < vm.f_stack[1]);
         assert!(vm.f_stack[1] < 2.50001);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1521,6 +1699,7 @@ mod tests {
         vm.set_source(": 2+3 2 3 + ; 2+3");
         vm.evaluate();
         assert_eq!(vm.s_stack, [5]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1529,6 +1708,7 @@ mod tests {
         vm.set_source("5 constant x x x");
         vm.evaluate();
         assert_eq!(vm.s_stack, [5, 5]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1537,6 +1717,7 @@ mod tests {
         vm.set_source("variable x  x @  3 x !  x @");
         vm.evaluate();
         assert_eq!(vm.s_stack, [0, 3]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1545,6 +1726,7 @@ mod tests {
         vm.set_source("1 2  ' swap execute");
         vm.evaluate();
         assert_eq!(vm.s_stack, [2, 1]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1554,6 +1736,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack, [1, 5]);
         assert_eq!(vm.s_heap, [1, 1, 2, 1, 1]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1562,6 +1745,7 @@ mod tests {
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
         vm.evaluate();
         assert_eq!(vm.s_stack, [8]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1570,6 +1754,7 @@ mod tests {
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
         vm.evaluate();
         assert_eq!(vm.s_stack, [-3]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1582,6 +1767,7 @@ mod tests {
         vm.set_source(": t2 1 if true else false then ; t2");
         vm.evaluate();
         assert_eq!(vm.s_stack, [-1]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1590,6 +1776,7 @@ mod tests {
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
         vm.evaluate();
         assert_eq!(vm.s_stack, [3]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1598,6 +1785,7 @@ mod tests {
         vm.set_source(": t1 0 begin 1+ dup 3 <> while repeat ; t1");
         vm.evaluate();
         assert_eq!(vm.s_stack, [3]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1606,6 +1794,7 @@ mod tests {
         vm.set_source("1 2 3 \\ 5 6 7");
         vm.evaluate();
         assert_eq!(vm.s_stack, [1, 2, 3]);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1615,6 +1804,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack, [1, 2, 3]);
         assert_eq!(vm.input_buffer.len(), 0);
+        assert_eq!(vm.error_code, 0);
     }
 
     #[test]
@@ -1623,6 +1813,40 @@ mod tests {
         vm.set_source("1 2 3 abort 5 6 7");
         vm.evaluate();
         assert_eq!(vm.s_stack, []);
+        assert_eq!(vm.error_code, -1);
+    }
+
+    #[test]
+    fn test_fconstant () {
+        let vm = &mut VM::new();
+        vm.set_source("1.1 fconstant x x x");
+        vm.evaluate();
+        assert_eq!(vm.f_stack, [1.1, 1.1]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fvariable_and_fstore_ffetch () {
+        let vm = &mut VM::new();
+        vm.set_source("fvariable fx  fx f@  3.3 fx f!  fx f@");
+        vm.evaluate();
+        assert_eq!(vm.f_stack, [0.0, 3.3]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fsin () {
+        let vm = &mut VM::new();
+        vm.set_source("3.14 fsin");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 0.0015925 && t < 0.0015927
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
     }
 
 }

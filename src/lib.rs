@@ -182,7 +182,7 @@ impl VM {
         vm.add_primitive ("fnip", VM::fnip);
         vm.add_primitive ("frot", VM::frot);
         vm.add_primitive ("fover", VM::fover);
-        vm.add_primitive ("n>f", VM::integer_to_float);
+        vm.add_primitive ("n>f", VM::n_to_f);
         vm.add_primitive ("f.", VM::fdot);
         vm.add_primitive ("f+", VM::fplus);
         vm.add_primitive ("f-", VM::fminus);
@@ -1281,8 +1281,11 @@ impl VM {
         }
     }
 
-    pub fn integer_to_float(&mut self) {
-        // TODO
+    pub fn n_to_f(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) => self.f_stack.push(t as f64),
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
     }
 
     pub fn fdot(&mut self) {
@@ -2277,6 +2280,15 @@ mod tests {
         assert_eq!(vm.f_stack, []);
         assert_eq!(vm.error_code, 0);
         vm.s_stack.clear();
+    }
+
+    #[test]
+    fn test_n_to_f () {
+        let vm = &mut VM::new();
+        vm.set_source("0 n>f -1 n>f 1 n>f");
+        vm.evaluate();
+        assert_eq!(vm.f_stack, [0.0, -1.0, 1.0]);
+        assert_eq!(vm.error_code, 0);
     }
 
 }

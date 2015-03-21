@@ -176,9 +176,10 @@ impl VM {
         vm.add_primitive ("fatan", VM::fatan);
         vm.add_primitive ("fatan2", VM::fatan2);
         vm.add_primitive ("fsqrt", VM::fsqrt);
-        vm.add_primitive ("fswap", VM::fswap);
-        vm.add_primitive ("fdup", VM::fdup);
         vm.add_primitive ("fdrop", VM::fdrop);
+        vm.add_primitive ("fdup", VM::fdup);
+        vm.add_primitive ("fswap", VM::fswap);
+        vm.add_primitive ("fnip", VM::fnip);
         vm.add_primitive ("frot", VM::frot);
         vm.add_primitive ("fover", VM::fover);
         vm.add_primitive ("n>f", VM::integer_to_float);
@@ -661,7 +662,11 @@ impl VM {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.pop() {
-                    Some(n) => { self.s_stack.push(n); self.s_stack.push(t); self.s_stack.push(n); },
+                    Some(n) => {
+                        self.s_stack.push(n);
+                        self.s_stack.push(t);
+                        self.s_stack.push(n);
+                    },
                     None => self.abort_with_error(S_STACK_UNDERFLOW)
                 },
             None => self.abort_with_error(S_STACK_UNDERFLOW)
@@ -670,11 +675,15 @@ impl VM {
 
     pub fn rot(&mut self) {
         match self.s_stack.pop() {
-            Some(t) =>
+            Some(x3) =>
                 match self.s_stack.pop() {
-                    Some(n) =>
+                    Some(x2) =>
                         match self.s_stack.pop() {
-                            Some(third) => { self.s_stack.push(n); self.s_stack.push(t); self.s_stack.push(third); },
+                            Some(x1) => {
+                                self.s_stack.push(x2);
+                                self.s_stack.push(x3);
+                                self.s_stack.push(x1);
+                            },
                             None => self.abort_with_error(S_STACK_UNDERFLOW)
                         },
                     None => self.abort_with_error(S_STACK_UNDERFLOW)
@@ -1198,23 +1207,76 @@ impl VM {
     }
 
     pub fn fswap(&mut self) {
-        // TODO
+        match self.f_stack.pop() {
+            Some(t) =>
+                match self.f_stack.pop() {
+                    Some(n) => { self.f_stack.push(t); self.f_stack.push(n); },
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn fnip(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) =>
+                match self.f_stack.pop() {
+                    Some(n) => self.f_stack.push(t),
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
     }
 
     pub fn fdup(&mut self) {
-        // TODO
+        match self.f_stack.pop() {
+            Some(t) => {
+                self.f_stack.push(t);
+                self.f_stack.push(t);
+            },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
     }
 
     pub fn fdrop(&mut self) {
-        // TODO
+        match self.f_stack.pop() {
+            Some(t) => { },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        };
     }
 
     pub fn frot(&mut self) {
-        // TODO
+        match self.f_stack.pop() {
+            Some(x3) =>
+                match self.f_stack.pop() {
+                    Some(x2) =>
+                        match self.f_stack.pop() {
+                            Some(x1) => {
+                                self.f_stack.push(x2);
+                                self.f_stack.push(x3);
+                                self.f_stack.push(x1);
+                            },
+                            None => self.abort_with_error(F_STACK_UNDERFLOW)
+                        },
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
     }
 
     pub fn fover(&mut self) {
-        // TODO
+        match self.f_stack.pop() {
+            Some(t) =>
+                match self.f_stack.pop() {
+                    Some(n) => {
+                        self.f_stack.push(n);
+                        self.f_stack.push(t);
+                        self.f_stack.push(n);
+                    },
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
     }
 
     pub fn integer_to_float(&mut self) {
@@ -1325,7 +1387,6 @@ mod tests {
         assert!(vm.s_stack.last() == Some(&2));
         assert_eq!(vm.error_code, 0);
     }
-
 
     #[test]
     fn test_swap () {
@@ -2018,6 +2079,65 @@ mod tests {
             },
             None => false
         });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fdrop() {
+        let vm = &mut VM::new();
+        vm.f_stack.push(1.0);
+        vm.fdrop();
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fnip() {
+        let vm = &mut VM::new();
+        vm.f_stack.push(1.0);
+        vm.f_stack.push(2.0);
+        vm.fnip();
+        assert_eq!(vm.f_stack, [2.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fswap () {
+        let vm = &mut VM::new();
+        vm.f_stack.push(1.0);
+        vm.f_stack.push(2.0);
+        vm.fswap();
+        assert_eq!(vm.f_stack, [2.0,1.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fdup () {
+        let vm = &mut VM::new();
+        vm.f_stack.push(1.0);
+        vm.fdup();
+        assert_eq!(vm.f_stack, [1.0, 1.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fover () {
+        let vm = &mut VM::new();
+        vm.f_stack.push(1.0);
+        vm.f_stack.push(2.0);
+        vm.fover();
+        assert_eq!(vm.f_stack, [1.0,2.0,1.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_frot () {
+        let vm = &mut VM::new();
+        vm.f_stack.push(1.0);
+        vm.f_stack.push(2.0);
+        vm.f_stack.push(3.0);
+        vm.frot();
+        assert_eq!(vm.f_stack, [2.0, 3.0, 1.0]);
         assert_eq!(vm.error_code, 0);
     }
 

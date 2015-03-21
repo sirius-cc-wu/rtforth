@@ -184,12 +184,14 @@ impl VM {
         vm.add_primitive ("fover", VM::fover);
         vm.add_primitive ("n>f", VM::integer_to_float);
         vm.add_primitive ("f.", VM::fdot);
-        vm.add_primitive ("f+", VM::fadd);
-        vm.add_primitive ("f-", VM::fsub);
-        vm.add_primitive ("f*", VM::fmul);
-        vm.add_primitive ("f/", VM::fdiv);
-        vm.add_primitive ("f=", VM::fequals);
-        vm.add_primitive ("f<", VM::fless);
+        vm.add_primitive ("f+", VM::fplus);
+        vm.add_primitive ("f-", VM::fminus);
+        vm.add_primitive ("f*", VM::fstar);
+        vm.add_primitive ("f/", VM::fslash);
+        vm.add_primitive ("f~", VM::fproximate);
+        vm.add_primitive ("f0<", VM::f_zero_less_than);
+        vm.add_primitive ("f0=", VM::f_zero_equals);
+        vm.add_primitive ("f<", VM::f_less_than);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
@@ -1287,28 +1289,96 @@ impl VM {
         // TODO
     }
 
-    pub fn fadd(&mut self) {
-        // TODO
+    pub fn fplus(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) =>
+                match self.f_stack.pop() {
+                    Some(n) => self.f_stack.push(n+t),
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
     }
 
-    pub fn fsub(&mut self) {
-        // TODO
+    pub fn fminus(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) =>
+                match self.f_stack.pop() {
+                    Some(n) => self.f_stack.push(n-t),
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
     }
 
-    pub fn fmul(&mut self) {
-        // TODO
+    pub fn fstar(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) =>
+                match self.f_stack.pop() {
+                    Some(n) => self.f_stack.push(n*t),
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
     }
 
-    pub fn fdiv(&mut self) {
-        // TODO
+    pub fn fslash(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) =>
+                match self.f_stack.pop() {
+                    Some(n) => self.f_stack.push(n/t),
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
     }
 
-    pub fn fequals(&mut self) {
-        // TODO
+    pub fn fproximate(&mut self) {
+        match self.f_stack.pop() {
+            Some(x3) =>
+                match self.f_stack.pop() {
+                    Some(x2) =>
+                        match self.f_stack.pop() {
+                            Some(x1) => {
+                                if x3 > 0.0 {
+                                    self.s_stack.push(if (x1-x2).abs() < x3 {-1} else {0});
+                                } else if x3 == 0.0 {
+                                    self.s_stack.push(if x1==x2 {-1} else {0});
+                                } else {
+                                    self.s_stack.push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) {-1} else {0});
+                                }
+                            },
+                            None => self.abort_with_error(F_STACK_UNDERFLOW)
+                        },
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
     }
 
-    pub fn fless(&mut self) {
-        // TODO
+    pub fn f_zero_less_than(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) =>self.s_stack.push(if t<0.0 {-1} else {0}),
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn f_zero_equals(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) =>self.s_stack.push(if t==0.0 {-1} else {0}),
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
+    }
+
+    pub fn f_less_than(&mut self) {
+        match self.f_stack.pop() {
+            Some(t) =>
+                match self.f_stack.pop() {
+                    Some(n) => self.s_stack.push(if n<t {-1} else {0}),
+                    None => self.abort_with_error(F_STACK_UNDERFLOW)
+                },
+            None => self.abort_with_error(F_STACK_UNDERFLOW)
+        }
     }
 
 // Error handlling
@@ -2139,6 +2209,74 @@ mod tests {
         vm.frot();
         assert_eq!(vm.f_stack, [2.0, 3.0, 1.0]);
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fplus_fminus_fstar_fslash () {
+        let vm = &mut VM::new();
+        vm.set_source("9.0 10.0 f+ 11.0 f- 12.0 f* 13.0 f/");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 7.384614 && t < 7.384616
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_f_zero_less_than () {
+        let vm = &mut VM::new();
+        vm.set_source("0.0 f0<   0.1 f0<   -0.1 f0<");
+        vm.evaluate();
+        assert_eq!(vm.s_stack, [0, 0, -1]);
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_f_zero_equals () {
+        let vm = &mut VM::new();
+        vm.set_source("0.0 f0=   0.1 f0=   -0.1 f0=");
+        vm.evaluate();
+        assert_eq!(vm.s_stack, [-1, 0, 0]);
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_f_less_than () {
+        let vm = &mut VM::new();
+        vm.set_source("0.0 0.0 f<   0.1 0.0 f<   -0.1 0.0 f<");
+        vm.evaluate();
+        assert_eq!(vm.s_stack, [0, 0, -1]);
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fproximate () {
+        let vm = &mut VM::new();
+        vm.set_source("0.1 0.1 0.0 f~   0.1 0.10000000001 0.0 f~");
+        vm.evaluate();
+        assert_eq!(vm.s_stack, [-1, 0]);
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+        vm.s_stack.clear();
+        vm.set_source("0.1 0.1 0.001 f~   0.1 0.109 0.01 f~   0.1 0.111  0.01 f~");
+        vm.evaluate();
+        assert_eq!(vm.s_stack, [-1, -1, 0]);
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+        vm.s_stack.clear();
+        vm.set_source("0.1 0.1 -0.001 f~   0.1 0.109 -0.1 f~   0.1 0.109  -0.01 f~");
+        vm.evaluate();
+        assert_eq!(vm.s_stack, [-1, -1, 0]);
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+        vm.s_stack.clear();
     }
 
 }

@@ -1,4 +1,4 @@
-rtforth
+rtForth
 =======
 
 simple Forth implemented in Rust

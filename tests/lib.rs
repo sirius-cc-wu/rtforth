@@ -1,5 +1,5 @@
-extern crate jrforth;
-use jrforth::VM;
+extern crate rtforth;
+use rtforth::VM;
 
 #[test]
 fn test_primitives() {

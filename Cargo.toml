@@ -1,5 +1,5 @@
 [package]
 
-name = "jrforth"
-version = "0.0.1"
-authors = ["Cheng-Chang Wu <ccwu660601@mapacode.tw>"]
+name = "rtforth"
+version = "0.0.2"
+authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]

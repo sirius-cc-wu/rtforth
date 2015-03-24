@@ -56,7 +56,8 @@ pub struct VM {
     input_buffer: String,
     source_index: usize,
     last_token: String,
-    last_definition: usize
+    last_definition: usize,
+    output_buffer: String
 }
 
 impl VM {
@@ -82,7 +83,8 @@ impl VM {
             input_buffer: String::with_capacity(128),
             source_index: 0,
             last_token: String::with_capacity(64),
-            last_definition: 0
+            last_definition: 0,
+            output_buffer: String::with_capacity(128),
         };
         // index of 0 means not found.
         vm.add_primitive("", VM::noop);
@@ -193,6 +195,8 @@ impl VM {
         vm.add_primitive ("f<", VM::f_less_than);
         vm.add_immediate ("s\"", VM::s_quote);
         vm.add_primitive ("type", VM::p_type);
+        vm.add_primitive ("flush", VM::flush);
+        vm.add_primitive ("emit", VM::emit);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
@@ -1151,9 +1155,21 @@ impl VM {
                     let cnt = icnt as usize;
                     let addr = iaddr as usize;
                     let s = &self.n_heap[addr..addr+cnt]; 
-                    println!("{}", s);
+                    self.output_buffer.push_str(s);
                 }
             }
+        }
+    }
+
+    pub fn flush(&mut self) {
+        println!("{}", self.output_buffer);
+        self.output_buffer.clear();
+    }
+
+    pub fn emit(&mut self) {
+        match self.s_stack.pop() {
+            None => self.abort_with_error(S_STACK_UNDERFLOW),
+            Some(ch) => self.output_buffer.push(ch as u8 as char)
         }
     }
 
@@ -2333,6 +2349,22 @@ mod tests {
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
         vm.evaluate();
         assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.output_buffer, "Hi, how are you");
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_emit_and_flush () {
+        let vm = &mut VM::new();
+        vm.set_source("42 emit 43 emit");
+        vm.evaluate();
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.output_buffer, "*+");
+        assert_eq!(vm.error_code, 0);
+        vm.set_source("flush");
+        vm.evaluate();
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.output_buffer, "");
         assert_eq!(vm.error_code, 0);
     }
 

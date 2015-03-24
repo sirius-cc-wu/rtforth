@@ -4,5 +4,4 @@ variable base
 : cr 10 emit ;
 : space 32 emit ;
 : spaces 0 begin 2dup > while 1+ space repeat 2drop ;
-5 spaces
 marker empty

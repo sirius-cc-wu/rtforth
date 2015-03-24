@@ -1,4 +1,3 @@
-use std::str;
 use std::num::SignedInt;
 use std::str::FromStr;
 use std::io::prelude::*;
@@ -192,6 +191,8 @@ impl VM {
         vm.add_primitive ("f0<", VM::f_zero_less_than);
         vm.add_primitive ("f0=", VM::f_zero_equals);
         vm.add_primitive ("f<", VM::f_less_than);
+        vm.add_immediate ("s\"", VM::s_quote);
+        vm.add_primitive ("type", VM::p_type);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
@@ -1119,6 +1120,43 @@ impl VM {
         self.is_paused = true;
     }
 
+// Output
+
+    pub fn s_quote(&mut self) {
+        // ignore the space following S"
+        let source = &self.input_buffer[self.source_index+1..self.input_buffer.len()];
+        let naddr = self.n_heap.len();
+        let mut cnt = 0;
+        for ch in source.chars() {
+            if ch == '"' {
+                break;
+            } else {
+                self.n_heap.push(ch);
+            }
+            cnt = cnt + 1;
+        }
+        self.s_heap.push(self.idx_lit as isize);
+        self.s_heap.push(naddr as isize);
+        self.s_heap.push(self.idx_lit as isize);
+        self.s_heap.push(cnt);
+        self.source_index = self.source_index + 1 + cnt as usize + 1;
+    }
+
+    pub fn p_type(&mut self) {
+        match self.s_stack.pop() {
+            None => self.abort_with_error(S_STACK_UNDERFLOW),
+            Some(icnt) => match self.s_stack.pop() {
+                None => self.abort_with_error(S_STACK_UNDERFLOW),
+                Some(iaddr) => {
+                    let cnt = icnt as usize;
+                    let addr = iaddr as usize;
+                    let s = &self.n_heap[addr..addr+cnt]; 
+                    println!("{}", s);
+                }
+            }
+        }
+    }
+
 // Floating point primitives
 
     pub fn ffetch(&mut self) {
@@ -1416,7 +1454,6 @@ impl VM {
 #[cfg(test)]
 mod tests {
     use super::VM;
-    use std::str;
 
     #[test]
     fn test_find() {
@@ -2287,6 +2324,15 @@ mod tests {
         vm.set_source("0 n>f -1 n>f 1 n>f");
         vm.evaluate();
         assert_eq!(vm.f_stack, [0.0, -1.0, 1.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_s_quote_and_type () {
+        let vm = &mut VM::new();
+        vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
+        vm.evaluate();
+        assert_eq!(vm.f_stack, []);
         assert_eq!(vm.error_code, 0);
     }
 

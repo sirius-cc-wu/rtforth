@@ -1,6 +1,5 @@
 add_primitive ("bye", agent bye)
 add_primitive ("words", agent words)
-add_primitive (".s", agent dot_s)
 add_primitive (".", agent dot)
 add_primitive (".f", agent dot_f)
 add_primitive ("f.", agent fdot_defensive)

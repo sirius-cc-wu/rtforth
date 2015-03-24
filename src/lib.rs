@@ -53,6 +53,7 @@ pub struct VM {
     idx_flit: usize,
     idx_zero_branch: usize,
     idx_branch: usize,
+    idx_type: usize,
     input_buffer: String,
     source_index: usize,
     last_token: String,
@@ -80,6 +81,7 @@ impl VM {
             idx_flit: 0,
             idx_zero_branch: 0,
             idx_branch: 0,
+            idx_type: 0,
             input_buffer: String::with_capacity(128),
             source_index: 0,
             last_token: String::with_capacity(64),
@@ -184,7 +186,6 @@ impl VM {
         vm.add_primitive ("frot", VM::frot);
         vm.add_primitive ("fover", VM::fover);
         vm.add_primitive ("n>f", VM::n_to_f);
-        vm.add_primitive ("f.", VM::fdot);
         vm.add_primitive ("f+", VM::fplus);
         vm.add_primitive ("f-", VM::fminus);
         vm.add_primitive ("f*", VM::fstar);
@@ -197,11 +198,13 @@ impl VM {
         vm.add_primitive ("type", VM::p_type);
         vm.add_primitive ("flush", VM::flush);
         vm.add_primitive ("emit", VM::emit);
+        vm.add_immediate (".\"", VM::dot_quote);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
-        vm.idx_branch = vm.find("branch");
         vm.idx_zero_branch = vm.find("0branch");
+        vm.idx_branch = vm.find("branch");
+        vm.idx_type = vm.find("type");
         // S_heap is beginning with noop, because s_heap[0] should not be used.
         let idx = vm.find("noop");
         vm.compile_word(idx);
@@ -1173,6 +1176,12 @@ impl VM {
         }
     }
 
+    pub fn dot_quote(&mut self) {
+        self.s_quote();
+        let idx_type = self.idx_type;
+        self.compile_word(idx_type);
+    }
+
 // Floating point primitives
 
     pub fn ffetch(&mut self) {
@@ -1339,10 +1348,6 @@ impl VM {
             Some(t) => self.f_stack.push(t as f64),
             None => self.abort_with_error(F_STACK_UNDERFLOW)
         }
-    }
-
-    pub fn fdot(&mut self) {
-        // TODO
     }
 
     pub fn fplus(&mut self) {

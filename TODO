@@ -1,4 +1,3 @@
-add_primitive ("spaces", agent spaces)
 add_primitive ("bye", agent bye)
 add_primitive ("words", agent words)
 add_primitive (".s", agent dot_s)

@@ -1,8 +1,8 @@
-use std::num::SignedInt;
 use std::str::FromStr;
 use std::io::prelude::*;
 use std::fs::File;
 use std::io::BufReader;
+use std::error::Error;
 
 // Error messages
 static S_STACK_UNDERFLOW: &'static str = "Data stack underflow";
@@ -386,8 +386,7 @@ impl VM {
     }
 
     pub fn load(&mut self, path_name: &str) {
-        let path = Path::new(path_name);
-        let mut reader = match File::open(&path) {
+        let mut reader = match File::open(&path_name) {
             Err(_) => panic!("Cannot open file"),
             Ok(file) => {
                 BufReader::new(file)

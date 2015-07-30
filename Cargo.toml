@@ -1,5 +1,5 @@
 [package]
 
 name = "rtforth"
-version = "0.0.2"
+version = "0.1.0"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]

@@ -1,13 +1,17 @@
 extern crate rtforth;
 use rtforth::core::VM;
 use rtforth::loader::HasLoader;
-use std::env;
 use rtforth::io::IO;
+use rtforth::tools::Tools;
+use std::env;
 
 #[cfg(not(test))]
 fn main() {
     let vm = &mut VM::new();
     vm.add_primitive ("emit", VM::emit);
+    vm.add_primitive(".s", VM::dot_s);
+    vm.add_primitive("words", VM::words);
+
     let args: Vec<_> = env::args().collect();
     if args.len() > 1 {
         if args[1] == "--help" {

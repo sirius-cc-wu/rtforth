@@ -11,9 +11,9 @@ use errors::{
 pub struct Word {
     is_immediate: bool,
     hidden: bool,
-    nfa: usize,
+    pub nfa: usize,
     dfa: usize,
-    name_len: usize,
+    pub name_len: usize,
     action: fn(& mut VM)
 }
 
@@ -40,8 +40,8 @@ pub struct VM {
     f_stack: Vec<f64>,
     s_heap: Vec<isize>,
     f_heap: Vec<f64>,
-    n_heap: String,
-    word_list: Vec<Word>,
+    pub n_heap: String,
+    pub word_list: Vec<Word>,
     instruction_pointer: usize,
     word_pointer: usize,
     idx_lit: usize,
@@ -89,8 +89,6 @@ impl VM {
         vm.add_primitive("noop", VM::noop);
         vm.add_primitive("true", VM::p_true);
         vm.add_primitive("false", VM::p_false);
-        vm.add_primitive(".s", VM::dot_s);
-        vm.add_primitive("words", VM::words);
         vm.add_primitive("lit", VM::lit);;
         vm.add_primitive("exit", VM::exit);
         vm.add_primitive("pause", VM::pause);
@@ -239,20 +237,6 @@ impl VM {
             }
         }
         return found_index;
-    }
-
-    pub fn words(&mut self) {
-        for w in self.word_list.iter() {
-            let s = &self.n_heap[w.nfa..w.nfa+w.name_len];
-            println!("{}", s );
-        }
-    }
-
-    pub fn dot_s(&mut self) {
-        println!("<{}>", self.s_stack.len());
-        for s in self.s_stack.iter() {
-            println!("{}", s);
-        }
     }
 
 // Inner interpreter

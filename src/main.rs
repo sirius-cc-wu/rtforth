@@ -1,5 +1,6 @@
 extern crate rtforth;
-use rtforth::VM;
+use rtforth::core::VM;
+use rtforth::loader::HasLoader;
 use std::env;
 
 #[cfg(not(test))]

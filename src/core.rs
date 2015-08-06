@@ -1,11 +1,11 @@
 use std::str::FromStr;
-
-// Error messages
-static S_STACK_UNDERFLOW: &'static str = "Data stack underflow";
-static R_STACK_UNDERFLOW: &'static str = "Return stack underflow";
-static F_STACK_UNDERFLOW: &'static str = "Floating point stack underflow";
-static WORD_NOT_FOUND: &'static str = "Word not found";
-static END_OF_INPUT: &'static str = "End of input";
+use errors::{
+    END_OF_INPUT,
+    WORD_NOT_FOUND,
+    S_STACK_UNDERFLOW,
+    R_STACK_UNDERFLOW,
+    F_STACK_UNDERFLOW,
+};
 
 // Word
 pub struct Word {
@@ -54,7 +54,7 @@ pub struct VM {
     pub source_index: usize,
     last_token: String,
     last_definition: usize,
-    output_buffer: String
+    pub output_buffer: String
 }
 
 impl VM {
@@ -193,7 +193,6 @@ impl VM {
         vm.add_immediate ("s\"", VM::s_quote);
         vm.add_primitive ("type", VM::p_type);
         vm.add_primitive ("flush", VM::flush);
-        vm.add_primitive ("emit", VM::emit);
         vm.add_immediate (".\"", VM::dot_quote);
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
@@ -1136,13 +1135,6 @@ impl VM {
     pub fn flush(&mut self) {
         println!("{}", self.output_buffer);
         self.output_buffer.clear();
-    }
-
-    pub fn emit(&mut self) {
-        match self.s_stack.pop() {
-            None => self.abort_with_error(S_STACK_UNDERFLOW),
-            Some(ch) => self.output_buffer.push(ch as u8 as char)
-        }
     }
 
     pub fn dot_quote(&mut self) {

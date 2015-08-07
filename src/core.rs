@@ -194,6 +194,8 @@ impl VM {
         vm.add_primitive ("emit", VM::drop);
         vm.add_primitive ("type", VM::two_drop);
         vm.add_primitive ("flush", VM::noop);
+        vm.add_primitive(".s", VM::noop);
+        vm.add_primitive("words", VM::noop);
 
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");

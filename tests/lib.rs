@@ -1,5 +1,5 @@
 extern crate rtforth;
-use rtforth::VM;
+use rtforth::core::VM;
 
 #[test]
 fn test_primitives() {

@@ -189,9 +189,12 @@ impl VM {
         vm.add_primitive ("f0=", VM::f_zero_equals);
         vm.add_primitive ("f<", VM::f_less_than);
         vm.add_immediate ("s\"", VM::s_quote);
-        vm.add_primitive ("type", VM::p_type);
-        vm.add_primitive ("flush", VM::flush);
         vm.add_immediate (".\"", VM::dot_quote);
+        // Words need to be patched later
+        vm.add_primitive ("emit", VM::drop);
+        vm.add_primitive ("type", VM::two_drop);
+        vm.add_primitive ("flush", VM::noop);
+
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
@@ -215,6 +218,11 @@ impl VM {
             Some(w) => w.is_immediate = true,
             None => { /* Impossible */ }
         };
+    }
+
+    pub fn patch_primitive(&mut self, name: &str, action: fn(& mut VM)) {
+        let idx = self.find(name);
+        self.word_list[idx].action = action;
     }
 
     pub fn execute_word(&mut self, i: usize) {
@@ -1099,26 +1107,6 @@ impl VM {
         self.s_heap.push(self.idx_lit as isize);
         self.s_heap.push(cnt);
         self.source_index = self.source_index + 1 + cnt as usize + 1;
-    }
-
-    pub fn p_type(&mut self) {
-        match self.s_stack.pop() {
-            None => self.abort_with_error(S_STACK_UNDERFLOW),
-            Some(icnt) => match self.s_stack.pop() {
-                None => self.abort_with_error(S_STACK_UNDERFLOW),
-                Some(iaddr) => {
-                    let cnt = icnt as usize;
-                    let addr = iaddr as usize;
-                    let s = &self.n_heap[addr..addr+cnt]; 
-                    self.output_buffer.push_str(s);
-                }
-            }
-        }
-    }
-
-    pub fn flush(&mut self) {
-        println!("{}", self.output_buffer);
-        self.output_buffer.clear();
     }
 
     pub fn dot_quote(&mut self) {

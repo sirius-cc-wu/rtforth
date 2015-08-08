@@ -1,5 +1,5 @@
 use core::VM;
-use errors::{S_STACK_UNDERFLOW};
+use exception::Exception::{StackUnderflow};
 
 /// Types that can output to console.
 pub trait Output {
@@ -32,16 +32,16 @@ impl Output for VM {
 
     fn emit(&mut self) {
         match self.s_stack.pop() {
-            None => self.abort_with_error(S_STACK_UNDERFLOW),
+            None => self.abort_with_error(StackUnderflow.name()),
             Some(ch) => self.output_buffer.push(ch as u8 as char)
         }
     }
 
     fn p_type(&mut self) {
         match self.s_stack.pop() {
-            None => self.abort_with_error(S_STACK_UNDERFLOW),
+            None => self.abort_with_error(StackUnderflow.name()),
             Some(icnt) => match self.s_stack.pop() {
-                None => self.abort_with_error(S_STACK_UNDERFLOW),
+                None => self.abort_with_error(StackUnderflow.name()),
                 Some(iaddr) => {
                     let cnt = icnt as usize;
                     let addr = iaddr as usize;

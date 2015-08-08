@@ -1,6 +1,10 @@
 use std::str::FromStr;
 
+use exception::Exception;
+
 use exception::Exception::{
+    NoException,
+    Abort,
     UnexpectedEndOfFile,
     UndefinedWord,
     StackUnderflow,
@@ -63,7 +67,7 @@ impl VM {
         let mut vm = VM {
             is_compiling: false,
             is_paused: true,
-            error_code: 0,
+            error_code: NoException as isize,
             s_stack: Vec::with_capacity(16),
             r_stack: Vec::with_capacity(16),
             f_stack: Vec::with_capacity(16),
@@ -326,7 +330,7 @@ impl VM {
     pub fn evaluate(&mut self) {
         let saved_ip = self.instruction_pointer;
         self.instruction_pointer = 0;
-        self.error_code = 0;
+        self.error_code = NoException as isize;
         loop {
             self.scan();
             if self.last_token.is_empty() {
@@ -366,7 +370,7 @@ impl VM {
                 }
             } else {
                 println!("{}", &self.last_token);
-                self.abort_with_error(UndefinedWord.name());
+                self.abort_with_error(UndefinedWord);
             }
             if self.has_error() {
                 break;
@@ -407,7 +411,7 @@ impl VM {
             self.n_heap.push_str(&self.last_token);
         } else {
             self.last_definition = 0;
-            self.abort_with_error (UnexpectedEndOfFile.name());
+            self.abort_with_error (UnexpectedEndOfFile);
         }
     }
 
@@ -438,7 +442,7 @@ impl VM {
                 self.define(VM::p_const);
                 self.s_heap.push(v);
             },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -455,7 +459,7 @@ impl VM {
                 self.s_heap.push(self.f_heap.len() as isize);
                 self.f_heap.push(v);
             },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -498,7 +502,7 @@ impl VM {
                     self.instruction_pointer = self.instruction_pointer + 1;
                 }
             },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -518,7 +522,7 @@ impl VM {
                 self.s_heap[(if_part-1) as usize] = else_part-if_part+1;
                 self.s_stack.push(else_part);
             },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         };
     }
 
@@ -528,7 +532,7 @@ impl VM {
                 let branch_part = v;
                 self.s_heap[(branch_part-1) as usize] = (self.s_heap.len() as isize) - branch_part + 1;
             },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         };
     }
 
@@ -552,10 +556,10 @@ impl VM {
                         self.s_heap.push(begin_part-len);
                         self.s_heap[(while_part) as usize] = len - while_part + 1;
                     },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 };
             },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         };
     }
 
@@ -566,7 +570,7 @@ impl VM {
                 let len = self.s_heap.len() as isize;
                 self.s_heap.push(v-len);
             },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         };
     }
 
@@ -599,23 +603,23 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(t); self.s_stack.push(n); },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn dup(&mut self) {
         match self.s_stack.pop() {
             Some(t) => { self.s_stack.push(t); self.s_stack.push(t); },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn drop(&mut self) {
         match self.s_stack.pop() {
             Some(_) => {},
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -624,9 +628,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(_) => { self.s_stack.push(t); },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -639,9 +643,9 @@ impl VM {
                         self.s_stack.push(t);
                         self.s_stack.push(n);
                     },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -656,11 +660,11 @@ impl VM {
                                 self.s_stack.push(x3);
                                 self.s_stack.push(x1);
                             },
-                            None => self.abort_with_error(StackUnderflow.name())
+                            None => self.abort_with_error(StackUnderflow)
                         },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -669,9 +673,9 @@ impl VM {
             Some(_) =>
                 match self.s_stack.pop() {
                     Some(_) => {},
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -685,9 +689,9 @@ impl VM {
                         self.s_stack.push(n);
                         self.s_stack.push(t);
                     },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -705,13 +709,13 @@ impl VM {
                                         self.s_stack.push(x1);
                                         self.s_stack.push(x2);
                                     },
-                                    None => self.abort_with_error(StackUnderflow.name())
+                                    None => self.abort_with_error(StackUnderflow)
                                 },
-                            None => self.abort_with_error(StackUnderflow.name())
+                            None => self.abort_with_error(StackUnderflow)
                         },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -731,13 +735,13 @@ impl VM {
                                         self.s_stack.push(x1);
                                         self.s_stack.push(x2);
                                     },
-                                    None => self.abort_with_error(StackUnderflow.name())
+                                    None => self.abort_with_error(StackUnderflow)
                                 },
-                            None => self.abort_with_error(StackUnderflow.name())
+                            None => self.abort_with_error(StackUnderflow)
                         },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -745,7 +749,7 @@ impl VM {
         match self.s_stack.pop() {
             Some(t) =>
                 self.s_stack.push(t+1),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -753,7 +757,7 @@ impl VM {
         match self.s_stack.pop() {
             Some(t) =>
                 self.s_stack.push(t-1),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -762,9 +766,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(t+n); },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -773,9 +777,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(n-t); },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -784,9 +788,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(n*t); },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -795,9 +799,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(n/t); },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -806,9 +810,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_stack.push(n%t); },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -820,51 +824,51 @@ impl VM {
                         self.s_stack.push(n%t);
                         self.s_stack.push(n/t);
                     },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn abs(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(t.abs()),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn negate(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(-t),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn zero_less(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(if t<0 {-1} else {0}),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn zero_equals(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(if t==0 {-1} else {0}),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn zero_greater(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(if t>0 {-1} else {0}),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn zero_not_equals(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(if t!=0 {-1} else {0}),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -873,9 +877,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(if t==n {-1} else {0}),
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -884,9 +888,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(if n<t {-1} else {0}),
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -895,9 +899,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(if n>t {-1} else {0}),
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -906,9 +910,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(if n!=t {-1} else {0}),
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -919,18 +923,18 @@ impl VM {
                     Some(x2) =>
                         match self.s_stack.pop() {
                             Some(x1) => self.s_stack.push(if x1>=x2 && x1<=x3 {-1} else {0}),
-                            None => self.abort_with_error(StackUnderflow.name())
+                            None => self.abort_with_error(StackUnderflow)
                         },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn invert(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(!t),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -939,9 +943,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(t & n),
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -950,9 +954,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(t | n),
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -961,15 +965,15 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => self.s_stack.push(t ^ n),
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn exit(&mut self) {
         match self.r_stack.pop() {
-            None => self.abort_with_error (ReturnStackUnderflow.name()),
+            None => self.abort_with_error (ReturnStackUnderflow),
             Some(x) => self.instruction_pointer = x as usize,
         }
     }
@@ -977,7 +981,7 @@ impl VM {
     pub fn fetch(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.s_stack.push(self.s_heap[t as usize]),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         };
     }
 
@@ -986,9 +990,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.s_heap[t as usize] = n; },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -999,17 +1003,17 @@ impl VM {
             if found_index != 0 {
                 self.s_stack.push(found_index as isize);
             } else {
-                self.abort_with_error(UndefinedWord.name());
+                self.abort_with_error(UndefinedWord);
             }
         } else {
-            self.abort_with_error(UnexpectedEndOfFile.name());
+            self.abort_with_error(UnexpectedEndOfFile);
         }
     }
 
     pub fn execute(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.execute_word(t as usize),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         };
     }
 
@@ -1020,21 +1024,21 @@ impl VM {
     pub fn comma(&mut self) {
         match self.s_stack.pop() {
             Some(v) => self.s_heap.push(v),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn to_r(&mut self) {
         match self.s_stack.pop() {
             Some(v) => self.r_stack.push(v),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn r_from(&mut self) {
         match self.r_stack.pop() {
             Some(v) => self.s_stack.push(v),
-            None => self.abort_with_error(ReturnStackUnderflow.name())
+            None => self.abort_with_error(ReturnStackUnderflow)
         }
     }
 
@@ -1044,7 +1048,7 @@ impl VM {
                 self.r_stack.push(v);
                 self.s_stack.push(v);
             },
-            None => self.abort_with_error(ReturnStackUnderflow.name())
+            None => self.abort_with_error(ReturnStackUnderflow)
         }
     }
 
@@ -1053,9 +1057,9 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => { self.r_stack.push(n); self.r_stack.push(t); },
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         }
     }
 
@@ -1064,9 +1068,9 @@ impl VM {
             Some(t) =>
                 match self.r_stack.pop() {
                     Some(n) => { self.s_stack.push(n); self.s_stack.push(t); },
-                    None => self.abort_with_error(ReturnStackUnderflow.name())
+                    None => self.abort_with_error(ReturnStackUnderflow)
                 },
-            None => self.abort_with_error(ReturnStackUnderflow.name())
+            None => self.abort_with_error(ReturnStackUnderflow)
         }
     }
 
@@ -1078,9 +1082,9 @@ impl VM {
                         self.s_stack.push(n); self.s_stack.push(t);
                         self.r_stack.push(n); self.r_stack.push(t);
                     },
-                    None => self.abort_with_error(ReturnStackUnderflow.name())
+                    None => self.abort_with_error(ReturnStackUnderflow)
                 },
-            None => self.abort_with_error(ReturnStackUnderflow.name())
+            None => self.abort_with_error(ReturnStackUnderflow)
         }
     }
 
@@ -1123,7 +1127,7 @@ impl VM {
     pub fn ffetch(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.f_stack.push(self.f_heap[t as usize]),
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         };
     }
 
@@ -1132,58 +1136,58 @@ impl VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) => self.f_heap[t as usize] = n,
-                    None => self.abort_with_error(StackUnderflow.name())
+                    None => self.abort_with_error(StackUnderflow)
                 },
-            None => self.abort_with_error(StackUnderflow.name())
+            None => self.abort_with_error(StackUnderflow)
         };
     }
 
     pub fn fabs(&mut self) {
         match self.f_stack.pop() {
             Some(t) => self.f_stack.push(t.abs()),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     pub fn fsin(&mut self) {
         match self.f_stack.pop() {
             Some(t) => self.f_stack.push(t.sin()),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     pub fn fcos(&mut self) {
         match self.f_stack.pop() {
             Some(t) => self.f_stack.push(t.cos()),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     pub fn ftan(&mut self) {
         match self.f_stack.pop() {
             Some(t) => self.f_stack.push(t.tan()),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     pub fn fasin(&mut self) {
         match self.f_stack.pop() {
             Some(t) => self.f_stack.push(t.asin()),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     pub fn facos(&mut self) {
         match self.f_stack.pop() {
             Some(t) => self.f_stack.push(t.acos()),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     pub fn fatan(&mut self) {
         match self.f_stack.pop() {
             Some(t) => self.f_stack.push(t.atan()),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
@@ -1192,17 +1196,17 @@ impl VM {
             Some(t) => {
                 match self.f_stack.pop() {
                     Some(n) => self.f_stack.push(n.atan2(t)),
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 }
             },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     pub fn fsqrt(&mut self) {
         match self.f_stack.pop() {
             Some(t) => self.f_stack.push(t.sqrt()),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
@@ -1211,9 +1215,9 @@ impl VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) => { self.f_stack.push(t); self.f_stack.push(n); },
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -1222,9 +1226,9 @@ impl VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(_) => self.f_stack.push(t),
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -1234,14 +1238,14 @@ impl VM {
                 self.f_stack.push(t);
                 self.f_stack.push(t);
             },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     pub fn fdrop(&mut self) {
         match self.f_stack.pop() {
             Some(_) => { },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
@@ -1256,11 +1260,11 @@ impl VM {
                                 self.f_stack.push(x3);
                                 self.f_stack.push(x1);
                             },
-                            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                            None => self.abort_with_error(FloatingPointStackUnderflow)
                         },
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -1273,16 +1277,16 @@ impl VM {
                         self.f_stack.push(t);
                         self.f_stack.push(n);
                     },
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
     pub fn n_to_f(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.f_stack.push(t as f64),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -1291,9 +1295,9 @@ impl VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) => self.f_stack.push(n+t),
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -1302,9 +1306,9 @@ impl VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) => self.f_stack.push(n-t),
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -1313,9 +1317,9 @@ impl VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) => self.f_stack.push(n*t),
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -1324,9 +1328,9 @@ impl VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) => self.f_stack.push(n/t),
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -1345,25 +1349,25 @@ impl VM {
                                     self.s_stack.push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) {-1} else {0});
                                 }
                             },
-                            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                            None => self.abort_with_error(FloatingPointStackUnderflow)
                         },
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
     pub fn f_zero_less_than(&mut self) {
         match self.f_stack.pop() {
             Some(t) =>self.s_stack.push(if t<0.0 {-1} else {0}),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
     pub fn f_zero_equals(&mut self) {
         match self.f_stack.pop() {
             Some(t) =>self.s_stack.push(if t==0.0 {-1} else {0}),
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -1372,28 +1376,28 @@ impl VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) => self.s_stack.push(if n<t {-1} else {0}),
-                    None => self.abort_with_error(FloatingPointStackUnderflow.name())
+                    None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
-            None => self.abort_with_error(FloatingPointStackUnderflow.name())
+            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
 // Error handlling
 
     pub fn has_error(&self) -> bool {
-        return self.error_code != 0;
+        return self.error_code != NoException as isize;
     }
 
-    pub fn abort_with_error(&mut self, msg: &str) {
-        println!("{}", msg);
+    pub fn abort_with_error(&mut self, e: Exception) {
+        println!("{}", e.name());
         self.abort();
-        self.error_code = -2;
+        self.error_code = e as isize;
     }
 
     pub fn abort(&mut self) {
         self.s_stack.clear();
         self.f_stack.clear();
-        self.error_code = -1;
+        self.error_code = Abort as isize;
         self.quit();
     }
 

@@ -32,16 +32,16 @@ impl Output for VM {
 
     fn emit(&mut self) {
         match self.s_stack.pop() {
-            None => self.abort_with_error(StackUnderflow.name()),
+            None => self.abort_with_error(StackUnderflow),
             Some(ch) => self.output_buffer.push(ch as u8 as char)
         }
     }
 
     fn p_type(&mut self) {
         match self.s_stack.pop() {
-            None => self.abort_with_error(StackUnderflow.name()),
+            None => self.abort_with_error(StackUnderflow),
             Some(icnt) => match self.s_stack.pop() {
-                None => self.abort_with_error(StackUnderflow.name()),
+                None => self.abort_with_error(StackUnderflow),
                 Some(iaddr) => {
                     let cnt = icnt as usize;
                     let addr = iaddr as usize;

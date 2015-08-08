@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
-use std::error::Error;
+use exception::Exception::FileIOException;
 
 pub trait HasLoader {
     fn load(&mut self, path_name: &str);
@@ -26,8 +26,9 @@ impl HasLoader for ::core::VM {
                         break;
                     }
                 },
-                Err(e) => {
-                    self.abort_with_error(e.description());
+                Err(_) => {
+                    self.abort_with_error(FileIOException);
+                    // println!(_.description()));
                     break;
                 }
             }

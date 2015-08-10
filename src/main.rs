@@ -8,8 +8,8 @@ use std::env;
 #[cfg(not(test))]
 fn main() {
     let vm = &mut VM::new();
-    vm.patch_output_primitives();
-    vm.patch_tools();
+    vm.add_output();
+    vm.add_tools();
 
     let args: Vec<_> = env::args().collect();
     if args.len() > 1 {
@@ -30,6 +30,6 @@ fn main() {
 #[cfg(not(test))]
 mod hello {
     pub fn hello() {
-        println!("rtForth 0.0.2 by ccwu");
+        println!("rtForth 0.1.1 by ccwu");
     }
 }

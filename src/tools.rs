@@ -1,24 +1,29 @@
 use core::VM;
 
 pub trait Tools {
-    /// Patch self's programming-tools primitives.
-    fn patch_tools(&mut self);
+    /// Add programming-tools primitives.
+    fn add_tools(&mut self);
 
-    /// Display values on the data stack.
+    /// Run-time: ( -- )
     ///
-    /// Stack effect: ( -- )
+    /// Display values on the data stack.
     fn dot_s(&mut self);
 
-    /// List definition names in word list.
+    /// Run-time: ( -- )
     ///
-    /// Stack effect: ( -- )
+    /// List definition names in word list.
     fn words(&mut self);
+
+    /// Run-time: ( -- n )
+    ///
+    /// Largest usable signed integer
+    fn max_n(&mut self);
 }
 
-impl Tools for ::core::VM {
-    fn patch_tools(&mut self) {
-        self.patch_primitive("words", VM::words);
-        self.patch_primitive(".s", VM::dot_s);
+impl Tools for VM {
+    fn add_tools(&mut self) {
+        self.add_primitive("words", VM::words);
+        self.add_primitive(".s", VM::dot_s);
     }
 
     fn words(&mut self) {
@@ -36,4 +41,9 @@ impl Tools for ::core::VM {
         }
         println!("");
     }
+
+    fn max_n(&mut self) {
+        self.s_stack.push(isize::max_value())
+    }
+
 }

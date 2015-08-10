@@ -39,22 +39,22 @@ impl Word {
 pub struct VM {
     is_compiling: bool,
     is_paused: bool,
-    error_code: isize,
+    pub error_code: isize,
     pub s_stack: Vec<isize>,
     r_stack: Vec<isize>,
-    f_stack: Vec<f64>,
-    s_heap: Vec<isize>,
+    pub f_stack: Vec<f64>,
+    pub s_heap: Vec<isize>,
     f_heap: Vec<f64>,
     pub n_heap: String,
     pub word_list: Vec<Word>,
     instruction_pointer: usize,
     word_pointer: usize,
-    idx_lit: usize,
+    pub idx_lit: usize,
     idx_exit: usize,
     idx_flit: usize,
     idx_zero_branch: usize,
     idx_branch: usize,
-    idx_type: usize,
+    pub idx_type: usize,
     pub input_buffer: String,
     pub source_index: usize,
     last_token: String,
@@ -193,21 +193,12 @@ impl VM {
         vm.add_primitive ("f0<", VM::f_zero_less_than);
         vm.add_primitive ("f0=", VM::f_zero_equals);
         vm.add_primitive ("f<", VM::f_less_than);
-        vm.add_immediate ("s\"", VM::s_quote);
-        vm.add_immediate (".\"", VM::dot_quote);
-        // Words need to be patched later
-        vm.add_primitive ("emit", VM::drop);
-        vm.add_primitive ("type", VM::two_drop);
-        vm.add_primitive ("flush", VM::noop);
-        vm.add_primitive(".s", VM::noop);
-        vm.add_primitive("words", VM::noop);
 
         vm.idx_lit = vm.find("lit");
         vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
         vm.idx_zero_branch = vm.find("0branch");
         vm.idx_branch = vm.find("branch");
-        vm.idx_type = vm.find("type");
         // S_heap is beginning with noop, because s_heap[0] should not be used.
         let idx = vm.find("noop");
         vm.compile_word(idx);
@@ -225,11 +216,6 @@ impl VM {
             Some(w) => w.is_immediate = true,
             None => { /* Impossible */ }
         };
-    }
-
-    pub fn patch_primitive(&mut self, name: &str, action: fn(& mut VM)) {
-        let idx = self.find(name);
-        self.word_list[idx].action = action;
     }
 
     pub fn execute_word(&mut self, i: usize) {
@@ -1092,34 +1078,6 @@ impl VM {
         self.r_stack.push(self.instruction_pointer as isize);
         self.instruction_pointer = 0;
         self.is_paused = true;
-    }
-
-// Output
-
-    pub fn s_quote(&mut self) {
-        // ignore the space following S"
-        let source = &self.input_buffer[self.source_index+1..self.input_buffer.len()];
-        let naddr = self.n_heap.len();
-        let mut cnt = 0;
-        for ch in source.chars() {
-            if ch == '"' {
-                break;
-            } else {
-                self.n_heap.push(ch);
-            }
-            cnt = cnt + 1;
-        }
-        self.s_heap.push(self.idx_lit as isize);
-        self.s_heap.push(naddr as isize);
-        self.s_heap.push(self.idx_lit as isize);
-        self.s_heap.push(cnt);
-        self.source_index = self.source_index + 1 + cnt as usize + 1;
-    }
-
-    pub fn dot_quote(&mut self) {
-        self.s_quote();
-        let idx_type = self.idx_type;
-        self.compile_word(idx_type);
     }
 
 // Floating point primitives
@@ -2285,31 +2243,6 @@ mod tests {
         vm.set_source("0 n>f -1 n>f 1 n>f");
         vm.evaluate();
         assert_eq!(vm.f_stack, [0.0, -1.0, 1.0]);
-        assert_eq!(vm.error_code, 0);
-    }
-
-    #[test]
-    fn test_s_quote_and_type () {
-        let vm = &mut VM::new();
-        vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
-        vm.evaluate();
-        assert_eq!(vm.f_stack, []);
-        assert_eq!(vm.output_buffer, "Hi, how are you");
-        assert_eq!(vm.error_code, 0);
-    }
-
-    #[test]
-    fn test_emit_and_flush () {
-        let vm = &mut VM::new();
-        vm.set_source("42 emit 43 emit");
-        vm.evaluate();
-        assert_eq!(vm.f_stack, []);
-        assert_eq!(vm.output_buffer, "*+");
-        assert_eq!(vm.error_code, 0);
-        vm.set_source("flush");
-        vm.evaluate();
-        assert_eq!(vm.f_stack, []);
-        assert_eq!(vm.output_buffer, "");
         assert_eq!(vm.error_code, 0);
     }
 

@@ -37,14 +37,18 @@ mod tests {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "arithmetic operation overflow")]
     fn test_max_n() {
         let mut vm = VM::new();
         vm.add_environment();
-        vm.set_source("max-n 1+");
+        vm.set_source("max-n dup 1+ +");
         vm.evaluate();
+        match vm.s_stack.pop() {
+            Some(t) => assert_eq!(t, -1),
+            None => assert!(false)
+        }
     }
     #[test]
+
     fn test_max_u() {
         let mut vm = VM::new();
         vm.add_environment();

@@ -112,7 +112,7 @@ impl Output for VM {
 #[cfg(test)]
 mod tests {
     use core::VM;
-    use super::Output;
+    use super::*;
 
     #[test]
     fn test_s_quote_and_type () {

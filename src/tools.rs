@@ -14,10 +14,6 @@ pub trait Tools {
     /// List definition names in word list.
     fn words(&mut self);
 
-    /// Run-time: ( -- n )
-    ///
-    /// Largest usable signed integer
-    fn max_n(&mut self);
 }
 
 impl Tools for VM {
@@ -40,10 +36,6 @@ impl Tools for VM {
             print!("{} ", s);
         }
         println!("");
-    }
-
-    fn max_n(&mut self) {
-        self.s_stack.push(isize::max_value())
     }
 
 }

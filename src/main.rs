@@ -3,6 +3,7 @@ use rtforth::core::VM;
 use rtforth::loader::HasLoader;
 use rtforth::output::Output;
 use rtforth::tools::Tools;
+use rtforth::env::Environment;
 use std::env;
 
 #[cfg(not(test))]
@@ -10,6 +11,7 @@ fn main() {
     let vm = &mut VM::new();
     vm.add_output();
     vm.add_tools();
+    vm.add_environment();
 
     let args: Vec<_> = env::args().collect();
     if args.len() > 1 {

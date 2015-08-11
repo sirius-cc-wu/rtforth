@@ -1,5 +1,4 @@
 use std::str::FromStr;
-use std::num::Wrapping;
 
 use exception::Exception;
 
@@ -735,7 +734,7 @@ impl VM {
     pub fn one_plus(&mut self) {
         match self.s_stack.pop() {
             Some(t) =>
-                self.s_stack.push((Wrapping(t)+Wrapping(1)).0),
+                self.s_stack.push(t.wrapping_add(1)),
             None => self.abort_with_error(StackUnderflow)
         }
     }

@@ -4,6 +4,7 @@ use rtforth::loader::HasLoader;
 use rtforth::output::Output;
 use rtforth::tools::Tools;
 use rtforth::env::Environment;
+use rtforth::facility::Facility;
 use std::env;
 
 #[cfg(not(test))]
@@ -12,6 +13,7 @@ fn main() {
     vm.add_output();
     vm.add_tools();
     vm.add_environment();
+    vm.add_facility();
 
     let args: Vec<_> = env::args().collect();
     if args.len() > 1 {
@@ -27,6 +29,10 @@ fn main() {
         hello::hello();
         vm.load("lib.fs");
     }
+    println!("test ntime");
+    vm.set_source("ntime .s");
+    vm.evaluate();
+    vm.flush();
 }
 
 #[cfg(not(test))]

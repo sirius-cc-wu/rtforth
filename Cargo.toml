@@ -6,3 +6,6 @@ authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 
 [[bin]]
 name = "rtf"
+
+[dependencies]
+time = "0.1"

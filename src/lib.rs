@@ -4,3 +4,4 @@ pub mod output;
 pub mod exception;
 pub mod tools;
 pub mod env;
+pub mod facility;

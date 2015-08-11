@@ -10,9 +10,22 @@ pub trait Facility {
     /// Add facility primitives.
     fn add_facility(&mut self);
 
-    /// Stack effect: ( -- d )
+    /// Stack effect: ( -- ud )
     ///
     /// Current time in nanoseconds since some epoch
+    ///
+    /// Examples:
+    ///
+    /// ```
+    /// use rtforth::core::VM;
+    /// use rtforth::facility::Facility;
+    /// use rtforth::tools::Tools;
+    /// let mut vm = VM::new();
+    /// vm.add_facility();
+    /// vm.add_tools();
+    /// vm.set_source("ntime .s");
+    /// vm.evaluate();
+    /// ```
     fn ntime(&mut self);
 }
 

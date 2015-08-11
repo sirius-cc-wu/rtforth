@@ -29,10 +29,6 @@ fn main() {
         hello::hello();
         vm.load("lib.fs");
     }
-    println!("test ntime");
-    vm.set_source("ntime .s");
-    vm.evaluate();
-    vm.flush();
 }
 
 #[cfg(not(test))]

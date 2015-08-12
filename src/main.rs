@@ -18,7 +18,7 @@ fn main() {
     let args: Vec<_> = env::args().collect();
     if args.len() > 1 {
         if args[1] == "--help" {
-            println!("Usage: rtforth [options] [file]");
+            println!("Usage: rtf [options] [file]");
             println!("rtForth will load lib.fs if no options and file is given.");
             println!("Options:");
             println!("  --help");

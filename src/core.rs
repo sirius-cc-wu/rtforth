@@ -131,7 +131,7 @@ impl VM {
         vm.add_primitive("and", VM::and);
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
-        vm.add_primitive("scan", VM::scan);;
+        vm.add_primitive("parse-word", VM::parse_word);;
         vm.add_primitive("evaluate", VM::evaluate);;
         vm.add_primitive(":", VM::colon);
         vm.add_immediate(";", VM::semicolon);
@@ -291,7 +291,10 @@ impl VM {
         self.source_index = 0;
     }
 
-    pub fn scan(&mut self) {
+    /// Run-time: ( "ccc" -- )
+    ///
+    /// Parse word delimited by white spaces.
+    pub fn parse_word(&mut self) {
         self.last_token.clear();
         let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
         let mut cnt = 0;
@@ -318,7 +321,7 @@ impl VM {
         self.instruction_pointer = 0;
         self.error_code = NoException as isize;
         loop {
-            self.scan();
+            self.parse_word();
             if self.last_token.is_empty() {
                 break;
             }
@@ -389,7 +392,7 @@ impl VM {
     }
 
     pub fn define(&mut self, action: fn(& mut VM)) {
-        self.scan();
+        self.parse_word();
         if !self.last_token.is_empty() {
             let w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), action);
             self.last_definition = self.word_list.len();
@@ -983,7 +986,7 @@ impl VM {
     }
 
     pub fn tick(&mut self) {
-        self.scan();
+        self.parse_word();
         if !self.last_token.is_empty() {
             let found_index = self.find(&self.last_token);
             if found_index != 0 {
@@ -1798,16 +1801,16 @@ mod tests {
     }
 
     #[test]
-    fn test_scan () {
+    fn test_parse_word () {
         let vm = &mut VM::new();
         vm.set_source("hello world\t\r\n\"");
-        vm.scan();
+        vm.parse_word();
         assert_eq!(vm.last_token, "hello");
         assert_eq!(vm.source_index, 5);
-        vm.scan();
+        vm.parse_word();
         assert_eq!(vm.last_token, "world");
         assert_eq!(vm.source_index, 11);
-        vm.scan();
+        vm.parse_word();
         assert_eq!(vm.last_token, "\"");
         assert_eq!(vm.error_code, 0);
     }

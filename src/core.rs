@@ -132,6 +132,8 @@ impl VM {
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
         vm.add_primitive("parse-word", VM::parse_word);;
+        vm.add_primitive("parse", VM::parse);
+        vm.add_immediate("(", VM::imm_paren);
         vm.add_primitive("evaluate", VM::evaluate);;
         vm.add_primitive(":", VM::colon);
         vm.add_immediate(";", VM::semicolon);
@@ -293,7 +295,7 @@ impl VM {
 
     /// Run-time: ( "ccc" -- )
     ///
-    /// Parse word delimited by white spaces.
+    /// Parse word delimited by white space, skipping leading white spaces.
     pub fn parse_word(&mut self) {
         self.last_token.clear();
         let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
@@ -310,6 +312,36 @@ impl VM {
             cnt = cnt + 1;
         }
         self.source_index = self.source_index + cnt;
+    }
+
+    /// Run-time: ( char "ccc&lt;char&gt;" -- )
+    ///
+    /// Parse ccc delimited by the delimiter char.
+    pub fn parse(&mut self) {
+        match self.s_stack.pop() {
+            Some(v) => {
+                self.last_token.clear();
+                let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
+                let mut cnt = 0;
+                for ch in source.chars() {
+                    cnt = cnt + 1;
+                    if ch as isize == v {
+                        break;
+                    } else {
+                        self.last_token.push(ch);
+                    }
+                }
+                self.source_index = self.source_index + cnt;
+            },
+            None => {
+                self.abort_with_error(StackUnderflow);
+            }
+        }
+    }
+
+    pub fn imm_paren(&mut self) {
+        self.s_stack.push(')' as isize);
+        self.parse();
     }
 
     pub fn imm_backslash(&mut self) {

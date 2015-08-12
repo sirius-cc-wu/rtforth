@@ -20,10 +20,11 @@ impl HasLoader for ::core::VM {
             let result = reader.read_line(&mut self.input_buffer);
             match result {
                 Ok(_) => {
-                    self.source_index = 0;
-                    self.evaluate();
-                    if self.input_buffer.len() == 0 {
+                    if self.input_buffer.is_empty() {
                         break;
+                    } else {
+                        self.source_index = 0;
+                        self.evaluate();
                     }
                 },
                 Err(_) => {

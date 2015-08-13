@@ -358,28 +358,6 @@ impl VM {
             if self.last_token.is_empty() {
                 break;
             }
-            match FromStr::from_str(&self.last_token) {
-                Ok(t) => {
-                    if self.is_compiling {
-                        self.compile_integer(t);
-                    } else {
-                        self.s_stack.push (t);
-                    }
-                    continue
-                },
-                Err(_) => {}
-            };
-            match FromStr::from_str(&self.last_token) {
-                Ok(t) => {
-                    if self.is_compiling {
-                        self.compile_float(t);
-                    } else {
-                        self.f_stack.push (t);
-                    }
-                    continue
-                },
-                Err(_) => {}
-            };
             let found_index = self.find(&self.last_token);
             if found_index != 0 {
                 if !self.is_compiling || self.word_list[found_index].is_immediate {
@@ -391,8 +369,35 @@ impl VM {
                     self.compile_word(found_index);
                 }
             } else {
-                println!("{}", &self.last_token);
-                self.abort_with_error(UndefinedWord);
+                // Integer?
+                match FromStr::from_str(&self.last_token) {
+                    Ok(t) => {
+                        if self.is_compiling {
+                            self.compile_integer(t);
+                        } else {
+                            self.s_stack.push (t);
+                        }
+                        continue
+                    },
+                    Err(_) => {
+                        // Floating point?
+                        match FromStr::from_str(&self.last_token) {
+                            Ok(t) => {
+                                if self.is_compiling {
+                                    self.compile_float(t);
+                                } else {
+                                    self.f_stack.push (t);
+                                }
+                                continue
+                            },
+                            Err(_) => {
+                                println!("{}", &self.last_token);
+                                self.abort_with_error(UndefinedWord);
+                            }
+                        };
+                    }
+                };
+
             }
             if self.has_error() {
                 break;

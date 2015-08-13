@@ -162,6 +162,7 @@ impl VM {
         vm.add_immediate("while", VM::imm_while);
         vm.add_immediate("repeat", VM::imm_repeat);
         vm.add_immediate("again", VM::imm_again);
+        vm.add_immediate("recurse", VM::imm_recurse);
         vm.add_immediate("\\", VM::imm_backslash);
         vm.add_primitive("marker", VM::marker);
         vm.add_primitive("quit", VM::quit);
@@ -593,6 +594,10 @@ impl VM {
             },
             None => self.abort_with_error(StackUnderflow)
         };
+    }
+
+    pub fn imm_recurse(&mut self) {
+        self.s_heap.push(self.last_definition as isize);
     }
 
 // Primitives

@@ -5,7 +5,10 @@ version = "0.1.1"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 
 [[bin]]
-name = "rtf"
+name = "rf"
 
 [dependencies]
 time = "0.1"
+
+[profile.release]
+debug = true

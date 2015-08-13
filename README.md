@@ -19,12 +19,12 @@ See benchmarks in doc/bench/forth/.
 
 2015/08/13
 
-benchmark   | gforth | rtForth
------------ | ------ | --------
-bubble-sort |    1   |     x   
-fib         |    1   |   3.8
-matrix-mult |    1   |     x
-mm-rtcg     |    1   |     x
-sieve       |    1   |     x
-ssieve-a    |    1   |     x
+benchmark   | SwiftForth | gforth   | rtForth
+----------- | ---------- | -------- | -------
+bubble-sort |    1       |     x    |     x 
+fib         |    1       |  7.32    | 28.82 
+matrix-mult |    1       |     x    |
+mm-rtcg     |    1       |     x    |
+sieve       |    1       |     x    |
+ssieve-a    |    1       |     x    |
 

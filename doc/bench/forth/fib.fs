@@ -10,4 +10,4 @@
 
 : main 34 fib . ;
 
-utime 34 fib drop utime .s
+main bye

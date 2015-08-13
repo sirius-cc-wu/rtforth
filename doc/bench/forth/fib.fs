@@ -9,5 +9,3 @@
     then ;
 
 : main 34 fib . ;
-
-main bye

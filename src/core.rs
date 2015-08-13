@@ -274,8 +274,8 @@ impl VM {
     /// Compile float 'f'.
     pub fn compile_float (&mut self, f: f64) {
         self.s_heap.push(self.idx_flit as isize);
-        self.f_heap.push(f);
         self.s_heap.push(self.f_heap.len() as isize);
+        self.f_heap.push(f);
     }
 
 // Evaluation

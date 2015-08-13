@@ -1,5 +1,8 @@
 use core::VM;
-use exception::Exception::{StackUnderflow};
+use exception::Exception::{
+    StackUnderflow,
+    FloatingPointStackUnderflow
+};
 
 /// Types that can output to console.
 pub trait Output {
@@ -41,6 +44,16 @@ pub trait Output {
     ///
     /// Display ccc. 
     fn dot_quote(&mut self);
+
+    /// Run-time: ( n -- )
+    ///
+    /// Display n in free field format. 
+    fn dot(&mut self);
+
+    /// Run-time: ( -- ) ( F: r -- )
+    ///
+    /// Display, with a trailing space, the top number on the floating-point stack using fixed-point notation.
+    fn fdot(&mut self);
 }
 
 impl Output for VM {
@@ -51,6 +64,8 @@ impl Output for VM {
         self.add_primitive ("flush", VM::flush);
         self.add_immediate ("s\"", VM::s_quote);
         self.add_immediate (".\"", VM::dot_quote);
+        self.add_primitive (".", VM::dot);
+        self.add_primitive ("f.", VM::fdot);
         self.idx_type = self.find("type");
     }
 
@@ -107,6 +122,19 @@ impl Output for VM {
         self.compile_word(idx_type);
     }
 
+    fn dot(&mut self) {
+        match self.s_stack.pop() {
+            Some(n) => print!("{} ", n),
+            None => self.abort_with_error(StackUnderflow)
+        }
+    }
+
+    fn fdot(&mut self) {
+        match self.f_stack.pop() {
+            Some(r) => print!("{} ", r),
+            None => self.abort_with_error(FloatingPointStackUnderflow)
+        }
+    }
 }
 
 #[cfg(test)]

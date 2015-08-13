@@ -5,12 +5,12 @@ use std::ops::Shr;
 extern crate time;
 
 pub trait Facility {
-    /// Stack effect: ( --  )
+    /// Run-time: ( --  )
     ///
     /// Add facility primitives.
     fn add_facility(&mut self);
 
-    /// Stack effect: ( -- ud )
+    /// Run-time: ( -- ud )
     ///
     /// Current time in nanoseconds since some epoch
     ///
@@ -28,7 +28,7 @@ pub trait Facility {
     /// ```
     fn ntime(&mut self);
 
-    /// Stack effect: ( -- ud )
+    /// Run-time: ( -- ud )
     ///
     /// Current time in microseconds since some epoch
     ///

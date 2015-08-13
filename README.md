@@ -12,6 +12,17 @@ The performance of current implementation is not well because of token threading
 But slow colon definitions can be improved with a Just-In-Time compiler.
 After optimization, corresponding slots in word list points to the jitted definitions.
 
+Usage
+=====
+
+Install Rust compiler and cargo the Rust package manager at first.
+
+```
+$ cargo build
+$ ./target/debug/rf --help  # Display help information.
+$ ./target/debug/rf <file>   # Load forth commands in <file>
+```
+
 Benchmark
 =========
 

@@ -33,12 +33,17 @@ See benchmarks in doc/bench/forth/.
 
 2015/08/13
 
-benchmark   | SwiftForth | gforth   | rtForth
------------ | ---------- | -------- | -------
-bubble-sort |    1       |     x    |     x 
-fib         |    1       |  7.32    | 28.82 
-matrix-mult |    1       |     x    |
-mm-rtcg     |    1       |     x    |
-sieve       |    1       |     x    |
-ssieve-a    |    1       |     x    |
+* SwiftForth 3.5.7
+* gforth 0.7.0
+* ficl 4.1.0
+* rtForth 0.1.2
+
+benchmark   | SwiftForth | gforth  | rtForth |  ficl
+----------- | ---------- | ------- | ------- | -----------
+bubble-sort |    1       |     x   |     x   |     x
+fib         |    1       |  7.32   | 28.82   | 37.36
+matrix-mult |    1       |     x   |     x   |     x
+mm-rtcg     |    1       |     x   |     x   |     x
+sieve       |    1       |     x   |     x   |     x
+ssieve-a    |    1       |     x   |     x   |     x
 

@@ -33,10 +33,11 @@ See benchmarks in doc/bench/forth/.
 
 2015/08/13
 
+* rustc 1.4.0-nightly
+* rtForth 0.1.2
 * SwiftForth 3.5.7
 * gforth 0.7.0
 * ficl 4.1.0
-* rtForth 0.1.2
 
 benchmark   | SwiftForth | gforth  | rtForth |  ficl
 ----------- | ---------- | ------- | ------- | -----------

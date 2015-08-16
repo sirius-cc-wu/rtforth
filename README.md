@@ -47,3 +47,16 @@ mm-rtcg     |    1       |     x   |     x   |     x
 sieve       |    1       |     x   |     x   |     x
 ssieve-a    |    1       |     x   |     x   |     x
 
+```
+bench_dup                                     :           8 ns/iter (+/- 0)
+bench_evaluate_words_at_beginning_of_wordlist :         584 ns/iter (+/- 11)
+bench_evaluate_words_at_middle_of_wordlist    :       3,802 ns/iter (+/- 26)
+bench_find_word_at_beginning_of_wordlist      :          25 ns/iter (+/- 1)
+bench_find_word_at_end_of_wordlist            :         662 ns/iter (+/- 7)
+bench_find_word_at_middle_of_wordlist         :         372 ns/iter (+/- 23)
+bench_find_word_not_exist                     :         586 ns/iter (+/- 39)
+bench_over                                    :          10 ns/iter (+/- 0)
+bench_rot                                     :          10 ns/iter (+/- 1)
+bench_swap                                    :           9 ns/iter (+/- 0)
+```
+

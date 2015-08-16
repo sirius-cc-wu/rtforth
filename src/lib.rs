@@ -1,3 +1,4 @@
+#![feature(test)]
 pub mod core;
 pub mod loader;
 pub mod output;

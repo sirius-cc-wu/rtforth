@@ -1,3 +1,5 @@
+extern crate test;
+
 use std::str::FromStr;
 
 use exception::Exception;
@@ -1417,7 +1419,8 @@ impl VM {
 
 #[cfg(test)]
 mod tests {
-    use super::VM;
+    use super::*;
+    use core::test::Bencher;
 
     #[test]
     fn test_find() {
@@ -1426,6 +1429,30 @@ mod tests {
         assert_eq!(0usize, vm.find("word-not-exist"));
         assert_eq!(1usize, vm.find("noop"));
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[bench]
+    fn bench_find_word_not_exist(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        b.iter(|| vm.find("unknown"));
+    }
+
+    #[bench]
+    fn bench_find_word_at_beginning_of_wordlist(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        b.iter(|| vm.find("noop"));
+    }
+
+    #[bench]
+    fn bench_find_word_at_middle_of_wordlist(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        b.iter(|| vm.find("branch"));
+    }
+
+    #[bench]
+    fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        b.iter(|| vm.find("f<"));
     }
 
     #[test]
@@ -1471,6 +1498,14 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_swap (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        b.iter(|| vm.swap());
+    }
+
     #[test]
     fn test_dup () {
         let vm = &mut VM::new();
@@ -1478,6 +1513,16 @@ mod tests {
         vm.dup();
         assert_eq!(vm.s_stack, [1, 1]);
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[bench]
+    fn bench_dup (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        b.iter(|| {
+            vm.dup();
+            vm.s_stack.pop();
+        });
     }
 
     #[test]
@@ -1490,6 +1535,17 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_over (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        b.iter(|| {
+            vm.over();
+            vm.s_stack.pop();
+        });
+    }
+
     #[test]
     fn test_rot () {
         let vm = &mut VM::new();
@@ -1499,6 +1555,15 @@ mod tests {
         vm.rot();
         assert_eq!(vm.s_stack, [2, 3, 1]);
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[bench]
+    fn bench_rot (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        vm.s_stack.push(3);
+        b.iter(|| vm.rot());
     }
 
     #[test]
@@ -1864,6 +1929,24 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack, [0, -1, 0, 2, -3]);
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[bench]
+    fn bench_evaluate_words_at_beginning_of_wordlist (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        b.iter(|| {
+            vm.set_source("noop noop noop noop noop noop noop noop");
+            vm.evaluate();
+        });
+    }
+
+    #[bench]
+    fn bench_evaluate_words_at_middle_of_wordlist(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        b.iter(|| {
+            vm.set_source("here if else then here if else then");
+            vm.evaluate();
+        });
     }
 
     #[test]

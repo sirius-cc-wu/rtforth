@@ -2394,4 +2394,19 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_fib(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.set_source(": fib dup 2 < if drop 1 else dup 1- recurse swap 2 - recurse + then ;");
+        vm.evaluate();
+        vm.set_source(": main 7 fib drop ;");
+        vm.evaluate();
+        vm.set_source("' main");
+        vm.evaluate();
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            vm.inner();
+        });
+    }
 }

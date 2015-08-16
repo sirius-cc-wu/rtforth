@@ -138,6 +138,8 @@ impl VM {
         vm.add_primitive("or", VM::or);
         vm.add_primitive("xor", VM::xor);
         vm.add_primitive("parse-word", VM::parse_word);;
+        vm.add_primitive("char", VM::char);
+        vm.add_immediate("[char]", VM::bracket_char);
         vm.add_primitive("parse", VM::parse);
         vm.add_immediate("(", VM::imm_paren);
         vm.add_primitive("evaluate", VM::evaluate);;
@@ -319,6 +321,33 @@ impl VM {
             cnt = cnt + 1;
         }
         self.source_index = self.source_index + cnt;
+    }
+
+    /// Run-time: ( "&lt;spaces&gt;name" -- char)
+    ///
+    /// Skip leading space delimiters. Parse name delimited by a space. Put the value of its first character onto the stack.
+    pub fn char(&mut self) {
+        self.parse_word();
+        match self.last_token.chars().nth(0) {
+            Some(c) => self.s_stack.push(c as isize),
+            // if none is found, push 0 onto stack.
+            None => self.s_stack.push(0)
+        }
+    }
+
+    /// Compilation: ( "&lt;spaces&gt;name" -- )
+    ///
+    /// Skip leading space delimiters. Parse name delimited by a space. Append the run-time semantics given below to the current definition.
+    ///
+    /// Run-time: ( -- char )
+    ///
+    /// Place char, the value of the first character of name, on the stack.
+    pub fn bracket_char(&mut self) {
+        self.char();
+        match self.s_stack.pop() {
+            Some(ch) => self.compile_integer(ch),
+            None => self.abort_with_error(StackUnderflow)
+        }
     }
 
     /// Run-time: ( char "ccc&lt;char&gt;" -- )

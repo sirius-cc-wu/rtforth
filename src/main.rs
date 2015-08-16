@@ -34,6 +34,6 @@ fn main() {
 #[cfg(not(test))]
 mod hello {
     pub fn hello() {
-        println!("rtForth 0.1.3 by ccwu");
+        println!("rtForth 0.1.4 by ccwu");
     }
 }

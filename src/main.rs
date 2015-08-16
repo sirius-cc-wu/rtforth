@@ -15,25 +15,25 @@ fn main() {
     vm.add_environment();
     vm.add_facility();
 
+    hello::hello();
+    vm.load("lib.fs");
+
     let args: Vec<_> = env::args().collect();
     if args.len() > 1 {
         if args[1] == "--help" {
             println!("Usage: rtf [options] [file]");
-            println!("rtForth will load lib.fs if no options and file is given.");
+            println!("rtForth will load lib.fs before file.");
             println!("Options:");
             println!("  --help");
         } else {
             vm.load(&args[1]);
         }
-    } else {
-        hello::hello();
-        vm.load("lib.fs");
     }
 }
 
 #[cfg(not(test))]
 mod hello {
     pub fn hello() {
-        println!("rtForth 0.1.1 by ccwu");
+        println!("rtForth 0.1.3 by ccwu");
     }
 }

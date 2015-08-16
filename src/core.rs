@@ -96,6 +96,10 @@ impl VM {
         vm.add_primitive("noop", VM::noop);
         vm.add_primitive("true", VM::p_true);
         vm.add_primitive("false", VM::p_false);
+        vm.add_primitive("cell+", VM::cell_plus);
+        vm.add_primitive("cells", VM::cells);
+        vm.add_primitive("align", VM::align);
+        vm.add_primitive("aligned", VM::aligned);
         vm.add_primitive("lit", VM::lit);;
         vm.add_primitive("exit", VM::exit);
         vm.add_primitive("pause", VM::pause);
@@ -613,12 +617,49 @@ impl VM {
         // Do nothing
     }
 
+    /// Run-time: ( -- true )
+    ///
+    /// Return a true flag, a single-cell value with all bits set. 
     pub fn p_true(&mut self) {
         self.s_stack.push (-1);
     }
 
+    /// Run-time: ( -- false )
+    ///
+    /// Return a false flag.
     pub fn p_false(&mut self) {
         self.s_stack.push (0);
+    }
+
+    /// Run-time: (a-addr1 -- a-addr2 )
+    ///
+    /// Add the size in address units of a cell to a-addr1, giving a-addr2.
+    pub fn cell_plus(&mut self) {
+        match self.s_stack.pop() {
+            Some(v) => self.s_stack.push(v + 1),
+            None => self.abort_with_error(StackUnderflow)
+        }
+    }
+
+    /// Run-time: (n1 -- n2 )
+    ///
+    /// n2 is the size in address units of n1 cells. 
+    pub fn cells(&mut self) {
+        // Do nothing.
+    }
+
+    /// Run-time: ( -- )
+    ///
+    /// If the data-space pointer is not aligned, reserve enough space to align it. 
+    pub fn align(&mut self) {
+        // Do nothing.
+    }
+
+    /// Run-time: (addr -- a-addr )
+    ///
+    /// a-addr is the first aligned address greater than or equal to addr. 
+    pub fn aligned(&mut self) {
+        // Do nothing.
     }
 
     pub fn lit(&mut self) {

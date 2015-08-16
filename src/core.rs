@@ -1422,6 +1422,12 @@ mod tests {
     use super::*;
     use core::test::Bencher;
 
+    #[bench]
+    fn bench_noop (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        b.iter(|| vm.noop());
+    }
+
     #[test]
     fn test_find() {
         let vm = &mut VM::new();
@@ -1466,6 +1472,20 @@ mod tests {
         vm.inner_interpret(1);
         assert_eq!(3usize, vm.s_stack.len());
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[bench]
+    fn bench_inner_interpreter_without_nest (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        let idx = vm.find("noop");
+        vm.compile_word(idx);
+        vm.compile_word(idx);
+        vm.compile_word(idx);
+        vm.compile_word(idx);
+        vm.compile_word(idx);
+        vm.compile_word(idx);
+        vm.compile_word(idx);
+        b.iter(|| vm.inner_interpret(1));
     }
 
     #[test]

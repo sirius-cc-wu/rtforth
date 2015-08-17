@@ -147,6 +147,7 @@ impl VM {
         vm.add_immediate(";", VM::semicolon);
         vm.add_primitive("constant", VM::constant);
         vm.add_primitive("variable", VM::variable);
+        vm.add_primitive("create", VM::create);
         vm.add_primitive("@", VM::fetch);
         vm.add_primitive("!", VM::store);
         vm.add_primitive("'", VM::tick);
@@ -491,6 +492,10 @@ impl VM {
             self.word_list[self.last_definition].hidden = false;
         }
         self.interpret();
+    }
+
+    pub fn create(&mut self) {
+        self.define(VM::p_var);
     }
 
     pub fn variable(&mut self) {

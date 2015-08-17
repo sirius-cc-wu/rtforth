@@ -7,5 +7,6 @@ rtForth is not yet compatible to ANS Forth in the following way:
 The following words are not compatible to ANS Forth:
 
 * parse 
+* flush
 
 

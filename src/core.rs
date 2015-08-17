@@ -59,7 +59,7 @@ pub struct VM {
     pub idx_type: usize,
     pub input_buffer: String,
     pub source_index: usize,
-    last_token: String,
+    pub last_token: String,
     last_definition: usize,
     pub output_buffer: String
 }
@@ -310,6 +310,7 @@ impl VM {
         let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
         let mut cnt = 0;
         for ch in source.chars() {
+            cnt = cnt + 1;
             match ch {
                 '\t' | '\n' | '\r' | ' ' => {
                     if !self.last_token.is_empty() {
@@ -318,7 +319,6 @@ impl VM {
                 },
                 _ => self.last_token.push(ch)
             };
-            cnt = cnt + 1;
         }
         self.source_index = self.source_index + cnt;
     }

@@ -45,6 +45,11 @@ pub trait Output {
     /// Display ccc. 
     fn dot_quote(&mut self);
 
+    /// Execution: ( "ccc&lt;paren&gt;" -- )
+    ///
+    /// Parse and display ccc delimited by ) (right parenthesis). .( is an immediate word.
+    fn dot_paren(&mut self);
+
     /// Run-time: ( n -- )
     ///
     /// Display n in free field format. 
@@ -64,6 +69,7 @@ impl Output for VM {
         self.add_primitive ("flush", VM::flush);
         self.add_immediate ("s\"", VM::s_quote);
         self.add_immediate (".\"", VM::dot_quote);
+        self.add_immediate (".(", VM::dot_paren);
         self.add_primitive (".", VM::dot);
         self.add_primitive ("f.", VM::fdot);
         self.idx_type = self.find("type");
@@ -120,6 +126,12 @@ impl Output for VM {
         self.s_quote();
         let idx_type = self.idx_type;
         self.compile_word(idx_type);
+    }
+
+    fn dot_paren(&mut self) {
+        self.s_stack.push(')' as isize);
+        self.parse();
+        self.output_buffer.extend(self.last_token.chars());
     }
 
     fn dot(&mut self) {

@@ -426,7 +426,7 @@ impl VM {
                                 continue
                             },
                             Err(_) => {
-                                println!("{}", &self.last_token);
+                                print!("{} ", &self.last_token);
                                 self.abort_with_error(UndefinedWord);
                             }
                         };

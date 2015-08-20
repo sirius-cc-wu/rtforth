@@ -2112,6 +2112,20 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_to_r_r_fetch_r_from (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.set_source(": main 3 >r 2 r@ + r> + drop ;");
+        vm.evaluate();
+        vm.set_source("' main");
+        vm.evaluate();
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            vm.inner();
+        });
+    }
+
     #[test]
     fn test_two_to_r_two_r_fetch_two_r_from () {
         let vm = &mut VM::new();

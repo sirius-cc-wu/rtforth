@@ -1,14 +1,15 @@
 [package]
 
 name = "rtforth"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 
 [[bin]]
 name = "rf"
 
 [dependencies]
+getopts = "0.2"
 time = "0.1"
 
 [profile.release]
-debug = true
+debug = false

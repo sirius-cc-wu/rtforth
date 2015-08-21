@@ -21,9 +21,9 @@ Install Rust compiler and cargo the Rust package manager at first.
 $ cargo build
 $ ./target/debug/rf --help   # Display help information.
 $ ./target/debug/rf <file>   # Load forth commands in <file>.
-$ ./target/debug/rf          # Load lib.fs in current directory.
+$ ./target/debug/rf lib.fs <file>   # Load lib.fs before <file>.
 $ cargo build --release      # Compile optimized rtForth.
-$ ./target/release/rf        # Execute optimized rtForth and load lib.fs in current directory.
+$ ./target/release/rf        # Execute optimized rtForth.
 ```
 
 Benchmark

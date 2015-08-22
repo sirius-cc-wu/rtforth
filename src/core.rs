@@ -41,15 +41,32 @@ impl Word {
     }
 }
 
+struct Stack<T> {
+    ptr: Unique<T>,
+    cap: usize,
+    len: usize
+}
+
+impl<T> Stack<T> {
+    fn new(cap: usize) -> Self {
+        assert!(cap > 0 && cap <= 2048, "Invalid stack capacity");
+        let align = mem::align_of::<isize>();
+        let elem_size = mem::size_of::<isize>();
+        unsafe {
+            let ptr = heap::allocate(cap*elem_size, align);
+            if ptr.is_null() { oom(); }
+            Stack{ ptr: Unique::new(ptr as *mut _), cap: cap, len: 0 }
+        }
+    }
+}
+
 // Virtual machine
 pub struct VM {
     is_compiling: bool,
     is_paused: bool,
     pub error_code: isize,
     pub s_stack: Vec<isize>,
-    r_stack_ptr: Unique<isize>,
-    r_stack_len: usize,
-    r_stack_cap: usize,
+    r_stack: Stack<isize>,
     pub f_stack: Vec<f64>,
     pub s_heap: Vec<isize>,
     f_heap: Vec<f64>,
@@ -70,17 +87,6 @@ pub struct VM {
     pub output_buffer: String
 }
 
-fn new_r_stack(cap: usize) -> Unique<isize> {
-    assert!(cap > 0 && cap <= 2048, "Invalid stack capacity");
-    let align = mem::align_of::<isize>();
-    let elem_size = mem::size_of::<isize>();
-    unsafe {
-        let ptr = heap::allocate(cap*elem_size, align);
-        if ptr.is_null() { oom(); }
-        Unique::new(ptr as *mut _)
-    }
-}
-
 impl VM {
     pub fn new() -> VM {
         let r_stack_cap = 64;
@@ -89,9 +95,7 @@ impl VM {
             is_paused: true,
             error_code: NoException as isize,
             s_stack: Vec::with_capacity(16),
-            r_stack_ptr: new_r_stack(r_stack_cap),
-            r_stack_len: 0,
-            r_stack_cap: r_stack_cap,
+            r_stack: Stack::new(r_stack_cap),
             f_stack: Vec::with_capacity(16),
             s_heap: Vec::with_capacity(64),
             f_heap: Vec::with_capacity(64),
@@ -465,13 +469,13 @@ impl VM {
 // High level definitions
 
     pub fn nest(&mut self) {
-        if self.r_stack_len == self.r_stack_cap {
+        if self.r_stack.len == self.r_stack.cap {
             self.abort_with_error(ReturnStackOverflow)
         } else {
             unsafe {
-                ptr::write(self.r_stack_ptr.offset(self.r_stack_len as isize), self.instruction_pointer as isize);
+                ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), self.instruction_pointer as isize);
             }
-            self.r_stack_len += 1;
+            self.r_stack.len += 1;
             self.instruction_pointer = self.word_list[self.word_pointer].dfa;
         }
     }
@@ -1107,12 +1111,12 @@ impl VM {
     }
 
     pub fn exit(&mut self) {
-        if self.r_stack_len == 0 {
+        if self.r_stack.len == 0 {
             self.abort_with_error(ReturnStackUnderflow)
         } else {
-            self.r_stack_len -= 1;
+            self.r_stack.len -= 1;
             unsafe {
-                self.instruction_pointer = ptr::read(self.r_stack_ptr.offset(self.r_stack_len as isize)) as usize; 
+                self.instruction_pointer = ptr::read(self.r_stack.ptr.offset(self.r_stack.len as isize)) as usize; 
             }
         }
     }
@@ -1170,13 +1174,13 @@ impl VM {
     pub fn to_r(&mut self) {
         match self.s_stack.pop() {
             Some(v) => {
-                if self.r_stack_len >= self.r_stack_cap {
+                if self.r_stack.len >= self.r_stack.cap {
                     self.abort_with_error(ReturnStackOverflow)
                 } else {
                     unsafe {
-                        ptr::write(self.r_stack_ptr.offset(self.r_stack_len as isize), v);
+                        ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), v);
                     }
-                    self.r_stack_len += 1;
+                    self.r_stack.len += 1;
                 }
             },
             None => self.abort_with_error(StackUnderflow)
@@ -1184,22 +1188,22 @@ impl VM {
     }
 
     pub fn r_from(&mut self) {
-        if self.r_stack_len == 0 {
+        if self.r_stack.len == 0 {
             self.abort_with_error(ReturnStackUnderflow)
         } else {
-            self.r_stack_len -= 1;
+            self.r_stack.len -= 1;
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack_ptr.offset(self.r_stack_len as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.ptr.offset(self.r_stack.len as isize))); 
             }
         }
     }
 
     pub fn r_fetch(&mut self) {
-        if self.r_stack_len == 0 {
+        if self.r_stack.len == 0 {
             self.abort_with_error(ReturnStackUnderflow)
         } else {
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack_ptr.offset((self.r_stack_len-1) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len-1) as isize))); 
             }
         }
     }
@@ -1209,14 +1213,14 @@ impl VM {
             Some(t) =>
                 match self.s_stack.pop() {
                     Some(n) => {
-                        if self.r_stack_len >= self.r_stack_cap-1 {
+                        if self.r_stack.len >= self.r_stack.cap-1 {
                             self.abort_with_error(ReturnStackOverflow)
                         } else {
                             unsafe {
-                                ptr::write(self.r_stack_ptr.offset(self.r_stack_len as isize), n);
-                                ptr::write(self.r_stack_ptr.offset((self.r_stack_len+1) as isize), t);
+                                ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), n);
+                                ptr::write(self.r_stack.ptr.offset((self.r_stack.len+1) as isize), t);
                             }
-                            self.r_stack_len += 2;
+                            self.r_stack.len += 2;
                         }
                     },
                     None => self.abort_with_error(StackUnderflow)
@@ -1226,36 +1230,36 @@ impl VM {
     }
 
     pub fn two_r_from(&mut self) {
-        if self.r_stack_len < 2 {
+        if self.r_stack.len < 2 {
             self.abort_with_error(ReturnStackUnderflow)
         } else {
-            self.r_stack_len -= 2;
+            self.r_stack.len -= 2;
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack_ptr.offset(self.r_stack_len as isize))); 
-                self.s_stack.push(ptr::read(self.r_stack_ptr.offset((self.r_stack_len+1) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.ptr.offset(self.r_stack.len as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len+1) as isize))); 
             }
         }
     }
 
     pub fn two_r_fetch(&mut self) {
-        if self.r_stack_len < 2 {
+        if self.r_stack.len < 2 {
             self.abort_with_error(ReturnStackUnderflow)
         } else {
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack_ptr.offset((self.r_stack_len-2) as isize))); 
-                self.s_stack.push(ptr::read(self.r_stack_ptr.offset((self.r_stack_len-1) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len-2) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len-1) as isize))); 
             }
         }
     }
 
     pub fn pause(&mut self) {
-        if self.r_stack_len == self.r_stack_cap {
+        if self.r_stack.len == self.r_stack.cap {
             self.abort_with_error(ReturnStackOverflow)
         } else {
             unsafe {
-                ptr::write(self.r_stack_ptr.offset(self.r_stack_len as isize), self.instruction_pointer as isize);
+                ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), self.instruction_pointer as isize);
             }
-            self.r_stack_len += 1;
+            self.r_stack.len += 1;
             self.instruction_pointer = 0;
             self.is_paused = true;
         }
@@ -1541,7 +1545,7 @@ impl VM {
     }
 
     pub fn quit(&mut self) {
-        self.r_stack_len = 0;
+        self.r_stack.len = 0;
         self.input_buffer.clear();
         self.source_index = 0;
         self.instruction_pointer = 0;

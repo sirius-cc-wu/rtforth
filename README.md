@@ -26,8 +26,8 @@ $ cargo build --release      # Compile optimized rtForth.
 $ ./target/release/rf        # Execute optimized rtForth.
 ```
 
-Benchmark
-=========
+Benchmark against GForth
+=====================
 
 See benchmarks in doc/bench/forth/.
 
@@ -50,19 +50,26 @@ mm-rtcg     |    1       |     x   |     x   |     x
 sieve       |    1       |     x   |     x   |     x
 ssieve-a    |    1       |     x   |     x   |     x
 
-bench_dup                                     :           8 ns/iter (+/- 0)
-bench_evaluate_words_at_beginning_of_wordlist :         541 ns/iter (+/- 23)
-bench_evaluate_words_at_middle_of_wordlist    :       4,377 ns/iter (+/- 70)
-bench_fib                                     :       5,680 ns/iter (+/- 71)
-bench_find_word_at_beginning_of_wordlist      :          25 ns/iter (+/- 0)
-bench_find_word_at_end_of_wordlist            :         786 ns/iter (+/- 38)
-bench_find_word_at_middle_of_wordlist         :         449 ns/iter (+/- 11)
-bench_find_word_not_exist                     :         729 ns/iter (+/- 19)
-bench_inner_interpreter_without_nest          :          24 ns/iter (+/- 0)
-bench_noop                                    :           2 ns/iter (+/- 0)
-bench_over                                    :          10 ns/iter (+/- 1)
-bench_rot                                     :          11 ns/iter (+/- 2)
-bench_swap                                    :           9 ns/iter (+/- 0)
-bench_to_r_r_fetch_r_from                     :          78 ns/iter (+/- 3)
-bench_two_to_r_two_r_fetch_two_r_from         :         119 ns/iter (+/- 16)
 
+Benchmark from cargo bench
+===========================
+
+2015/08/22
+
+```
+bench_dup                                     :           8 ns/iter (+/- 0)
+bench_evaluate_words_at_beginning_of_wordlist :         562 ns/iter (+/- 4)
+bench_evaluate_words_at_middle_of_wordlist    :       4,471 ns/iter (+/- 40)
+bench_fib                                     :       5,285 ns/iter (+/- 141)
+bench_find_word_at_beginning_of_wordlist      :          25 ns/iter (+/- 0)
+bench_find_word_at_end_of_wordlist            :         771 ns/iter (+/- 33)
+bench_find_word_at_middle_of_wordlist         :         456 ns/iter (+/- 14)
+bench_find_word_not_exist                     :         721 ns/iter (+/- 35)
+bench_inner_interpreter_without_nest          :          27 ns/iter (+/- 0)
+bench_noop                                    :           1 ns/iter (+/- 0)
+bench_over                                    :          10 ns/iter (+/- 0)
+bench_rot                                     :          11 ns/iter (+/- 0)
+bench_swap                                    :           9 ns/iter (+/- 0)
+bench_to_r_r_fetch_r_from                     :          76 ns/iter (+/- 1)
+bench_two_to_r_two_r_fetch_two_r_from         :          89 ns/iter (+/- 3)
+```

@@ -31,21 +31,27 @@ Benchmark from cargo bench
 2015/08/22
 
 ```
+bench_2drop                                   :           7 ns/iter (+/- 0)
+bench_2dup                                    :          16 ns/iter (+/- 0)
+bench_2over                                   :          19 ns/iter (+/- 0)
+bench_2swap                                   :          12 ns/iter (+/- 0)
+bench_drop                                    :           3 ns/iter (+/- 0)
 bench_dup                                     :           8 ns/iter (+/- 0)
-bench_evaluate_words_at_beginning_of_wordlist :         562 ns/iter (+/- 4)
-bench_evaluate_words_at_middle_of_wordlist    :       4,471 ns/iter (+/- 40)
-bench_fib                                     :       5,285 ns/iter (+/- 141)
+bench_evaluate_words_at_beginning_of_wordlist :         562 ns/iter (+/- 2)
+bench_evaluate_words_at_middle_of_wordlist    :       4,485 ns/iter (+/- 38)
+bench_fib                                     :       5,280 ns/iter (+/- 44)
 bench_find_word_at_beginning_of_wordlist      :          25 ns/iter (+/- 0)
-bench_find_word_at_end_of_wordlist            :         771 ns/iter (+/- 33)
-bench_find_word_at_middle_of_wordlist         :         456 ns/iter (+/- 14)
-bench_find_word_not_exist                     :         721 ns/iter (+/- 35)
+bench_find_word_at_end_of_wordlist            :         773 ns/iter (+/- 28)
+bench_find_word_at_middle_of_wordlist         :         449 ns/iter (+/- 11)
+bench_find_word_not_exist                     :         713 ns/iter (+/- 46)
 bench_inner_interpreter_without_nest          :          27 ns/iter (+/- 0)
+bench_nip                                     :           8 ns/iter (+/- 0)
 bench_noop                                    :           1 ns/iter (+/- 0)
 bench_over                                    :          10 ns/iter (+/- 0)
 bench_rot                                     :          11 ns/iter (+/- 0)
 bench_swap                                    :           9 ns/iter (+/- 0)
-bench_to_r_r_fetch_r_from                     :          76 ns/iter (+/- 1)
-bench_two_to_r_two_r_fetch_two_r_from         :          89 ns/iter (+/- 3)
+bench_to_r_r_fetch_r_from                     :          75 ns/iter (+/- 2)
+bench_two_to_r_two_r_fetch_two_r_from         :          88 ns/iter (+/- 3)
 ```
 
 Next Steps to Improve Performance

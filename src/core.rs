@@ -1635,6 +1635,16 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_drop(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        b.iter(|| {
+            vm.drop();
+            vm.s_stack.push(1);
+        });
+    }
+
     #[test]
     fn test_nip() {
         let vm = &mut VM::new();
@@ -1644,6 +1654,17 @@ mod tests {
         assert!(vm.s_stack.len()==1);
         assert!(vm.s_stack.last() == Some(&2));
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[bench]
+    fn bench_nip(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(1);
+        b.iter(|| {
+            vm.nip();
+            vm.s_stack.push(1);
+        });
     }
 
     #[test]
@@ -1734,6 +1755,16 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_2drop (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        b.iter(|| {
+            vm.s_stack.push(1);
+            vm.s_stack.push(2);
+            vm.two_drop();
+        });
+    }
+
     #[test]
     fn test_2dup () {
         let vm = &mut VM::new();
@@ -1742,6 +1773,17 @@ mod tests {
         vm.two_dup();
         assert_eq!(vm.s_stack, [1, 2, 1, 2]);
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[bench]
+    fn bench_2dup (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        b.iter(|| {
+            vm.two_dup();
+            vm.two_drop();
+        });
     }
 
     #[test]
@@ -1756,16 +1798,27 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
-    #[test]
-    fn test_2over () {
+    #[bench]
+    fn bench_2swap (b: &mut Bencher) {
         let vm = &mut VM::new();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
         vm.s_stack.push(4);
-        vm.two_over();
-        assert_eq!(vm.s_stack, [1, 2, 3, 4, 1, 2]);
-        assert_eq!(vm.error_code, 0);
+        b.iter(|| vm.two_swap());
+    }
+
+    #[bench]
+    fn bench_2over (b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        vm.s_stack.push(3);
+        vm.s_stack.push(4);
+        b.iter(|| {
+            vm.two_over();
+            vm.two_drop();
+        });
     }
 
     #[test]

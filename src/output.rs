@@ -104,7 +104,7 @@ impl Output for VM {
 
     fn s_quote(&mut self) {
         // ignore the space following S"
-        let source = &self.input_buffer[self.source_index+1..self.input_buffer.len()];
+        let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
         let naddr = self.n_heap.len();
         let mut cnt = 0;
         for ch in source.chars() {

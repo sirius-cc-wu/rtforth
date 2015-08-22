@@ -1,7 +1,10 @@
+extern crate alloc;
 extern crate test;
 
+use self::alloc::{heap, oom};
+use std::mem;
+use std::ptr::{Unique, self};
 use std::str::FromStr;
-
 use exception::Exception;
 
 use exception::Exception::{
@@ -11,6 +14,7 @@ use exception::Exception::{
     UndefinedWord,
     StackUnderflow,
     ReturnStackUnderflow,
+    ReturnStackOverflow,
     FloatingPointStackUnderflow
 };
 
@@ -43,7 +47,9 @@ pub struct VM {
     is_paused: bool,
     pub error_code: isize,
     pub s_stack: Vec<isize>,
-    r_stack: Vec<isize>,
+    r_stack_ptr: Unique<isize>,
+    r_stack_len: usize,
+    r_stack_cap: usize,
     pub f_stack: Vec<f64>,
     pub s_heap: Vec<isize>,
     f_heap: Vec<f64>,
@@ -64,14 +70,28 @@ pub struct VM {
     pub output_buffer: String
 }
 
+fn new_r_stack(cap: usize) -> Unique<isize> {
+    assert!(cap > 0 && cap <= 2048, "Invalid stack capacity");
+    let align = mem::align_of::<isize>();
+    let elem_size = mem::size_of::<isize>();
+    unsafe {
+        let ptr = heap::allocate(cap*elem_size, align);
+        if ptr.is_null() { oom(); }
+        Unique::new(ptr as *mut _)
+    }
+}
+
 impl VM {
     pub fn new() -> VM {
+        let r_stack_cap = 16;
         let mut vm = VM {
             is_compiling: false,
             is_paused: true,
             error_code: NoException as isize,
             s_stack: Vec::with_capacity(16),
-            r_stack: Vec::with_capacity(16),
+            r_stack_ptr: new_r_stack(r_stack_cap),
+            r_stack_len: 0,
+            r_stack_cap: r_stack_cap,
             f_stack: Vec::with_capacity(16),
             s_heap: Vec::with_capacity(64),
             f_heap: Vec::with_capacity(64),
@@ -445,8 +465,15 @@ impl VM {
 // High level definitions
 
     pub fn nest(&mut self) {
-        self.r_stack.push(self.instruction_pointer as isize);
-        self.instruction_pointer = self.word_list[self.word_pointer].dfa;
+        if self.r_stack_len == self.r_stack_cap {
+            self.abort_with_error(ReturnStackOverflow)
+        } else {
+            unsafe {
+                ptr::write(self.r_stack_ptr.offset(self.r_stack_len as isize), self.instruction_pointer as isize);
+            }
+            self.r_stack_len += 1;
+            self.instruction_pointer = self.word_list[self.word_pointer].dfa;
+        }
     }
 
     pub fn p_var(&mut self) {
@@ -1080,9 +1107,13 @@ impl VM {
     }
 
     pub fn exit(&mut self) {
-        match self.r_stack.pop() {
-            None => self.abort_with_error (ReturnStackUnderflow),
-            Some(x) => self.instruction_pointer = x as usize,
+        if self.r_stack_len == 0 {
+            self.abort_with_error(ReturnStackUnderflow)
+        } else {
+            self.r_stack_len -= 1;
+            unsafe {
+                self.instruction_pointer = ptr::read(self.r_stack_ptr.offset(self.r_stack_len as isize)) as usize; 
+            }
         }
     }
 
@@ -1138,25 +1169,38 @@ impl VM {
 
     pub fn to_r(&mut self) {
         match self.s_stack.pop() {
-            Some(v) => self.r_stack.push(v),
+            Some(v) => {
+                if self.r_stack_len >= self.r_stack_cap {
+                    self.abort_with_error(ReturnStackOverflow)
+                } else {
+                    unsafe {
+                        ptr::write(self.r_stack_ptr.offset(self.r_stack_len as isize), v);
+                    }
+                    self.r_stack_len += 1;
+                }
+            },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn r_from(&mut self) {
-        match self.r_stack.pop() {
-            Some(v) => self.s_stack.push(v),
-            None => self.abort_with_error(ReturnStackUnderflow)
+        if self.r_stack_len == 0 {
+            self.abort_with_error(ReturnStackUnderflow)
+        } else {
+            self.r_stack_len -= 1;
+            unsafe {
+                self.s_stack.push(ptr::read(self.r_stack_ptr.offset(self.r_stack_len as isize))); 
+            }
         }
     }
 
     pub fn r_fetch(&mut self) {
-        match self.r_stack.pop() {
-            Some(v) => {
-                self.r_stack.push(v);
-                self.s_stack.push(v);
-            },
-            None => self.abort_with_error(ReturnStackUnderflow)
+        if self.r_stack_len == 0 {
+            self.abort_with_error(ReturnStackUnderflow)
+        } else {
+            unsafe {
+                self.s_stack.push(ptr::read(self.r_stack_ptr.offset((self.r_stack_len-1) as isize))); 
+            }
         }
     }
 
@@ -1164,7 +1208,17 @@ impl VM {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.pop() {
-                    Some(n) => { self.r_stack.push(n); self.r_stack.push(t); },
+                    Some(n) => {
+                        if self.r_stack_len >= self.r_stack_cap-1 {
+                            self.abort_with_error(ReturnStackOverflow)
+                        } else {
+                            unsafe {
+                                ptr::write(self.r_stack_ptr.offset(self.r_stack_len as isize), n);
+                                ptr::write(self.r_stack_ptr.offset((self.r_stack_len+1) as isize), t);
+                            }
+                            self.r_stack_len += 2;
+                        }
+                    },
                     None => self.abort_with_error(StackUnderflow)
                 },
             None => self.abort_with_error(StackUnderflow)
@@ -1172,34 +1226,39 @@ impl VM {
     }
 
     pub fn two_r_from(&mut self) {
-        match self.r_stack.pop() {
-            Some(t) =>
-                match self.r_stack.pop() {
-                    Some(n) => { self.s_stack.push(n); self.s_stack.push(t); },
-                    None => self.abort_with_error(ReturnStackUnderflow)
-                },
-            None => self.abort_with_error(ReturnStackUnderflow)
+        if self.r_stack_len < 2 {
+            self.abort_with_error(ReturnStackUnderflow)
+        } else {
+            self.r_stack_len -= 2;
+            unsafe {
+                self.s_stack.push(ptr::read(self.r_stack_ptr.offset(self.r_stack_len as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack_ptr.offset((self.r_stack_len+1) as isize))); 
+            }
         }
     }
 
     pub fn two_r_fetch(&mut self) {
-        match self.r_stack.pop() {
-            Some(t) =>
-                match self.r_stack.pop() {
-                    Some(n) => {
-                        self.s_stack.push(n); self.s_stack.push(t);
-                        self.r_stack.push(n); self.r_stack.push(t);
-                    },
-                    None => self.abort_with_error(ReturnStackUnderflow)
-                },
-            None => self.abort_with_error(ReturnStackUnderflow)
+        if self.r_stack_len < 2 {
+            self.abort_with_error(ReturnStackUnderflow)
+        } else {
+            unsafe {
+                self.s_stack.push(ptr::read(self.r_stack_ptr.offset((self.r_stack_len-2) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack_ptr.offset((self.r_stack_len-1) as isize))); 
+            }
         }
     }
 
     pub fn pause(&mut self) {
-        self.r_stack.push(self.instruction_pointer as isize);
-        self.instruction_pointer = 0;
-        self.is_paused = true;
+        if self.r_stack_len == self.r_stack_cap {
+            self.abort_with_error(ReturnStackOverflow)
+        } else {
+            unsafe {
+                ptr::write(self.r_stack_ptr.offset(self.r_stack_len as isize), self.instruction_pointer as isize);
+            }
+            self.r_stack_len += 1;
+            self.instruction_pointer = 0;
+            self.is_paused = true;
+        }
     }
 
 // Floating point primitives
@@ -1482,7 +1541,7 @@ impl VM {
     }
 
     pub fn quit(&mut self) {
-        self.r_stack.clear();
+        self.r_stack_len = 0;
         self.input_buffer.clear();
         self.source_index = 0;
         self.instruction_pointer = 0;
@@ -2008,10 +2067,10 @@ mod tests {
         vm.set_source("hello world\t\r\n\"");
         vm.parse_word();
         assert_eq!(vm.last_token, "hello");
-        assert_eq!(vm.source_index, 5);
+        assert_eq!(vm.source_index, 6);
         vm.parse_word();
         assert_eq!(vm.last_token, "world");
-        assert_eq!(vm.source_index, 11);
+        assert_eq!(vm.source_index, 12);
         vm.parse_word();
         assert_eq!(vm.last_token, "\"");
         assert_eq!(vm.error_code, 0);

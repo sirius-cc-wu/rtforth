@@ -1,3 +1,7 @@
+#![feature(oom)]
+#![feature(unique)]
+#![feature(heap_api)]
+#![feature(alloc)]
 #![feature(test)]
 pub mod core;
 pub mod loader;

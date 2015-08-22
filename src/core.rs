@@ -12,6 +12,7 @@ use exception::Exception::{
     Abort,
     UnexpectedEndOfFile,
     UndefinedWord,
+    StackOverflow,
     StackUnderflow,
     ReturnStackUnderflow,
     ReturnStackOverflow,
@@ -41,14 +42,14 @@ impl Word {
     }
 }
 
-struct Stack<T> {
+pub struct Stack<T> {
     ptr: Unique<T>,
     cap: usize,
     len: usize
 }
 
 impl<T> Stack<T> {
-    fn new(cap: usize) -> Self {
+    fn with_capacity(cap: usize) -> Self {
         assert!(cap > 0 && cap <= 2048, "Invalid stack capacity");
         let align = mem::align_of::<isize>();
         let elem_size = mem::size_of::<isize>();
@@ -58,6 +59,54 @@ impl<T> Stack<T> {
             Stack{ ptr: Unique::new(ptr as *mut _), cap: cap, len: 0 }
         }
     }
+
+    pub fn push(&mut self, v: T) {
+        if self.len >= self.cap {
+// TODO: self is VM, not Stack.
+//            self.abort_with_error(ReturnStackOverflow)
+            assert!(self.len < self.cap, "Stack overflow");
+        } else {
+            unsafe {
+                ptr::write(self.ptr.offset(self.len as isize), v);
+            }
+            self.len += 1;
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        if self.len == 0 {
+// TODO: self is VM, not Stack.
+//            self.abort_with_error(ReturnStackUnderflow)
+            assert!(self.len > 0, "Stack underflow");
+            None
+        } else {
+            self.len -= 1;
+            unsafe {
+                Some(ptr::read(self.ptr.offset(self.len as isize)))
+            }
+        }
+    }
+
+    pub fn last(&self) -> Option<T> {
+        if self.len == 0 {
+// TODO: self is VM, not Stack.
+//            self.abort_with_error(ReturnStackUnderflow)
+            assert!(self.len > 0, "Stack underflow");
+            None
+        } else {
+            unsafe {
+                Some(ptr::read(self.ptr.offset((self.len-1) as isize)))
+            }
+        }
+    }
+
+    fn clear(&mut self) {
+        self.len = 0;
+    }
+
+    pub fn len(&mut self) -> usize {
+        self.len
+    }
 }
 
 // Virtual machine
@@ -65,7 +114,7 @@ pub struct VM {
     is_compiling: bool,
     is_paused: bool,
     pub error_code: isize,
-    pub s_stack: Vec<isize>,
+    pub s_stack: Stack<isize>,
     r_stack: Stack<isize>,
     pub f_stack: Vec<f64>,
     pub s_heap: Vec<isize>,
@@ -89,13 +138,12 @@ pub struct VM {
 
 impl VM {
     pub fn new() -> VM {
-        let r_stack_cap = 64;
         let mut vm = VM {
             is_compiling: false,
             is_paused: true,
             error_code: NoException as isize,
-            s_stack: Vec::with_capacity(16),
-            r_stack: Stack::new(r_stack_cap),
+            s_stack: Stack::with_capacity(64),
+            r_stack: Stack::with_capacity(64),
             f_stack: Vec::with_capacity(16),
             s_heap: Vec::with_capacity(64),
             f_heap: Vec::with_capacity(64),
@@ -728,7 +776,14 @@ impl VM {
     }
 
     pub fn lit(&mut self) {
-        self.s_stack.push (self.s_heap[self.instruction_pointer]);
+        if self.s_stack.len >= self.s_stack.cap {
+            self.abort_with_error(StackOverflow)
+        } else {
+            unsafe {
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), self.s_heap[self.instruction_pointer]);
+            }
+            self.s_stack.len += 1;
+        }
         self.instruction_pointer = self.instruction_pointer + 1;
     }
 
@@ -738,149 +793,124 @@ impl VM {
     }
 
     pub fn swap(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => { self.s_stack.push(t); self.s_stack.push(n); },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)));
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), t);
+            }
         }
     }
 
     pub fn dup(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) => { self.s_stack.push(t); self.s_stack.push(t); },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 1 {
+            self.abort_with_error(StackUnderflow)
+        } else if self.s_stack.len >= self.s_stack.cap {
+            self.abort_with_error(StackOverflow)
+        } else {
+            unsafe {
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)));
+                self.s_stack.len += 1;
+            }
         }
     }
 
     pub fn drop(&mut self) {
-        match self.s_stack.pop() {
-            Some(_) => {},
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 1 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            self.s_stack.len -= 1;
         }
     }
 
     pub fn nip(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(_) => { self.s_stack.push(t); },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                self.s_stack.len -= 1;
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+            }
         }
     }
 
     pub fn over(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => {
-                        self.s_stack.push(n);
-                        self.s_stack.push(t);
-                        self.s_stack.push(n);
-                    },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else if self.s_stack.len >= self.s_stack.cap {
+            self.abort_with_error(StackOverflow)
+        } else {
+            unsafe {
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)));
+                self.s_stack.len += 1;
+            }
         }
     }
 
     pub fn rot(&mut self) {
-        match self.s_stack.pop() {
-            Some(x3) =>
-                match self.s_stack.pop() {
-                    Some(x2) =>
-                        match self.s_stack.pop() {
-                            Some(x1) => {
-                                self.s_stack.push(x2);
-                                self.s_stack.push(x3);
-                                self.s_stack.push(x1);
-                            },
-                            None => self.abort_with_error(StackUnderflow)
-                        },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 3 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
+                let n = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)); 
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-3) as isize)));
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), t);
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-3) as isize), n);
+            }
         }
     }
 
     pub fn two_drop(&mut self) {
-        match self.s_stack.pop() {
-            Some(_) =>
-                match self.s_stack.pop() {
-                    Some(_) => {},
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            self.s_stack.len -= 2;
         }
     }
 
     pub fn two_dup(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => {
-                        self.s_stack.push(n);
-                        self.s_stack.push(t);
-                        self.s_stack.push(n);
-                        self.s_stack.push(t);
-                    },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else if self.s_stack.len + 2 > self.s_stack.cap {
+            self.abort_with_error(StackOverflow)
+        } else {
+            unsafe {
+                self.s_stack.len += 2;
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-3) as isize)));
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-4) as isize)));
+            }
         }
     }
 
     pub fn two_swap(&mut self) {
-        match self.s_stack.pop() {
-            Some(x4) =>
-                match self.s_stack.pop() {
-                    Some(x3) =>
-                        match self.s_stack.pop() {
-                            Some(x2) =>
-                                match self.s_stack.pop() {
-                                    Some(x1) => {
-                                        self.s_stack.push(x3);
-                                        self.s_stack.push(x4);
-                                        self.s_stack.push(x1);
-                                        self.s_stack.push(x2);
-                                    },
-                                    None => self.abort_with_error(StackUnderflow)
-                                },
-                            None => self.abort_with_error(StackUnderflow)
-                        },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 4 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
+                let n = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)); 
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-3) as isize)));
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-4) as isize)));
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-3) as isize), t);
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-4) as isize), n);
+            }
         }
     }
 
     pub fn two_over(&mut self) {
-        match self.s_stack.pop() {
-            Some(x4) =>
-                match self.s_stack.pop() {
-                    Some(x3) =>
-                        match self.s_stack.pop() {
-                            Some(x2) =>
-                                match self.s_stack.pop() {
-                                    Some(x1) => {
-                                        self.s_stack.push(x1);
-                                        self.s_stack.push(x2);
-                                        self.s_stack.push(x3);
-                                        self.s_stack.push(x4);
-                                        self.s_stack.push(x1);
-                                        self.s_stack.push(x2);
-                                    },
-                                    None => self.abort_with_error(StackUnderflow)
-                                },
-                            None => self.abort_with_error(StackUnderflow)
-                        },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 4 {
+            self.abort_with_error(StackUnderflow)
+        } else if self.s_stack.len + 2 > self.s_stack.cap {
+            self.abort_with_error(StackOverflow)
+        } else {
+            unsafe {
+                self.s_stack.len += 2;
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-5) as isize)));
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-6) as isize)));
+            }
         }
     }
 
@@ -1652,7 +1682,7 @@ mod tests {
         vm.s_stack.push(2);
         vm.nip();
         assert!(vm.s_stack.len()==1);
-        assert!(vm.s_stack.last() == Some(&2));
+        assert!(vm.s_stack.last() == Some(2));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1673,7 +1703,9 @@ mod tests {
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.swap();
-        assert_eq!(vm.s_stack, [2,1]);
+        assert_eq!(vm.s_stack.len(), 2);
+        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1690,7 +1722,9 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(1);
         vm.dup();
-        assert_eq!(vm.s_stack, [1, 1]);
+        assert_eq!(vm.s_stack.len(), 2);
+        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1710,7 +1744,10 @@ mod tests {
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.over();
-        assert_eq!(vm.s_stack, [1,2,1]);
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1732,7 +1769,10 @@ mod tests {
         vm.s_stack.push(2);
         vm.s_stack.push(3);
         vm.rot();
-        assert_eq!(vm.s_stack, [2, 3, 1]);
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack.pop(), Some(3));
+        assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1771,7 +1811,11 @@ mod tests {
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.two_dup();
-        assert_eq!(vm.s_stack, [1, 2, 1, 2]);
+        assert_eq!(vm.s_stack.len(), 4);
+        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1794,7 +1838,11 @@ mod tests {
         vm.s_stack.push(3);
         vm.s_stack.push(4);
         vm.two_swap();
-        assert_eq!(vm.s_stack, [3, 4, 1, 2]);
+        assert_eq!(vm.s_stack.len(), 4);
+        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack.pop(), Some(4));
+        assert_eq!(vm.s_stack.pop(), Some(3));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1826,7 +1874,8 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(1);
         vm.one_plus();
-        assert_eq!(vm.s_stack, [2]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1835,7 +1884,8 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(2);
         vm.one_minus();
-        assert_eq!(vm.s_stack, [1]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1845,7 +1895,8 @@ mod tests {
         vm.s_stack.push(5);
         vm.s_stack.push(7);
         vm.minus();
-        assert_eq!(vm.s_stack, [-2]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-2));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1855,7 +1906,8 @@ mod tests {
         vm.s_stack.push(5);
         vm.s_stack.push(7);
         vm.plus();
-        assert_eq!(vm.s_stack, [12]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(12));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1865,7 +1917,8 @@ mod tests {
         vm.s_stack.push(5);
         vm.s_stack.push(7);
         vm.star();
-        assert_eq!(vm.s_stack, [35]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(35));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1875,7 +1928,8 @@ mod tests {
         vm.s_stack.push(30);
         vm.s_stack.push(7);
         vm.slash();
-        assert_eq!(vm.s_stack, [4]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(4));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1885,7 +1939,8 @@ mod tests {
         vm.s_stack.push(30);
         vm.s_stack.push(7);
         vm.p_mod();
-        assert_eq!(vm.s_stack, [2]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1895,7 +1950,9 @@ mod tests {
         vm.s_stack.push(30);
         vm.s_stack.push(7);
         vm.slash_mod();
-        assert_eq!(vm.s_stack, [2, 4]);
+        assert_eq!(vm.s_stack.len(), 2);
+        assert_eq!(vm.s_stack.pop(), Some(4));
+        assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1904,7 +1961,8 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(-30);
         vm.abs();
-        assert_eq!(vm.s_stack, [30]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(30));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1913,7 +1971,8 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(30);
         vm.negate();
-        assert_eq!(vm.s_stack, [-30]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-30));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1922,11 +1981,12 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(-1);
         vm.zero_less();
-        assert_eq!(vm.s_stack, [-1]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         vm.s_stack.push(0);
         vm.zero_less();
-        assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1935,15 +1995,16 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(0);
         vm.zero_equals();
-        assert_eq!(vm.s_stack, [-1]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         vm.s_stack.push(-1);
         vm.zero_equals();
-        assert_eq!(vm.s_stack, [0]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         vm.s_stack.push(1);
         vm.zero_equals();
-        assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1952,11 +2013,12 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(1);
         vm.zero_greater();
-        assert_eq!(vm.s_stack, [-1]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         vm.s_stack.push(0);
         vm.zero_greater();
-        assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1965,15 +2027,16 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(0);
         vm.zero_not_equals();
-        assert_eq!(vm.s_stack, [0]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         vm.s_stack.push(-1);
         vm.zero_not_equals();
-        assert_eq!(vm.s_stack, [-1]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         vm.s_stack.push(1);
         vm.zero_not_equals();
-        assert_eq!(vm.s_stack, [-1]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1983,12 +2046,13 @@ mod tests {
         vm.s_stack.push(-1);
         vm.s_stack.push(0);
         vm.less_than();
-        assert_eq!(vm.s_stack, [-1]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         vm.s_stack.push(0);
         vm.s_stack.push(0);
         vm.less_than();
-        assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1998,17 +2062,18 @@ mod tests {
         vm.s_stack.push(0);
         vm.s_stack.push(0);
         vm.equals();
-        assert_eq!(vm.s_stack, [-1]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         vm.s_stack.push(-1);
         vm.s_stack.push(0);
         vm.equals();
-        assert_eq!(vm.s_stack, [0]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         vm.s_stack.push(1);
         vm.s_stack.push(0);
         vm.equals();
-        assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2018,12 +2083,13 @@ mod tests {
         vm.s_stack.push(1);
         vm.s_stack.push(0);
         vm.greater_than();
-        assert_eq!(vm.s_stack, [-1]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         vm.s_stack.push(0);
         vm.s_stack.push(0);
         vm.greater_than();
-        assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2033,17 +2099,18 @@ mod tests {
         vm.s_stack.push(0);
         vm.s_stack.push(0);
         vm.not_equals();
-        assert_eq!(vm.s_stack, [0]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         vm.s_stack.push(-1);
         vm.s_stack.push(0);
         vm.not_equals();
-        assert_eq!(vm.s_stack, [-1]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         vm.s_stack.push(1);
         vm.s_stack.push(0);
         vm.not_equals();
-        assert_eq!(vm.s_stack, [-1]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2054,28 +2121,29 @@ mod tests {
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.between();
-        assert_eq!(vm.s_stack, [-1]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.error_code, 0);
-        vm.drop();
         vm.s_stack.push(1);
         vm.s_stack.push(0);
         vm.s_stack.push(1);
         vm.between();
-        assert_eq!(vm.s_stack, [-1]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.error_code, 0);
-        vm.drop();
         vm.s_stack.push(0);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.between();
-        assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.error_code, 0);
-        vm.drop();
         vm.s_stack.push(3);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.between();
-        assert_eq!(vm.s_stack, [0]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2084,7 +2152,8 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(707);
         vm.invert();
-        assert_eq!(vm.s_stack, [-708]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-708));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2094,7 +2163,8 @@ mod tests {
         vm.s_stack.push(707);
         vm.s_stack.push(007);
         vm.and();
-        assert_eq!(vm.s_stack, [3]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(3));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2104,7 +2174,8 @@ mod tests {
         vm.s_stack.push(707);
         vm.s_stack.push(07);
         vm.or();
-        assert_eq!(vm.s_stack, [711]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(711));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2114,7 +2185,8 @@ mod tests {
         vm.s_stack.push(707);
         vm.s_stack.push(07);
         vm.xor();
-        assert_eq!(vm.s_stack, [708]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(708));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2138,25 +2210,32 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("false true dup 1+ 2 -3");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [0, -1, 0, 2, -3]);
+        assert_eq!(vm.s_stack.len(), 5);
+        assert_eq!(vm.s_stack.pop(), Some(-3));
+        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.error_code, 0);
     }
 
     #[bench]
-    fn bench_evaluate_words_at_beginning_of_wordlist (b: &mut Bencher) {
+    fn bench_compile_words_at_beginning_of_wordlist (b: &mut Bencher) {
         let vm = &mut VM::new();
         b.iter(|| {
-            vm.set_source("noop noop noop noop noop noop noop noop");
+            vm.set_source(": main noop noop noop noop noop noop noop noop ;");
             vm.evaluate();
+            vm.s_stack.clear();
         });
     }
 
     #[bench]
-    fn bench_evaluate_words_at_middle_of_wordlist(b: &mut Bencher) {
+    fn bench_compile_words_at_middle_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new();
         b.iter(|| {
-            vm.set_source("here if else then here if else then");
+            vm.set_source(": main here here here here here here here here ;");
             vm.evaluate();
+            vm.s_stack.clear();
         });
     }
 
@@ -2178,7 +2257,8 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source(": 2+3 2 3 + ; 2+3");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [5]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(5));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2187,7 +2267,9 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("5 constant x x x");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [5, 5]);
+        assert_eq!(vm.s_stack.len(), 2);
+        assert_eq!(vm.s_stack.pop(), Some(5));
+        assert_eq!(vm.s_stack.pop(), Some(5));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2196,7 +2278,9 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("variable x  x @  3 x !  x @");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [0, 3]);
+        assert_eq!(vm.s_stack.len(), 2);
+        assert_eq!(vm.s_stack.pop(), Some(3));
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2205,7 +2289,9 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("1 2  ' swap execute");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [2, 1]);
+        assert_eq!(vm.s_stack.len(), 2);
+        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2214,7 +2300,9 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("here 1 , 2 , ] noop noop [ here");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [1, 5]);
+        assert_eq!(vm.s_stack.len(), 2);
+        assert_eq!(vm.s_stack.pop(), Some(5));
+        assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.s_heap, [1, 1, 2, 1, 1]);
         assert_eq!(vm.error_code, 0);
     }
@@ -2224,7 +2312,8 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [8]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(8));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2247,7 +2336,8 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [-3]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-3));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2270,11 +2360,12 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source(": t1 0 if true else false then ; t1");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [0]);
-        vm.drop();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(0));
         vm.set_source(": t2 1 if true else false then ; t2");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [-1]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2283,7 +2374,8 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [3]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(3));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2292,7 +2384,8 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source(": t1 0 begin 1+ dup 3 <> while repeat ; t1");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [3]);
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(3));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2301,7 +2394,10 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("1 2 3 \\ 5 6 7");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [1, 2, 3]);
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(3));
+        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2310,7 +2406,10 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("1 2 3 quit 5 6 7");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [1, 2, 3]);
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(3));
+        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.input_buffer.len(), 0);
         assert_eq!(vm.error_code, 0);
     }
@@ -2320,7 +2419,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("1 2 3 abort 5 6 7");
         vm.evaluate();
-        assert_eq!(vm.s_stack, []);
+        assert_eq!(vm.s_stack.len(), 0);
         assert_eq!(vm.error_code, -1);
     }
 
@@ -2556,7 +2655,10 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("0.0 f0<   0.1 f0<   -0.1 f0<");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [0, 0, -1]);
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.f_stack, []);
         assert_eq!(vm.error_code, 0);
     }
@@ -2566,7 +2668,10 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("0.0 f0=   0.1 f0=   -0.1 f0=");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [-1, 0, 0]);
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.f_stack, []);
         assert_eq!(vm.error_code, 0);
     }
@@ -2576,7 +2681,10 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("0.0 0.0 f<   0.1 0.0 f<   -0.1 0.0 f<");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [0, 0, -1]);
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.f_stack, []);
         assert_eq!(vm.error_code, 0);
     }
@@ -2586,19 +2694,27 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("0.1 0.1 0.0 f~   0.1 0.10000000001 0.0 f~");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [-1, 0]);
+        assert_eq!(vm.s_stack.len(), 2);
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.f_stack, []);
         assert_eq!(vm.error_code, 0);
         vm.s_stack.clear();
         vm.set_source("0.1 0.1 0.001 f~   0.1 0.109 0.01 f~   0.1 0.111  0.01 f~");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [-1, -1, 0]);
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.f_stack, []);
         assert_eq!(vm.error_code, 0);
         vm.s_stack.clear();
         vm.set_source("0.1 0.1 -0.001 f~   0.1 0.109 -0.1 f~   0.1 0.109  -0.01 f~");
         vm.evaluate();
-        assert_eq!(vm.s_stack, [-1, -1, 0]);
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.f_stack, []);
         assert_eq!(vm.error_code, 0);
         vm.s_stack.clear();

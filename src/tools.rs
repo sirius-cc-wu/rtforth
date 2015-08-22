@@ -23,19 +23,21 @@ impl Tools for VM {
     }
 
     fn words(&mut self) {
-        for w in self.word_list.iter() {
-            let s = &self.n_heap[w.nfa..w.nfa+w.name_len];
-            print!("{} ", s );
-        }
-        println!("");
+        println!("TODO: words");
+//        for w in self.word_list.iter() {
+//            let s = &self.n_heap[w.nfa..w.nfa+w.name_len];
+//            print!("{} ", s );
+//        }
+//        println!("");
     }
 
     fn dot_s(&mut self) {
-        print!("<{}> ", self.s_stack.len());
-        for s in self.s_stack.iter() {
-            print!("{} ", s);
-        }
-        println!("");
+        println!("TODO: .s");
+//        print!("<{}> ", self.s_stack.len());
+//        for s in self.s_stack.iter() {
+//            print!("{} ", s);
+//        }
+//        println!("");
     }
 
 }

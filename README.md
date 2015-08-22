@@ -26,8 +26,8 @@ $ cargo build --release      # Compile optimized rtForth.
 $ ./target/release/rf        # Execute optimized rtForth.
 ```
 
-Benchmark against GForth
-=====================
+Benchmark against SwiftForth and GForth
+=======================================
 
 See benchmarks in doc/bench/forth/.
 
@@ -36,19 +36,18 @@ See benchmarks in doc/bench/forth/.
 * ASUS X401A
 * Ubuntu GNOME 14.04 LTS 32-bit
 * rustc 1.4.0-nightly
-* rtForth 0.1.5
+* rtForth 0.1.6
 * SwiftForth 3.5.7
 * gforth 0.7.0
-* ficl 4.1.0
 
-benchmark   | SwiftForth | gforth  | rtForth |  ficl
------------ | ---------- | ------- | ------- | -----------
-bubble-sort |    1       |     x   |     x   |     x
-fib         |    1       |  7.32   | 28.82   | 37.36
-matrix-mult |    1       |     x   |     x   |     x
-mm-rtcg     |    1       |     x   |     x   |     x
-sieve       |    1       |     x   |     x   |     x
-ssieve-a    |    1       |     x   |     x   |     x
+benchmark   | SwiftForth | gforth  | rtForth
+----------- | ---------- | ------- | -------
+bubble-sort |    1       |     x   |     x
+fib         |    1       |  5.23   | 20.64
+matrix-mult |    1       |     x   |     x
+mm-rtcg     |    1       |     x   |     x
+sieve       |    1       |     x   |     x
+ssieve-a    |    1       |     x   |     x
 
 
 Benchmark from cargo bench

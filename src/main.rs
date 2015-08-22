@@ -32,7 +32,7 @@ fn main() {
     if matches.opt_present("h") {
         print_usage(&program, opts);
     } else if matches.opt_present("v") {
-        println!("rtForth v0.1.5 by ccwu");
+        println!("rtForth v0.1.6 by ccwu");
     } else if !matches.free.is_empty() {
         for file in matches.free {
             vm.load(&file);

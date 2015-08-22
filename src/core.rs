@@ -83,7 +83,7 @@ fn new_r_stack(cap: usize) -> Unique<isize> {
 
 impl VM {
     pub fn new() -> VM {
-        let r_stack_cap = 16;
+        let r_stack_cap = 64;
         let mut vm = VM {
             is_compiling: false,
             is_paused: true,

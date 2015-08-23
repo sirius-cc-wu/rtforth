@@ -87,6 +87,20 @@ impl<T> Stack<T> {
         }
     }
 
+    pub fn push2(&mut self, v1: T, v2: T) {
+        if self.len + 2 > self.cap {
+// TODO: self is VM, not Stack.
+//            self.abort_with_error(ReturnStackOverflow)
+            assert!(self.len + 2  <= self.cap, "Stack overflow");
+        } else {
+            unsafe {
+                ptr::write(self.ptr.offset(self.len as isize), v1);
+                ptr::write(self.ptr.offset((self.len+1) as isize), v2);
+            }
+            self.len += 2;
+        }
+    }
+
     pub fn last(&self) -> Option<T> {
         if self.len == 0 {
 // TODO: self is VM, not Stack.
@@ -915,87 +929,95 @@ impl VM {
     }
 
     pub fn one_plus(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                self.s_stack.push(t.wrapping_add(1)),
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 1 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)).wrapping_add(1));
+            }
         }
     }
 
     pub fn one_minus(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                self.s_stack.push(t-1),
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 1 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize))-1);
+            }
         }
     }
 
     pub fn plus(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => { self.s_stack.push(t+n); },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                self.s_stack.len -= 1;
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
+                    ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) + ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+            }
         }
     }
 
     pub fn minus(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => { self.s_stack.push(n-t); },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                self.s_stack.len -= 1;
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
+                    ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) - ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+            }
         }
     }
 
     pub fn star(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => { self.s_stack.push(n*t); },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                self.s_stack.len -= 1;
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
+                    ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) * ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+            }
         }
     }
 
     pub fn slash(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => { self.s_stack.push(n/t); },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                self.s_stack.len -= 1;
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
+                    ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) / ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+            }
         }
     }
 
     pub fn p_mod(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => { self.s_stack.push(n%t); },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                self.s_stack.len -= 1;
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
+                    ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) % ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+            }
         }
     }
 
     pub fn slash_mod(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => {
-                        self.s_stack.push(n%t);
-                        self.s_stack.push(n/t);
-                    },
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
+        if self.s_stack.len < 2 {
+            self.abort_with_error(StackUnderflow)
+        } else {
+            unsafe {
+                let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
+                let n = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)); 
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), n%t);
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), n/t);
+            }
         }
     }
 
@@ -1870,7 +1892,7 @@ mod tests {
     }
 
     #[test]
-    fn test_one_plus () {
+    fn test_one_plus() {
         let vm = &mut VM::new();
         vm.s_stack.push(1);
         vm.one_plus();
@@ -1879,8 +1901,17 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_one_plus(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(0);
+        b.iter(|| {
+            vm.one_plus();
+        });
+    }
+
     #[test]
-    fn test_one_minus () {
+    fn test_one_minus() {
         let vm = &mut VM::new();
         vm.s_stack.push(2);
         vm.one_minus();
@@ -1889,8 +1920,17 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_one_minus(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(0);
+        b.iter(|| {
+            vm.one_minus();
+        });
+    }
+
     #[test]
-    fn test_minus () {
+    fn test_minus() {
         let vm = &mut VM::new();
         vm.s_stack.push(5);
         vm.s_stack.push(7);
@@ -1900,8 +1940,18 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_minus(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(0);
+        b.iter(|| {
+            vm.dup();
+            vm.minus();
+        });
+    }
+
     #[test]
-    fn test_plus () {
+    fn test_plus() {
         let vm = &mut VM::new();
         vm.s_stack.push(5);
         vm.s_stack.push(7);
@@ -1909,6 +1959,16 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(12));
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[bench]
+    fn bench_plus(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        b.iter(|| {
+            vm.dup();
+            vm.plus();
+        });
     }
 
     #[test]
@@ -1922,6 +1982,16 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_star(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        b.iter(|| {
+            vm.dup();
+            vm.star();
+        });
+    }
+
     #[test]
     fn test_slash () {
         let vm = &mut VM::new();
@@ -1931,6 +2001,16 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(4));
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[bench]
+    fn bench_slash(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        b.iter(|| {
+            vm.dup();
+            vm.slash();
+        });
     }
 
     #[test]
@@ -1944,6 +2024,17 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[bench]
+    fn bench_mod(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        b.iter(|| {
+            vm.p_mod();
+            vm.s_stack.push(2);
+        });
+    }
+
     #[test]
     fn test_slash_mod () {
         let vm = &mut VM::new();
@@ -1954,6 +2045,17 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(4));
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[bench]
+    fn bench_slash_mod(b: &mut Bencher) {
+        let vm = &mut VM::new();
+        vm.s_stack.push2(1, 2);
+        b.iter(|| {
+            vm.slash_mod();
+            vm.drop();
+            vm.s_stack.push(2)
+        });
     }
 
     #[test]

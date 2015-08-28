@@ -6,6 +6,7 @@ use rtforth::output::Output;
 use rtforth::tools::Tools;
 use rtforth::env::Environment;
 use rtforth::facility::Facility;
+use rtforth::float::Float;
 use getopts::Options;
 use std::env;
 
@@ -16,6 +17,7 @@ fn main() {
     vm.add_tools();
     vm.add_environment();
     vm.add_facility();
+    vm.add_float();
 
     let args: Vec<_> = env::args().collect();
     let program = args[0].clone();

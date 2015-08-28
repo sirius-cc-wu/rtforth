@@ -16,7 +16,7 @@ use exception::Exception::{
     StackUnderflow,
     ReturnStackUnderflow,
     ReturnStackOverflow,
-    FloatingPointStackUnderflow
+    UnsupportedOperation,
 };
 
 // Word
@@ -132,14 +132,14 @@ pub struct VM {
     r_stack: Stack<isize>,
     pub f_stack: Vec<f64>,
     pub s_heap: Vec<isize>,
-    f_heap: Vec<f64>,
+    pub f_heap: Vec<f64>,
     pub n_heap: String,
     pub word_list: Vec<Word>,
     instruction_pointer: usize,
     word_pointer: usize,
     pub idx_lit: usize,
     idx_exit: usize,
-    idx_flit: usize,
+    pub idx_flit: usize,
     idx_zero_branch: usize,
     idx_branch: usize,
     pub idx_type: usize,
@@ -262,38 +262,8 @@ impl VM {
         vm.add_primitive("marker", VM::marker);
         vm.add_primitive("quit", VM::quit);
         vm.add_primitive("abort", VM::abort);
-        vm.add_primitive("flit", VM::flit);
-        vm.add_primitive ("fconstant", VM::fconstant);
-        vm.add_primitive ("fvariable", VM::fvariable);
-        vm.add_primitive ("f!", VM::fstore);
-        vm.add_primitive ("f@", VM::ffetch);
-        vm.add_primitive ("fabs", VM::fabs);
-        vm.add_primitive ("fsin", VM::fsin);
-        vm.add_primitive ("fcos", VM::fcos);
-        vm.add_primitive ("ftan", VM::ftan);
-        vm.add_primitive ("fasin", VM::fasin);
-        vm.add_primitive ("facos", VM::facos);
-        vm.add_primitive ("fatan", VM::fatan);
-        vm.add_primitive ("fatan2", VM::fatan2);
-        vm.add_primitive ("fsqrt", VM::fsqrt);
-        vm.add_primitive ("fdrop", VM::fdrop);
-        vm.add_primitive ("fdup", VM::fdup);
-        vm.add_primitive ("fswap", VM::fswap);
-        vm.add_primitive ("fnip", VM::fnip);
-        vm.add_primitive ("frot", VM::frot);
-        vm.add_primitive ("fover", VM::fover);
-        vm.add_primitive ("n>f", VM::n_to_f);
-        vm.add_primitive ("f+", VM::fplus);
-        vm.add_primitive ("f-", VM::fminus);
-        vm.add_primitive ("f*", VM::fstar);
-        vm.add_primitive ("f/", VM::fslash);
-        vm.add_primitive ("f~", VM::fproximate);
-        vm.add_primitive ("f0<", VM::f_zero_less_than);
-        vm.add_primitive ("f0=", VM::f_zero_equals);
-        vm.add_primitive ("f<", VM::f_less_than);
 
         vm.idx_lit = vm.find("lit");
-        vm.idx_flit = vm.find("flit");
         vm.idx_exit = vm.find("exit");
         vm.idx_zero_branch = vm.find("0branch");
         vm.idx_branch = vm.find("branch");
@@ -361,13 +331,13 @@ impl VM {
     }
 
     /// Compile integer 'i'.
-    pub fn compile_integer (&mut self, i: isize) {
+    fn compile_integer (&mut self, i: isize) {
         self.s_heap.push(self.idx_lit as isize);
         self.s_heap.push(i);
     }
 
     /// Compile float 'f'.
-    pub fn compile_float (&mut self, f: f64) {
+    fn compile_float (&mut self, f: f64) {
         self.s_heap.push(self.idx_flit as isize);
         self.s_heap.push(self.f_heap.len() as isize);
         self.f_heap.push(f);
@@ -505,12 +475,17 @@ impl VM {
                         // Floating point?
                         match FromStr::from_str(&self.last_token) {
                             Ok(t) => {
-                                if self.is_compiling {
-                                    self.compile_float(t);
+                                if self.idx_flit == 0 {
+                                    print!("{} ", "Floating point");
+                                    self.abort_with_error(UnsupportedOperation);
                                 } else {
-                                    self.f_stack.push (t);
+                                    if self.is_compiling {
+                                        self.compile_float(t);
+                                    } else {
+                                        self.f_stack.push (t);
+                                    }
+                                    continue
                                 }
-                                continue
                             },
                             Err(_) => {
                                 print!("{} ", &self.last_token);
@@ -603,23 +578,6 @@ impl VM {
                 self.s_heap.push(v);
             },
             None => self.abort_with_error(StackUnderflow)
-        }
-    }
-
-    pub fn fvariable(&mut self) {
-        self.define(VM::p_fvar);
-        self.s_heap.push(self.f_heap.len() as isize);
-        self.f_heap.push(0.0);
-    }
-
-    pub fn fconstant(&mut self) {
-        match self.f_stack.pop() {
-            Some(v) => {
-                self.define(VM::p_fconst);
-                self.s_heap.push(self.f_heap.len() as isize);
-                self.f_heap.push(v);
-            },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
@@ -1314,266 +1272,6 @@ impl VM {
             self.r_stack.len += 1;
             self.instruction_pointer = 0;
             self.is_paused = true;
-        }
-    }
-
-// Floating point primitives
-
-    pub fn ffetch(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) => self.f_stack.push(self.f_heap[t as usize]),
-            None => self.abort_with_error(StackUnderflow)
-        };
-    }
-
-    pub fn fstore(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.f_stack.pop() {
-                    Some(n) => self.f_heap[t as usize] = n,
-                    None => self.abort_with_error(StackUnderflow)
-                },
-            None => self.abort_with_error(StackUnderflow)
-        };
-    }
-
-    pub fn fabs(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.abs()),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn fsin(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.sin()),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn fcos(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.cos()),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn ftan(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.tan()),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn fasin(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.asin()),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn facos(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.acos()),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn fatan(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.atan()),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn fatan2(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) => {
-                match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(n.atan2(t)),
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                }
-            },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn fsqrt(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.sqrt()),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn fswap(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) =>
-                match self.f_stack.pop() {
-                    Some(n) => { self.f_stack.push(t); self.f_stack.push(n); },
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn fnip(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) =>
-                match self.f_stack.pop() {
-                    Some(_) => self.f_stack.push(t),
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn fdup(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) => {
-                self.f_stack.push(t);
-                self.f_stack.push(t);
-            },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn fdrop(&mut self) {
-        match self.f_stack.pop() {
-            Some(_) => { },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        };
-    }
-
-    pub fn frot(&mut self) {
-        match self.f_stack.pop() {
-            Some(x3) =>
-                match self.f_stack.pop() {
-                    Some(x2) =>
-                        match self.f_stack.pop() {
-                            Some(x1) => {
-                                self.f_stack.push(x2);
-                                self.f_stack.push(x3);
-                                self.f_stack.push(x1);
-                            },
-                            None => self.abort_with_error(FloatingPointStackUnderflow)
-                        },
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn fover(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) =>
-                match self.f_stack.pop() {
-                    Some(n) => {
-                        self.f_stack.push(n);
-                        self.f_stack.push(t);
-                        self.f_stack.push(n);
-                    },
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn n_to_f(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) => self.f_stack.push(t as f64),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn fplus(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) =>
-                match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(n+t),
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn fminus(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) =>
-                match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(n-t),
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn fstar(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) =>
-                match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(n*t),
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn fslash(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) =>
-                match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(n/t),
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn fproximate(&mut self) {
-        match self.f_stack.pop() {
-            Some(x3) =>
-                match self.f_stack.pop() {
-                    Some(x2) =>
-                        match self.f_stack.pop() {
-                            Some(x1) => {
-                                if x3 > 0.0 {
-                                    self.s_stack.push(if (x1-x2).abs() < x3 {-1} else {0});
-                                } else if x3 == 0.0 {
-                                    self.s_stack.push(if x1==x2 {-1} else {0});
-                                } else {
-                                    self.s_stack.push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) {-1} else {0});
-                                }
-                            },
-                            None => self.abort_with_error(FloatingPointStackUnderflow)
-                        },
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn f_zero_less_than(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) =>self.s_stack.push(if t<0.0 {-1} else {0}),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn f_zero_equals(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) =>self.s_stack.push(if t==0.0 {-1} else {0}),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
-        }
-    }
-
-    pub fn f_less_than(&mut self) {
-        match self.f_stack.pop() {
-            Some(t) =>
-                match self.f_stack.pop() {
-                    Some(n) => self.s_stack.push(if n<t {-1} else {0}),
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
-            None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 

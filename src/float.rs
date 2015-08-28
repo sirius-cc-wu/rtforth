@@ -349,3 +349,353 @@ impl Float for VM {
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+    use core::VM;
+    use super::Float;
+
+    #[test]
+    fn test_evaluate_f64 () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("1.0 2.5");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 2);
+        assert!(0.99999 < vm.f_stack[0]);
+        assert!(vm.f_stack[0] < 1.00001);
+        assert!(2.49999 < vm.f_stack[1]);
+        assert!(vm.f_stack[1] < 2.50001);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fconstant () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("1.1 fconstant x x x");
+        vm.evaluate();
+        assert_eq!(vm.f_stack, [1.1, 1.1]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fvariable_and_fstore_ffetch () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("fvariable fx  fx f@  3.3 fx f!  fx f@");
+        vm.evaluate();
+        assert_eq!(vm.f_stack, [0.0, 3.3]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fabs () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("-3.14 fabs");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 3.13999 && t < 3.14001
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fsin () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("3.14 fsin");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 0.0015925 && t < 0.0015927
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fcos () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("3.0 fcos");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > -0.989993 && t < -0.989991
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_ftan () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("3.0 ftan");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > -0.142547 && t < -0.142545
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fasin () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("0.3 fasin");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 0.304691 && t < 0.304693
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_facos () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("0.3 facos");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 1.266102 && t < 1.266104
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fatan () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("0.3 fatan");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 0.291455 && t < 0.291457
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fatan2 () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("3.0 4.0 fatan2");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 0.643500  && t < 0.643502
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fsqrt () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("0.3 fsqrt");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 0.547721 && t < 0.547723 
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fdrop() {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.f_stack.push(1.0);
+        vm.fdrop();
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fnip() {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.f_stack.push(1.0);
+        vm.f_stack.push(2.0);
+        vm.fnip();
+        assert_eq!(vm.f_stack, [2.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fswap () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.f_stack.push(1.0);
+        vm.f_stack.push(2.0);
+        vm.fswap();
+        assert_eq!(vm.f_stack, [2.0,1.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fdup () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.f_stack.push(1.0);
+        vm.fdup();
+        assert_eq!(vm.f_stack, [1.0, 1.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fover () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.f_stack.push(1.0);
+        vm.f_stack.push(2.0);
+        vm.fover();
+        assert_eq!(vm.f_stack, [1.0,2.0,1.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_frot () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.f_stack.push(1.0);
+        vm.f_stack.push(2.0);
+        vm.f_stack.push(3.0);
+        vm.frot();
+        assert_eq!(vm.f_stack, [2.0, 3.0, 1.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fplus_fminus_fstar_fslash () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("9.0 10.0 f+ 11.0 f- 12.0 f* 13.0 f/");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.len(), 1);
+        assert!(match vm.f_stack.pop() {
+            Some(t) => {
+                t > 7.384614 && t < 7.384616
+            },
+            None => false
+        });
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_f_zero_less_than () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("0.0 f0<   0.1 f0<   -0.1 f0<");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_f_zero_equals () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("0.0 f0=   0.1 f0=   -0.1 f0=");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_f_less_than () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("0.0 0.0 f<   0.1 0.0 f<   -0.1 0.0 f<");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_fproximate () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("0.1 0.1 0.0 f~   0.1 0.10000000001 0.0 f~");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 2);
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+        vm.s_stack.clear();
+        vm.set_source("0.1 0.1 0.001 f~   0.1 0.109 0.01 f~   0.1 0.111  0.01 f~");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+        vm.s_stack.clear();
+        vm.set_source("0.1 0.1 -0.001 f~   0.1 0.109 -0.1 f~   0.1 0.109  -0.01 f~");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.error_code, 0);
+        vm.s_stack.clear();
+    }
+
+    #[test]
+    fn test_n_to_f () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source("0 n>f -1 n>f 1 n>f");
+        vm.evaluate();
+        assert_eq!(vm.f_stack, [0.0, -1.0, 1.0]);
+        assert_eq!(vm.error_code, 0);
+    }
+
+}

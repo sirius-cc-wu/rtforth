@@ -5,6 +5,7 @@ use self::alloc::{heap, oom};
 use std::mem;
 use std::ptr::{Unique, self};
 use std::str::FromStr;
+use std::ascii::AsciiExt;
 use exception::Exception;
 
 use exception::Exception::{
@@ -298,7 +299,7 @@ impl VM {
         let mut found_index = 0usize;
         for w in self.word_list.iter() {
             let n = &self.n_heap[w.nfa .. w.nfa+w.name_len];
-            if !w.hidden && n == name {
+            if !w.hidden && n.eq_ignore_ascii_case(name) {
                 found_index = i;
                 break;
             } else {

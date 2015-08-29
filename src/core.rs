@@ -24,9 +24,9 @@ use exception::Exception::{
 pub struct Word {
     is_immediate: bool,
     hidden: bool,
-    pub nfa: usize,
+    nfa: usize,
     dfa: usize,
-    pub name_len: usize,
+    name_len: usize,
     action: fn(& mut VM)
 }
 
@@ -41,6 +41,15 @@ impl Word {
             action: action
         }
     }
+
+    pub fn nfa(&self) -> usize {
+        self.nfa
+    }
+
+    pub fn name_len(&self) -> usize {
+        self.name_len
+    }
+
 }
 
 pub struct Stack<T> {

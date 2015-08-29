@@ -5,6 +5,7 @@ Simple Forth implemented in Rust
 
 Design decisions:
 
+* Safe first, performance later
 * Token Threaded (Call threading), easy to implement in Rust
 * Jit planned in the future to improve the performance
 

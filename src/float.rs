@@ -2,6 +2,7 @@ use core::VM;
 
 use exception::Exception::{
     StackUnderflow,
+    StackOverflow,
     FloatingPointStackUnderflow,
 };
 
@@ -337,14 +338,22 @@ impl Float for VM {
 
     fn f_zero_less_than(&mut self) {
         match self.f_stack.pop() {
-            Some(t) =>self.s_stack.push(if t<0.0 {-1} else {0}),
+            Some(t) =>
+                match self.s_stack.push(if t<0.0 {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
 
     fn f_zero_equals(&mut self) {
         match self.f_stack.pop() {
-            Some(t) =>self.s_stack.push(if t==0.0 {-1} else {0}),
+            Some(t) =>
+                match self.s_stack.push(if t==0.0 {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
@@ -353,7 +362,11 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(n) => self.s_stack.push(if n<t {-1} else {0}),
+                    Some(n) =>
+                        match self.s_stack.push(if n<t {-1} else {0}) {
+                            Some(_) => self.abort_with_error(StackOverflow),
+                            None => {}
+                        },
                     None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
             None => self.abort_with_error(FloatingPointStackUnderflow)

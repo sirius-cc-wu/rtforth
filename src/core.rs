@@ -74,24 +74,20 @@ impl<T> Stack<T> {
         }
     }
 
-    pub fn push(&mut self, v: T) {
+    pub fn push(&mut self, v: T) -> Option<T> {
         if self.len >= self.cap {
-// TODO: self is VM, not Stack.
-//            self.abort_with_error(ReturnStackOverflow)
-            assert!(self.len < self.cap, "Stack overflow");
+            Some(v)
         } else {
             unsafe {
                 ptr::write(self.ptr.offset(self.len as isize), v);
             }
             self.len += 1;
+            None
         }
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        if self.len == 0 {
-// TODO: self is VM, not Stack.
-//            self.abort_with_error(ReturnStackUnderflow)
-            assert!(self.len > 0, "Stack underflow");
+        if self.len < 1 {
             None
         } else {
             self.len -= 1;
@@ -101,25 +97,50 @@ impl<T> Stack<T> {
         }
     }
 
-    pub fn push2(&mut self, v1: T, v2: T) {
+    pub fn push2(&mut self, v1: T, v2: T) -> Option<(T,T)> {
         if self.len + 2 > self.cap {
-// TODO: self is VM, not Stack.
-//            self.abort_with_error(ReturnStackOverflow)
-            assert!(self.len + 2  <= self.cap, "Stack overflow");
+            Some((v1, v2))
         } else {
             unsafe {
                 ptr::write(self.ptr.offset(self.len as isize), v1);
                 ptr::write(self.ptr.offset((self.len+1) as isize), v2);
             }
             self.len += 2;
+            None
+        }
+    }
+
+    pub fn pop2(&mut self) -> Option<(T,T)> {
+        if self.len < 2 {
+            None
+        } else {
+            self.len -= 2;
+            unsafe {
+                Some((
+                    ptr::read(self.ptr.offset(self.len as isize)),
+                    ptr::read(self.ptr.offset((self.len+1) as isize))
+                ))
+            }
+        }
+    }
+
+    pub fn pop3(&mut self) -> Option<(T,T,T)> {
+        if self.len < 3 {
+            None
+        } else {
+            self.len -= 3;
+            unsafe {
+                Some((
+                    ptr::read(self.ptr.offset(self.len as isize)),
+                    ptr::read(self.ptr.offset((self.len+1) as isize)),
+                    ptr::read(self.ptr.offset((self.len+2) as isize)),
+                ))
+            }
         }
     }
 
     pub fn last(&self) -> Option<T> {
         if self.len == 0 {
-// TODO: self is VM, not Stack.
-//            self.abort_with_error(ReturnStackUnderflow)
-            assert!(self.len > 0, "Stack underflow");
             None
         } else {
             unsafe {
@@ -404,9 +425,12 @@ impl VM {
     pub fn char(&mut self) {
         self.parse_word();
         match self.last_token.chars().nth(0) {
-            Some(c) => self.s_stack.push(c as isize),
-            // if none is found, push 0 onto stack.
-            None => self.s_stack.push(0)
+            Some(c) =>
+                match self.s_stack.push(c as isize) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
+            None => self.abort_with_error(UnexpectedEndOfFile)
         }
     }
 
@@ -680,16 +704,11 @@ impl VM {
 
     pub fn imm_repeat(&mut self) {
         self.s_heap.push(self.idx_branch as isize);
-        match self.s_stack.pop() {
-            Some(while_part) => {
-                match self.s_stack.pop() {
-                    Some(begin_part) => {
-                        let len = self.s_heap.len() as isize;
-                        self.s_heap.push(begin_part-len);
-                        self.s_heap[(while_part) as usize] = len - while_part + 1;
-                    },
-                    None => self.abort_with_error(StackUnderflow)
-                };
+        match self.s_stack.pop2() {
+            Some((begin_part, while_part)) => {
+                let len = self.s_heap.len() as isize;
+                self.s_heap.push(begin_part-len);
+                self.s_heap[(while_part) as usize] = len - while_part + 1;
             },
             None => self.abort_with_error(StackUnderflow)
         };
@@ -735,7 +754,11 @@ impl VM {
     /// Add the size in address units of a cell to a-addr1, giving a-addr2.
     pub fn cell_plus(&mut self) {
         match self.s_stack.pop() {
-            Some(v) => self.s_stack.push(v + 1),
+            Some(v) =>
+                match self.s_stack.push(v + 1) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(StackUnderflow)
         }
     }
@@ -990,100 +1013,120 @@ impl VM {
 
     pub fn abs(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => self.s_stack.push(t.abs()),
+            Some(t) =>
+                match self.s_stack.push(t.abs()) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn negate(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => self.s_stack.push(-t),
+            Some(t) =>
+                match self.s_stack.push(-t) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn zero_less(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => self.s_stack.push(if t<0 {-1} else {0}),
+            Some(t) =>
+                match self.s_stack.push(if t<0 {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn zero_equals(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => self.s_stack.push(if t==0 {-1} else {0}),
+            Some(t) =>
+                match self.s_stack.push(if t==0 {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn zero_greater(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => self.s_stack.push(if t>0 {-1} else {0}),
+            Some(t) =>
+                match self.s_stack.push(if t>0 {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn zero_not_equals(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => self.s_stack.push(if t!=0 {-1} else {0}),
+            Some(t) =>
+                match self.s_stack.push(if t!=0 {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn equals(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => self.s_stack.push(if t==n {-1} else {0}),
-                    None => self.abort_with_error(StackUnderflow)
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                match self.s_stack.push(if t==n {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
                 },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn less_than(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => self.s_stack.push(if n<t {-1} else {0}),
-                    None => self.abort_with_error(StackUnderflow)
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                match self.s_stack.push(if n<t {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
                 },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn greater_than(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => self.s_stack.push(if n>t {-1} else {0}),
-                    None => self.abort_with_error(StackUnderflow)
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                match self.s_stack.push(if n>t {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
                 },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn not_equals(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => self.s_stack.push(if n!=t {-1} else {0}),
-                    None => self.abort_with_error(StackUnderflow)
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                match self.s_stack.push(if n!=t {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
                 },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn between(&mut self) {
-        match self.s_stack.pop() {
-            Some(x3) =>
-                match self.s_stack.pop() {
-                    Some(x2) =>
-                        match self.s_stack.pop() {
-                            Some(x1) => self.s_stack.push(if x1>=x2 && x1<=x3 {-1} else {0}),
-                            None => self.abort_with_error(StackUnderflow)
-                        },
-                    None => self.abort_with_error(StackUnderflow)
+        match self.s_stack.pop3() {
+            Some((x1, x2, x3)) =>
+                match self.s_stack.push(if x2<=x1 && x1<=x3 {-1} else {0}) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
                 },
             None => self.abort_with_error(StackUnderflow)
         }
@@ -1091,39 +1134,43 @@ impl VM {
 
     pub fn invert(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => self.s_stack.push(!t),
+            Some(t) =>
+                match self.s_stack.push(!t) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn and(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => self.s_stack.push(t & n),
-                    None => self.abort_with_error(StackUnderflow)
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                match self.s_stack.push(t & n) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
                 },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn or(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => self.s_stack.push(t | n),
-                    None => self.abort_with_error(StackUnderflow)
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                match self.s_stack.push(t | n) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
                 },
             None => self.abort_with_error(StackUnderflow)
         }
     }
 
     pub fn xor(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => self.s_stack.push(t ^ n),
-                    None => self.abort_with_error(StackUnderflow)
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                match self.s_stack.push(t ^ n) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
                 },
             None => self.abort_with_error(StackUnderflow)
         }
@@ -1142,18 +1189,18 @@ impl VM {
 
     pub fn fetch(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => self.s_stack.push(self.s_heap[t as usize]),
+            Some(t) =>
+                match self.s_stack.push(self.s_heap[t as usize]) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(StackUnderflow)
         };
     }
 
     pub fn store(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => { self.s_heap[t as usize] = n; },
-                    None => self.abort_with_error(StackUnderflow)
-                },
+        match self.s_stack.pop2() {
+            Some((n,t)) => { self.s_heap[t as usize] = n; },
             None => self.abort_with_error(StackUnderflow)
         }
     }
@@ -1228,21 +1275,16 @@ impl VM {
     }
 
     pub fn two_to_r(&mut self) {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.pop() {
-                    Some(n) => {
-                        if self.r_stack.len >= self.r_stack.cap-1 {
-                            self.abort_with_error(ReturnStackOverflow)
-                        } else {
-                            unsafe {
-                                ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), n);
-                                ptr::write(self.r_stack.ptr.offset((self.r_stack.len+1) as isize), t);
-                            }
-                            self.r_stack.len += 2;
-                        }
-                    },
-                    None => self.abort_with_error(StackUnderflow)
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                if self.r_stack.len >= self.r_stack.cap-1 {
+                    self.abort_with_error(ReturnStackOverflow)
+                } else {
+                    unsafe {
+                        ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), n);
+                        ptr::write(self.r_stack.ptr.offset((self.r_stack.len+1) as isize), t);
+                    }
+                    self.r_stack.len += 2;
                 },
             None => self.abort_with_error(StackUnderflow)
         }

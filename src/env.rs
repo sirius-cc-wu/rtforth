@@ -1,4 +1,8 @@
 use core::VM;
+use exception::Exception::{
+    StackOverflow,
+};
+
 
 pub trait Environment {
     /// Add environment queries.
@@ -22,11 +26,17 @@ impl Environment for VM {
     }
 
     fn max_n(&mut self) {
-        self.s_stack.push(isize::max_value())
+        match self.s_stack.push(isize::max_value()) {
+            Some(_) => self.abort_with_error(StackOverflow),
+            None => {}
+        };
     }
 
     fn max_u(&mut self) {
-        self.s_stack.push(usize::max_value() as isize)
+        match self.s_stack.push(usize::max_value() as isize) {
+            Some(_) => self.abort_with_error(StackOverflow),
+            None => {}
+        }
     }
 
 }

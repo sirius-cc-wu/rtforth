@@ -46,6 +46,10 @@ impl Word {
         self.nfa
     }
 
+    pub fn dfa(&self) -> usize {
+        self.dfa
+    }
+
     pub fn name_len(&self) -> usize {
         self.name_len
     }
@@ -145,7 +149,7 @@ pub struct VM {
     pub f_heap: Vec<f64>,
     pub n_heap: String,
     pub word_list: Vec<Word>,
-    instruction_pointer: usize,
+    pub instruction_pointer: usize,
     word_pointer: usize,
     pub idx_lit: usize,
     idx_exit: usize,
@@ -281,6 +285,10 @@ impl VM {
         let idx = vm.find("noop");
         vm.compile_word(idx);
         vm
+    }
+
+    pub fn word_pointer(&self) -> usize {
+        self.word_pointer
     }
 
     pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM)) {
@@ -535,10 +543,6 @@ impl VM {
         self.s_stack.push(self.s_heap[self.word_list[self.word_pointer].dfa]);
     }
 
-    pub fn p_fconst(&mut self) {
-        self.f_stack.push(self.f_heap[self.s_heap[self.word_list[self.word_pointer].dfa] as usize]);
-    }
-
     pub fn p_fvar(&mut self) {
         self.s_stack.push(self.s_heap[self.word_list[self.word_pointer].dfa]);
     }
@@ -766,11 +770,6 @@ impl VM {
             }
             self.s_stack.len += 1;
         }
-        self.instruction_pointer = self.instruction_pointer + 1;
-    }
-
-    pub fn flit(&mut self) {
-        self.f_stack.push (self.f_heap[self.s_heap[self.instruction_pointer] as usize]);
         self.instruction_pointer = self.instruction_pointer + 1;
     }
 

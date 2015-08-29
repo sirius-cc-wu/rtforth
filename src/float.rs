@@ -7,6 +7,8 @@ use exception::Exception::{
 
 pub trait Float {
     fn add_float(&mut self);
+    fn flit(&mut self);
+    fn p_fconst(&mut self);
     fn fvariable(&mut self);
     fn fconstant(&mut self);
     fn ffetch(&mut self);
@@ -69,6 +71,16 @@ impl Float for VM {
         self.add_primitive ("f0=", VM::f_zero_equals);
         self.add_primitive ("f<", VM::f_less_than);
         self.idx_flit = self.find("flit");
+    }
+
+    fn flit(&mut self) {
+        self.f_stack.push (self.f_heap[self.s_heap[self.instruction_pointer] as usize]);
+        self.instruction_pointer = self.instruction_pointer + 1;
+    }
+
+    fn p_fconst(&mut self) {
+        let dfa = self.word_list[self.word_pointer()].dfa();
+        self.f_stack.push(self.f_heap[self.s_heap[dfa] as usize]);
     }
 
     fn fvariable(&mut self) {

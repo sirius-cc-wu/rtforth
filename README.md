@@ -16,7 +16,11 @@ After optimization, corresponding slots in word list points to the jitted defini
 Usage
 =====
 
-Install Rust compiler and cargo the Rust package manager at first.
+Install Rust: 
+
+[Installing Rust](https://doc.rust-lang.org/book/installing-rust.html)
+
+After installation of Rust:
 
 ```
 $ cargo build

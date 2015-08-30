@@ -160,7 +160,7 @@ mod tests {
         vm.add_output();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
         vm.evaluate();
-        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "Hi, how are you");
         assert_eq!(vm.error_code, 0);
     }
@@ -171,12 +171,12 @@ mod tests {
         vm.add_output();
         vm.set_source("42 emit 43 emit");
         vm.evaluate();
-        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "*+");
         assert_eq!(vm.error_code, 0);
         vm.set_source("flush");
         vm.evaluate();
-        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "");
         assert_eq!(vm.error_code, 0);
     }

@@ -3,6 +3,7 @@ use core::VM;
 use exception::Exception::{
     StackUnderflow,
     StackOverflow,
+    FloatingPointStackOverflow,
     FloatingPointStackUnderflow,
 };
 
@@ -75,13 +76,18 @@ impl Float for VM {
     }
 
     fn flit(&mut self) {
-        self.f_stack.push (self.f_heap[self.s_heap[self.instruction_pointer] as usize]);
-        self.instruction_pointer = self.instruction_pointer + 1;
+        match self.f_stack.push (self.f_heap[self.s_heap[self.instruction_pointer] as usize]) {
+            Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+            None => self.instruction_pointer = self.instruction_pointer + 1
+        };
     }
 
     fn p_fconst(&mut self) {
         let dfa = self.word_list[self.word_pointer()].dfa();
-        self.f_stack.push(self.f_heap[self.s_heap[dfa] as usize]);
+        match self.f_stack.push(self.f_heap[self.s_heap[dfa] as usize]) {
+            Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+            None => {}
+        };
     }
 
     fn fvariable(&mut self) {
@@ -105,7 +111,11 @@ impl Float for VM {
 
     fn ffetch(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => self.f_stack.push(self.f_heap[t as usize]),
+            Some(t) =>
+                match self.f_stack.push(self.f_heap[t as usize]) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(StackUnderflow)
         };
     }
@@ -123,49 +133,77 @@ impl Float for VM {
 
     fn fabs(&mut self) {
         match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.abs()),
+            Some(t) =>
+                match self.f_stack.push(t.abs()) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     fn fsin(&mut self) {
         match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.sin()),
+            Some(t) =>
+                match self.f_stack.push(t.sin()) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     fn fcos(&mut self) {
         match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.cos()),
+            Some(t) =>
+                match self.f_stack.push(t.cos()) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     fn ftan(&mut self) {
         match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.tan()),
+            Some(t) =>
+                match self.f_stack.push(t.tan()) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     fn fasin(&mut self) {
         match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.asin()),
+            Some(t) =>
+                match self.f_stack.push(t.asin()) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     fn facos(&mut self) {
         match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.acos()),
+            Some(t) =>
+                match self.f_stack.push(t.acos()) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
 
     fn fatan(&mut self) {
         match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.atan()),
+            Some(t) =>
+                match self.f_stack.push(t.atan()) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
@@ -174,7 +212,11 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(t) => {
                 match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(n.atan2(t)),
+                    Some(n) =>
+                        match self.f_stack.push(n.atan2(t)) {
+                            Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                            None => {}
+                        },
                     None => self.abort_with_error(FloatingPointStackUnderflow)
                 }
             },
@@ -184,7 +226,11 @@ impl Float for VM {
 
     fn fsqrt(&mut self) {
         match self.f_stack.pop() {
-            Some(t) => self.f_stack.push(t.sqrt()),
+            Some(t) =>
+                match self.f_stack.push(t.sqrt()) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         };
     }
@@ -193,7 +239,11 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(n) => { self.f_stack.push(t); self.f_stack.push(n); },
+                    Some(n) =>
+                        match self.f_stack.push2(t, n) {
+                            Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                            None => {}
+                        },
                     None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
             None => self.abort_with_error(FloatingPointStackUnderflow)
@@ -204,7 +254,11 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(_) => self.f_stack.push(t),
+                    Some(_) =>
+                        match self.f_stack.push(t) {
+                            Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                            None => {}
+                        },
                     None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
             None => self.abort_with_error(FloatingPointStackUnderflow)
@@ -214,8 +268,10 @@ impl Float for VM {
     fn fdup(&mut self) {
         match self.f_stack.pop() {
             Some(t) => {
-                self.f_stack.push(t);
-                self.f_stack.push(t);
+                match self.f_stack.push2(t, t) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                };
             },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         };
@@ -234,11 +290,11 @@ impl Float for VM {
                 match self.f_stack.pop() {
                     Some(x2) =>
                         match self.f_stack.pop() {
-                            Some(x1) => {
-                                self.f_stack.push(x2);
-                                self.f_stack.push(x3);
-                                self.f_stack.push(x1);
-                            },
+                            Some(x1) =>
+                                match self.f_stack.push3(x2, x3, x1) {
+                                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                                    None => {}
+                                },
                             None => self.abort_with_error(FloatingPointStackUnderflow)
                         },
                     None => self.abort_with_error(FloatingPointStackUnderflow)
@@ -251,11 +307,11 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(n) => {
-                        self.f_stack.push(n);
-                        self.f_stack.push(t);
-                        self.f_stack.push(n);
-                    },
+                    Some(n) =>
+                        match self.f_stack.push3(n, t, n) {
+                            Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                            None => {}
+                        },
                     None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
             None => self.abort_with_error(FloatingPointStackUnderflow)
@@ -264,7 +320,11 @@ impl Float for VM {
 
     fn n_to_f(&mut self) {
         match self.s_stack.pop() {
-            Some(t) => self.f_stack.push(t as f64),
+            Some(t) =>
+                match self.f_stack.push(t as f64) {
+                    Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                    None => {}
+                },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
@@ -273,7 +333,11 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(n+t),
+                    Some(n) =>
+                        match self.f_stack.push(n+t) {
+                            Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                            None => {}
+                        },
                     None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
             None => self.abort_with_error(FloatingPointStackUnderflow)
@@ -284,7 +348,11 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(n-t),
+                    Some(n) =>
+                        match self.f_stack.push(n-t) {
+                            Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                            None => {}
+                        },
                     None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
             None => self.abort_with_error(FloatingPointStackUnderflow)
@@ -295,7 +363,11 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(n*t),
+                    Some(n) =>
+                        match self.f_stack.push(n*t) {
+                            Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                            None => {}
+                        },
                     None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
             None => self.abort_with_error(FloatingPointStackUnderflow)
@@ -306,7 +378,11 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(n) => self.f_stack.push(n/t),
+                    Some(n) =>
+                        match self.f_stack.push(n/t) {
+                            Some(_) => self.abort_with_error(FloatingPointStackOverflow),
+                            None => {}
+                        },
                     None => self.abort_with_error(FloatingPointStackUnderflow)
                 },
             None => self.abort_with_error(FloatingPointStackUnderflow)
@@ -387,10 +463,10 @@ mod tests {
         vm.set_source("1.0 2.5");
         vm.evaluate();
         assert_eq!(vm.f_stack.len(), 2);
-        assert!(0.99999 < vm.f_stack[0]);
-        assert!(vm.f_stack[0] < 1.00001);
-        assert!(2.49999 < vm.f_stack[1]);
-        assert!(vm.f_stack[1] < 2.50001);
+        assert!(0.99999 < vm.f_stack.as_slice()[0]);
+        assert!(vm.f_stack.as_slice()[0] < 1.00001);
+        assert!(2.49999 < vm.f_stack.as_slice()[1]);
+        assert!(vm.f_stack.as_slice()[1] < 2.50001);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -400,7 +476,7 @@ mod tests {
         vm.add_float();
         vm.set_source("1.1 fconstant x x x");
         vm.evaluate();
-        assert_eq!(vm.f_stack, [1.1, 1.1]);
+        assert_eq!(vm.f_stack.as_slice(), [1.1, 1.1]);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -410,7 +486,7 @@ mod tests {
         vm.add_float();
         vm.set_source("fvariable fx  fx f@  3.3 fx f!  fx f@");
         vm.evaluate();
-        assert_eq!(vm.f_stack, [0.0, 3.3]);
+        assert_eq!(vm.f_stack.as_slice(), [0.0, 3.3]);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -562,9 +638,12 @@ mod tests {
     fn test_fdrop() {
         let vm = &mut VM::new();
         vm.add_float();
-        vm.f_stack.push(1.0);
+        match vm.f_stack.push(1.0) {
+            Some(_) => assert!(true, "Floating point stack overflow"),
+            None => {}
+        }
         vm.fdrop();
-        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -572,10 +651,12 @@ mod tests {
     fn test_fnip() {
         let vm = &mut VM::new();
         vm.add_float();
-        vm.f_stack.push(1.0);
-        vm.f_stack.push(2.0);
+        match vm.f_stack.push2(1.0, 2.0) {
+            Some(_) => assert!(true, "Floating point stack overflow"),
+            None => {}
+        };
         vm.fnip();
-        assert_eq!(vm.f_stack, [2.0]);
+        assert_eq!(vm.f_stack.as_slice(), [2.0]);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -583,10 +664,12 @@ mod tests {
     fn test_fswap () {
         let vm = &mut VM::new();
         vm.add_float();
-        vm.f_stack.push(1.0);
-        vm.f_stack.push(2.0);
+        match vm.f_stack.push2(1.0, 2.0) {
+            Some(_) => assert!(true, "Floating point stack overflow"),
+            None => {}
+        };
         vm.fswap();
-        assert_eq!(vm.f_stack, [2.0,1.0]);
+        assert_eq!(vm.f_stack.as_slice(), [2.0,1.0]);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -594,9 +677,12 @@ mod tests {
     fn test_fdup () {
         let vm = &mut VM::new();
         vm.add_float();
-        vm.f_stack.push(1.0);
+        match vm.f_stack.push(1.0) {
+            Some(_) => assert!(true, "Floating point stack overflow"),
+            None => {}
+        };
         vm.fdup();
-        assert_eq!(vm.f_stack, [1.0, 1.0]);
+        assert_eq!(vm.f_stack.as_slice(), [1.0, 1.0]);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -604,10 +690,12 @@ mod tests {
     fn test_fover () {
         let vm = &mut VM::new();
         vm.add_float();
-        vm.f_stack.push(1.0);
-        vm.f_stack.push(2.0);
+        match vm.f_stack.push2(1.0, 2.0) {
+            Some(_) => assert!(true, "Floating point stack overflow"),
+            None => {}
+        };
         vm.fover();
-        assert_eq!(vm.f_stack, [1.0,2.0,1.0]);
+        assert_eq!(vm.f_stack.as_slice(), [1.0,2.0,1.0]);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -615,11 +703,12 @@ mod tests {
     fn test_frot () {
         let vm = &mut VM::new();
         vm.add_float();
-        vm.f_stack.push(1.0);
-        vm.f_stack.push(2.0);
-        vm.f_stack.push(3.0);
+        match vm.f_stack.push3(1.0, 2.0, 3.0) {
+            Some(_) => assert!(true, "Floating point stack overflow"),
+            None => {}
+        };
         vm.frot();
-        assert_eq!(vm.f_stack, [2.0, 3.0, 1.0]);
+        assert_eq!(vm.f_stack.as_slice(), [2.0, 3.0, 1.0]);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -649,7 +738,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -663,7 +752,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -677,7 +766,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -690,7 +779,7 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.error_code, 0);
         vm.s_stack.clear();
         vm.set_source("0.1 0.1 0.001 f~   0.1 0.109 0.01 f~   0.1 0.111  0.01 f~");
@@ -699,7 +788,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.error_code, 0);
         vm.s_stack.clear();
         vm.set_source("0.1 0.1 -0.001 f~   0.1 0.109 -0.1 f~   0.1 0.109  -0.01 f~");
@@ -708,7 +797,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.f_stack, []);
+        assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.error_code, 0);
         vm.s_stack.clear();
     }
@@ -719,7 +808,7 @@ mod tests {
         vm.add_float();
         vm.set_source("0 n>f -1 n>f 1 n>f");
         vm.evaluate();
-        assert_eq!(vm.f_stack, [0.0, -1.0, 1.0]);
+        assert_eq!(vm.f_stack.as_slice(), [0.0, -1.0, 1.0]);
         assert_eq!(vm.error_code, 0);
     }
 

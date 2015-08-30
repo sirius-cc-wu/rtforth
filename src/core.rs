@@ -6,6 +6,8 @@ use std::mem;
 use std::ptr::{Unique, self};
 use std::str::FromStr;
 use std::ascii::AsciiExt;
+use std::fmt;
+use std::slice;
 use exception::Exception;
 
 use exception::Exception::{
@@ -110,6 +112,20 @@ impl<T> Stack<T> {
         }
     }
 
+    pub fn push3(&mut self, v1: T, v2: T, v3: T) -> Option<(T,T, T)> {
+        if self.len + 3 > self.cap {
+            Some((v1, v2, v3))
+        } else {
+            unsafe {
+                ptr::write(self.ptr.offset(self.len as isize), v1);
+                ptr::write(self.ptr.offset((self.len+1) as isize), v2);
+                ptr::write(self.ptr.offset((self.len+2) as isize), v3);
+            }
+            self.len += 3;
+            None
+        }
+    }
+
     pub fn pop2(&mut self) -> Option<(T,T)> {
         if self.len < 2 {
             None
@@ -153,8 +169,32 @@ impl<T> Stack<T> {
         self.len = 0;
     }
 
-    pub fn len(&mut self) -> usize {
+    pub fn len(&self) -> usize {
         self.len
+    }
+
+    /// # Safety
+    /// Because the implementer (me) is still learning Rust, it is uncertain if as_slice is safe. 
+    pub fn as_slice(&self) -> &[T] {
+        unsafe { slice::from_raw_parts(self.ptr.get(), self.len) }
+    }
+}
+
+impl<T: fmt::Display> fmt::Debug for Stack<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match write!(f, "<{}> ", self.len()) {
+            Ok(_) => {
+                for i in 0..(self.len()-1) {
+                    let v = unsafe { ptr::read(self.ptr.offset(i as isize)) };
+                    match write!(f, "{} ", v) {
+                        Ok(_) => {},
+                        Err(e) => { return Err(e); }
+                    }
+                }
+                Ok(())
+            },
+            Err(e) => Err(e)
+        }
     }
 }
 
@@ -165,7 +205,7 @@ pub struct VM {
     pub error_code: isize,
     pub s_stack: Stack<isize>,
     r_stack: Stack<isize>,
-    pub f_stack: Vec<f64>,
+    pub f_stack: Stack<f64>,
     pub s_heap: Vec<isize>,
     pub f_heap: Vec<f64>,
     pub n_heap: String,
@@ -193,7 +233,7 @@ impl VM {
             error_code: NoException as isize,
             s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
-            f_stack: Vec::with_capacity(16),
+            f_stack: Stack::with_capacity(16),
             s_heap: Vec::with_capacity(64),
             f_heap: Vec::with_capacity(64),
             n_heap: String::with_capacity(64),

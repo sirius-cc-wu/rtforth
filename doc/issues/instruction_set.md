@@ -73,5 +73,49 @@
 
 ## rtForth
 
-Instruction set = Ngaro + eForth
-
+1. NOP
+1. EXIT
+1. EXECUTE
+1. LIT
+1. BRANCH
+1. 0BRANCH
+1. DUP
+1. DROP
+1. SWAP
+1. OVER
+1. ROT
+1. 2DUP
+1. 2DROP
+1. 2SWAP
+1. 2OVER
+1. 2ROT
+1. DEPTH
+1. >R
+1. R>
+1. R@
+1. CHAR+
+1. CHARS
+1. CELL+
+1. CELLS
+1. C@
+1. C!
+1. @
+1. !
+1. TRUE
+1. FALSE
+1. 0<
+1. AND
+1. OR
+1. XOR
+1. SHL
+1. SHR
+1. 1+
+1. 1-
+1. +
+1. -
+1. *
+1. /MOD
+1. UM+
+1. !IO
+1. ?RX
+1. TX!

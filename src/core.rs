@@ -252,14 +252,13 @@ impl VM {
             last_definition: 0,
             output_buffer: String::with_capacity(128),
         };
-        // TODO: Ngaro VM
-        vm.add_primitive("noop", VM::noop); // Ngaro NOP = 0
-        vm.add_primitive("lit", VM::lit); // Ngaro LIT = 1
-        vm.add_primitive("dup", VM::dup); // Ngaro DUP = 2
-        vm.add_primitive("drop", VM::drop); // Ngaro DROP = 3
-        vm.add_primitive("swap", VM::swap); // Ngaro SWAP = 4
-        vm.add_primitive(">r", VM::to_r); // Ngaro PUSH = 5
-        vm.add_primitive("r>", VM::r_from); // Ngaro POP = 6
+        vm.add_primitive("noop", VM::noop);
+        vm.add_primitive("lit", VM::lit);
+        vm.add_primitive("dup", VM::dup);
+        vm.add_primitive("drop", VM::drop);
+        vm.add_primitive("swap", VM::swap);
+        vm.add_primitive(">r", VM::to_r);
+        vm.add_primitive("r>", VM::r_from);
         vm.add_primitive("true", VM::p_true);
         vm.add_primitive("false", VM::p_false);
         vm.add_primitive("cell+", VM::cell_plus);

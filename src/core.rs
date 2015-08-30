@@ -252,21 +252,22 @@ impl VM {
             last_definition: 0,
             output_buffer: String::with_capacity(128),
         };
-        // index of 0 means not found.
-        vm.add_primitive("", VM::noop);
-        vm.add_primitive("noop", VM::noop);
+        // TODO: Ngaro VM
+        vm.add_primitive("noop", VM::noop); // Ngaro NOP = 0
+        vm.add_primitive("lit", VM::lit); // Ngaro LIT = 1
+        vm.add_primitive("dup", VM::dup); // Ngaro DUP = 2
+        vm.add_primitive("drop", VM::drop); // Ngaro DROP = 3
+        vm.add_primitive("swap", VM::swap); // Ngaro SWAP = 4
+        vm.add_primitive(">r", VM::to_r); // Ngaro PUSH = 5
+        vm.add_primitive("r>", VM::r_from); // Ngaro POP = 6
         vm.add_primitive("true", VM::p_true);
         vm.add_primitive("false", VM::p_false);
         vm.add_primitive("cell+", VM::cell_plus);
         vm.add_primitive("cells", VM::cells);
         vm.add_primitive("align", VM::align);
         vm.add_primitive("aligned", VM::aligned);
-        vm.add_primitive("lit", VM::lit);;
         vm.add_primitive("exit", VM::exit);
         vm.add_primitive("pause", VM::pause);
-        vm.add_primitive("swap", VM::swap);
-        vm.add_primitive("dup", VM::dup);
-        vm.add_primitive("drop", VM::drop);
         vm.add_primitive("nip", VM::nip);
         vm.add_primitive("over", VM::over);
         vm.add_primitive("rot", VM::rot);
@@ -317,8 +318,6 @@ impl VM {
         vm.add_immediate("[", VM::interpret);
         vm.add_primitive("here", VM::here);
         vm.add_primitive(",", VM::comma);
-        vm.add_primitive(">r", VM::to_r);
-        vm.add_primitive("r>", VM::r_from);
         vm.add_primitive("r@", VM::r_fetch);
         vm.add_primitive("2>r", VM::two_to_r);
         vm.add_primitive("2r>", VM::two_r_from);
@@ -338,13 +337,12 @@ impl VM {
         vm.add_primitive("quit", VM::quit);
         vm.add_primitive("abort", VM::abort);
 
-        vm.idx_lit = vm.find("lit");
-        vm.idx_exit = vm.find("exit");
-        vm.idx_zero_branch = vm.find("0branch");
-        vm.idx_branch = vm.find("branch");
+        vm.idx_lit = vm.find("lit").expect("lit defined");
+        vm.idx_exit = vm.find("exit").expect("exit defined");
+        vm.idx_zero_branch = vm.find("0branch").expect("0branch defined");
+        vm.idx_branch = vm.find("branch").expect("branch defined");
         // S_heap is beginning with noop, because s_heap[0] should not be used.
-        let idx = vm.find("noop");
-        vm.compile_word(idx);
+        vm.compile_word(0); // NOP
         vm
     }
 
@@ -372,19 +370,17 @@ impl VM {
 
     /// Find the word with name 'name'.
     /// If not found returns zero.
-    pub fn find(&self, name: &str) -> usize {
+    pub fn find(&self, name: &str) -> Option<usize> {
         let mut i = 0usize;
-        let mut found_index = 0usize;
         for w in self.word_list.iter() {
             let n = &self.n_heap[w.nfa .. w.nfa+w.name_len];
             if !w.hidden && n.eq_ignore_ascii_case(name) {
-                found_index = i;
-                break;
+                return Some(i);
             } else {
                 i += 1;
             }
         }
-        return found_index;
+        return None;
     }
 
 // Inner interpreter
@@ -532,51 +528,50 @@ impl VM {
             if self.last_token.is_empty() {
                 break;
             }
-            let found_index = self.find(&self.last_token);
-            if found_index != 0 {
-                if !self.is_compiling || self.word_list[found_index].is_immediate {
-                    self.execute_word(found_index);
-                    if self.instruction_pointer != 0 {
-                        self.inner();
-                    }
-                } else {
-                    self.compile_word(found_index);
-                }
-            } else {
-                // Integer?
-                match FromStr::from_str(&self.last_token) {
-                    Ok(t) => {
-                        if self.is_compiling {
-                            self.compile_integer(t);
-                        } else {
-                            self.s_stack.push (t);
+            match self.find(&self.last_token) {
+                Some(found_index) =>
+                    if !self.is_compiling || self.word_list[found_index].is_immediate {
+                        self.execute_word(found_index);
+                        if self.instruction_pointer != 0 {
+                            self.inner();
                         }
-                        continue
+                    } else {
+                        self.compile_word(found_index);
                     },
-                    Err(_) => {
-                        // Floating point?
-                        match FromStr::from_str(&self.last_token) {
-                            Ok(t) => {
-                                if self.idx_flit == 0 {
-                                    print!("{} ", "Floating point");
-                                    self.abort_with_error(UnsupportedOperation);
-                                } else {
-                                    if self.is_compiling {
-                                        self.compile_float(t);
-                                    } else {
-                                        self.f_stack.push (t);
-                                    }
-                                    continue
-                                }
-                            },
-                            Err(_) => {
-                                print!("{} ", &self.last_token);
-                                self.abort_with_error(UndefinedWord);
+                None =>
+                    // Integer?
+                    match FromStr::from_str(&self.last_token) {
+                        Ok(t) => {
+                            if self.is_compiling {
+                                self.compile_integer(t);
+                            } else {
+                                self.s_stack.push (t);
                             }
-                        };
+                            continue
+                        },
+                        Err(_) => {
+                            // Floating point?
+                            match FromStr::from_str(&self.last_token) {
+                                Ok(t) => {
+                                    if self.idx_flit == 0 {
+                                        print!("{} ", "Floating point");
+                                        self.abort_with_error(UnsupportedOperation);
+                                    } else {
+                                        if self.is_compiling {
+                                            self.compile_float(t);
+                                        } else {
+                                            self.f_stack.push (t);
+                                        }
+                                        continue
+                                    }
+                                },
+                                Err(_) => {
+                                    print!("{} ", &self.last_token);
+                                    self.abort_with_error(UndefinedWord);
+                                }
+                            };
+                        }
                     }
-                };
-
             }
             if self.has_error() {
                 break;
@@ -1248,11 +1243,13 @@ impl VM {
     pub fn tick(&mut self) {
         self.parse_word();
         if !self.last_token.is_empty() {
-            let found_index = self.find(&self.last_token);
-            if found_index != 0 {
-                self.s_stack.push(found_index as isize);
-            } else {
-                self.abort_with_error(UndefinedWord);
+            match self.find(&self.last_token) {
+                Some(found_index) =>
+                    match self.s_stack.push(found_index as isize) {
+                        Some(_) => self.abort_with_error(StackOverflow),
+                        None => {}
+                    },
+                None => self.abort_with_error(UndefinedWord)
             }
         } else {
             self.abort_with_error(UnexpectedEndOfFile);
@@ -1410,9 +1407,9 @@ mod tests {
     #[test]
     fn test_find() {
         let vm = &mut VM::new();
-        assert_eq!(0usize, vm.find(""));
-        assert_eq!(0usize, vm.find("word-not-exist"));
-        assert_eq!(1usize, vm.find("noop"));
+        assert!(vm.find("").is_none());
+        assert!(vm.find("word-not-exist").is_none());
+        assert_eq!(0usize, vm.find("noop").unwrap());
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1434,17 +1431,9 @@ mod tests {
         b.iter(|| vm.find("branch"));
     }
 
-    #[bench]
-    fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new();
-        b.iter(|| vm.find("f<"));
-    }
-
     #[test]
     fn test_inner_interpreter_without_nest () {
         let vm = &mut VM::new();
-        let idx = vm.find("noop");
-        vm.compile_word(idx);
         vm.compile_integer(3);
         vm.compile_integer(2);
         vm.compile_integer(1);
@@ -1456,7 +1445,7 @@ mod tests {
     #[bench]
     fn bench_inner_interpreter_without_nest (b: &mut Bencher) {
         let vm = &mut VM::new();
-        let idx = vm.find("noop");
+        let idx = 0; // NOP
         vm.compile_word(idx);
         vm.compile_word(idx);
         vm.compile_word(idx);
@@ -2176,12 +2165,12 @@ mod tests {
     #[test]
     fn test_here_comma_comple_interpret () {
         let vm = &mut VM::new();
-        vm.set_source("here 1 , 2 , ] noop noop [ here");
+        vm.set_source("here 1 , 2 , ] noop lit [ here");
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(5));
         assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.s_heap, [1, 1, 2, 1, 1]);
+        assert_eq!(vm.s_heap, [0, 1, 2, 0, 1]);
         assert_eq!(vm.error_code, 0);
     }
 

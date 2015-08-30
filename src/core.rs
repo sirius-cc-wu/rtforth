@@ -254,9 +254,9 @@ impl VM {
         };
         // Bytecodes
         vm.add_primitive("noop", VM::noop);
+        vm.add_primitive("lit", VM::lit);
         vm.add_primitive("exit", VM::exit);
         vm.add_primitive("execute", VM::execute);
-        vm.add_primitive("lit", VM::lit);
         vm.add_primitive("branch", VM::branch);
         vm.add_primitive("0branch", VM::zero_branch);
         vm.add_primitive("dup", VM::dup);
@@ -957,7 +957,8 @@ impl VM {
     }
 
     pub fn depth(&mut self) {
-        match self.s_stack.push(self.s_stack.len) {
+        let len = self.s_stack.len;
+        match self.s_stack.push(len as isize) {
             Some(_) => self.abort_with_error(StackOverflow),
             None => {}
         };

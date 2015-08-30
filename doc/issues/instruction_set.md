@@ -74,9 +74,9 @@
 ## rtForth
 
 1. NOP
+1. LIT
 1. EXIT
 1. EXECUTE
-1. LIT
 1. BRANCH
 1. 0BRANCH
 1. DUP

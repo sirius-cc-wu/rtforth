@@ -252,42 +252,58 @@ impl VM {
             last_definition: 0,
             output_buffer: String::with_capacity(128),
         };
+        // Bytecodes
         vm.add_primitive("noop", VM::noop);
+        vm.add_primitive("exit", VM::exit);
+        vm.add_primitive("execute", VM::execute);
         vm.add_primitive("lit", VM::lit);
+        vm.add_primitive("branch", VM::branch);
+        vm.add_primitive("0branch", VM::zero_branch);
         vm.add_primitive("dup", VM::dup);
         vm.add_primitive("drop", VM::drop);
         vm.add_primitive("swap", VM::swap);
-        vm.add_primitive(">r", VM::to_r);
-        vm.add_primitive("r>", VM::r_from);
-        vm.add_primitive("true", VM::p_true);
-        vm.add_primitive("false", VM::p_false);
-        vm.add_primitive("cell+", VM::cell_plus);
-        vm.add_primitive("cells", VM::cells);
-        vm.add_primitive("align", VM::align);
-        vm.add_primitive("aligned", VM::aligned);
-        vm.add_primitive("exit", VM::exit);
-        vm.add_primitive("pause", VM::pause);
-        vm.add_primitive("nip", VM::nip);
         vm.add_primitive("over", VM::over);
-        vm.add_primitive("rot", VM::rot);
-        vm.add_primitive("2drop", VM::two_drop);
         vm.add_primitive("2dup", VM::two_dup);
+        vm.add_primitive("2drop", VM::two_drop);
         vm.add_primitive("2swap", VM::two_swap);
         vm.add_primitive("2over", VM::two_over);
+        vm.add_primitive("depth", VM::depth);
+        vm.add_primitive(">r", VM::to_r);
+        vm.add_primitive("r>", VM::r_from);
+        vm.add_primitive("r@", VM::r_fetch);
+        vm.add_primitive("2>r", VM::two_to_r);
+        vm.add_primitive("2r>", VM::two_r_from);
+        vm.add_primitive("2r@", VM::two_r_fetch);
+        vm.add_primitive("true", VM::p_true);
+        vm.add_primitive("false", VM::p_false);
+        vm.add_primitive("0=", VM::zero_equals);
+        vm.add_primitive("0<", VM::zero_less);
+        vm.add_primitive("0>", VM::zero_greater);
+        vm.add_primitive("0<>", VM::zero_not_equals);
+        vm.add_primitive("and", VM::and);
+        vm.add_primitive("or", VM::or);
+        vm.add_primitive("xor", VM::xor);
         vm.add_primitive("1+", VM::one_plus);
         vm.add_primitive("1-", VM::one_minus);
         vm.add_primitive("-", VM::minus);
         vm.add_primitive("+", VM::plus);
         vm.add_primitive("*", VM::star);
+        vm.add_primitive("/mod", VM::slash_mod);
+        vm.add_primitive("cell+", VM::cell_plus);
+        vm.add_primitive("cells", VM::cells);
+        vm.add_primitive("@", VM::fetch);
+        vm.add_primitive("!", VM::store);
+
+        // More Primitives
+        vm.add_primitive("align", VM::align);
+        vm.add_primitive("aligned", VM::aligned);
+        vm.add_primitive("pause", VM::pause);
+        vm.add_primitive("nip", VM::nip);
+        vm.add_primitive("rot", VM::rot);
         vm.add_primitive("/", VM::slash);
         vm.add_primitive("mod", VM::p_mod);
-        vm.add_primitive("/mod", VM::slash_mod);
         vm.add_primitive("abs", VM::abs);
         vm.add_primitive("negate", VM::negate);
-        vm.add_primitive("0=", VM::zero_equals);
-        vm.add_primitive("0<", VM::zero_less);
-        vm.add_primitive("0>", VM::zero_greater);
-        vm.add_primitive("0<>", VM::zero_not_equals);
         vm.add_primitive("not", VM::zero_equals);
         vm.add_primitive("=", VM::equals);
         vm.add_primitive("<", VM::less_than);
@@ -295,9 +311,6 @@ impl VM {
         vm.add_primitive("<>", VM::not_equals);
         vm.add_primitive("between", VM::between);
         vm.add_primitive("invert", VM::invert);
-        vm.add_primitive("and", VM::and);
-        vm.add_primitive("or", VM::or);
-        vm.add_primitive("xor", VM::xor);
         vm.add_primitive("parse-word", VM::parse_word);;
         vm.add_primitive("char", VM::char);
         vm.add_immediate("[char]", VM::bracket_char);
@@ -309,20 +322,11 @@ impl VM {
         vm.add_primitive("constant", VM::constant);
         vm.add_primitive("variable", VM::variable);
         vm.add_primitive("create", VM::create);
-        vm.add_primitive("@", VM::fetch);
-        vm.add_primitive("!", VM::store);
         vm.add_primitive("'", VM::tick);
-        vm.add_primitive("execute", VM::execute);
         vm.add_primitive("]", VM::compile);
         vm.add_immediate("[", VM::interpret);
         vm.add_primitive("here", VM::here);
         vm.add_primitive(",", VM::comma);
-        vm.add_primitive("r@", VM::r_fetch);
-        vm.add_primitive("2>r", VM::two_to_r);
-        vm.add_primitive("2r>", VM::two_r_from);
-        vm.add_primitive("2r@", VM::two_r_fetch);
-        vm.add_primitive("0branch", VM::zero_branch);
-        vm.add_primitive("branch", VM::branch);
         vm.add_immediate("if", VM::imm_if);
         vm.add_immediate("else", VM::imm_else);
         vm.add_immediate("then", VM::imm_then);
@@ -950,6 +954,13 @@ impl VM {
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-6) as isize)));
             }
         }
+    }
+
+    pub fn depth(&mut self) {
+        match self.s_stack.push(self.s_stack.len) {
+            Some(_) => self.abort_with_error(StackOverflow),
+            None => {}
+        };
     }
 
     pub fn one_plus(&mut self) {
@@ -1655,6 +1666,19 @@ mod tests {
         b.iter(|| vm.two_swap());
     }
 
+    #[test]
+    fn test_2over () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        vm.s_stack.push(3);
+        vm.s_stack.push(4);
+        vm.two_over();
+        assert_eq!(vm.s_stack.len(), 6);
+        assert_eq!(vm.s_stack.as_slice(), [1, 2, 3, 4, 1, 2]);
+        assert_eq!(vm.error_code, 0);
+    }
+
     #[bench]
     fn bench_2over (b: &mut Bencher) {
         let vm = &mut VM::new();
@@ -1666,6 +1690,15 @@ mod tests {
             vm.two_over();
             vm.two_drop();
         });
+    }
+
+    #[test]
+    fn test_depth() {
+        let vm = &mut VM::new();
+        vm.depth();
+        vm.depth();
+        vm.depth();
+        assert_eq!(vm.s_stack.as_slice(), [0, 1, 2]);
     }
 
     #[test]

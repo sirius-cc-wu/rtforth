@@ -1,9 +1,8 @@
-rtForth
-=======
+# rtForth
 
 Simple Forth implemented in Rust
 
-Design decisions:
+## Design decisions:
 
 * Safe first, performance later
 * Token Threaded (Call threading), easy to implement in Rust
@@ -13,8 +12,7 @@ The performance of current implementation is not well because of token threading
 But slow colon definitions can be improved with a Just-In-Time compiler.
 After optimization, corresponding slots in word list points to the jitted definitions.
 
-Usage
-=====
+## Usage
 
 Install Rust: 
 

@@ -1,5 +1,6 @@
 variable base
 10 base !
+: decimal 10 base ! ;
 : ?dup ( x -- 0 | x x ) 0 <> if dup then ;
 : cr ( -- ) 10 emit ;
 : space ( -- ) 32 emit ;

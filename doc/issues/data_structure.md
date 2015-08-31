@@ -8,7 +8,7 @@ Rust's vector is not a good implementation for data space:
 
 ## Solution:
 
-* Use rustc-serialize to handle an allocated memory. Apply this strategy to f_heap at first.
+* Use serde to handle an allocated memory. Apply this strategy to f_heap at first.
 
 # Stacks
 

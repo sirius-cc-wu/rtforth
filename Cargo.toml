@@ -4,9 +4,6 @@ name = "rtforth"
 version = "0.1.6"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 
-[[bin]]
-name = "rf"
-
 [dependencies]
 getopts = "0.2"
 time = "0.1"

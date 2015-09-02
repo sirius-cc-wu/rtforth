@@ -98,7 +98,7 @@ impl Output for VM {
     }
 
     fn flush(&mut self) {
-        println!("{}", self.output_buffer);
+        print!("{}", self.output_buffer);
         self.output_buffer.clear();
     }
 

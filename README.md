@@ -21,11 +21,11 @@ Install Rust:
 After installation of Rust:
 
 ```
-$ cargo build
-$ ./target/debug/rf --help   # Display help information.
-$ ./target/debug/rf <file>   # Load forth commands in <file>.
-$ ./target/debug/rf lib.fs <file>   # Load lib.fs before <file>.
-$ cargo build --release      # Compile optimized rtForth.
-$ ./target/release/rf        # Execute optimized rtForth.
+$ cargo build --example rf
+$ ./target/debug/examples/rf --help         # Display help information.
+$ ./target/debug/examples/rf <file>         # Load forth commands in <file>.
+$ ./target/debug/examples/rf lib.fs <file>  # Load lib.fs before <file>.
+$ cargo build --release --example rf        # Compile optimized rtForth.
+$ ./target/release/examples/rf              # Execute optimized rtForth.
 ```
 

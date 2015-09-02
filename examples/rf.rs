@@ -1,5 +1,6 @@
 extern crate rtforth;
 extern crate getopts;
+extern crate rustyline;
 use rtforth::core::VM;
 use rtforth::loader::HasLoader;
 use rtforth::output::Output;
@@ -34,13 +35,30 @@ fn main() {
     if matches.opt_present("h") {
         print_usage(&program, opts);
     } else if matches.opt_present("v") {
-        println!("rtForth v0.1.6 by ccwu");
+        print_version();
     } else if !matches.free.is_empty() {
         for file in matches.free {
             vm.load(&file);
         }
+        repl(vm);
     } else {
-        print_usage(&program, opts);
+        print_version();
+        repl(vm);
+    }
+}
+
+fn print_version() {
+    println!("rtForth v0.1.7, Copyright (C) 2015 Mapacode Inc.");
+}
+
+fn repl(vm: &mut VM) {
+    let mut rl = rustyline::Editor::new();
+    rl.set_response(" ");
+    while let Ok(line) = rl.readline("") {
+        rl.add_history_entry(&line);
+        vm.set_source(&line);
+        vm.evaluate();
+        println!(" ok");
     }
 }
 

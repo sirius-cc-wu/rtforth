@@ -1,12 +1,13 @@
 [package]
 
 name = "rtforth"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 
 [dependencies]
 getopts = "0.2"
 time = "0.1"
+rustyline = { git="https://github.com/chengchangwu/rustyline.git" }
 
 [profile.release]
 debug = false

@@ -1,6 +1,9 @@
 extern crate rtforth;
 extern crate getopts;
 extern crate rustyline;
+
+use std::env;
+use getopts::Options;
 use rtforth::core::VM;
 use rtforth::loader::HasLoader;
 use rtforth::output::Output;
@@ -8,8 +11,11 @@ use rtforth::tools::Tools;
 use rtforth::env::Environment;
 use rtforth::facility::Facility;
 use rtforth::float::Float;
-use getopts::Options;
-use std::env;
+use rtforth::exception::Exception::{
+    Bye,
+};
+
+#[cfg(not(test))]
 
 #[cfg(not(test))]
 fn main() {
@@ -43,6 +49,7 @@ fn main() {
         repl(vm);
     } else {
         print_version();
+        println!("Type 'bye' or press Ctrl-D to exit.");
         repl(vm);
     }
 }
@@ -58,8 +65,15 @@ fn repl(vm: &mut VM) {
         rl.add_history_entry(&line);
         vm.set_source(&line);
         vm.evaluate();
-        println!(" ok");
+        if vm.has_error() {
+            if vm.error_code == Bye as isize {
+                break;
+            }
+        } else {
+            println!(" ok");
+        }
     }
+    println!("");
 }
 
 #[cfg(not(test))]

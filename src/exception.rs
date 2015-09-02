@@ -1,4 +1,5 @@
 pub enum Exception {
+    // ANS Forth
     NoException = 0,
     Abort = -1,
     AbortQuote = -2,
@@ -57,7 +58,9 @@ pub enum Exception {
     FloatingPointUnidentifiedFault = -55,
     Quit = -56,
     ExceptionInSendingOrReceivingACharacter = -57,
-    BracketIfElseOrThenException = -58
+    BracketIfElseOrThenException = -58,
+    // rtForth's Exceptions
+    Bye = -9999,
 } 
 
 impl Exception {
@@ -121,7 +124,8 @@ impl Exception {
             Exception::FloatingPointUnidentifiedFault => "Floating point unidentified fault",
             Exception::Quit => "QUIT",
             Exception::ExceptionInSendingOrReceivingACharacter => "Exception in sending or receiving a character",
-            Exception::BracketIfElseOrThenException => "[IF],[ELSE],[THEN] exception"
+            Exception::BracketIfElseOrThenException => "[IF],[ELSE],[THEN] exception",
+            Exception::Bye => "Bye",
         }
     }
 }

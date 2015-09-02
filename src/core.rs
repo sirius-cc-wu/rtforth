@@ -20,6 +20,7 @@ use exception::Exception::{
     ReturnStackUnderflow,
     ReturnStackOverflow,
     UnsupportedOperation,
+    Bye,
 };
 
 // Word
@@ -339,6 +340,7 @@ impl VM {
         vm.add_primitive("marker", VM::marker);
         vm.add_primitive("quit", VM::quit);
         vm.add_primitive("abort", VM::abort);
+        vm.add_primitive("bye", VM::bye);
 
         vm.idx_lit = vm.find("lit").expect("lit defined");
         vm.idx_exit = vm.find("exit").expect("exit defined");
@@ -1401,6 +1403,10 @@ impl VM {
         self.last_definition = 0;
         self.is_paused = false;
         self.interpret();
+    }
+
+    fn bye(&mut self) {
+        self.error_code = Bye as isize;
     }
 }
 

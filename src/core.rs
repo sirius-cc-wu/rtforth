@@ -1382,12 +1382,14 @@ impl VM {
         return self.error_code != NoException as isize;
     }
 
+    #[inline(never)]
     pub fn abort_with_error(&mut self, e: Exception) {
         println!("{}", e.name());
         self.abort();
         self.error_code = e as isize;
     }
 
+    #[inline(never)]
     pub fn abort(&mut self) {
         self.s_stack.clear();
         self.f_stack.clear();
@@ -1395,6 +1397,7 @@ impl VM {
         self.quit();
     }
 
+    #[inline(never)]
     pub fn quit(&mut self) {
         self.r_stack.len = 0;
         self.input_buffer.clear();
@@ -1405,6 +1408,7 @@ impl VM {
         self.interpret();
     }
 
+    #[inline(never)]
     fn bye(&mut self) {
         self.error_code = Bye as isize;
     }

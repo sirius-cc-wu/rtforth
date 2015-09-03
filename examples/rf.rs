@@ -45,8 +45,13 @@ fn main() {
     } else if !matches.free.is_empty() {
         for file in matches.free {
             vm.load(&file);
+            if vm.has_error() {
+                break;
+            }
         }
-        repl(vm);
+        if !vm.has_error() {
+            repl(vm);
+        }
     } else {
         print_version();
         println!("Type 'bye' or press Ctrl-D to exit.");
@@ -55,7 +60,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.1.7, Copyright (C) 2015 Mapacode Inc.");
+    println!("rtForth v0.1.8, Copyright (C) 2015 Mapacode Inc.");
 }
 
 fn repl(vm: &mut VM) {

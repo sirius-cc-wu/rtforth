@@ -19,11 +19,6 @@ pub trait Output {
     /// Put the character string specified by c-addr and u into output buffer. 
     fn p_type(&mut self);
 
-    /// Run-time: ( -- )
-    ///
-    /// Display content of output buffer, empty output buffer.
-    fn flush(&mut self);
-
     /// Compilation: ( "ccc<quote>" -- )
     ///
     /// Parse ccc delimited by " (double-quote). Append the run-time semantics given below to the
@@ -61,12 +56,17 @@ pub trait Output {
     fn fdot(&mut self);
 }
 
+fn flush(vm: &mut VM) {
+    print!("{}", vm.output_buffer);
+    vm.output_buffer.clear();
+}
+
+
 impl Output for VM {
 
     fn add_output(&mut self) {
         self.add_primitive ("emit", VM::emit);
         self.add_primitive ("type", VM::p_type);
-        self.add_primitive ("flush", VM::flush);
         self.add_immediate ("s\"", VM::s_quote);
         self.add_immediate (".\"", VM::dot_quote);
         self.add_immediate (".(", VM::dot_paren);
@@ -80,6 +80,7 @@ impl Output for VM {
             None => self.abort_with_error(StackUnderflow),
             Some(ch) => self.output_buffer.push(ch as u8 as char)
         }
+        flush(self);
     }
 
     fn p_type(&mut self) {
@@ -95,11 +96,7 @@ impl Output for VM {
                 }
             }
         }
-    }
-
-    fn flush(&mut self) {
-        print!("{}", self.output_buffer);
-        self.output_buffer.clear();
+        flush(self);
     }
 
     fn s_quote(&mut self) {

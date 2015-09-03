@@ -48,7 +48,7 @@ bye
 * gforth 0.7.0
 * gforth-fast 0.7.0
 
-benchmark   | SwiftForth | gforth-fase |  gforth  | rtForth
+benchmark   | SwiftForth | gforth-fast |  gforth  | rtForth
 ----------- | ---------- | ----------- | -------- | -------
 bubble-sort |    1       |     x       |     x    |     x
 fib         |    1       |   6.0       |   9.2    |  30.6

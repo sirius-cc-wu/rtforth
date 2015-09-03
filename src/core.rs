@@ -9,6 +9,9 @@ use std::ascii::AsciiExt;
 use std::fmt;
 use std::slice;
 use exception::Exception;
+use std::io::Write;
+use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
+
 
 use exception::Exception::{
     NoException,
@@ -57,6 +60,24 @@ impl Word {
         self.name_len
     }
 
+}
+
+pub trait Heap {
+    fn push_f64(&mut self, v: f64);
+    fn get_f64(&self, pos: usize) -> f64;
+    fn put_f64(&mut self, pos: usize, v: f64);
+}
+
+impl Heap for Vec<u8> {
+    fn push_f64(&mut self, v: f64) {
+        self.write_f64::<BigEndian>(v).unwrap();
+    }
+    fn get_f64(&self, pos: usize) -> f64 {
+        BigEndian::read_f64(&self[pos..])
+    }
+    fn put_f64(&mut self, pos: usize, v: f64) {
+        BigEndian::write_f64(&mut self[pos..], v);
+    }
 }
 
 pub struct Stack<T> {
@@ -208,7 +229,7 @@ pub struct VM {
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
     pub s_heap: Vec<isize>,
-    pub f_heap: Vec<f64>,
+    pub f_heap: Vec<u8>,
     pub n_heap: String,
     pub word_list: Vec<Word>,
     pub instruction_pointer: usize,
@@ -236,7 +257,7 @@ impl VM {
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
             s_heap: Vec::with_capacity(64),
-            f_heap: Vec::with_capacity(64),
+            f_heap: Vec::with_capacity(64*mem::size_of::<f64>()),
             n_heap: String::with_capacity(64),
             word_list: Vec::with_capacity(16),
             instruction_pointer: 0,
@@ -420,7 +441,7 @@ impl VM {
     fn compile_float (&mut self, f: f64) {
         self.s_heap.push(self.idx_flit as isize);
         self.s_heap.push(self.f_heap.len() as isize);
-        self.f_heap.push(f);
+        self.f_heap.push_f64(f);
     }
 
 // Evaluation

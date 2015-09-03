@@ -1,4 +1,5 @@
 use core::VM;
+use core::Heap;
 
 use exception::Exception::{
     StackUnderflow,
@@ -76,7 +77,8 @@ impl Float for VM {
     }
 
     fn flit(&mut self) {
-        match self.f_stack.push (self.f_heap[self.s_heap[self.instruction_pointer] as usize]) {
+        let v = self.f_heap.get_f64(self.s_heap[self.instruction_pointer] as usize);
+        match self.f_stack.push (v) {
             Some(_) => self.abort_with_error(FloatingPointStackOverflow),
             None => self.instruction_pointer = self.instruction_pointer + 1
         };
@@ -84,7 +86,8 @@ impl Float for VM {
 
     fn p_fconst(&mut self) {
         let dfa = self.word_list[self.word_pointer()].dfa();
-        match self.f_stack.push(self.f_heap[self.s_heap[dfa] as usize]) {
+        let v = self.f_heap.get_f64(self.s_heap[dfa] as usize);
+        match self.f_stack.push(v) {
             Some(_) => self.abort_with_error(FloatingPointStackOverflow),
             None => {}
         };
@@ -93,7 +96,7 @@ impl Float for VM {
     fn fvariable(&mut self) {
         self.define(VM::p_fvar);
         self.s_heap.push(self.f_heap.len() as isize);
-        self.f_heap.push(0.0);
+        self.f_heap.push_f64(0.0);
     }
 
     fn fconstant(&mut self) {
@@ -101,7 +104,7 @@ impl Float for VM {
             Some(v) => {
                 self.define(VM::p_fconst);
                 self.s_heap.push(self.f_heap.len() as isize);
-                self.f_heap.push(v);
+                self.f_heap.push_f64(v);
             },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         }
@@ -112,7 +115,7 @@ impl Float for VM {
     fn ffetch(&mut self) {
         match self.s_stack.pop() {
             Some(t) =>
-                match self.f_stack.push(self.f_heap[t as usize]) {
+                match self.f_stack.push(self.f_heap.get_f64(t as usize)) {
                     Some(_) => self.abort_with_error(FloatingPointStackOverflow),
                     None => {}
                 },
@@ -124,7 +127,7 @@ impl Float for VM {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.f_stack.pop() {
-                    Some(n) => self.f_heap[t as usize] = n,
+                    Some(n) => self.f_heap.put_f64(t as usize, n),
                     None => self.abort_with_error(StackUnderflow)
                 },
             None => self.abort_with_error(StackUnderflow)

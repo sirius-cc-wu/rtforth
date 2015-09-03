@@ -3,6 +3,8 @@
 #![feature(heap_api)]
 #![feature(alloc)]
 #![feature(test)]
+
+extern crate byteorder;
 pub mod core;
 pub mod loader;
 pub mod output;

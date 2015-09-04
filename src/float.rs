@@ -1,6 +1,8 @@
 use core::VM;
 use core::Heap;
 
+use std::mem;
+
 use exception::Exception::{
     StackUnderflow,
     StackOverflow,
@@ -77,10 +79,10 @@ impl Float for VM {
     }
 
     fn flit(&mut self) {
-        let v = self.f_heap.get_f64(self.s_heap[self.instruction_pointer] as usize);
+        let v = self.f_heap.get_f64(self.s_heap.get_i32(self.instruction_pointer) as usize);
         match self.f_stack.push (v) {
             Some(_) => self.abort_with_error(FloatingPointStackOverflow),
-            None => self.instruction_pointer = self.instruction_pointer + 1
+            None => self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>() 
         };
     }
 
@@ -815,4 +817,13 @@ mod tests {
         assert_eq!(vm.error_code, 0);
     }
 
+    #[test]
+    fn test_flit_and_compile_float () {
+        let vm = &mut VM::new();
+        vm.add_float();
+        vm.set_source(": test 1.0 2.0 ; test");
+        vm.evaluate();
+        assert_eq!(vm.f_stack.as_slice(), [1.0, 2.0]);
+        assert_eq!(vm.error_code, 0);
+    }
 }

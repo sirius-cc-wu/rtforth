@@ -95,7 +95,7 @@ impl Float for VM {
 
     fn fvariable(&mut self) {
         self.define(VM::p_fvar);
-        self.s_heap.push(self.f_heap.len() as isize);
+        self.s_heap.push_i32(self.f_heap.len() as i32);
         self.f_heap.push_f64(0.0);
     }
 
@@ -103,7 +103,7 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(v) => {
                 self.define(VM::p_fconst);
-                self.s_heap.push(self.f_heap.len() as isize);
+                self.s_heap.push_i32(self.f_heap.len() as i32);
                 self.f_heap.push_f64(v);
             },
             None => self.abort_with_error(FloatingPointStackUnderflow)

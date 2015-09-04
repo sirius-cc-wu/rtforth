@@ -1,4 +1,5 @@
 use core::VM;
+use core::Heap;
 use exception::Exception::{
     StackUnderflow,
     FloatingPointStackUnderflow
@@ -54,13 +55,9 @@ pub trait Output {
     ///
     /// Display, with a trailing space, the top number on the floating-point stack using fixed-point notation.
     fn fdot(&mut self);
-}
 
-fn flush(vm: &mut VM) {
-    print!("{}", vm.output_buffer);
-    vm.output_buffer.clear();
+    fn flush(&mut self);
 }
-
 
 impl Output for VM {
 
@@ -80,7 +77,9 @@ impl Output for VM {
             None => self.abort_with_error(StackUnderflow),
             Some(ch) => self.output_buffer.push(ch as u8 as char)
         }
-        flush(self);
+        if self.auto_flush {
+            self.flush();
+        }
     }
 
     fn p_type(&mut self) {
@@ -96,7 +95,9 @@ impl Output for VM {
                 }
             }
         }
-        flush(self);
+        if self.auto_flush {
+            self.flush();
+        }
     }
 
     fn s_quote(&mut self) {
@@ -112,10 +113,10 @@ impl Output for VM {
             }
             cnt = cnt + 1;
         }
-        self.s_heap.push(self.idx_lit as isize);
-        self.s_heap.push(naddr as isize);
-        self.s_heap.push(self.idx_lit as isize);
-        self.s_heap.push(cnt);
+        self.s_heap.push_i32(self.idx_lit as i32);
+        self.s_heap.push_i32(naddr as i32);
+        self.s_heap.push_i32(self.idx_lit as i32);
+        self.s_heap.push_i32(cnt);
         self.source_index = self.source_index + 1 + cnt as usize + 1;
     }
 
@@ -144,6 +145,11 @@ impl Output for VM {
             None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }
+
+    fn flush(&mut self) {
+        print!("{}", self.output_buffer);
+        self.output_buffer.clear();
+    }
 }
 
 #[cfg(test)]
@@ -154,6 +160,7 @@ mod tests {
     #[test]
     fn test_s_quote_and_type () {
         let vm = &mut VM::new();
+        vm.auto_flush = false;
         vm.add_output();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
         vm.evaluate();
@@ -165,15 +172,15 @@ mod tests {
     #[test]
     fn test_emit_and_flush () {
         let vm = &mut VM::new();
+        vm.auto_flush = false;
         vm.add_output();
         vm.set_source("42 emit 43 emit");
         vm.evaluate();
-        assert_eq!(vm.f_stack.as_slice(), []);
+        assert_eq!(vm.s_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "*+");
         assert_eq!(vm.error_code, 0);
-        vm.set_source("flush");
-        vm.evaluate();
-        assert_eq!(vm.f_stack.as_slice(), []);
+        vm.flush();
+        assert_eq!(vm.s_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "");
         assert_eq!(vm.error_code, 0);
     }

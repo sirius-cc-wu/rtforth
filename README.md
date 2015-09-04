@@ -38,12 +38,12 @@ star star star *** ok
 bye 
 ```
 
-2015/09/3
+2015/09/4
 
 * ASUS X401A
 * Ubuntu GNOME 14.04 LTS 32-bit
 * rustc 1.4.0-nightly
-* rtForth 0.1.8
+* rtForth 0.1.9
 * SwiftForth 3.5.7
 * gforth 0.7.0
 * gforth-fast 0.7.0
@@ -51,7 +51,7 @@ bye
 benchmark   | SwiftForth | gforth-fast |  gforth  | rtForth
 ----------- | ---------- | ----------- | -------- | -------
 bubble-sort |    1       |     x       |     x    |     x
-fib         |    1       |   6.0       |   9.2    |  30.6
+fib         |    1       |   6.0       |   9.2    |  28.2
 matrix-mult |    1       |     x       |     x    |     x
 mm-rtcg     |    1       |     x       |     x    |     x
 sieve       |    1       |     x       |     x    |     x

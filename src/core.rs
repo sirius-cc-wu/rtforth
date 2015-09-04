@@ -66,6 +66,9 @@ pub trait Heap {
     fn push_f64(&mut self, v: f64);
     fn get_f64(&self, pos: usize) -> f64;
     fn put_f64(&mut self, pos: usize, v: f64);
+    fn push_i32(&mut self, v: i32);
+    fn get_i32(&self, pos: usize) -> i32;
+    fn put_i32(&mut self, pos: usize, v: i32);
 }
 
 impl Heap for Vec<u8> {
@@ -77,6 +80,15 @@ impl Heap for Vec<u8> {
     }
     fn put_f64(&mut self, pos: usize, v: f64) {
         BigEndian::write_f64(&mut self[pos..], v);
+    }
+    fn push_i32(&mut self, v: i32) {
+        self.write_i32::<BigEndian>(v).unwrap();
+    }
+    fn get_i32(&self, pos: usize) -> i32 {
+        BigEndian::read_i32(&self[pos..])
+    }
+    fn put_i32(&mut self, pos: usize, v: i32) {
+        BigEndian::write_i32(&mut self[pos..], v);
     }
 }
 
@@ -228,7 +240,7 @@ pub struct VM {
     pub s_stack: Stack<isize>,
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
-    pub s_heap: Vec<isize>,
+    pub s_heap: Vec<u8>,
     pub f_heap: Vec<u8>,
     pub n_heap: String,
     pub word_list: Vec<Word>,
@@ -244,7 +256,8 @@ pub struct VM {
     pub source_index: usize,
     pub last_token: String,
     last_definition: usize,
-    pub output_buffer: String
+    pub output_buffer: String,
+    pub auto_flush: bool,
 }
 
 impl VM {
@@ -256,7 +269,7 @@ impl VM {
             s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
-            s_heap: Vec::with_capacity(64),
+            s_heap: Vec::with_capacity(2048*mem::size_of::<i32>()),
             f_heap: Vec::with_capacity(64*mem::size_of::<f64>()),
             n_heap: String::with_capacity(64),
             word_list: Vec::with_capacity(16),
@@ -273,6 +286,7 @@ impl VM {
             last_token: String::with_capacity(64),
             last_definition: 0,
             output_buffer: String::with_capacity(128),
+            auto_flush: true
         };
         // Bytecodes
         vm.add_primitive("noop", VM::noop);
@@ -418,8 +432,8 @@ impl VM {
 
     pub fn inner(&mut self) {
         while self.instruction_pointer > 0 && self.instruction_pointer < self.s_heap.len() {
-            let w = self.s_heap[self.instruction_pointer] as usize;
-            self.instruction_pointer += 1;
+            let w = self.s_heap.get_i32(self.instruction_pointer) as usize;
+            self.instruction_pointer += mem::size_of::<i32>();
             self.execute_word (w);
         }
         self.instruction_pointer = 0;
@@ -428,19 +442,19 @@ impl VM {
 // Compiler
 
     pub fn compile_word(&mut self, word_index: usize) {
-        self.s_heap.push(word_index as isize);
+        self.s_heap.push_i32(word_index as i32);
     }
 
     /// Compile integer 'i'.
     fn compile_integer (&mut self, i: isize) {
-        self.s_heap.push(self.idx_lit as isize);
-        self.s_heap.push(i);
+        self.s_heap.push_i32(self.idx_lit as i32);
+        self.s_heap.push_i32(i as i32);
     }
 
     /// Compile float 'f'.
     fn compile_float (&mut self, f: f64) {
-        self.s_heap.push(self.idx_flit as isize);
-        self.s_heap.push(self.f_heap.len() as isize);
+        self.s_heap.push_i32(self.idx_flit as i32);
+        self.s_heap.push_i32(self.f_heap.len() as i32);
         self.f_heap.push_f64(f);
     }
 
@@ -625,11 +639,11 @@ impl VM {
     }
 
     pub fn p_const(&mut self) {
-        self.s_stack.push(self.s_heap[self.word_list[self.word_pointer].dfa]);
+        self.s_stack.push(self.s_heap.get_i32(self.word_list[self.word_pointer].dfa) as isize);
     }
 
     pub fn p_fvar(&mut self) {
-        self.s_stack.push(self.s_heap[self.word_list[self.word_pointer].dfa]);
+        self.s_stack.push(self.s_heap.get_i32(self.word_list[self.word_pointer].dfa) as isize);
     }
 
     pub fn define(&mut self, action: fn(& mut VM)) {
@@ -655,7 +669,7 @@ impl VM {
 
     pub fn semicolon(&mut self) {
         if self.last_definition != 0 {
-            self.s_heap.push(self.idx_exit as isize); 
+            self.s_heap.push_i32(self.idx_exit as i32); 
             self.word_list[self.last_definition].hidden = false;
         }
         self.interpret();
@@ -667,14 +681,14 @@ impl VM {
 
     pub fn variable(&mut self) {
         self.define(VM::p_var);
-        self.s_heap.push(0);
+        self.s_heap.push_i32(0);
     }
 
     pub fn constant(&mut self) {
         match self.s_stack.pop() {
             Some(v) => {
                 self.define(VM::p_const);
-                self.s_heap.push(v);
+                self.s_heap.push_i32(v as i32);
             },
             None => self.abort_with_error(StackUnderflow)
         }
@@ -682,10 +696,10 @@ impl VM {
 
     pub fn unmark(&mut self) {
         let dfa = self.word_list[self.word_pointer].dfa;
-        let flen = self.s_heap[dfa] as usize;
-        let nlen = self.s_heap[dfa+1] as usize;
-        let wlen = self.s_heap[dfa+2] as usize;
-        let slen = self.s_heap[dfa+3] as usize;
+        let flen = self.s_heap.get_i32(dfa) as usize;
+        let nlen = self.s_heap.get_i32(dfa+mem::size_of::<i32>()) as usize;
+        let wlen = self.s_heap.get_i32(dfa+2*mem::size_of::<i32>()) as usize;
+        let slen = self.s_heap.get_i32(dfa+3*mem::size_of::<i32>()) as usize;
         self.f_heap.truncate(flen);
         self.n_heap.truncate(nlen);
         self.word_list.truncate(wlen);
@@ -694,20 +708,20 @@ impl VM {
 
     pub fn marker(&mut self) {
         self.define(VM::unmark);
-        let flen = self.f_heap.len() as isize;
-        let nlen = self.n_heap.len() as isize;
-        let wlen = self.word_list.len() as isize;
-        let slen = self.s_heap.len() as isize;
-        self.s_heap.push(flen);
-        self.s_heap.push(nlen);
-        self.s_heap.push(wlen);
-        self.s_heap.push(slen);
+        let flen = self.f_heap.len() as i32;
+        let nlen = self.n_heap.len() as i32;
+        let wlen = self.word_list.len() as i32;
+        let slen = self.s_heap.len() as i32;
+        self.s_heap.push_i32(flen);
+        self.s_heap.push_i32(nlen);
+        self.s_heap.push_i32(wlen);
+        self.s_heap.push_i32(slen);
     }
 
 // Control
 
     pub fn branch(&mut self) {
-        self.instruction_pointer = ((self.instruction_pointer as isize)+ self.s_heap[self.instruction_pointer]) as usize;
+        self.instruction_pointer = (self.instruction_pointer as i32 + self.s_heap.get_i32(self.instruction_pointer)) as usize;
     }
 
     pub fn zero_branch(&mut self) {
@@ -716,7 +730,7 @@ impl VM {
                 if v == 0 {
                     self.branch()
                 } else {
-                    self.instruction_pointer = self.instruction_pointer + 1;
+                    self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
                 }
             },
             None => self.abort_with_error(StackUnderflow)
@@ -724,19 +738,19 @@ impl VM {
     }
 
     pub fn imm_if(&mut self) {
-        self.s_heap.push(self.idx_zero_branch as isize);
-        self.s_heap.push(0);
+        self.s_heap.push_i32(self.idx_zero_branch as i32);
+        self.s_heap.push_i32(0);
         self.s_stack.push(self.s_heap.len() as isize);
     }
 
     pub fn imm_else(&mut self) {
-        self.s_heap.push(self.idx_branch as isize);
-        self.s_heap.push(0);
+        self.s_heap.push_i32(self.idx_branch as i32);
+        self.s_heap.push_i32(0);
         match self.s_stack.pop() {
             Some(v) => {
                 let if_part = v;
                 let else_part = self.s_heap.len() as isize;
-                self.s_heap[(if_part-1) as usize] = else_part-if_part+1;
+                self.s_heap.put_i32((if_part - mem::size_of::<i32>() as isize) as usize, (else_part - if_part + mem::size_of::<i32>() as isize) as i32);
                 self.s_stack.push(else_part);
             },
             None => self.abort_with_error(StackUnderflow)
@@ -747,7 +761,8 @@ impl VM {
         match self.s_stack.pop() {
             Some(v) => {
                 let branch_part = v;
-                self.s_heap[(branch_part-1) as usize] = (self.s_heap.len() as isize) - branch_part + 1;
+                let len = self.s_heap.len() as isize;
+                self.s_heap.put_i32((branch_part - mem::size_of::<i32>() as isize) as usize, (len - branch_part + mem::size_of::<i32>() as isize) as i32);
             },
             None => self.abort_with_error(StackUnderflow)
         };
@@ -758,36 +773,36 @@ impl VM {
     }
 
     pub fn imm_while(&mut self) {
-        self.s_heap.push(self.idx_zero_branch as isize);
+        self.s_heap.push_i32(self.idx_zero_branch as i32);
         self.s_stack.push(self.s_heap.len() as isize);
-        self.s_heap.push(0);
+        self.s_heap.push_i32(0);
     }
 
     pub fn imm_repeat(&mut self) {
-        self.s_heap.push(self.idx_branch as isize);
+        self.s_heap.push_i32(self.idx_branch as i32);
         match self.s_stack.pop2() {
             Some((begin_part, while_part)) => {
                 let len = self.s_heap.len() as isize;
-                self.s_heap.push(begin_part-len);
-                self.s_heap[(while_part) as usize] = len - while_part + 1;
+                self.s_heap.push_i32((begin_part-len) as i32);
+                self.s_heap.put_i32((while_part) as usize, (len - while_part + mem::size_of::<i32>() as isize) as i32);
             },
             None => self.abort_with_error(StackUnderflow)
         };
     }
 
     pub fn imm_again(&mut self) {
-        self.s_heap.push(self.idx_branch as isize);
+        self.s_heap.push_i32(self.idx_branch as i32);
         match self.s_stack.pop() {
             Some(v) => {
                 let len = self.s_heap.len() as isize;
-                self.s_heap.push(v-len);
+                self.s_heap.push_i32((v-len) as i32);
             },
             None => self.abort_with_error(StackUnderflow)
         };
     }
 
     pub fn imm_recurse(&mut self) {
-        self.s_heap.push(self.last_definition as isize);
+        self.s_heap.push_i32(self.last_definition as i32);
     }
 
 // Primitives
@@ -850,11 +865,12 @@ impl VM {
             self.abort_with_error(StackOverflow)
         } else {
             unsafe {
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), self.s_heap[self.instruction_pointer]);
+                let v = self.s_heap.get_i32(self.instruction_pointer) as isize;
+                ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), v);
             }
             self.s_stack.len += 1;
         }
-        self.instruction_pointer = self.instruction_pointer + 1;
+        self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
     }
 
     pub fn swap(&mut self) {
@@ -1259,7 +1275,7 @@ impl VM {
     pub fn fetch(&mut self) {
         match self.s_stack.pop() {
             Some(t) =>
-                match self.s_stack.push(self.s_heap[t as usize]) {
+                match self.s_stack.push(self.s_heap.get_i32(t as usize) as isize) {
                     Some(_) => self.abort_with_error(StackOverflow),
                     None => {}
                 },
@@ -1269,7 +1285,7 @@ impl VM {
 
     pub fn store(&mut self) {
         match self.s_stack.pop2() {
-            Some((n,t)) => { self.s_heap[t as usize] = n; },
+            Some((n,t)) => { self.s_heap.put_i32(t as usize,  n as i32); },
             None => self.abort_with_error(StackUnderflow)
         }
     }
@@ -1303,7 +1319,7 @@ impl VM {
 
     pub fn comma(&mut self) {
         match self.s_stack.pop() {
-            Some(v) => self.s_heap.push(v),
+            Some(v) => self.s_heap.push_i32(v as i32),
             None => self.abort_with_error(StackUnderflow)
         }
     }
@@ -1476,10 +1492,11 @@ mod tests {
     #[test]
     fn test_inner_interpreter_without_nest () {
         let vm = &mut VM::new();
+        let ip = vm.s_heap.len();
         vm.compile_integer(3);
         vm.compile_integer(2);
         vm.compile_integer(1);
-        vm.inner_interpret(1);
+        vm.inner_interpret(ip);
         assert_eq!(3usize, vm.s_stack.len());
         assert_eq!(vm.error_code, 0);
     }
@@ -1487,6 +1504,7 @@ mod tests {
     #[bench]
     fn bench_inner_interpreter_without_nest (b: &mut Bencher) {
         let vm = &mut VM::new();
+        let ip = vm.s_heap.len();
         let idx = 0; // NOP
         vm.compile_word(idx);
         vm.compile_word(idx);
@@ -1495,7 +1513,7 @@ mod tests {
         vm.compile_word(idx);
         vm.compile_word(idx);
         vm.compile_word(idx);
-        b.iter(|| vm.inner_interpret(1));
+        b.iter(|| vm.inner_interpret(ip));
     }
 
     #[test]
@@ -2227,14 +2245,19 @@ mod tests {
     }
 
     #[test]
-    fn test_here_comma_comple_interpret () {
+    fn test_here_comma_compile_interpret () {
         let vm = &mut VM::new();
         vm.set_source("here 1 , 2 , ] noop lit [ here");
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 2);
-        assert_eq!(vm.s_stack.pop(), Some(5));
-        assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.s_heap, [0, 1, 2, 0, 1]);
+        assert_eq!(vm.s_stack.pop(), Some(20));
+        assert_eq!(vm.s_stack.pop(), Some(4));
+        assert_eq!(vm.s_heap, [
+                   0,0,0,0,
+                   0,0,0,1,
+                   0,0,0,2,
+                   0,0,0,0,
+                   0,0,0,1]);
         assert_eq!(vm.error_code, 0);
     }
 

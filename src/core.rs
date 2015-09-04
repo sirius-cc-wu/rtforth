@@ -645,6 +645,10 @@ impl VM {
 
     pub fn define(&mut self, action: fn(& mut VM)) {
         self.parse_word();
+        match self.find(&self.last_token) {
+            Some(_) => print!("Redefining {}", self.last_token),
+            None => {}
+        }
         if !self.last_token.is_empty() {
             let w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), action);
             self.last_definition = self.word_list.len();

@@ -241,7 +241,6 @@ pub struct VM {
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
     pub s_heap: Vec<u8>,
-    pub f_heap: Vec<u8>,
     pub n_heap: String,
     pub word_list: Vec<Word>,
     pub instruction_pointer: usize,
@@ -270,7 +269,6 @@ impl VM {
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
             s_heap: Vec::with_capacity(2048*mem::size_of::<i32>()),
-            f_heap: Vec::with_capacity(64*mem::size_of::<f64>()),
             n_heap: String::with_capacity(64),
             word_list: Vec::with_capacity(16),
             instruction_pointer: 0,
@@ -454,8 +452,7 @@ impl VM {
     /// Compile float 'f'.
     fn compile_float (&mut self, f: f64) {
         self.s_heap.push_i32(self.idx_flit as i32);
-        self.s_heap.push_i32(self.f_heap.len() as i32);
-        self.f_heap.push_f64(f);
+        self.s_heap.push_f64(f);
     }
 
 // Evaluation
@@ -643,7 +640,7 @@ impl VM {
     }
 
     pub fn p_fvar(&mut self) {
-        self.s_stack.push(self.s_heap.get_i32(self.word_list[self.word_pointer].dfa) as isize);
+        self.s_stack.push(self.word_list[self.word_pointer].dfa as isize);
     }
 
     pub fn define(&mut self, action: fn(& mut VM)) {
@@ -696,11 +693,9 @@ impl VM {
 
     pub fn unmark(&mut self) {
         let dfa = self.word_list[self.word_pointer].dfa;
-        let flen = self.s_heap.get_i32(dfa) as usize;
         let nlen = self.s_heap.get_i32(dfa+mem::size_of::<i32>()) as usize;
         let wlen = self.s_heap.get_i32(dfa+2*mem::size_of::<i32>()) as usize;
         let slen = self.s_heap.get_i32(dfa+3*mem::size_of::<i32>()) as usize;
-        self.f_heap.truncate(flen);
         self.n_heap.truncate(nlen);
         self.word_list.truncate(wlen);
         self.s_heap.truncate(slen);
@@ -708,11 +703,9 @@ impl VM {
 
     pub fn marker(&mut self) {
         self.define(VM::unmark);
-        let flen = self.f_heap.len() as i32;
         let nlen = self.n_heap.len() as i32;
         let wlen = self.word_list.len() as i32;
         let slen = self.s_heap.len() as i32;
-        self.s_heap.push_i32(flen);
         self.s_heap.push_i32(nlen);
         self.s_heap.push_i32(wlen);
         self.s_heap.push_i32(slen);

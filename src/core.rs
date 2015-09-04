@@ -824,7 +824,7 @@ impl VM {
     pub fn cell_plus(&mut self) {
         match self.s_stack.pop() {
             Some(v) =>
-                match self.s_stack.push(v + 1) {
+                match self.s_stack.push(v + mem::size_of::<i32>() as isize) {
                     Some(_) => self.abort_with_error(StackOverflow),
                     None => {}
                 },
@@ -836,7 +836,14 @@ impl VM {
     ///
     /// n2 is the size in address units of n1 cells. 
     pub fn cells(&mut self) {
-        // Do nothing.
+        match self.s_stack.pop() {
+            Some(v) =>
+                match self.s_stack.push(v*mem::size_of::<i32>() as isize) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
+            None => self.abort_with_error(StackUnderflow)
+        }
     }
 
     /// Run-time: ( -- )

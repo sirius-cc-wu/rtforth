@@ -11,6 +11,7 @@ Question:
 Solution:
 
 * Use byteorder to handle an allocated memory. Apply this strategy to f_heap at first.
+* cell+, cells, align, aligned, and allot must be considered together.
 
 Question:
 

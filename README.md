@@ -56,4 +56,5 @@ matrix-mult |    1       |     x       |     x    |     x
 mm-rtcg     |    1       |     x       |     x    |     x
 sieve       |    1       |     x       |     x    |     x
 ssieve-a    |    1       |     x       |     x    |     x
+repeat      |    1       |   7.3       |  17.1    |  92.4
 

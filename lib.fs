@@ -10,4 +10,10 @@ variable base
 : 2* ( n -- n*2 ) 1 lshift ;
 : aligned ( addr -- a-addr ) 1 cells 1- +  1 cells 1- invert and ;
 : align ( -- ) here aligned  here - allot ;
+: 2@ ( a-addr -- x1 x2 ) dup cell + @ swap @ ;
+: 2! ( x1 x2 a-addr -- ) swap over !  cell+ ! ;
+: +! ( n|u a-addr -- ) dup @ rot + swap ! ;
+: max ( n1 n2 -- n3 ) 2dup < if nip else drop then ;
+: min ( n1 n2 -- n3 ) 2dup < if drop else nip then ;
+
 marker empty

@@ -69,6 +69,8 @@ pub trait Heap {
     fn push_i32(&mut self, v: i32);
     fn get_i32(&self, pos: usize) -> i32;
     fn put_i32(&mut self, pos: usize, v: i32);
+    fn get_u8(&self, pos: usize) -> u8;
+    fn put_u8(&mut self, pos: usize, v: u8);
 }
 
 impl Heap for Vec<u8> {
@@ -89,6 +91,12 @@ impl Heap for Vec<u8> {
     }
     fn put_i32(&mut self, pos: usize, v: i32) {
         NativeEndian::write_i32(&mut self[pos..], v);
+    }
+    fn get_u8(&self, pos: usize) -> u8 {
+        self[pos]
+    }
+    fn put_u8(&mut self, pos: usize, v: u8) {
+        self[pos] = v;
     }
 }
 
@@ -329,6 +337,8 @@ impl VM {
         vm.add_primitive("chars", VM::chars); // eForth
         vm.add_primitive("here", VM::here);
         vm.add_primitive("allot", VM::allot);
+        vm.add_primitive("c@", VM::c_fetch);
+        vm.add_primitive("c!", VM::c_store);
 
         // Candidates for bytecodes
         // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
@@ -1341,6 +1351,12 @@ impl VM {
         }
     }
 
+    /// Interpretation: Interpretation semantics for this word are undefined.
+    ///
+    /// Execution: ( -- ) ( R: nest-sys -- )
+    /// Return control to the calling definition specified by nest-sys. Before executing EXIT within a
+    /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP. 
+    /// TODO: UNLOOP
     pub fn exit(&mut self) {
         if self.r_stack.len == 0 {
             self.abort_with_error(ReturnStackUnderflow)
@@ -1352,6 +1368,9 @@ impl VM {
         }
     }
 
+    /// Run-time: ( a-addr -- x )
+    ///
+    /// x is the value stored at a-addr. 
     pub fn fetch(&mut self) {
         match self.s_stack.pop() {
             Some(t) =>
@@ -1363,6 +1382,9 @@ impl VM {
         };
     }
 
+    /// Run-time: ( x a-addr -- )
+    ///
+    /// Store x at a-addr. 
     pub fn store(&mut self) {
         match self.s_stack.pop2() {
             Some((n,t)) => { self.s_heap.put_i32(t as usize,  n as i32); },
@@ -1370,6 +1392,38 @@ impl VM {
         }
     }
 
+    /// Run-time: ( c-addr -- char )
+    ///
+    /// Fetch the character stored at c-addr. When the cell size is greater than
+    /// character size, the unused high-order bits are all zeroes. 
+    pub fn c_fetch(&mut self) {
+        match self.s_stack.pop() {
+            Some(t) =>
+                match self.s_stack.push(self.s_heap.get_u8(t as usize) as isize) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
+            None => self.abort_with_error(StackUnderflow)
+        };
+    }
+
+    /// Run-time: ( char c-addr -- )
+    ///
+    /// Store char at c-addr. When character size is smaller than cell size,
+    /// only the number of low-order bits corresponding to character size are
+    /// transferred. 
+    pub fn c_store(&mut self) {
+        match self.s_stack.pop2() {
+            Some((n,t)) => { self.s_heap.put_u8(t as usize,  n as u8); },
+            None => self.abort_with_error(StackUnderflow)
+        }
+    }
+
+    /// Run-time: ( "<spaces>name" -- xt )
+    ///
+    /// Skip leading space delimiters. Parse name delimited by a space. Find
+    /// name and return xt, the execution token for name. An ambiguous
+    /// condition exists if name is not found. 
     pub fn tick(&mut self) {
         self.parse_word();
         if !self.last_token.is_empty() {

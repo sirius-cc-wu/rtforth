@@ -314,7 +314,7 @@ impl VM {
         vm.add_primitive("xor", VM::xor); // j1, Ngaro, jx, eForth
         vm.add_primitive("lshift", VM::lshift); // jx, Ngaro
         vm.add_primitive("rshift", VM::rshift); // jx
-        vm.add_primitive("arshift", VM::rshift); // jx, Ngaro
+        vm.add_primitive("arshift", VM::arshift); // jx, Ngaro
         vm.add_primitive("1+", VM::one_plus); // Ngaro
         vm.add_primitive("1-", VM::one_minus); // Ngaro, jx
         vm.add_primitive("-", VM::minus); // Ngaro
@@ -329,9 +329,9 @@ impl VM {
         vm.add_primitive("chars", VM::chars); // eForth
 
         // Candidates for bytecodes
-        // Ngaro: LOOP, JUMP, RETURN, GT_JUMP, LT_JUMP, NE_JUMP, EQ_JUMP, ZERO_EXIT, IN, OUT, WAIT
-        // j1: U<, RET, IO@, IO!, 2/, 2*, HACK
-        // eForth: C!, C@, RP@, RP!, SP@, SP!, CHAR-, CELL-, UM+, !IO, ?RX, TX!
+        // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
+        // j1: U<, RET, IO@, IO!
+        // eForth: C!, C@, UM+, !IO, ?RX, TX!
         // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, _DO, UP!, UP+, PAUSE,
 
         // More Primitives

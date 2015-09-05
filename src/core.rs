@@ -343,7 +343,7 @@ impl VM {
         // Candidates for bytecodes
         // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
         // j1: U<, RET, IO@, IO!
-        // eForth: C!, C@, UM+, !IO, ?RX, TX!
+        // eForth: UM+, !IO, ?RX, TX!
         // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, _DO, UP!, UP+, PAUSE,
 
         // More Primitives

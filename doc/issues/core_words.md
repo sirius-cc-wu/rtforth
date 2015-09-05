@@ -1,3 +1,11 @@
+# ANS Forth Core Words
+
+## TODO
+
+* DO LOOP +LOOP UNLOOP LEAVE I J
+* EXIT which must call UNLOOP
+
+## Checklist
 * (done) 6.1.0010 !
 * 6.1.0030 #
 * 6.1.040 #> 

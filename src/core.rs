@@ -10,7 +10,7 @@ use std::fmt;
 use std::slice;
 use exception::Exception;
 use std::io::Write;
-use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
+use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 
 
 use exception::Exception::{
@@ -73,22 +73,22 @@ pub trait Heap {
 
 impl Heap for Vec<u8> {
     fn push_f64(&mut self, v: f64) {
-        self.write_f64::<BigEndian>(v).unwrap();
+        self.write_f64::<NativeEndian>(v).unwrap();
     }
     fn get_f64(&self, pos: usize) -> f64 {
-        BigEndian::read_f64(&self[pos..])
+        NativeEndian::read_f64(&self[pos..])
     }
     fn put_f64(&mut self, pos: usize, v: f64) {
-        BigEndian::write_f64(&mut self[pos..], v);
+        NativeEndian::write_f64(&mut self[pos..], v);
     }
     fn push_i32(&mut self, v: i32) {
-        self.write_i32::<BigEndian>(v).unwrap();
+        self.write_i32::<NativeEndian>(v).unwrap();
     }
     fn get_i32(&self, pos: usize) -> i32 {
-        BigEndian::read_i32(&self[pos..])
+        NativeEndian::read_i32(&self[pos..])
     }
     fn put_i32(&mut self, pos: usize, v: i32) {
-        BigEndian::write_i32(&mut self[pos..], v);
+        NativeEndian::write_i32(&mut self[pos..], v);
     }
 }
 
@@ -287,64 +287,75 @@ impl VM {
             auto_flush: true
         };
         // Bytecodes
-        vm.add_primitive("noop", VM::noop);
-        vm.add_primitive("lit", VM::lit);
-        vm.add_primitive("exit", VM::exit);
-        vm.add_primitive("execute", VM::execute);
-        vm.add_primitive("branch", VM::branch);
-        vm.add_primitive("0branch", VM::zero_branch);
-        vm.add_primitive("dup", VM::dup);
-        vm.add_primitive("drop", VM::drop);
-        vm.add_primitive("swap", VM::swap);
-        vm.add_primitive("over", VM::over);
+        vm.add_primitive("noop", VM::noop); // j1, Ngaro, jx
+        vm.add_primitive("lit", VM::lit); // Ngaro, jx, eForth
+        vm.add_primitive("exit", VM::exit); // j1, jx, eForth
+        vm.add_primitive("execute", VM::execute); // jx, eForth
+        vm.add_primitive("branch", VM::branch); // j1, eForth
+        vm.add_primitive("0branch", VM::zero_branch); // j1, eForth
+        vm.add_primitive("dup", VM::dup); // j1, Ngaro, jx, eForth
+        vm.add_primitive("drop", VM::drop); // j1, Ngaro, jx, eForth
+        vm.add_primitive("swap", VM::swap); // j1, Ngaro, jx, eForth
+        vm.add_primitive("over", VM::over); // j1, jx, eForth
+        vm.add_primitive("nip", VM::nip); // j1, jx
+        vm.add_primitive("depth", VM::depth); // j1, jx
+        vm.add_primitive(">r", VM::to_r); // j1, Ngaro, jx, eForth
+        vm.add_primitive("r>", VM::r_from); // j1, Ngaro, jx, eForth
+        vm.add_primitive("r@", VM::r_fetch); // j1, jx, eForth
+        vm.add_primitive("2>r", VM::two_to_r); // jx
+        vm.add_primitive("2r>", VM::two_r_from); // jx
+        vm.add_primitive("2r@", VM::two_r_fetch); // jx
+        vm.add_primitive("0<", VM::zero_less); // eForth
+        vm.add_primitive("=", VM::equals); // j1, jx
+        vm.add_primitive("<", VM::less_than); // j1, jx
+        vm.add_primitive("invert", VM::invert); // j1, jx
+        vm.add_primitive("and", VM::and); // j1, Ngaro, jx, eForth
+        vm.add_primitive("or", VM::or); // j1, Ngaro, jx, eForth
+        vm.add_primitive("xor", VM::xor); // j1, Ngaro, jx, eForth
+        vm.add_primitive("lshift", VM::lshift); // jx, Ngaro
+        vm.add_primitive("rshift", VM::rshift); // jx
+        vm.add_primitive("arshift", VM::rshift); // jx, Ngaro
+        vm.add_primitive("1+", VM::one_plus); // Ngaro
+        vm.add_primitive("1-", VM::one_minus); // Ngaro, jx
+        vm.add_primitive("-", VM::minus); // Ngaro
+        vm.add_primitive("+", VM::plus); // j1, Ngaro, jx
+        vm.add_primitive("*", VM::star); // Ngaro
+        vm.add_primitive("/mod", VM::slash_mod); // Ngaro
+        vm.add_primitive("cell+", VM::cell_plus); // eForth
+        vm.add_primitive("cells", VM::cells); // eForth
+        vm.add_primitive("@", VM::fetch); // j1, jx, eForth
+        vm.add_primitive("!", VM::store); // j1, jx, eForth
+        vm.add_primitive("char+", VM::char_plus); // eForth
+        vm.add_primitive("chars", VM::chars); // eForth
+
+        // Candidates for bytecodes
+        // Ngaro: LOOP, JUMP, RETURN, GT_JUMP, LT_JUMP, NE_JUMP, EQ_JUMP, ZERO_EXIT, IN, OUT, WAIT
+        // j1: U<, RET, IO@, IO!, 2/, 2*, HACK
+        // eForth: C!, C@, RP@, RP!, SP@, SP!, CHAR-, CELL-, UM+, !IO, ?RX, TX!
+        // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, _DO, UP!, UP+, PAUSE,
+
+        // More Primitives
+        vm.add_primitive("true", VM::p_true);
+        vm.add_primitive("false", VM::p_false);
+        vm.add_primitive("not", VM::zero_equals);
+        vm.add_primitive("0=", VM::zero_equals);
+        vm.add_primitive("0>", VM::zero_greater);
+        vm.add_primitive("0<>", VM::zero_not_equals);
+        vm.add_primitive(">", VM::greater_than);
+        vm.add_primitive("<>", VM::not_equals);
+        vm.add_primitive("rot", VM::rot);
         vm.add_primitive("2dup", VM::two_dup);
         vm.add_primitive("2drop", VM::two_drop);
         vm.add_primitive("2swap", VM::two_swap);
         vm.add_primitive("2over", VM::two_over);
-        vm.add_primitive("depth", VM::depth);
-        vm.add_primitive(">r", VM::to_r);
-        vm.add_primitive("r>", VM::r_from);
-        vm.add_primitive("r@", VM::r_fetch);
-        vm.add_primitive("2>r", VM::two_to_r);
-        vm.add_primitive("2r>", VM::two_r_from);
-        vm.add_primitive("2r@", VM::two_r_fetch);
-        vm.add_primitive("true", VM::p_true);
-        vm.add_primitive("false", VM::p_false);
-        vm.add_primitive("0=", VM::zero_equals);
-        vm.add_primitive("0<", VM::zero_less);
-        vm.add_primitive("0>", VM::zero_greater);
-        vm.add_primitive("0<>", VM::zero_not_equals);
-        vm.add_primitive("and", VM::and);
-        vm.add_primitive("or", VM::or);
-        vm.add_primitive("xor", VM::xor);
-        vm.add_primitive("1+", VM::one_plus);
-        vm.add_primitive("1-", VM::one_minus);
-        vm.add_primitive("-", VM::minus);
-        vm.add_primitive("+", VM::plus);
-        vm.add_primitive("*", VM::star);
-        vm.add_primitive("/mod", VM::slash_mod);
-        vm.add_primitive("cell+", VM::cell_plus);
-        vm.add_primitive("cells", VM::cells);
-        vm.add_primitive("@", VM::fetch);
-        vm.add_primitive("!", VM::store);
-
-        // More Primitives
         vm.add_primitive("align", VM::align);
         vm.add_primitive("aligned", VM::aligned);
         vm.add_primitive("pause", VM::pause);
-        vm.add_primitive("nip", VM::nip);
-        vm.add_primitive("rot", VM::rot);
         vm.add_primitive("/", VM::slash);
         vm.add_primitive("mod", VM::p_mod);
         vm.add_primitive("abs", VM::abs);
         vm.add_primitive("negate", VM::negate);
-        vm.add_primitive("not", VM::zero_equals);
-        vm.add_primitive("=", VM::equals);
-        vm.add_primitive("<", VM::less_than);
-        vm.add_primitive(">", VM::greater_than);
-        vm.add_primitive("<>", VM::not_equals);
         vm.add_primitive("between", VM::between);
-        vm.add_primitive("invert", VM::invert);
         vm.add_primitive("parse-word", VM::parse_word);;
         vm.add_primitive("char", VM::char);
         vm.add_immediate("[char]", VM::bracket_char);
@@ -697,9 +708,9 @@ impl VM {
 
     pub fn unmark(&mut self) {
         let dfa = self.word_list[self.word_pointer].dfa;
-        let nlen = self.s_heap.get_i32(dfa+mem::size_of::<i32>()) as usize;
-        let wlen = self.s_heap.get_i32(dfa+2*mem::size_of::<i32>()) as usize;
-        let slen = self.s_heap.get_i32(dfa+3*mem::size_of::<i32>()) as usize;
+        let nlen = self.s_heap.get_i32(dfa) as usize;
+        let wlen = self.s_heap.get_i32(dfa+mem::size_of::<i32>()) as usize;
+        let slen = self.s_heap.get_i32(dfa+2*mem::size_of::<i32>()) as usize;
         self.n_heap.truncate(nlen);
         self.word_list.truncate(wlen);
         self.s_heap.truncate(slen);
@@ -712,7 +723,7 @@ impl VM {
         let slen = self.s_heap.len() as i32;
         self.s_heap.push_i32(nlen);
         self.s_heap.push_i32(wlen);
-        self.s_heap.push_i32(slen);
+        self.s_heap.push_i32(slen+3*(mem::size_of::<i32>() as i32));
     }
 
 // Control
@@ -821,6 +832,35 @@ impl VM {
     pub fn p_false(&mut self) {
         self.s_stack.push (0);
     }
+
+    /// Run-time: (c-addr1 -- c-addr2 )
+    ///
+    ///Add the size in address units of a character to c-addr1, giving c-addr2. 
+    pub fn char_plus(&mut self) {
+        match self.s_stack.pop() {
+            Some(v) =>
+                match self.s_stack.push(v + mem::size_of::<u8>() as isize) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
+            None => self.abort_with_error(StackUnderflow)
+        }
+    }
+
+    /// Run-time: (n1 -- n2 )
+    ///
+    /// n2 is the size in address units of n1 characters.
+    pub fn chars(&mut self) {
+        match self.s_stack.pop() {
+            Some(v) =>
+                match self.s_stack.push(v*mem::size_of::<u8>() as isize) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
+            None => self.abort_with_error(StackUnderflow)
+        }
+    }
+
 
     /// Run-time: (a-addr1 -- a-addr2 )
     ///
@@ -1265,6 +1305,39 @@ impl VM {
         }
     }
 
+    pub fn lshift(&mut self) {
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                match self.s_stack.push(n << t) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
+            None => self.abort_with_error(StackUnderflow)
+        }
+    }
+
+    pub fn rshift(&mut self) {
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                match self.s_stack.push((n as usize >> t) as isize) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
+            None => self.abort_with_error(StackUnderflow)
+        }
+    }
+
+    pub fn arshift(&mut self) {
+        match self.s_stack.pop2() {
+            Some((n,t)) =>
+                match self.s_stack.push(n >> t) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                },
+            None => self.abort_with_error(StackUnderflow)
+        }
+    }
+
     pub fn exit(&mut self) {
         if self.r_stack.len == 0 {
             self.abort_with_error(ReturnStackUnderflow)
@@ -1488,9 +1561,9 @@ mod tests {
     }
 
     #[bench]
-    fn bench_find_word_at_middle_of_wordlist(b: &mut Bencher) {
+    fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new();
-        b.iter(|| vm.find("branch"));
+        b.iter(|| vm.find("bye"));
     }
 
     #[test]
@@ -2157,6 +2230,57 @@ mod tests {
     }
 
     #[test]
+    fn test_lshift () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(1);
+        vm.s_stack.push(1);
+        vm.lshift();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.error_code, 0);
+        vm.s_stack.push(1);
+        vm.s_stack.push(2);
+        vm.lshift();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(4));
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_rshift () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(8);
+        vm.s_stack.push(1);
+        vm.rshift();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(4));
+        assert_eq!(vm.error_code, 0);
+        vm.s_stack.push(-1);
+        vm.s_stack.push(1);
+        vm.rshift();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert!(vm.s_stack.pop().unwrap() > 0);
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_arshift () {
+        let vm = &mut VM::new();
+        vm.s_stack.push(8);
+        vm.s_stack.push(1);
+        vm.arshift();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(4));
+        assert_eq!(vm.error_code, 0);
+        vm.s_stack.push(-8);
+        vm.s_stack.push(1);
+        vm.arshift();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-4));
+        assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
     fn test_parse_word () {
         let vm = &mut VM::new();
         vm.set_source("hello world\t\r\n\"");
@@ -2188,18 +2312,22 @@ mod tests {
     #[bench]
     fn bench_compile_words_at_beginning_of_wordlist (b: &mut Bencher) {
         let vm = &mut VM::new();
+        vm.set_source("marker empty");
+        vm.evaluate();
         b.iter(|| {
-            vm.set_source(": main noop noop noop noop noop noop noop noop ;");
+            vm.set_source(": main noop noop noop noop noop noop noop noop ; empty");
             vm.evaluate();
             vm.s_stack.clear();
         });
     }
 
     #[bench]
-    fn bench_compile_words_at_middle_of_wordlist(b: &mut Bencher) {
+    fn bench_compile_words_at_end_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new();
+        vm.set_source("marker empty");
+        vm.evaluate();
         b.iter(|| {
-            vm.set_source(": main here here here here here here here here ;");
+            vm.set_source(": main bye bye bye bye bye bye bye bye ; empty");
             vm.evaluate();
             vm.s_stack.clear();
         });
@@ -2238,6 +2366,22 @@ mod tests {
     }
 
     #[test]
+    fn test_char_plus_and_chars() {
+        let vm = &mut VM::new();
+        vm.set_source("2 char+  9 chars");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.as_slice(), [3, 9]);
+    }
+
+    #[test]
+    fn test_cell_plus_and_cells() {
+        let vm = &mut VM::new();
+        vm.set_source("2 cell+  9 cells");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.as_slice(), [6, 36]);
+    }
+
+    #[test]
     fn test_execute () {
         let vm = &mut VM::new();
         vm.set_source("1 2  ' swap execute");
@@ -2256,12 +2400,11 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(20));
         assert_eq!(vm.s_stack.pop(), Some(4));
-        assert_eq!(vm.s_heap, [
-                   0,0,0,0,
-                   0,0,0,1,
-                   0,0,0,2,
-                   0,0,0,0,
-                   0,0,0,1]);
+        assert_eq!(vm.s_heap.get_i32(0), 0);
+        assert_eq!(vm.s_heap.get_i32(4), 1);
+        assert_eq!(vm.s_heap.get_i32(8), 2);
+        assert_eq!(vm.s_heap.get_i32(12), 0);
+        assert_eq!(vm.s_heap.get_i32(16), 1);
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2357,6 +2500,15 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_marker_unmark () {
+        let vm = &mut VM::new();
+        vm.set_source("marker empty here empty here =");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-1));
     }
 
     #[test]

@@ -21,8 +21,8 @@
 * (done) 6.1.0290 1+
 * (done) 6.1.0300 1-
 * 6.1.0310 2!
-* 6.1.0320 2*
-* 6.1.0330 2/
+* (done) 6.1.0320 2*
+* (done) 6.1.0330 2/
 * 6.1.0350 2@
 * (done) 6.1.0370 2DROP
 * (done) 6.1.0380 2DUP
@@ -46,19 +46,19 @@
 * 6.1.0695 ACCEPT
 * (done) 6.1.0705 ALIGN
 * (done) 6.1.0706 ALIGNED
-* 6.1.0710 ALLOT
+* (done) 6.1.0710 ALLOT
 * (done) 6.1.0720 AND
 * (done) 6.1.0750 BASE
 * (done) 6.1.0760 BEGIN
-* 6.1.0770 BL
+* (done) 6.1.0770 BL
 * 6.1.0850 C!
 * 6.1.0860 C,
 * 6.1.0870 C@
 * (done) 6.1.0880 CELL+
 * (done) 6.1.0890 CELLS
 * (done) 6.1.0895 CHAR
-* 6.1.0897 CHAR+
-* 6.1.0898 CHARS
+* (done) 6.1.0897 CHAR+
+* (done) 6.1.0898 CHARS
 * (done) 6.1.0950 CONSTANT
 * (done) 6.1.0980 COUNT
 * (done) 6.1.0990 CR
@@ -89,7 +89,7 @@
 * 6.1.1760 LEAVE
 * 6.1.1780 LITERAL
 * 6.1.1800 LOOP
-* 6.1.1805 LSHIFT
+* (done) 6.1.1805 LSHIFT
 * 6.1.1810 M*
 * 6.1.1870 MAX
 * 6.1.1880 MIN
@@ -105,7 +105,7 @@
 * (done) 6.1.2120 RECURSE
 * (done) 6.1.2140 REPEAT
 * (done) 6.1.2160 ROT
-* 6.1.2162 RSHIFT
+* (done) 6.1.2162 RSHIFT
 * (done) 6.1.2165 S"
 * 6.1.2170 S>D
 * 6.1.2210 SIGN

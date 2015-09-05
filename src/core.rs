@@ -327,6 +327,8 @@ impl VM {
         vm.add_primitive("!", VM::store); // j1, jx, eForth
         vm.add_primitive("char+", VM::char_plus); // eForth
         vm.add_primitive("chars", VM::chars); // eForth
+        vm.add_primitive("here", VM::here);
+        vm.add_primitive("allot", VM::allot);
 
         // Candidates for bytecodes
         // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
@@ -348,8 +350,6 @@ impl VM {
         vm.add_primitive("2drop", VM::two_drop);
         vm.add_primitive("2swap", VM::two_swap);
         vm.add_primitive("2over", VM::two_over);
-        vm.add_primitive("align", VM::align);
-        vm.add_primitive("aligned", VM::aligned);
         vm.add_primitive("pause", VM::pause);
         vm.add_primitive("/", VM::slash);
         vm.add_primitive("mod", VM::p_mod);
@@ -370,7 +370,6 @@ impl VM {
         vm.add_primitive("'", VM::tick);
         vm.add_primitive("]", VM::compile);
         vm.add_immediate("[", VM::interpret);
-        vm.add_primitive("here", VM::here);
         vm.add_primitive(",", VM::comma);
         vm.add_immediate("if", VM::imm_if);
         vm.add_immediate("else", VM::imm_else);
@@ -890,20 +889,6 @@ impl VM {
         }
     }
 
-    /// Run-time: ( -- )
-    ///
-    /// If the data-space pointer is not aligned, reserve enough space to align it. 
-    pub fn align(&mut self) {
-        // Do nothing.
-    }
-
-    /// Run-time: (addr -- a-addr )
-    ///
-    /// a-addr is the first aligned address greater than or equal to addr. 
-    pub fn aligned(&mut self) {
-        // Do nothing.
-    }
-
     pub fn lit(&mut self) {
         if self.s_stack.len >= self.s_stack.cap {
             self.abort_with_error(StackOverflow)
@@ -1305,6 +1290,12 @@ impl VM {
         }
     }
 
+    /// Run-time: ( x1 u -- x2 )
+    ///
+    /// Perform a logical left shift of u bit-places on x1, giving x2. Put
+    /// zeroes into the least significant bits vacated by the shift. An
+    /// ambiguous condition exists if u is greater than or equal to the number
+    /// of bits in a cell. 
     pub fn lshift(&mut self) {
         match self.s_stack.pop2() {
             Some((n,t)) =>
@@ -1316,6 +1307,12 @@ impl VM {
         }
     }
 
+    /// Run-time: ( x1 u -- x2 )
+    ///
+    /// Perform a logical right shift of u bit-places on x1, giving x2. Put
+    /// zeroes into the most significant bits vacated by the shift. An
+    /// ambiguous condition exists if u is greater than or equal to the number
+    /// of bits in a cell. 
     pub fn rshift(&mut self) {
         match self.s_stack.pop2() {
             Some((n,t)) =>
@@ -1327,6 +1324,12 @@ impl VM {
         }
     }
 
+    /// Run-time: ( x1 u -- x2 )
+    ///
+    /// Perform a arithmetic right shift of u bit-places on x1, giving x2. Put
+    /// zeroes into the most significant bits vacated by the shift. An
+    /// ambiguous condition exists if u is greater than or equal to the number
+    /// of bits in a cell. 
     pub fn arshift(&mut self) {
         match self.s_stack.pop2() {
             Some((n,t)) =>
@@ -1383,6 +1386,10 @@ impl VM {
         }
     }
 
+    /// Run-time: ( i*x xt -- j*x )
+    ///
+    /// Remove xt from the stack and perform the semantics identified by it.
+    /// Other stack effects are due to the word EXECUTEd.
     pub fn execute(&mut self) {
         match self.s_stack.pop() {
             Some(t) => self.execute_word(t as usize),
@@ -1390,10 +1397,35 @@ impl VM {
         };
     }
 
+    /// Run-time: ( -- addr )
+    ///
+    /// addr is the data-space pointer. 
     pub fn here(&mut self) {
         self.s_stack.push(self.s_heap.len() as isize);
     }
 
+    /// Run-time: ( n -- )
+    ///
+    /// If n is greater than zero, reserve n address units of data space. If n
+    /// is less than zero, release |n| address units of data space. If n is
+    /// zero, leave the data-space pointer unchanged. 
+    pub fn allot(&mut self) {
+        match self.s_stack.pop() {
+            Some(v) =>
+                unsafe {
+                    let len = (self.s_heap.len() as isize + v) as usize;
+                    self.s_heap.set_len(len);
+                },
+            None => self.abort_with_error(StackUnderflow)
+        }
+    }
+
+    /// Run-time: ( x -- )
+    ///
+    /// Reserve one cell of data space and store x in the cell. If the
+    /// data-space pointer is aligned when , begins execution, it will remain
+    /// aligned when , finishes execution. An ambiguous condition exists if the
+    /// data-space pointer is not aligned prior to execution of ,. 
     pub fn comma(&mut self) {
         match self.s_stack.pop() {
             Some(v) => self.s_heap.push_i32(v as i32),
@@ -1532,6 +1564,7 @@ impl VM {
 mod tests {
     use super::*;
     use core::test::Bencher;
+    use std::mem;
 
     #[bench]
     fn bench_noop (b: &mut Bencher) {
@@ -2390,6 +2423,15 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.error_code, 0);
+    }
+
+    #[test]
+    fn test_here_allot () {
+        let vm = &mut VM::new();
+        vm.set_source("here 2 cells allot here -");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(-((mem::size_of::<i32>()*2) as isize)));
     }
 
     #[test]

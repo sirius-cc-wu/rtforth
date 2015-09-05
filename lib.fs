@@ -8,4 +8,6 @@ variable base
 : spaces ( n -- ) 0 begin 2dup > while 1+ space repeat 2drop ;
 : 2/ ( n -- n/2 ) 1 arshift ;
 : 2* ( n -- n*2 ) 1 lshift ;
+: aligned ( addr -- a-addr ) 1 cells 1- +  1 cells 1- invert and ;
+: align ( -- ) here aligned  here - allot ;
 marker empty

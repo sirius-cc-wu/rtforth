@@ -2,17 +2,6 @@
 
 ## Problem
 
-Rust's vector is not a good implementation for data space:
-
-Question:
-
-* allot is difficult to implement.
-
-Solution:
-
-* Use byteorder to handle an allocated memory. Apply this strategy to f_heap at first.
-* cell+, cells, align, aligned, and allot must be considered together.
-
 Question:
 
 * byteorder doesn't know isize/usize.

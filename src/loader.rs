@@ -25,6 +25,9 @@ impl HasLoader for ::core::VM {
                     } else {
                         self.source_index = 0;
                         self.evaluate();
+                        if self.has_error() {
+                            break;
+                        }
                     }
                 },
                 Err(_) => {

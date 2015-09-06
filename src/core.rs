@@ -261,6 +261,9 @@ pub struct VM {
     pub idx_flit: usize,
     idx_zero_branch: usize,
     idx_branch: usize,
+    idx_do: usize,
+    idx_loop: usize,
+    idx_plus_loop: usize,
     pub idx_type: usize,
     pub input_buffer: String,
     pub source_index: usize,
@@ -289,6 +292,9 @@ impl VM {
             idx_flit: 0,
             idx_zero_branch: 0,
             idx_branch: 0,
+            idx_do: 0,
+            idx_loop: 0,
+            idx_plus_loop: 0,
             idx_type: 0,
             input_buffer: String::with_capacity(128),
             source_index: 0,
@@ -344,12 +350,16 @@ impl VM {
         vm.add_compile_only("2>r", VM::two_to_r); // jx
         vm.add_compile_only("2r>", VM::two_r_from); // jx
         vm.add_compile_only("2r@", VM::two_r_fetch); // jx
+        vm.add_compile_only("_do", VM::_do); // jx
+        vm.add_compile_only("_loop", VM::_loop); // jx
+        vm.add_compile_only("_+loop", VM::_plus_loop); // jx
+        vm.add_compile_only("unloop", VM::unloop); // jx
 
         // Candidates for bytecodes
         // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
         // j1: U<, RET, IO@, IO!
         // eForth: UM+, !IO, ?RX, TX!
-        // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, _DO, UP!, UP+, PAUSE,
+        // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, UP!, UP+, PAUSE,
 
         // Immediate words
         vm.add_immediate("(", VM::imm_paren);
@@ -365,6 +375,9 @@ impl VM {
         vm.add_immediate_and_compile_only("repeat", VM::imm_repeat);
         vm.add_immediate_and_compile_only("again", VM::imm_again);
         vm.add_immediate_and_compile_only("recurse", VM::imm_recurse);
+        vm.add_immediate_and_compile_only("do", VM::imm_do);
+        vm.add_immediate_and_compile_only("loop", VM::imm_loop);
+        vm.add_immediate_and_compile_only("+loop", VM::imm_plus_loop);
 
         // Compile-only words
 
@@ -404,10 +417,13 @@ impl VM {
         vm.add_primitive("abort", VM::abort);
         vm.add_primitive("bye", VM::bye);
 
-        vm.idx_lit = vm.find("lit").expect("lit defined");
-        vm.idx_exit = vm.find("exit").expect("exit defined");
-        vm.idx_zero_branch = vm.find("0branch").expect("0branch defined");
-        vm.idx_branch = vm.find("branch").expect("branch defined");
+        vm.idx_lit = vm.find("lit").expect("lit undefined");
+        vm.idx_exit = vm.find("exit").expect("exit undefined");
+        vm.idx_zero_branch = vm.find("0branch").expect("0branch undefined");
+        vm.idx_branch = vm.find("branch").expect("branch undefined");
+        vm.idx_do = vm.find("_do").expect("_do undefined");
+        vm.idx_loop = vm.find("_loop").expect("_loop undefined");
+        vm.idx_plus_loop = vm.find("_+loop").expect("_+loop undefined");
         // S_heap is beginning with noop, because s_heap[0] should not be used.
         vm.compile_word(0); // NOP
         vm
@@ -784,6 +800,75 @@ impl VM {
         }
     }
 
+    /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
+    ///
+    /// Set up loop control parameters with index n2|u2 and limit n1|u1. An
+    /// ambiguous condition exists if n1|u1 and n2|u2 are not both the same
+    /// type.  Anything already on the return stack becomes unavailable until
+    /// the loop-control parameters are discarded. 
+    pub fn _do(&mut self) {
+        self.two_to_r();
+    }
+
+    /// Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
+    ///
+    /// An ambiguous condition exists if the loop control parameters are
+    /// unavailable. Add one to the loop index. If the loop index is then equal
+    /// to the loop limit, discard the loop parameters and continue execution
+    /// immediately following the loop. Otherwise continue execution at the
+    /// beginning of the loop. 
+    pub fn _loop(&mut self) {
+        match self.r_stack.pop2() {
+            Some((rn, rt)) => {
+                if rt+1 < rn {
+                    self.r_stack.push2(rn, rt+1);
+                    self.branch()
+                } else {
+                    self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
+                }
+            },
+            None => self.abort_with_error(ReturnStackUnderflow)
+        }
+    }
+
+    /// Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
+    ///
+    /// An ambiguous condition exists if the loop control parameters are
+    /// unavailable. Add n to the loop index. If the loop index did not cross
+    /// the boundary between the loop limit minus one and the loop limit,
+    /// continue execution at the beginning of the loop. Otherwise, discard the
+    /// current loop control parameters and continue execution immediately
+    /// following the loop. 
+    pub fn _plus_loop(&mut self) {
+        match self.r_stack.pop2() {
+            Some((rn, rt)) => {
+                match self.s_stack.pop() {
+                    Some(t) => {
+                        if rt+t < rn {
+                            self.r_stack.push2(rn, rt+t);
+                            self.branch()
+                        } else {
+                            self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
+                        }
+                    },
+                    None => self.abort_with_error(StackUnderflow)
+                }
+            },
+            None => self.abort_with_error(ReturnStackUnderflow)
+        }
+    }
+
+    /// Run-time: ( -- ) ( R: loop-sys -- )
+    ///
+    /// Discard the loop-control parameters for the current nesting level. An
+    /// UNLOOP is required for each nesting level before the definition may be
+    /// EXITed. An ambiguous condition exists if the loop-control parameters
+    /// are unavailable. 
+    pub fn unloop(&mut self) {
+        self.two_r_from();
+        self.two_drop();
+    }
+
     pub fn imm_if(&mut self) {
         self.s_heap.push_i32(self.idx_zero_branch as i32);
         self.s_heap.push_i32(0);
@@ -850,6 +935,48 @@ impl VM {
 
     pub fn imm_recurse(&mut self) {
         self.s_heap.push_i32(self.last_definition as i32);
+    }
+
+    /// Execution: ( -- a-ddr )
+    ///
+    /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
+    pub fn imm_do(&mut self) {
+        self.s_heap.push_i32(self.idx_do as i32);
+        self.imm_begin();
+    }
+
+    /// Run-time: ( a-addr -- )
+    ///
+    /// Append the run-time semantics of _LOOP to the current definition.
+    /// Resolve the destination of all unresolved occurrences of LEAVE between
+    /// the location given by do-sys and the next location for a transfer of
+    /// control, to execute the words following the LOOP. 
+    pub fn imm_loop(&mut self) {
+        self.s_heap.push_i32(self.idx_loop as i32);
+        match self.s_stack.pop() {
+            Some(v) => {
+                let len = self.s_heap.len() as isize;
+                self.s_heap.push_i32((v-len) as i32);
+            },
+            None => self.abort_with_error(StackUnderflow)
+        };
+    }
+
+    /// Run-time: ( a-addr -- )
+    ///
+    /// Append the run-time semantics of _+LOOP to the current definition.
+    /// Resolve the destination of all unresolved occurrences of LEAVE between
+    /// the location given by do-sys and the next location for a transfer of
+    /// control, to execute the words following +LOOP. 
+    pub fn imm_plus_loop(&mut self) {
+        self.s_heap.push_i32(self.idx_plus_loop as i32);
+        match self.s_stack.pop() {
+            Some(v) => {
+                let len = self.s_heap.len() as isize;
+                self.s_heap.push_i32((v-len) as i32);
+            },
+            None => self.abort_with_error(StackUnderflow)
+        };
     }
 
 // Primitives
@@ -2674,4 +2801,36 @@ mod tests {
             vm.inner();
         });
     }
+
+    #[test]
+    fn test_do_loop() {
+        let vm = &mut VM::new();
+        vm.set_source(": main 1 5 0 do 1+ loop ;  main");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(6));
+    }
+
+    #[test]
+    fn test_do_unloop_exit_loop() {
+        let vm = &mut VM::new();
+        vm.set_source(": main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(3));
+    }
+
+    #[test]
+    fn test_do_plus_loop() {
+        let vm = &mut VM::new();
+        vm.set_source(": main 1 5 0 do 1+ 2 +loop ;  main");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(4));
+        vm.set_source(": main 1 6 0 do 1+ 2 +loop ;  main");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 1);
+        assert_eq!(vm.s_stack.pop(), Some(4));
+    }
+
 }

@@ -69,7 +69,7 @@ impl Output for VM {
         self.add_immediate (".(", VM::dot_paren);
         self.add_primitive (".", VM::dot);
         self.add_primitive ("f.", VM::fdot);
-        self.idx_type = self.find("type").expect("type defined");
+        self.idx_type = self.find("type").expect("type undefined");
     }
 
     fn emit(&mut self) {

@@ -75,7 +75,7 @@ impl Float for VM {
         self.add_primitive ("f0<", VM::f_zero_less_than);
         self.add_primitive ("f0=", VM::f_zero_equals);
         self.add_primitive ("f<", VM::f_less_than);
-        self.idx_flit = self.find("flit").expect("flit defined");
+        self.idx_flit = self.find("flit").expect("flit undefined");
     }
 
     fn flit(&mut self) {

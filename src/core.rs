@@ -784,7 +784,7 @@ impl VM {
 // Control
 
     pub fn branch(&mut self) {
-        self.instruction_pointer = (self.instruction_pointer as i32 + self.s_heap.get_i32(self.instruction_pointer)) as usize;
+        self.instruction_pointer = self.s_heap.get_i32(self.instruction_pointer) as usize;
     }
 
     pub fn zero_branch(&mut self) {
@@ -872,18 +872,17 @@ impl VM {
     pub fn imm_if(&mut self) {
         self.s_heap.push_i32(self.idx_zero_branch as i32);
         self.s_heap.push_i32(0);
-        self.s_stack.push(self.s_heap.len() as isize);
+        self.here();
     }
 
     pub fn imm_else(&mut self) {
-        self.s_heap.push_i32(self.idx_branch as i32);
-        self.s_heap.push_i32(0);
         match self.s_stack.pop() {
-            Some(v) => {
-                let if_part = v;
-                let else_part = self.s_heap.len() as isize;
-                self.s_heap.put_i32((if_part - mem::size_of::<i32>() as isize) as usize, (else_part - if_part + mem::size_of::<i32>() as isize) as i32);
-                self.s_stack.push(else_part);
+            Some(if_part) => {
+                self.s_heap.push_i32(self.idx_branch as i32);
+                self.s_heap.push_i32(0);
+                self.here();
+                let here = self.s_heap.len();
+                self.s_heap.put_i32((if_part - mem::size_of::<i32>() as isize) as usize, here as i32);
             },
             None => self.abort_with_error(StackUnderflow)
         };
@@ -891,43 +890,41 @@ impl VM {
 
     pub fn imm_then(&mut self) {
         match self.s_stack.pop() {
-            Some(v) => {
-                let branch_part = v;
-                let len = self.s_heap.len() as isize;
-                self.s_heap.put_i32((branch_part - mem::size_of::<i32>() as isize) as usize, (len - branch_part + mem::size_of::<i32>() as isize) as i32);
+            Some(branch_part) => {
+                let here = self.s_heap.len();
+                self.s_heap.put_i32((branch_part - mem::size_of::<i32>() as isize) as usize, here as i32);
             },
             None => self.abort_with_error(StackUnderflow)
         };
     }
 
     pub fn imm_begin(&mut self) {
-        self.s_stack.push(self.s_heap.len() as isize);
+        self.here();
     }
 
     pub fn imm_while(&mut self) {
         self.s_heap.push_i32(self.idx_zero_branch as i32);
-        self.s_stack.push(self.s_heap.len() as isize);
         self.s_heap.push_i32(0);
+        self.here();
     }
 
     pub fn imm_repeat(&mut self) {
-        self.s_heap.push_i32(self.idx_branch as i32);
         match self.s_stack.pop2() {
             Some((begin_part, while_part)) => {
-                let len = self.s_heap.len() as isize;
-                self.s_heap.push_i32((begin_part-len) as i32);
-                self.s_heap.put_i32((while_part) as usize, (len - while_part + mem::size_of::<i32>() as isize) as i32);
+                self.s_heap.push_i32(self.idx_branch as i32);
+                self.s_heap.push_i32(begin_part as i32);
+                let here = self.s_heap.len();
+                self.s_heap.put_i32((while_part - mem::size_of::<i32>() as isize) as usize, here as i32);
             },
             None => self.abort_with_error(StackUnderflow)
         };
     }
 
     pub fn imm_again(&mut self) {
-        self.s_heap.push_i32(self.idx_branch as i32);
         match self.s_stack.pop() {
-            Some(v) => {
-                let len = self.s_heap.len() as isize;
-                self.s_heap.push_i32((v-len) as i32);
+            Some(begin_part) => {
+                self.s_heap.push_i32(self.idx_branch as i32);
+                self.s_heap.push_i32(begin_part as i32);
             },
             None => self.abort_with_error(StackUnderflow)
         };
@@ -942,7 +939,7 @@ impl VM {
     /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
     pub fn imm_do(&mut self) {
         self.s_heap.push_i32(self.idx_do as i32);
-        self.imm_begin();
+        self.here();
     }
 
     /// Run-time: ( a-addr -- )
@@ -952,11 +949,10 @@ impl VM {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the LOOP. 
     pub fn imm_loop(&mut self) {
-        self.s_heap.push_i32(self.idx_loop as i32);
         match self.s_stack.pop() {
-            Some(v) => {
-                let len = self.s_heap.len() as isize;
-                self.s_heap.push_i32((v-len) as i32);
+            Some(do_part) => {
+                self.s_heap.push_i32(self.idx_loop as i32);
+                self.s_heap.push_i32(do_part as i32);
             },
             None => self.abort_with_error(StackUnderflow)
         };
@@ -969,11 +965,10 @@ impl VM {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following +LOOP. 
     pub fn imm_plus_loop(&mut self) {
-        self.s_heap.push_i32(self.idx_plus_loop as i32);
         match self.s_stack.pop() {
-            Some(v) => {
-                let len = self.s_heap.len() as isize;
-                self.s_heap.push_i32((v-len) as i32);
+            Some(do_part) => {
+                self.s_heap.push_i32(self.idx_plus_loop as i32);
+                self.s_heap.push_i32(do_part as i32);
             },
             None => self.abort_with_error(StackUnderflow)
         };

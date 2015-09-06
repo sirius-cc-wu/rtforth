@@ -210,6 +210,16 @@ impl<T> Stack<T> {
         }
     }
 
+    pub fn get(&self, pos: usize) -> Option<T> {
+        if pos >= self.len {
+            None
+        } else {
+            unsafe {
+                Some(ptr::read(self.ptr.offset(pos as isize)))
+            }
+        }
+    }
+
     pub fn clear(&mut self) {
         self.len = 0;
     }
@@ -351,10 +361,12 @@ impl VM {
         vm.add_compile_only("2r>", VM::two_r_from); // jx
         vm.add_compile_only("2r@", VM::two_r_fetch); // jx
         vm.add_compile_only("_do", VM::_do); // jx
-        vm.add_compile_only("_loop", VM::_loop); // jx
-        vm.add_compile_only("_+loop", VM::_plus_loop); // jx
+        vm.add_compile_only("_loop", VM::p_loop); // jx
+        vm.add_compile_only("_+loop", VM::p_plus_loop); // jx
         vm.add_compile_only("unloop", VM::unloop); // jx
         vm.add_compile_only("leave", VM::leave); // jx
+        vm.add_compile_only("i", VM::p_i); // jx
+        vm.add_compile_only("j", VM::p_j); // jx
 
         // Candidates for bytecodes
         // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
@@ -824,7 +836,7 @@ impl VM {
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop. 
-    pub fn _loop(&mut self) {
+    pub fn p_loop(&mut self) {
         match self.r_stack.pop2() {
             Some((rn, rt)) => {
                 if rt+1 < rn {
@@ -851,7 +863,7 @@ impl VM {
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
     /// following the loop. 
-    pub fn _plus_loop(&mut self) {
+    pub fn p_plus_loop(&mut self) {
         match self.r_stack.pop2() {
             Some((rn, rt)) => {
                 match self.s_stack.pop() {
@@ -892,6 +904,31 @@ impl VM {
         match self.r_stack.pop3() {
             Some((third, _, _)) => {
                 self.instruction_pointer = self.s_heap.get_i32(third as usize) as usize;
+            },
+            None => self.abort_with_error(ReturnStackUnderflow)
+        }
+    }
+
+    pub fn p_i(&mut self) {
+        match self.r_stack.last() {
+            Some(i) => {
+                match self.s_stack.push(i) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                }
+            },
+            None => self.abort_with_error(ReturnStackUnderflow)
+        }
+    }
+
+    pub fn p_j(&mut self) {
+        let pos = self.r_stack.len() - 4;
+        match self.r_stack.get(pos) {
+            Some(j) => {
+                match self.s_stack.push(j) {
+                    Some(_) => self.abort_with_error(StackOverflow),
+                    None => {}
+                }
             },
             None => self.abort_with_error(ReturnStackUnderflow)
         }
@@ -2870,4 +2907,21 @@ mod tests {
         assert_eq!(vm.s_stack.pop2(), Some((88, 9)));
     }
 
+    #[test]
+    fn test_do_i_loop() {
+        let vm = &mut VM::new();
+        vm.set_source(": main 3 0 do i loop ;  main");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack.pop3(), Some((0, 1, 2)));
+    }
+
+    #[test]
+    fn test_do_i_j_loop() {
+        let vm = &mut VM::new();
+        vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 4);
+        assert_eq!(vm.s_stack.as_slice(), [4, 8, 5, 10]);
+    }
 }

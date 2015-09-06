@@ -1,3 +1,6 @@
+#![feature(plugin)]
+#![plugin(clippy)]
+
 extern crate rtforth;
 extern crate getopts;
 extern crate rustyline;

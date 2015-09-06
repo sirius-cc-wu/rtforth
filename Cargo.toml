@@ -9,6 +9,7 @@ getopts = "0.2"
 time = "0.1"
 rustyline = { git="https://github.com/chengchangwu/rustyline.git" }
 byteorder = "0.3"
+clippy = "*"
 
 [profile.release]
 debug = false

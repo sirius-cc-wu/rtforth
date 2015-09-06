@@ -228,6 +228,10 @@ impl<T> Stack<T> {
         self.len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     /// # Safety
     /// Because the implementer (me) is still learning Rust, it is uncertain if as_slice is safe. 
     pub fn as_slice(&self) -> &[T] {
@@ -317,7 +321,7 @@ impl VM {
         vm.add_primitive("noop", VM::noop); // j1, Ngaro, jx
         vm.add_primitive("execute", VM::execute); // jx, eForth
         vm.add_primitive("dup", VM::dup); // j1, Ngaro, jx, eForth
-        vm.add_primitive("drop", VM::drop); // j1, Ngaro, jx, eForth
+        vm.add_primitive("drop", VM::p_drop); // j1, Ngaro, jx, eForth
         vm.add_primitive("swap", VM::swap); // j1, Ngaro, jx, eForth
         vm.add_primitive("over", VM::over); // j1, jx, eForth
         vm.add_primitive("nip", VM::nip); // j1, jx
@@ -354,7 +358,7 @@ impl VM {
         vm.add_compile_only("lit", VM::lit); // Ngaro, jx, eForth
         vm.add_compile_only("branch", VM::branch); // j1, eForth
         vm.add_compile_only("0branch", VM::zero_branch); // j1, eForth
-        vm.add_compile_only(">r", VM::to_r); // j1, Ngaro, jx, eForth
+        vm.add_compile_only(">r", VM::p_to_r); // j1, Ngaro, jx, eForth
         vm.add_compile_only("r>", VM::r_from); // j1, Ngaro, jx, eForth
         vm.add_compile_only("r@", VM::r_fetch); // j1, jx, eForth
         vm.add_compile_only("2>r", VM::two_to_r); // jx
@@ -479,7 +483,7 @@ impl VM {
     /// If not found returns zero.
     pub fn find(&self, name: &str) -> Option<usize> {
         let mut i = 0usize;
-        for w in self.word_list.iter() {
+        for w in &self.word_list {
             let n = &self.n_heap[w.nfa .. w.nfa+w.name_len];
             if !w.hidden && n.eq_ignore_ascii_case(name) {
                 return Some(i);
@@ -487,7 +491,7 @@ impl VM {
                 i += 1;
             }
         }
-        return None;
+        None
     }
 
 // Inner interpreter
@@ -1159,7 +1163,7 @@ impl VM {
         }
     }
 
-    pub fn drop(&mut self) {
+    pub fn p_drop(&mut self) {
         if self.s_stack.len < 1 {
             self.abort_with_error(StackUnderflow)
         } else {
@@ -1709,7 +1713,7 @@ impl VM {
         }
     }
 
-    pub fn to_r(&mut self) {
+    pub fn p_to_r(&mut self) {
         match self.s_stack.pop() {
             Some(v) => {
                 if self.r_stack.len >= self.r_stack.cap {
@@ -1801,7 +1805,7 @@ impl VM {
 // Error handlling
 
     pub fn has_error(&self) -> bool {
-        return self.error_code != NoException as isize;
+        self.error_code != NoException as isize
     }
 
     #[inline(never)]
@@ -1906,8 +1910,8 @@ mod tests {
     fn test_drop() {
         let vm = &mut VM::new();
         vm.s_stack.push(1);
-        vm.drop();
-        assert!(vm.s_stack.len()==0);
+        vm.p_drop();
+        assert!(vm.s_stack.is_empty());
         assert_eq!(vm.error_code, 0);
     }
 
@@ -1916,7 +1920,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.s_stack.push(1);
         b.iter(|| {
-            vm.drop();
+            vm.p_drop();
             vm.s_stack.push(1);
         });
     }
@@ -2037,7 +2041,7 @@ mod tests {
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.two_drop();
-        assert!(vm.s_stack.len()==0);
+        assert!(vm.s_stack.is_empty());
         assert_eq!(vm.error_code, 0);
     }
 
@@ -2299,7 +2303,7 @@ mod tests {
         vm.s_stack.push2(1, 2);
         b.iter(|| {
             vm.slash_mod();
-            vm.drop();
+            vm.p_drop();
             vm.s_stack.push(2)
         });
     }

@@ -3,6 +3,8 @@
 #![feature(heap_api)]
 #![feature(alloc)]
 #![feature(test)]
+#![feature(plugin)]
+#![plugin(clippy)]
 
 extern crate byteorder;
 pub mod core;

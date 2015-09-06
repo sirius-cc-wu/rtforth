@@ -23,7 +23,7 @@ impl Tools for VM {
     }
 
     fn words(&mut self) {
-        for w in self.word_list.iter() {
+        for w in &self.word_list {
             let s = &self.n_heap[w.nfa()..w.nfa()+w.name_len()];
             print!("{} ", s );
         }

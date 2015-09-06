@@ -392,25 +392,18 @@ impl Float for VM {
         }
     }
 
+    #[allow(float_cmp)]
     fn fproximate(&mut self) {
-        match self.f_stack.pop() {
-            Some(x3) =>
-                match self.f_stack.pop() {
-                    Some(x2) =>
-                        match self.f_stack.pop() {
-                            Some(x1) => {
-                                if x3 > 0.0 {
-                                    self.s_stack.push(if (x1-x2).abs() < x3 {-1} else {0});
-                                } else if x3 == 0.0 {
-                                    self.s_stack.push(if x1==x2 {-1} else {0});
-                                } else {
-                                    self.s_stack.push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) {-1} else {0});
-                                }
-                            },
-                            None => self.abort_with_error(FloatingPointStackUnderflow)
-                        },
-                    None => self.abort_with_error(FloatingPointStackUnderflow)
-                },
+        match self.f_stack.pop3() {
+            Some((x1, x2, x3)) => {
+                if x3 > 0.0 {
+                    self.s_stack.push(if (x1-x2).abs() < x3 {-1} else {0});
+                } else if x3 == 0.0 {
+                    self.s_stack.push(if x1==x2 {-1} else {0});
+                } else {
+                    self.s_stack.push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) {-1} else {0});
+                }
+            },
             None => self.abort_with_error(FloatingPointStackUnderflow)
         }
     }

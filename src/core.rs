@@ -23,12 +23,14 @@ use exception::Exception::{
     ReturnStackUnderflow,
     ReturnStackOverflow,
     UnsupportedOperation,
+    InterpretingACompileOnlyWord,
     Bye,
 };
 
 // Word
 pub struct Word {
     is_immediate: bool,
+    is_compile_only: bool,
     hidden: bool,
     nfa: usize,
     dfa: usize,
@@ -40,6 +42,7 @@ impl Word {
     pub fn new(nfa: usize, name_len: usize, dfa: usize, action: fn(& mut VM)) -> Word {
         Word {
             is_immediate: false,
+            is_compile_only: false,
             hidden: false,
             nfa: nfa,
             dfa: dfa,
@@ -296,23 +299,13 @@ impl VM {
         };
         // Bytecodes
         vm.add_primitive("noop", VM::noop); // j1, Ngaro, jx
-        vm.add_primitive("lit", VM::lit); // Ngaro, jx, eForth
-        vm.add_primitive("exit", VM::exit); // j1, jx, eForth
         vm.add_primitive("execute", VM::execute); // jx, eForth
-        vm.add_primitive("branch", VM::branch); // j1, eForth
-        vm.add_primitive("0branch", VM::zero_branch); // j1, eForth
         vm.add_primitive("dup", VM::dup); // j1, Ngaro, jx, eForth
         vm.add_primitive("drop", VM::drop); // j1, Ngaro, jx, eForth
         vm.add_primitive("swap", VM::swap); // j1, Ngaro, jx, eForth
         vm.add_primitive("over", VM::over); // j1, jx, eForth
         vm.add_primitive("nip", VM::nip); // j1, jx
         vm.add_primitive("depth", VM::depth); // j1, jx
-        vm.add_primitive(">r", VM::to_r); // j1, Ngaro, jx, eForth
-        vm.add_primitive("r>", VM::r_from); // j1, Ngaro, jx, eForth
-        vm.add_primitive("r@", VM::r_fetch); // j1, jx, eForth
-        vm.add_primitive("2>r", VM::two_to_r); // jx
-        vm.add_primitive("2r>", VM::two_r_from); // jx
-        vm.add_primitive("2r@", VM::two_r_fetch); // jx
         vm.add_primitive("0<", VM::zero_less); // eForth
         vm.add_primitive("=", VM::equals); // j1, jx
         vm.add_primitive("<", VM::less_than); // j1, jx
@@ -340,11 +333,40 @@ impl VM {
         vm.add_primitive("c@", VM::c_fetch);
         vm.add_primitive("c!", VM::c_store);
 
+        // Compile-only bytecodes
+        vm.add_compile_only("exit", VM::exit); // j1, jx, eForth
+        vm.add_compile_only("lit", VM::lit); // Ngaro, jx, eForth
+        vm.add_compile_only("branch", VM::branch); // j1, eForth
+        vm.add_compile_only("0branch", VM::zero_branch); // j1, eForth
+        vm.add_compile_only(">r", VM::to_r); // j1, Ngaro, jx, eForth
+        vm.add_compile_only("r>", VM::r_from); // j1, Ngaro, jx, eForth
+        vm.add_compile_only("r@", VM::r_fetch); // j1, jx, eForth
+        vm.add_compile_only("2>r", VM::two_to_r); // jx
+        vm.add_compile_only("2r>", VM::two_r_from); // jx
+        vm.add_compile_only("2r@", VM::two_r_fetch); // jx
+
         // Candidates for bytecodes
         // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
         // j1: U<, RET, IO@, IO!
         // eForth: UM+, !IO, ?RX, TX!
         // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, _DO, UP!, UP+, PAUSE,
+
+        // Immediate words
+        vm.add_immediate("(", VM::imm_paren);
+        vm.add_immediate("\\", VM::imm_backslash);
+        vm.add_immediate("[", VM::interpret);
+        vm.add_immediate_and_compile_only("[char]", VM::bracket_char);
+        vm.add_immediate_and_compile_only(";", VM::semicolon);
+        vm.add_immediate_and_compile_only("if", VM::imm_if);
+        vm.add_immediate_and_compile_only("else", VM::imm_else);
+        vm.add_immediate_and_compile_only("then", VM::imm_then);
+        vm.add_immediate_and_compile_only("begin", VM::imm_begin);
+        vm.add_immediate_and_compile_only("while", VM::imm_while);
+        vm.add_immediate_and_compile_only("repeat", VM::imm_repeat);
+        vm.add_immediate_and_compile_only("again", VM::imm_again);
+        vm.add_immediate_and_compile_only("recurse", VM::imm_recurse);
+
+        // Compile-only words
 
         // More Primitives
         vm.add_primitive("true", VM::p_true);
@@ -368,28 +390,15 @@ impl VM {
         vm.add_primitive("between", VM::between);
         vm.add_primitive("parse-word", VM::parse_word);;
         vm.add_primitive("char", VM::char);
-        vm.add_immediate("[char]", VM::bracket_char);
         vm.add_primitive("parse", VM::parse);
-        vm.add_immediate("(", VM::imm_paren);
         vm.add_primitive("evaluate", VM::evaluate);;
         vm.add_primitive(":", VM::colon);
-        vm.add_immediate(";", VM::semicolon);
         vm.add_primitive("constant", VM::constant);
         vm.add_primitive("variable", VM::variable);
         vm.add_primitive("create", VM::create);
         vm.add_primitive("'", VM::tick);
         vm.add_primitive("]", VM::compile);
-        vm.add_immediate("[", VM::interpret);
         vm.add_primitive(",", VM::comma);
-        vm.add_immediate("if", VM::imm_if);
-        vm.add_immediate("else", VM::imm_else);
-        vm.add_immediate("then", VM::imm_then);
-        vm.add_immediate("begin", VM::imm_begin);
-        vm.add_immediate("while", VM::imm_while);
-        vm.add_immediate("repeat", VM::imm_repeat);
-        vm.add_immediate("again", VM::imm_again);
-        vm.add_immediate("recurse", VM::imm_recurse);
-        vm.add_immediate("\\", VM::imm_backslash);
         vm.add_primitive("marker", VM::marker);
         vm.add_primitive("quit", VM::quit);
         vm.add_primitive("abort", VM::abort);
@@ -415,10 +424,21 @@ impl VM {
 
     pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM)) {
         self.add_primitive (name, action);
-        match self.word_list.last_mut() {
-            Some(w) => w.is_immediate = true,
-            None => { /* Impossible */ }
-        };
+        let word = self.word_list.last_mut().unwrap();
+        word.is_immediate = true;
+    }
+
+    pub fn add_compile_only(&mut self, name: &str, action: fn(& mut VM)) {
+        self.add_primitive (name, action);
+        let word = self.word_list.last_mut().unwrap();
+        word.is_compile_only = true;
+    }
+
+    pub fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM)) {
+        self.add_primitive (name, action);
+        let word = self.word_list.last_mut().unwrap();
+        word.is_immediate = true;
+        word.is_compile_only = true;
     }
 
     pub fn execute_word(&mut self, i: usize) {
@@ -586,15 +606,25 @@ impl VM {
                 break;
             }
             match self.find(&self.last_token) {
-                Some(found_index) =>
-                    if !self.is_compiling || self.word_list[found_index].is_immediate {
+                Some(found_index) => {
+                    let is_immediate_word;
+                    let is_compile_only_word;
+                    {
+                        let word = &self.word_list[found_index];
+                        is_immediate_word = word.is_immediate;
+                        is_compile_only_word = word.is_compile_only;
+                    }
+                    if self.is_compiling && !is_immediate_word {
+                        self.compile_word(found_index);
+                    } else if !self.is_compiling && is_compile_only_word {
+                        self.abort_with_error(InterpretingACompileOnlyWord);
+                    } else {
                         self.execute_word(found_index);
                         if self.instruction_pointer != 0 {
                             self.inner();
                         }
-                    } else {
-                        self.compile_word(found_index);
-                    },
+                    }
+                },
                 None =>
                     // Integer?
                     match FromStr::from_str(&self.last_token) {

@@ -2,8 +2,8 @@
 
 ## TODO
 
-* FILL MOVE
-* SIEVE Benchmark
+* ABORT"
+* bubble-sort.fs benchmark
 
 ## Checklist
 * (done) 6.1.0010 !
@@ -83,7 +83,7 @@
 * (done) 6.1.1360 EVALUATE
 * (done) 6.1.1370 EXECUTE
 * (done) 6.1.1380 EXIT
-* 6.1.1540 FILL
+* (done) 6.1.1540 FILL
 * 6.1.1550 FIND
 * 6.1.1561 FM/MOD
 * (done) 6.1.1650 HERE

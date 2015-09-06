@@ -22,7 +22,7 @@ use rtforth::exception::Exception::{
 
 #[cfg(not(test))]
 fn main() {
-    let vm = &mut VM::new();
+    let vm = &mut VM::new(65536);
     vm.add_output();
     vm.add_tools();
     vm.add_environment();
@@ -63,7 +63,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.1.9, Copyright (C) 2015 Mapacode Inc.");
+    println!("rtForth v0.1.10, Copyright (C) 2015 Mapacode Inc.");
 }
 
 fn repl(vm: &mut VM) {

@@ -23,3 +23,4 @@ variable eflag
 ;
 
 \ HPPA/720, 50 MHz: user 3.90s
+main bye

@@ -288,7 +288,7 @@ pub struct VM {
 }
 
 impl VM {
-    pub fn new() -> VM {
+    pub fn new(heap_size: usize) -> VM {
         let mut vm = VM {
             is_compiling: false,
             is_paused: true,
@@ -296,7 +296,7 @@ impl VM {
             s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
-            s_heap: Vec::with_capacity(2048*mem::size_of::<i32>()),
+            s_heap: Vec::with_capacity(heap_size),
             n_heap: String::with_capacity(64),
             word_list: Vec::with_capacity(16),
             instruction_pointer: 0,

@@ -2648,7 +2648,7 @@ mod tests {
     #[test]
     fn test_here_comma_compile_interpret () {
         let vm = &mut VM::new();
-        vm.set_source("here 1 , 2 , ] noop lit [ here");
+        vm.set_source("here 1 , 2 , ] noop execute [ here");
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(20));

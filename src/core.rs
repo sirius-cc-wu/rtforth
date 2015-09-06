@@ -354,6 +354,7 @@ impl VM {
         vm.add_compile_only("_loop", VM::_loop); // jx
         vm.add_compile_only("_+loop", VM::_plus_loop); // jx
         vm.add_compile_only("unloop", VM::unloop); // jx
+        vm.add_compile_only("leave", VM::leave); // jx
 
         // Candidates for bytecodes
         // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
@@ -793,7 +794,7 @@ impl VM {
                 if v == 0 {
                     self.branch()
                 } else {
-                    self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
+                    self.instruction_pointer += mem::size_of::<i32>();
                 }
             },
             None => self.abort_with_error(StackUnderflow)
@@ -807,7 +808,13 @@ impl VM {
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded. 
     pub fn _do(&mut self) {
-        self.two_to_r();
+        match self.r_stack.push(self.instruction_pointer as isize) {
+            Some(_) => self.abort_with_error(ReturnStackOverflow),
+            None => {
+                self.instruction_pointer += mem::size_of::<i32>();
+                self.two_to_r();
+            }
+        }
     }
 
     /// Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
@@ -824,7 +831,12 @@ impl VM {
                     self.r_stack.push2(rn, rt+1);
                     self.branch()
                 } else {
-                    self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
+                    match self.r_stack.pop() {
+                        Some(_) => {
+                            self.instruction_pointer += mem::size_of::<i32>();
+                        },
+                        None => self.abort_with_error(ReturnStackUnderflow) 
+                    }
                 }
             },
             None => self.abort_with_error(ReturnStackUnderflow)
@@ -848,7 +860,12 @@ impl VM {
                             self.r_stack.push2(rn, rt+t);
                             self.branch()
                         } else {
-                            self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
+                            match self.r_stack.pop() {
+                                Some(_) => {
+                                    self.instruction_pointer += mem::size_of::<i32>();
+                                },
+                                None => self.abort_with_error(ReturnStackUnderflow) 
+                            }
                         }
                     },
                     None => self.abort_with_error(StackUnderflow)
@@ -865,8 +882,19 @@ impl VM {
     /// EXITed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable. 
     pub fn unloop(&mut self) {
-        self.two_r_from();
-        self.two_drop();
+        match self.r_stack.pop3() {
+            Some(_) => {},
+            None => self.abort_with_error(ReturnStackUnderflow)
+        }
+    }
+
+    pub fn leave(&mut self) {
+        match self.r_stack.pop3() {
+            Some((third, _, _)) => {
+                self.instruction_pointer = self.s_heap.get_i32(third as usize) as usize;
+            },
+            None => self.abort_with_error(ReturnStackUnderflow)
+        }
     }
 
     pub fn imm_if(&mut self) {
@@ -939,6 +967,7 @@ impl VM {
     /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
     pub fn imm_do(&mut self) {
         self.s_heap.push_i32(self.idx_do as i32);
+        self.s_heap.push_i32(0);
         self.here();
     }
 
@@ -953,6 +982,8 @@ impl VM {
             Some(do_part) => {
                 self.s_heap.push_i32(self.idx_loop as i32);
                 self.s_heap.push_i32(do_part as i32);
+                let here = self.s_heap.len();
+                self.s_heap.put_i32((do_part - mem::size_of::<i32>() as isize) as usize, here as i32)
             },
             None => self.abort_with_error(StackUnderflow)
         };
@@ -969,6 +1000,8 @@ impl VM {
             Some(do_part) => {
                 self.s_heap.push_i32(self.idx_plus_loop as i32);
                 self.s_heap.push_i32(do_part as i32);
+                let here = self.s_heap.len();
+                self.s_heap.put_i32((do_part - mem::size_of::<i32>() as isize) as usize, here as i32)
             },
             None => self.abort_with_error(StackUnderflow)
         };
@@ -2826,6 +2859,15 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(4));
+    }
+
+    #[test]
+    fn test_do_leave_loop() {
+        let vm = &mut VM::new();
+        vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main");
+        vm.evaluate();
+        assert_eq!(vm.s_stack.len(), 2);
+        assert_eq!(vm.s_stack.pop2(), Some((88, 9)));
     }
 
 }

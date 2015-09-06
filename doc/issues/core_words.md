@@ -2,8 +2,7 @@
 
 ## TODO
 
-* DO LOOP +LOOP UNLOOP LEAVE I J
-* EXIT which must call UNLOOP
+* I J
 
 ## Checklist
 * (done) 6.1.0010 !
@@ -17,7 +16,7 @@
 * 6.1.0110 */MOD
 * (done) 6.1.0120 +
 * (done) 6.1.0130 +!
-* 6.1.0140 +LOOP
+* (done) 6.1.0140 +LOOP
 * (done) 6.1.0150 ,
 * (done) 6.1.0160 -
 * (done) 6.1.0180 .
@@ -73,7 +72,7 @@
 * (done) 6.1.1000 CREATE
 * (done) 6.1.1170 DECIMAL
 * (done) 6.1.1200 DEPTH
-* 6.1.1240 DO
+* (done) 6.1.1240 DO
 * 6.1.1250 DOES>
 * (done) 6.1.1260 DROP
 * (done) 6.1.1290 DUP
@@ -94,9 +93,9 @@
 * (done) 6.1.1720 INVERT
 * 6.1.1730 J
 * 6.1.1750 KEY
-* 6.1.1760 LEAVE
+* (done) 6.1.1760 LEAVE
 * 6.1.1780 LITERAL
-* 6.1.1800 LOOP
+* (done) 6.1.1800 LOOP
 * (done) 6.1.1805 LSHIFT
 * 6.1.1810 M*
 * (done) 6.1.1870 MAX
@@ -129,7 +128,7 @@
 * 6.1.2340 U<
 * 6.1.2360 UM*
 * 6.1.2370 UM/MOD
-* 6.1.2380 UNLOOP
+* (done) 6.1.2380 UNLOOP
 * 6.1.2390 UNTIL
 * (done) 6.1.2410 VARIABLE
 * (done) 6.1.2430 WHILE

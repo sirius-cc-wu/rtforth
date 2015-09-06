@@ -2,7 +2,7 @@
 
 ## TODO
 
-* FILL
+* FILL MOVE
 * SIEVE Benchmark
 
 ## Checklist
@@ -88,11 +88,11 @@
 * 6.1.1561 FM/MOD
 * (done) 6.1.1650 HERE
 * 6.1.1670 HOLD
-* 6.1.1680 I
+* (done) 6.1.1680 I
 * (done) 6.1.1700 IF
 * 6.1.1710 IMMEDIATE
 * (done) 6.1.1720 INVERT
-* 6.1.1730 J
+* (done) 6.1.1730 J
 * 6.1.1750 KEY
 * (done) 6.1.1760 LEAVE
 * 6.1.1780 LITERAL

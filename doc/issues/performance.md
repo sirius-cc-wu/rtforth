@@ -1,8 +1,11 @@
-Performance
-===========
+# Performance
 
-Benchmark against SwiftForth and GForth
-=======================================
+## Profiling
+
+$ valgrind --tool=callgrind rf test.fs
+$ callgrind_annotate --auto=yes callgrind.out.xxxx
+
+## Benchmark against SwiftForth and GForth
 
 See benchmarks in doc/bench/forth/.
 
@@ -54,8 +57,7 @@ bench_to_r_r_fetch_r_from                    :          71 ns/iter (+/- 1)
 bench_two_to_r_two_r_fetch_two_r_from        :          87 ns/iter (+/- 2)
 ```
 
-Next Steps to Improve Performance
-=================================
+## Next Steps to Improve Performance
 
 * Performance of return stack was improved with unsafe code, those code
   (push, fetch and pop) cannot be wrapped in an implementation of struct Stack,

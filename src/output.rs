@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_s_quote_and_type () {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(1024);
         vm.auto_flush = false;
         vm.add_output();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_emit_and_flush () {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(1024);
         vm.auto_flush = false;
         vm.add_output();
         vm.set_source("42 emit 43 emit");

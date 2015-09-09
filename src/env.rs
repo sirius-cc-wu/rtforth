@@ -48,7 +48,7 @@ mod tests {
 
     #[test]
     fn test_max_n() {
-        let mut vm = VM::new();
+        let mut vm = VM::new(1024);
         vm.add_environment();
         vm.set_source("max-n dup 1+ +");
         vm.evaluate();
@@ -60,7 +60,7 @@ mod tests {
     #[test]
 
     fn test_max_u() {
-        let mut vm = VM::new();
+        let mut vm = VM::new(1024);
         vm.add_environment();
         vm.set_source("max-u 1+");
         vm.evaluate();

@@ -1,7 +1,7 @@
 [package]
 
 name = "rtforth"
-version = "0.1.10"
+version = "0.1.11"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 
 [dependencies]
@@ -12,4 +12,4 @@ byteorder = "0.3"
 clippy = "*"
 
 [profile.release]
-debug = false
+debug = true

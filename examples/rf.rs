@@ -63,7 +63,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.1.10, Copyright (C) 2015 Mapacode Inc.");
+    println!("rtForth v0.1.11, Copyright (C) 2015 Mapacode Inc.");
 }
 
 fn repl(vm: &mut VM) {
@@ -74,8 +74,9 @@ fn repl(vm: &mut VM) {
         vm.set_source(&line);
         vm.evaluate();
         if vm.has_error() {
-            if vm.error_code == Bye as isize {
-                break;
+            match vm.error_code {
+                Bye => break,
+                _ => {}
             }
         } else {
             println!(" ok");

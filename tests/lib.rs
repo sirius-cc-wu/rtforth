@@ -4,7 +4,7 @@ use rtforth::tools::Tools;
 
 #[test]
 fn test_primitives() {
-	let vm = &mut VM::new();
+	let vm = &mut VM::new(1024);
 	vm.noop();
     vm.p_false();
     assert_eq!(vm.s_stack.len(), 1);

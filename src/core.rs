@@ -8,12 +8,12 @@ use std::str::FromStr;
 use std::ascii::AsciiExt;
 use std::fmt;
 use std::slice;
-use exception::Exception;
 use std::io::Write;
 use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 
 
 use exception::Exception::{
+    self,
     NoException,
     Abort,
     UnexpectedEndOfFile,
@@ -35,11 +35,11 @@ pub struct Word {
     nfa: usize,
     dfa: usize,
     name_len: usize,
-    action: fn(& mut VM)
+    action: fn(& mut VM) -> Option<Exception>
 }
 
 impl Word {
-    pub fn new(nfa: usize, name_len: usize, dfa: usize, action: fn(& mut VM)) -> Word {
+    pub fn new(nfa: usize, name_len: usize, dfa: usize, action: fn(& mut VM) -> Option<Exception>) -> Word {
         Word {
             is_immediate: false,
             is_compile_only: false,
@@ -261,7 +261,7 @@ impl<T: fmt::Display> fmt::Debug for Stack<T> {
 pub struct VM {
     is_compiling: bool,
     is_paused: bool,
-    pub error_code: isize,
+    pub error_code: Exception,
     pub s_stack: Stack<isize>,
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
@@ -292,7 +292,7 @@ impl VM {
         let mut vm = VM {
             is_compiling: false,
             is_paused: true,
-            error_code: NoException as isize,
+            error_code: NoException,
             s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
@@ -450,33 +450,33 @@ impl VM {
         self.word_pointer
     }
 
-    pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM)) {
+    pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.word_list.push (Word::new(self.n_heap.len(), name.len(), self.s_heap.len(), action));
         self.n_heap.push_str(name);
     }
 
-    pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM)) {
+    pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
         let word = self.word_list.last_mut().unwrap();
         word.is_immediate = true;
     }
 
-    pub fn add_compile_only(&mut self, name: &str, action: fn(& mut VM)) {
+    pub fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
         let word = self.word_list.last_mut().unwrap();
         word.is_compile_only = true;
     }
 
-    pub fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM)) {
+    pub fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
         let word = self.word_list.last_mut().unwrap();
         word.is_immediate = true;
         word.is_compile_only = true;
     }
 
-    pub fn execute_word(&mut self, i: usize) {
+    pub fn execute_word(&mut self, i: usize) -> Option<Exception> {
         self.word_pointer = i;
-        (self.word_list[i].action)(self);
+        (self.word_list[i].action)(self)
     }
 
     /// Find the word with name 'name'.
@@ -505,7 +505,13 @@ impl VM {
         while self.instruction_pointer > 0 && self.instruction_pointer < self.s_heap.len() {
             let w = self.s_heap.get_i32(self.instruction_pointer) as usize;
             self.instruction_pointer += mem::size_of::<i32>();
-            self.execute_word (w);
+            match self.execute_word (w) {
+                Some(e) => {
+                    self.abort_with_error(e);
+                    break;
+                },
+                None => {}
+            }
         }
         self.instruction_pointer = 0;
     }
@@ -530,12 +536,14 @@ impl VM {
 
 // Evaluation
 
-    pub fn interpret(& mut self) {
+    pub fn interpret(& mut self) -> Option<Exception> {
         self.is_compiling = false;
+        None
     }
 
-    pub fn compile(& mut self) {
+    pub fn compile(& mut self) -> Option<Exception> {
         self.is_compiling = true;
+        None
     }
 
     pub fn set_source(&mut self, s: &str) {
@@ -547,7 +555,7 @@ impl VM {
     /// Run-time: ( "ccc" -- )
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
-    pub fn parse_word(&mut self) {
+    pub fn parse_word(&mut self) -> Option<Exception> {
         self.last_token.clear();
         let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
         let mut cnt = 0;
@@ -563,20 +571,21 @@ impl VM {
             };
         }
         self.source_index = self.source_index + cnt;
+        None
     }
 
     /// Run-time: ( "&lt;spaces&gt;name" -- char)
     ///
     /// Skip leading space delimiters. Parse name delimited by a space. Put the value of its first character onto the stack.
-    pub fn char(&mut self) {
+    pub fn char(&mut self) -> Option<Exception> {
         self.parse_word();
         match self.last_token.chars().nth(0) {
             Some(c) =>
                 match self.s_stack.push(c as isize) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(UnexpectedEndOfFile)
+            None => Some(UnexpectedEndOfFile)
         }
     }
 
@@ -587,18 +596,21 @@ impl VM {
     /// Run-time: ( -- char )
     ///
     /// Place char, the value of the first character of name, on the stack.
-    pub fn bracket_char(&mut self) {
+    pub fn bracket_char(&mut self) -> Option<Exception> {
         self.char();
         match self.s_stack.pop() {
-            Some(ch) => self.compile_integer(ch),
-            None => self.abort_with_error(StackUnderflow)
+            Some(ch) => {
+                self.compile_integer(ch);
+                None
+            },
+            None => Some(StackUnderflow)
         }
     }
 
     /// Run-time: ( char "ccc&lt;char&gt;" -- )
     ///
     /// Parse ccc delimited by the delimiter char.
-    pub fn parse(&mut self) {
+    pub fn parse(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
                 self.last_token.clear();
@@ -613,26 +625,28 @@ impl VM {
                     }
                 }
                 self.source_index = self.source_index + cnt;
+                None
             },
-            None => {
-                self.abort_with_error(StackUnderflow);
-            }
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn imm_paren(&mut self) {
-        self.s_stack.push(')' as isize);
-        self.parse();
+    pub fn imm_paren(&mut self) -> Option<Exception> {
+        match self.s_stack.push(')' as isize) {
+            Some(_) => Some(StackOverflow),
+            None => self.parse()
+        }
     }
 
-    pub fn imm_backslash(&mut self) {
+    pub fn imm_backslash(&mut self) -> Option<Exception> {
         self.source_index = self.input_buffer.len(); 
+        None
     }
 
-    pub fn evaluate(&mut self) {
+    pub fn evaluate(&mut self) -> Option<Exception> {
         let saved_ip = self.instruction_pointer;
         self.instruction_pointer = 0;
-        self.error_code = NoException as isize;
+        self.error_code = NoException;
         loop {
             self.parse_word();
             if self.last_token.is_empty() {
@@ -652,10 +666,14 @@ impl VM {
                     } else if !self.is_compiling && is_compile_only_word {
                         self.abort_with_error(InterpretingACompileOnlyWord);
                     } else {
-                        self.execute_word(found_index);
-                        if self.instruction_pointer != 0 {
-                            self.inner();
-                        }
+                        match self.execute_word(found_index) {
+                            Some(e) => self.abort_with_error(e),
+                            None => {
+                                if self.instruction_pointer != 0 {
+                                    self.inner();
+                                }
+                            }
+                        };
                     }
                 },
                 None =>
@@ -698,35 +716,50 @@ impl VM {
             }
         }
         self.instruction_pointer = saved_ip;
+        if self.has_error() {
+            Some(self.error_code)
+        } else {
+            None
+        }
     }
 
 // High level definitions
 
-    pub fn nest(&mut self) {
+    pub fn nest(&mut self) -> Option<Exception> {
         if self.r_stack.len == self.r_stack.cap {
-            self.abort_with_error(ReturnStackOverflow)
+            Some(ReturnStackOverflow)
         } else {
             unsafe {
                 ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), self.instruction_pointer as isize);
             }
             self.r_stack.len += 1;
             self.instruction_pointer = self.word_list[self.word_pointer].dfa;
+            None
         }
     }
 
-    pub fn p_var(&mut self) {
-        self.s_stack.push(self.word_list[self.word_pointer].dfa as isize);
+    pub fn p_var(&mut self) -> Option<Exception> {
+        match self.s_stack.push(self.word_list[self.word_pointer].dfa as isize) {
+            Some(_) => Some(StackOverflow),
+            None => None
+        }
     }
 
-    pub fn p_const(&mut self) {
-        self.s_stack.push(self.s_heap.get_i32(self.word_list[self.word_pointer].dfa) as isize);
+    pub fn p_const(&mut self) -> Option<Exception> {
+        match self.s_stack.push(self.s_heap.get_i32(self.word_list[self.word_pointer].dfa) as isize) {
+            Some(_) => Some(StackOverflow),
+            None => None
+        }
     }
 
-    pub fn p_fvar(&mut self) {
-        self.s_stack.push(self.word_list[self.word_pointer].dfa as isize);
+    pub fn p_fvar(&mut self) -> Option<Exception> {
+        match self.s_stack.push(self.word_list[self.word_pointer].dfa as isize) {
+            Some(_) => Some(StackOverflow),
+            None => None
+        }
     }
 
-    pub fn define(&mut self, action: fn(& mut VM)) {
+    pub fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception> {
         self.parse_word();
         match self.find(&self.last_token) {
             Some(_) => print!("Redefining {}", self.last_token),
@@ -737,48 +770,61 @@ impl VM {
             self.last_definition = self.word_list.len();
             self.word_list.push (w);
             self.n_heap.push_str(&self.last_token);
+            None
         } else {
             self.last_definition = 0;
-            self.abort_with_error (UnexpectedEndOfFile);
+            Some(UnexpectedEndOfFile)
         }
     }
 
-    pub fn colon(&mut self) {
-        self.define(VM::nest);
-        if self.last_definition != 0 {
-            self.word_list[self.last_definition].hidden = true;
-            self.compile();
+    pub fn colon(&mut self) -> Option<Exception> {
+        match self.define(VM::nest) {
+            Some(e) => Some(e),
+            None => {
+                self.word_list[self.last_definition].hidden = true;
+                self.compile()
+            }
         }
     }
 
-    pub fn semicolon(&mut self) {
+    pub fn semicolon(&mut self) -> Option<Exception>{
         if self.last_definition != 0 {
             self.s_heap.push_i32(self.idx_exit as i32); 
             self.word_list[self.last_definition].hidden = false;
         }
-        self.interpret();
+        self.interpret()
     }
 
-    pub fn create(&mut self) {
-        self.define(VM::p_var);
+    pub fn create(&mut self) -> Option<Exception> {
+        self.define(VM::p_var)
     }
 
-    pub fn variable(&mut self) {
-        self.define(VM::p_var);
-        self.s_heap.push_i32(0);
-    }
-
-    pub fn constant(&mut self) {
-        match self.s_stack.pop() {
-            Some(v) => {
-                self.define(VM::p_const);
-                self.s_heap.push_i32(v as i32);
-            },
-            None => self.abort_with_error(StackUnderflow)
+    pub fn variable(&mut self) -> Option<Exception> {
+        match self.define(VM::p_var) {
+            Some(e) => Some(e),
+            None => {
+                self.s_heap.push_i32(0);
+                None
+            }
         }
     }
 
-    pub fn unmark(&mut self) {
+    pub fn constant(&mut self) -> Option<Exception> {
+        match self.s_stack.pop() {
+            Some(v) => {
+                match self.define(VM::p_const) {
+                    Some(e) => Some(e),
+                    None => {
+                        self.s_heap.push_i32(v as i32);
+                        None
+                    }
+                }
+            },
+            None => Some(StackUnderflow)
+        }
+    }
+
+    pub fn unmark(&mut self) -> Option<Exception> {
         let dfa = self.word_list[self.word_pointer].dfa;
         let nlen = self.s_heap.get_i32(dfa) as usize;
         let wlen = self.s_heap.get_i32(dfa+mem::size_of::<i32>()) as usize;
@@ -786,9 +832,10 @@ impl VM {
         self.n_heap.truncate(nlen);
         self.word_list.truncate(wlen);
         self.s_heap.truncate(slen);
+        None
     }
 
-    pub fn marker(&mut self) {
+    pub fn marker(&mut self) -> Option<Exception> {
         self.define(VM::unmark);
         let nlen = self.n_heap.len() as i32;
         let wlen = self.word_list.len() as i32;
@@ -796,24 +843,27 @@ impl VM {
         self.s_heap.push_i32(nlen);
         self.s_heap.push_i32(wlen);
         self.s_heap.push_i32(slen+3*(mem::size_of::<i32>() as i32));
+        None
     }
 
 // Control
 
-    pub fn branch(&mut self) {
+    pub fn branch(&mut self) -> Option<Exception> {
         self.instruction_pointer = self.s_heap.get_i32(self.instruction_pointer) as usize;
+        None
     }
 
-    pub fn zero_branch(&mut self) {
+    pub fn zero_branch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
                 if v == 0 {
                     self.branch()
                 } else {
                     self.instruction_pointer += mem::size_of::<i32>();
+                    None
                 }
             },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
@@ -823,12 +873,12 @@ impl VM {
     /// ambiguous condition exists if n1|u1 and n2|u2 are not both the same
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded. 
-    pub fn _do(&mut self) {
+    pub fn _do(&mut self) -> Option<Exception> {
         match self.r_stack.push(self.instruction_pointer as isize) {
-            Some(_) => self.abort_with_error(ReturnStackOverflow),
+            Some(_) => Some(ReturnStackOverflow),
             None => {
                 self.instruction_pointer += mem::size_of::<i32>();
-                self.two_to_r();
+                self.two_to_r()
             }
         }
     }
@@ -840,7 +890,7 @@ impl VM {
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop. 
-    pub fn p_loop(&mut self) {
+    pub fn p_loop(&mut self) -> Option<Exception> {
         match self.r_stack.pop2() {
             Some((rn, rt)) => {
                 if rt+1 < rn {
@@ -850,12 +900,13 @@ impl VM {
                     match self.r_stack.pop() {
                         Some(_) => {
                             self.instruction_pointer += mem::size_of::<i32>();
+                            None
                         },
-                        None => self.abort_with_error(ReturnStackUnderflow) 
+                        None => Some(ReturnStackUnderflow) 
                     }
                 }
             },
-            None => self.abort_with_error(ReturnStackUnderflow)
+            None => Some(ReturnStackUnderflow)
         }
     }
 
@@ -867,7 +918,7 @@ impl VM {
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
     /// following the loop. 
-    pub fn p_plus_loop(&mut self) {
+    pub fn p_plus_loop(&mut self) -> Option<Exception> {
         match self.r_stack.pop2() {
             Some((rn, rt)) => {
                 match self.s_stack.pop() {
@@ -879,15 +930,16 @@ impl VM {
                             match self.r_stack.pop() {
                                 Some(_) => {
                                     self.instruction_pointer += mem::size_of::<i32>();
+                                    None
                                 },
-                                None => self.abort_with_error(ReturnStackUnderflow) 
+                                None => Some(ReturnStackUnderflow) 
                             }
                         }
                     },
-                    None => self.abort_with_error(StackUnderflow)
+                    None => Some(StackUnderflow)
                 }
             },
-            None => self.abort_with_error(ReturnStackUnderflow)
+            None => Some(ReturnStackUnderflow)
         }
     }
 
@@ -897,54 +949,55 @@ impl VM {
     /// UNLOOP is required for each nesting level before the definition may be
     /// EXITed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable. 
-    pub fn unloop(&mut self) {
+    pub fn unloop(&mut self) -> Option<Exception> {
         match self.r_stack.pop3() {
-            Some(_) => {},
-            None => self.abort_with_error(ReturnStackUnderflow)
+            Some(_) => None,
+            None => Some(ReturnStackUnderflow)
         }
     }
 
-    pub fn leave(&mut self) {
+    pub fn leave(&mut self) -> Option<Exception> {
         match self.r_stack.pop3() {
             Some((third, _, _)) => {
                 self.instruction_pointer = self.s_heap.get_i32(third as usize) as usize;
+                None
             },
-            None => self.abort_with_error(ReturnStackUnderflow)
+            None => Some(ReturnStackUnderflow)
         }
     }
 
-    pub fn p_i(&mut self) {
+    pub fn p_i(&mut self) -> Option<Exception> {
         match self.r_stack.last() {
             Some(i) => {
                 match self.s_stack.push(i) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 }
             },
-            None => self.abort_with_error(ReturnStackUnderflow)
+            None => Some(ReturnStackUnderflow)
         }
     }
 
-    pub fn p_j(&mut self) {
+    pub fn p_j(&mut self) -> Option<Exception> {
         let pos = self.r_stack.len() - 4;
         match self.r_stack.get(pos) {
             Some(j) => {
                 match self.s_stack.push(j) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 }
             },
-            None => self.abort_with_error(ReturnStackUnderflow)
+            None => Some(ReturnStackUnderflow)
         }
     }
 
-    pub fn imm_if(&mut self) {
+    pub fn imm_if(&mut self) -> Option<Exception> {
         self.s_heap.push_i32(self.idx_zero_branch as i32);
         self.s_heap.push_i32(0);
-        self.here();
+        self.here()
     }
 
-    pub fn imm_else(&mut self) {
+    pub fn imm_else(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(if_part) => {
                 self.s_heap.push_i32(self.idx_branch as i32);
@@ -952,64 +1005,69 @@ impl VM {
                 self.here();
                 let here = self.s_heap.len();
                 self.s_heap.put_i32((if_part - mem::size_of::<i32>() as isize) as usize, here as i32);
+                None
             },
-            None => self.abort_with_error(StackUnderflow)
-        };
+            None => Some(StackUnderflow)
+        }
     }
 
-    pub fn imm_then(&mut self) {
+    pub fn imm_then(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(branch_part) => {
                 let here = self.s_heap.len();
                 self.s_heap.put_i32((branch_part - mem::size_of::<i32>() as isize) as usize, here as i32);
+                None
             },
-            None => self.abort_with_error(StackUnderflow)
-        };
+            None => Some(StackUnderflow)
+        }
     }
 
-    pub fn imm_begin(&mut self) {
-        self.here();
+    pub fn imm_begin(&mut self) -> Option<Exception> {
+        self.here()
     }
 
-    pub fn imm_while(&mut self) {
+    pub fn imm_while(&mut self) -> Option<Exception> {
         self.s_heap.push_i32(self.idx_zero_branch as i32);
         self.s_heap.push_i32(0);
-        self.here();
+        self.here()
     }
 
-    pub fn imm_repeat(&mut self) {
+    pub fn imm_repeat(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((begin_part, while_part)) => {
                 self.s_heap.push_i32(self.idx_branch as i32);
                 self.s_heap.push_i32(begin_part as i32);
                 let here = self.s_heap.len();
                 self.s_heap.put_i32((while_part - mem::size_of::<i32>() as isize) as usize, here as i32);
+                None
             },
-            None => self.abort_with_error(StackUnderflow)
-        };
+            None => Some(StackUnderflow)
+        }
     }
 
-    pub fn imm_again(&mut self) {
+    pub fn imm_again(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(begin_part) => {
                 self.s_heap.push_i32(self.idx_branch as i32);
                 self.s_heap.push_i32(begin_part as i32);
+                None
             },
-            None => self.abort_with_error(StackUnderflow)
-        };
+            None => Some(StackUnderflow)
+        }
     }
 
-    pub fn imm_recurse(&mut self) {
+    pub fn imm_recurse(&mut self) -> Option<Exception> {
         self.s_heap.push_i32(self.last_definition as i32);
+        None
     }
 
     /// Execution: ( -- a-ddr )
     ///
     /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
-    pub fn imm_do(&mut self) {
+    pub fn imm_do(&mut self) -> Option<Exception> {
         self.s_heap.push_i32(self.idx_do as i32);
         self.s_heap.push_i32(0);
-        self.here();
+        self.here()
     }
 
     /// Run-time: ( a-addr -- )
@@ -1018,16 +1076,17 @@ impl VM {
     /// Resolve the destination of all unresolved occurrences of LEAVE between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the LOOP. 
-    pub fn imm_loop(&mut self) {
+    pub fn imm_loop(&mut self) -> Option<Exception>{
         match self.s_stack.pop() {
             Some(do_part) => {
                 self.s_heap.push_i32(self.idx_loop as i32);
                 self.s_heap.push_i32(do_part as i32);
                 let here = self.s_heap.len();
-                self.s_heap.put_i32((do_part - mem::size_of::<i32>() as isize) as usize, here as i32)
+                self.s_heap.put_i32((do_part - mem::size_of::<i32>() as isize) as usize, here as i32);
+                None
             },
-            None => self.abort_with_error(StackUnderflow)
-        };
+            None => Some(StackUnderflow)
+        }
     }
 
     /// Run-time: ( a-addr -- )
@@ -1036,63 +1095,71 @@ impl VM {
     /// Resolve the destination of all unresolved occurrences of LEAVE between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following +LOOP. 
-    pub fn imm_plus_loop(&mut self) {
+    pub fn imm_plus_loop(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(do_part) => {
                 self.s_heap.push_i32(self.idx_plus_loop as i32);
                 self.s_heap.push_i32(do_part as i32);
                 let here = self.s_heap.len();
-                self.s_heap.put_i32((do_part - mem::size_of::<i32>() as isize) as usize, here as i32)
+                self.s_heap.put_i32((do_part - mem::size_of::<i32>() as isize) as usize, here as i32);
+                None
             },
-            None => self.abort_with_error(StackUnderflow)
-        };
+            None => Some(StackUnderflow)
+        }
     }
 
 // Primitives
 
-    pub fn noop(&mut self) {
+    pub fn noop(&mut self) -> Option<Exception> {
         // Do nothing
+        None
     }
 
     /// Run-time: ( -- true )
     ///
     /// Return a true flag, a single-cell value with all bits set. 
-    pub fn p_true(&mut self) {
-        self.s_stack.push (-1);
+    pub fn p_true(&mut self) -> Option<Exception> {
+        match self.s_stack.push (-1) {
+            Some(_) => Some(StackOverflow),
+            None => None
+        }
     }
 
     /// Run-time: ( -- false )
     ///
     /// Return a false flag.
-    pub fn p_false(&mut self) {
-        self.s_stack.push (0);
+    pub fn p_false(&mut self) -> Option<Exception> {
+        match self.s_stack.push (0) {
+            Some(_) => Some(StackOverflow),
+            None => None
+        }
     }
 
     /// Run-time: (c-addr1 -- c-addr2 )
     ///
     ///Add the size in address units of a character to c-addr1, giving c-addr2. 
-    pub fn char_plus(&mut self) {
+    pub fn char_plus(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) =>
                 match self.s_stack.push(v + mem::size_of::<u8>() as isize) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
     /// Run-time: (n1 -- n2 )
     ///
     /// n2 is the size in address units of n1 characters.
-    pub fn chars(&mut self) {
+    pub fn chars(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) =>
                 match self.s_stack.push(v*mem::size_of::<u8>() as isize) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
@@ -1100,104 +1167,110 @@ impl VM {
     /// Run-time: (a-addr1 -- a-addr2 )
     ///
     /// Add the size in address units of a cell to a-addr1, giving a-addr2.
-    pub fn cell_plus(&mut self) {
+    pub fn cell_plus(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) =>
                 match self.s_stack.push(v + mem::size_of::<i32>() as isize) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
     /// Run-time: (n1 -- n2 )
     ///
     /// n2 is the size in address units of n1 cells. 
-    pub fn cells(&mut self) {
+    pub fn cells(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) =>
                 match self.s_stack.push(v*mem::size_of::<i32>() as isize) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn lit(&mut self) {
+    pub fn lit(&mut self) -> Option<Exception> {
         if self.s_stack.len >= self.s_stack.cap {
-            self.abort_with_error(StackOverflow)
+            Some(StackOverflow)
         } else {
             unsafe {
                 let v = self.s_heap.get_i32(self.instruction_pointer) as isize;
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), v);
             }
             self.s_stack.len += 1;
+            self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
+            None
         }
-        self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
     }
 
-    pub fn swap(&mut self) {
+    pub fn swap(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)));
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), t);
             }
+            None
         }
     }
 
-    pub fn dup(&mut self) {
+    pub fn dup(&mut self) -> Option<Exception> {
         if self.s_stack.len < 1 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else if self.s_stack.len >= self.s_stack.cap {
-            self.abort_with_error(StackOverflow)
+            Some(StackOverflow)
         } else {
             unsafe {
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)));
                 self.s_stack.len += 1;
             }
+            None
         }
     }
 
-    pub fn p_drop(&mut self) {
+    pub fn p_drop(&mut self) -> Option<Exception> {
         if self.s_stack.len < 1 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             self.s_stack.len -= 1;
+            None
         }
     }
 
-    pub fn nip(&mut self) {
+    pub fn nip(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 self.s_stack.len -= 1;
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
             }
+            None
         }
     }
 
-    pub fn over(&mut self) {
+    pub fn over(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else if self.s_stack.len >= self.s_stack.cap {
-            self.abort_with_error(StackOverflow)
+            Some(StackOverflow)
         } else {
             unsafe {
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)));
                 self.s_stack.len += 1;
             }
+            None
         }
     }
 
-    pub fn rot(&mut self) {
+    pub fn rot(&mut self) -> Option<Exception> {
         if self.s_stack.len < 3 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
@@ -1206,34 +1279,37 @@ impl VM {
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), t);
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-3) as isize), n);
             }
+            None
         }
     }
 
-    pub fn two_drop(&mut self) {
+    pub fn two_drop(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             self.s_stack.len -= 2;
+            None
         }
     }
 
-    pub fn two_dup(&mut self) {
+    pub fn two_dup(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else if self.s_stack.len + 2 > self.s_stack.cap {
-            self.abort_with_error(StackOverflow)
+            Some(StackOverflow)
         } else {
             unsafe {
                 self.s_stack.len += 2;
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-3) as isize)));
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-4) as isize)));
             }
+            None
         }
     }
 
-    pub fn two_swap(&mut self) {
+    pub fn two_swap(&mut self) -> Option<Exception> {
         if self.s_stack.len < 4 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
@@ -1243,114 +1319,123 @@ impl VM {
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-3) as isize), t);
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-4) as isize), n);
             }
+            None
         }
     }
 
-    pub fn two_over(&mut self) {
+    pub fn two_over(&mut self) -> Option<Exception> {
         if self.s_stack.len < 4 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else if self.s_stack.len + 2 > self.s_stack.cap {
-            self.abort_with_error(StackOverflow)
+            Some(StackOverflow)
         } else {
             unsafe {
                 self.s_stack.len += 2;
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-5) as isize)));
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-6) as isize)));
             }
+            None
         }
     }
 
-    pub fn depth(&mut self) {
+    pub fn depth(&mut self) -> Option<Exception> {
         let len = self.s_stack.len;
         match self.s_stack.push(len as isize) {
-            Some(_) => self.abort_with_error(StackOverflow),
-            None => {}
-        };
+            Some(_) => Some(StackOverflow),
+            None => None
+        }
     }
 
-    pub fn one_plus(&mut self) {
+    pub fn one_plus(&mut self) -> Option<Exception> {
         if self.s_stack.len < 1 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)).wrapping_add(1));
             }
+            None
         }
     }
 
-    pub fn one_minus(&mut self) {
+    pub fn one_minus(&mut self) -> Option<Exception> {
         if self.s_stack.len < 1 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize))-1);
             }
+            None
         }
     }
 
-    pub fn plus(&mut self) {
+    pub fn plus(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 self.s_stack.len -= 1;
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
                     ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) + ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
             }
+            None
         }
     }
 
-    pub fn minus(&mut self) {
+    pub fn minus(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 self.s_stack.len -= 1;
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
                     ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) - ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
             }
+            None
         }
     }
 
-    pub fn star(&mut self) {
+    pub fn star(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 self.s_stack.len -= 1;
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
                     ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) * ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
             }
+            None
         }
     }
 
-    pub fn slash(&mut self) {
+    pub fn slash(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 self.s_stack.len -= 1;
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
                     ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) / ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
             }
+            None
         }
     }
 
-    pub fn p_mod(&mut self) {
+    pub fn p_mod(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 self.s_stack.len -= 1;
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
                     ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) % ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
             }
+            None
         }
     }
 
-    pub fn slash_mod(&mut self) {
+    pub fn slash_mod(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
-            self.abort_with_error(StackUnderflow)
+            Some(StackUnderflow)
         } else {
             unsafe {
                 let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
@@ -1358,171 +1443,172 @@ impl VM {
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), n%t);
                 ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), n/t);
             }
+            None
         }
     }
 
-    pub fn abs(&mut self) {
+    pub fn abs(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(t.abs()) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn negate(&mut self) {
+    pub fn negate(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(-t) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn zero_less(&mut self) {
+    pub fn zero_less(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(if t<0 {-1} else {0}) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn zero_equals(&mut self) {
+    pub fn zero_equals(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(if t==0 {-1} else {0}) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn zero_greater(&mut self) {
+    pub fn zero_greater(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(if t>0 {-1} else {0}) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn zero_not_equals(&mut self) {
+    pub fn zero_not_equals(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(if t!=0 {-1} else {0}) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn equals(&mut self) {
+    pub fn equals(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(if t==n {-1} else {0}) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn less_than(&mut self) {
+    pub fn less_than(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(if n<t {-1} else {0}) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn greater_than(&mut self) {
+    pub fn greater_than(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(if n>t {-1} else {0}) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn not_equals(&mut self) {
+    pub fn not_equals(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(if n!=t {-1} else {0}) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn between(&mut self) {
+    pub fn between(&mut self) -> Option<Exception> {
         match self.s_stack.pop3() {
             Some((x1, x2, x3)) =>
                 match self.s_stack.push(if x2<=x1 && x1<=x3 {-1} else {0}) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn invert(&mut self) {
+    pub fn invert(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(!t) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn and(&mut self) {
+    pub fn and(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(t & n) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn or(&mut self) {
+    pub fn or(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(t | n) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn xor(&mut self) {
+    pub fn xor(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(t ^ n) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
@@ -1532,14 +1618,14 @@ impl VM {
     /// zeroes into the least significant bits vacated by the shift. An
     /// ambiguous condition exists if u is greater than or equal to the number
     /// of bits in a cell. 
-    pub fn lshift(&mut self) {
+    pub fn lshift(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(n << t) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
@@ -1549,14 +1635,14 @@ impl VM {
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if u is greater than or equal to the number
     /// of bits in a cell. 
-    pub fn rshift(&mut self) {
+    pub fn rshift(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push((n as usize >> t) as isize) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
@@ -1566,14 +1652,14 @@ impl VM {
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if u is greater than or equal to the number
     /// of bits in a cell. 
-    pub fn arshift(&mut self) {
+    pub fn arshift(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(n >> t) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
@@ -1583,38 +1669,42 @@ impl VM {
     /// Return control to the calling definition specified by nest-sys. Before executing EXIT within a
     /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP. 
     /// TODO: UNLOOP
-    pub fn exit(&mut self) {
+    pub fn exit(&mut self) -> Option<Exception> {
         if self.r_stack.len == 0 {
-            self.abort_with_error(ReturnStackUnderflow)
+            Some(ReturnStackUnderflow)
         } else {
             self.r_stack.len -= 1;
             unsafe {
                 self.instruction_pointer = ptr::read(self.r_stack.ptr.offset(self.r_stack.len as isize)) as usize; 
             }
+            None
         }
     }
 
     /// Run-time: ( a-addr -- x )
     ///
     /// x is the value stored at a-addr. 
-    pub fn fetch(&mut self) {
+    pub fn fetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(self.s_heap.get_i32(t as usize) as isize) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
-        };
+            None => Some(StackUnderflow)
+        }
     }
 
     /// Run-time: ( x a-addr -- )
     ///
     /// Store x at a-addr. 
-    pub fn store(&mut self) {
+    pub fn store(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
-            Some((n,t)) => { self.s_heap.put_i32(t as usize,  n as i32); },
-            None => self.abort_with_error(StackUnderflow)
+            Some((n,t)) => {
+                self.s_heap.put_i32(t as usize,  n as i32);
+                None
+            },
+            None => Some(StackUnderflow)
         }
     }
 
@@ -1622,15 +1712,15 @@ impl VM {
     ///
     /// Fetch the character stored at c-addr. When the cell size is greater than
     /// character size, the unused high-order bits are all zeroes. 
-    pub fn c_fetch(&mut self) {
+    pub fn c_fetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(self.s_heap.get_u8(t as usize) as isize) {
-                    Some(_) => self.abort_with_error(StackOverflow),
-                    None => {}
+                    Some(_) => Some(StackOverflow),
+                    None => None
                 },
-            None => self.abort_with_error(StackUnderflow)
-        };
+            None => Some(StackUnderflow)
+        }
     }
 
     /// Run-time: ( char c-addr -- )
@@ -1638,10 +1728,13 @@ impl VM {
     /// Store char at c-addr. When character size is smaller than cell size,
     /// only the number of low-order bits corresponding to character size are
     /// transferred. 
-    pub fn c_store(&mut self) {
+    pub fn c_store(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
-            Some((n,t)) => { self.s_heap.put_u8(t as usize,  n as u8); },
-            None => self.abort_with_error(StackUnderflow)
+            Some((n,t)) => {
+                self.s_heap.put_u8(t as usize,  n as u8);
+                None
+            },
+            None => Some(StackUnderflow)
         }
     }
 
@@ -1650,19 +1743,19 @@ impl VM {
     /// Skip leading space delimiters. Parse name delimited by a space. Find
     /// name and return xt, the execution token for name. An ambiguous
     /// condition exists if name is not found. 
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self) -> Option<Exception> {
         self.parse_word();
         if !self.last_token.is_empty() {
             match self.find(&self.last_token) {
                 Some(found_index) =>
                     match self.s_stack.push(found_index as isize) {
-                        Some(_) => self.abort_with_error(StackOverflow),
-                        None => {}
+                        Some(_) => Some(StackOverflow),
+                        None => None
                     },
-                None => self.abort_with_error(UndefinedWord)
+                None => Some(UndefinedWord)
             }
         } else {
-            self.abort_with_error(UnexpectedEndOfFile);
+            Some(UnexpectedEndOfFile)
         }
     }
 
@@ -1670,18 +1763,23 @@ impl VM {
     ///
     /// Remove xt from the stack and perform the semantics identified by it.
     /// Other stack effects are due to the word EXECUTEd.
-    pub fn execute(&mut self) {
+    pub fn execute(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
-            Some(t) => self.execute_word(t as usize),
-            None => self.abort_with_error(StackUnderflow)
-        };
+            Some(t) => {
+                self.execute_word(t as usize)
+            },
+            None => Some(StackUnderflow)
+        }
     }
 
     /// Run-time: ( -- addr )
     ///
     /// addr is the data-space pointer. 
-    pub fn here(&mut self) {
-        self.s_stack.push(self.s_heap.len() as isize);
+    pub fn here(&mut self) -> Option<Exception> {
+        match self.s_stack.push(self.s_heap.len() as isize) {
+            Some(_) => Some(StackOverflow),
+            None => None
+        }
     }
 
     /// Run-time: ( n -- )
@@ -1689,14 +1787,16 @@ impl VM {
     /// If n is greater than zero, reserve n address units of data space. If n
     /// is less than zero, release |n| address units of data space. If n is
     /// zero, leave the data-space pointer unchanged. 
-    pub fn allot(&mut self) {
+    pub fn allot(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
-            Some(v) =>
+            Some(v) => {
                 unsafe {
                     let len = (self.s_heap.len() as isize + v) as usize;
                     self.s_heap.set_len(len);
-                },
-            None => self.abort_with_error(StackUnderflow)
+                }
+                None
+            },
+            None => Some(StackUnderflow)
         }
     }
 
@@ -1706,92 +1806,101 @@ impl VM {
     /// data-space pointer is aligned when , begins execution, it will remain
     /// aligned when , finishes execution. An ambiguous condition exists if the
     /// data-space pointer is not aligned prior to execution of ,. 
-    pub fn comma(&mut self) {
+    pub fn comma(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
-            Some(v) => self.s_heap.push_i32(v as i32),
-            None => self.abort_with_error(StackUnderflow)
+            Some(v) => {
+                self.s_heap.push_i32(v as i32);
+                None
+            },
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn p_to_r(&mut self) {
+    pub fn p_to_r(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
                 if self.r_stack.len >= self.r_stack.cap {
-                    self.abort_with_error(ReturnStackOverflow)
+                    Some(ReturnStackOverflow)
                 } else {
                     unsafe {
                         ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), v);
                     }
                     self.r_stack.len += 1;
+                    None
                 }
             },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn r_from(&mut self) {
+    pub fn r_from(&mut self) -> Option<Exception> {
         if self.r_stack.len == 0 {
-            self.abort_with_error(ReturnStackUnderflow)
+            Some(ReturnStackUnderflow)
         } else {
             self.r_stack.len -= 1;
             unsafe {
                 self.s_stack.push(ptr::read(self.r_stack.ptr.offset(self.r_stack.len as isize))); 
             }
+            None
         }
     }
 
-    pub fn r_fetch(&mut self) {
+    pub fn r_fetch(&mut self) -> Option<Exception> {
         if self.r_stack.len == 0 {
-            self.abort_with_error(ReturnStackUnderflow)
+            Some(ReturnStackUnderflow)
         } else {
             unsafe {
                 self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len-1) as isize))); 
             }
+            None
         }
     }
 
-    pub fn two_to_r(&mut self) {
+    pub fn two_to_r(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 if self.r_stack.len >= self.r_stack.cap-1 {
-                    self.abort_with_error(ReturnStackOverflow)
+                    Some(ReturnStackOverflow)
                 } else {
                     unsafe {
                         ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), n);
                         ptr::write(self.r_stack.ptr.offset((self.r_stack.len+1) as isize), t);
                     }
                     self.r_stack.len += 2;
+                    None
                 },
-            None => self.abort_with_error(StackUnderflow)
+            None => Some(StackUnderflow)
         }
     }
 
-    pub fn two_r_from(&mut self) {
+    pub fn two_r_from(&mut self) -> Option<Exception> {
         if self.r_stack.len < 2 {
-            self.abort_with_error(ReturnStackUnderflow)
+            Some(ReturnStackUnderflow)
         } else {
             self.r_stack.len -= 2;
             unsafe {
                 self.s_stack.push(ptr::read(self.r_stack.ptr.offset(self.r_stack.len as isize))); 
                 self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len+1) as isize))); 
             }
+            None
         }
     }
 
-    pub fn two_r_fetch(&mut self) {
+    pub fn two_r_fetch(&mut self) -> Option<Exception> {
         if self.r_stack.len < 2 {
-            self.abort_with_error(ReturnStackUnderflow)
+            Some(ReturnStackUnderflow)
         } else {
             unsafe {
                 self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len-2) as isize))); 
                 self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len-1) as isize))); 
             }
+            None
         }
     }
 
-    pub fn pause(&mut self) {
-        if self.r_stack.len == self.r_stack.cap {
-            self.abort_with_error(ReturnStackOverflow)
+    pub fn pause(&mut self) -> Option<Exception> {
+        if self.r_stack.len >= self.r_stack.cap {
+            Some(ReturnStackOverflow)
         } else {
             unsafe {
                 ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), self.instruction_pointer as isize);
@@ -1799,32 +1908,37 @@ impl VM {
             self.r_stack.len += 1;
             self.instruction_pointer = 0;
             self.is_paused = true;
+            None
         }
     }
 
 // Error handlling
 
     pub fn has_error(&self) -> bool {
-        self.error_code != NoException as isize
+        match self.error_code {
+            NoException => false,
+            _ => true
+        }
     }
 
     #[inline(never)]
     pub fn abort_with_error(&mut self, e: Exception) {
         println!("{}", e.name());
         self.abort();
-        self.error_code = e as isize;
+        self.error_code = e;
     }
 
     #[inline(never)]
-    pub fn abort(&mut self) {
+    pub fn abort(&mut self) -> Option<Exception> {
         self.s_stack.clear();
         self.f_stack.clear();
-        self.error_code = Abort as isize;
         self.quit();
+        self.error_code = Abort;
+        Some(Abort)
     }
 
     #[inline(never)]
-    pub fn quit(&mut self) {
+    pub fn quit(&mut self) -> Option<Exception> {
         self.r_stack.len = 0;
         self.input_buffer.clear();
         self.source_index = 0;
@@ -1832,11 +1946,13 @@ impl VM {
         self.last_definition = 0;
         self.is_paused = false;
         self.interpret();
+        None
     }
 
     #[inline(never)]
-    fn bye(&mut self) {
-        self.error_code = Bye as isize;
+    fn bye(&mut self) -> Option<Exception> {
+        self.error_code = Bye;
+        Some(Bye)
     }
 }
 
@@ -1845,6 +1961,7 @@ mod tests {
     use super::*;
     use core::test::Bencher;
     use std::mem;
+    use exception::Exception::Abort;
 
     #[bench]
     fn bench_noop (b: &mut Bencher) {
@@ -1858,7 +1975,7 @@ mod tests {
         assert!(vm.find("").is_none());
         assert!(vm.find("word-not-exist").is_none());
         assert_eq!(0usize, vm.find("noop").unwrap());
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -1888,7 +2005,7 @@ mod tests {
         vm.compile_integer(1);
         vm.inner_interpret(ip);
         assert_eq!(3usize, vm.s_stack.len());
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -1912,7 +2029,7 @@ mod tests {
         vm.s_stack.push(1);
         vm.p_drop();
         assert!(vm.s_stack.is_empty());
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -1933,7 +2050,7 @@ mod tests {
         vm.nip();
         assert!(vm.s_stack.len()==1);
         assert!(vm.s_stack.last() == Some(2));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -1956,7 +2073,7 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -1975,7 +2092,7 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -1998,7 +2115,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2023,7 +2140,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.s_stack.pop(), Some(3));
         assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2042,7 +2159,7 @@ mod tests {
         vm.s_stack.push(2);
         vm.two_drop();
         assert!(vm.s_stack.is_empty());
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2066,7 +2183,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2093,7 +2210,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.s_stack.pop(), Some(4));
         assert_eq!(vm.s_stack.pop(), Some(3));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2116,7 +2233,7 @@ mod tests {
         vm.two_over();
         assert_eq!(vm.s_stack.len(), 6);
         assert_eq!(vm.s_stack.as_slice(), [1, 2, 3, 4, 1, 2]);
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2148,7 +2265,7 @@ mod tests {
         vm.one_plus();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2167,7 +2284,7 @@ mod tests {
         vm.one_minus();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2187,7 +2304,7 @@ mod tests {
         vm.minus();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-2));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2208,7 +2325,7 @@ mod tests {
         vm.plus();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(12));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2229,7 +2346,7 @@ mod tests {
         vm.star();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(35));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2250,7 +2367,7 @@ mod tests {
         vm.slash();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(4));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2271,7 +2388,7 @@ mod tests {
         vm.p_mod();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2294,7 +2411,7 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(4));
         assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2315,7 +2432,7 @@ mod tests {
         vm.abs();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(30));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2325,7 +2442,7 @@ mod tests {
         vm.negate();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-30));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2339,7 +2456,7 @@ mod tests {
         vm.zero_less();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2357,7 +2474,7 @@ mod tests {
         vm.zero_equals();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2371,7 +2488,7 @@ mod tests {
         vm.zero_greater();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2389,7 +2506,7 @@ mod tests {
         vm.zero_not_equals();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2405,7 +2522,7 @@ mod tests {
         vm.less_than();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2426,7 +2543,7 @@ mod tests {
         vm.equals();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2442,7 +2559,7 @@ mod tests {
         vm.greater_than();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2463,7 +2580,7 @@ mod tests {
         vm.not_equals();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2475,28 +2592,28 @@ mod tests {
         vm.between();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
         vm.s_stack.push(1);
         vm.s_stack.push(0);
         vm.s_stack.push(1);
         vm.between();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
         vm.s_stack.push(0);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.between();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
         vm.s_stack.push(3);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.between();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2506,7 +2623,7 @@ mod tests {
         vm.invert();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-708));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2517,7 +2634,7 @@ mod tests {
         vm.and();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(3));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2528,7 +2645,7 @@ mod tests {
         vm.or();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(711));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2539,7 +2656,7 @@ mod tests {
         vm.xor();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(708));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2550,13 +2667,13 @@ mod tests {
         vm.lshift();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.lshift();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(4));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2567,13 +2684,13 @@ mod tests {
         vm.rshift();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(4));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
         vm.s_stack.push(-1);
         vm.s_stack.push(1);
         vm.rshift();
         assert_eq!(vm.s_stack.len(), 1);
         assert!(vm.s_stack.pop().unwrap() > 0);
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2584,13 +2701,13 @@ mod tests {
         vm.arshift();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(4));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
         vm.s_stack.push(-8);
         vm.s_stack.push(1);
         vm.arshift();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-4));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2605,7 +2722,7 @@ mod tests {
         assert_eq!(vm.source_index, 12);
         vm.parse_word();
         assert_eq!(vm.last_token, "\"");
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2619,7 +2736,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2653,7 +2770,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(5));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2664,7 +2781,7 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(5));
         assert_eq!(vm.s_stack.pop(), Some(5));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2675,7 +2792,7 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(3));
         assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2702,7 +2819,7 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2727,7 +2844,7 @@ mod tests {
         assert_eq!(vm.s_heap.get_i32(8), 2);
         assert_eq!(vm.s_heap.get_i32(12), 0);
         assert_eq!(vm.s_heap.get_i32(16), 1);
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2737,7 +2854,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(8));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2761,7 +2878,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-3));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[bench]
@@ -2789,7 +2906,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2799,7 +2916,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(3));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2809,7 +2926,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(3));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2821,7 +2938,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(3));
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2843,7 +2960,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.input_buffer.len(), 0);
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -2852,7 +2969,10 @@ mod tests {
         vm.set_source("1 2 3 abort 5 6 7");
         vm.evaluate();
         assert_eq!(vm.s_stack.len(), 0);
-        assert_eq!(vm.error_code, -1);
+        match vm.error_code {
+            Abort => assert!(true),
+            _ => assert!(false)
+        }
     }
 
     #[bench]

@@ -1,5 +1,6 @@
 use core::VM;
 use exception::Exception::{
+    self,
     StackOverflow,
 };
 
@@ -11,12 +12,12 @@ pub trait Environment {
     /// Run-time: ( -- n )
     ///
     /// Largest usable signed integer
-    fn max_n(&mut self);
+    fn max_n(&mut self) -> Option<Exception>;
 
     /// Run-time: ( -- u )
     ///
     /// Largest usable unsigned integer
-    fn max_u(&mut self);
+    fn max_u(&mut self) -> Option<Exception>;
 }
 
 impl Environment for VM {
@@ -25,17 +26,17 @@ impl Environment for VM {
         self.add_primitive("max-u", VM::max_u);
     }
 
-    fn max_n(&mut self) {
+    fn max_n(&mut self) -> Option<Exception> {
         match self.s_stack.push(isize::max_value()) {
-            Some(_) => self.abort_with_error(StackOverflow),
-            None => {}
-        };
+            Some(_) => Some(StackOverflow),
+            None => None
+        }
     }
 
-    fn max_u(&mut self) {
+    fn max_u(&mut self) -> Option<Exception> {
         match self.s_stack.push(usize::max_value() as isize) {
-            Some(_) => self.abort_with_error(StackOverflow),
-            None => {}
+            Some(_) => Some(StackOverflow),
+            None => None
         }
     }
 

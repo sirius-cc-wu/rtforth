@@ -1,3 +1,4 @@
+#[derive(Debug, Copy, Clone)]
 pub enum Exception {
     // ANS Forth
     NoException = 0,

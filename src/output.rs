@@ -1,6 +1,7 @@
 use core::VM;
 use core::Heap;
 use exception::Exception::{
+    self,
     StackUnderflow,
     FloatingPointStackUnderflow
 };
@@ -13,12 +14,12 @@ pub trait Output {
     /// Run-time: ( x -- )
     /// 
     /// Put x into output buffer.
-    fn emit(&mut self);
+    fn emit(&mut self) -> Option<Exception>;
 
     /// Run-time: ( c-addr u -- )
     ///
     /// Put the character string specified by c-addr and u into output buffer. 
-    fn p_type(&mut self);
+    fn p_type(&mut self) -> Option<Exception>;
 
     /// Compilation: ( "ccc<quote>" -- )
     ///
@@ -29,7 +30,7 @@ pub trait Output {
     ///
     /// Return c-addr and u describing a string consisting of the characters ccc. A program
     /// shall not alter the returned string. 
-    fn s_quote(&mut self);
+    fn s_quote(&mut self) -> Option<Exception>;
 
     /// Compilation: ( "ccc<quote>" -- )
     ///
@@ -39,24 +40,24 @@ pub trait Output {
     /// Run-time: ( -- )
     ///
     /// Display ccc. 
-    fn dot_quote(&mut self);
+    fn dot_quote(&mut self) -> Option<Exception>;
 
     /// Execution: ( "ccc&lt;paren&gt;" -- )
     ///
     /// Parse and display ccc delimited by ) (right parenthesis). .( is an immediate word.
-    fn dot_paren(&mut self);
+    fn dot_paren(&mut self) -> Option<Exception>;
 
     /// Run-time: ( n -- )
     ///
     /// Display n in free field format. 
-    fn dot(&mut self);
+    fn dot(&mut self) -> Option<Exception>;
 
     /// Run-time: ( -- ) ( F: r -- )
     ///
     /// Display, with a trailing space, the top number on the floating-point stack using fixed-point notation.
-    fn fdot(&mut self);
+    fn fdot(&mut self) -> Option<Exception>;
 
-    fn flush(&mut self);
+    fn flush(&mut self) -> Option<Exception>;
 }
 
 impl Output for VM {
@@ -72,35 +73,41 @@ impl Output for VM {
         self.idx_type = self.find("type").expect("type undefined");
     }
 
-    fn emit(&mut self) {
+    fn emit(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
-            None => self.abort_with_error(StackUnderflow),
-            Some(ch) => self.output_buffer.push(ch as u8 as char)
-        }
-        if self.auto_flush {
-            self.flush();
+            None => Some(StackUnderflow),
+            Some(ch) => {
+                self.output_buffer.push(ch as u8 as char);
+                if self.auto_flush {
+                    self.flush();
+                }
+                None
+            }
         }
     }
 
-    fn p_type(&mut self) {
+    fn p_type(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
-            None => self.abort_with_error(StackUnderflow),
+            None => Some(StackUnderflow),
             Some(icnt) => match self.s_stack.pop() {
-                None => self.abort_with_error(StackUnderflow),
+                None => Some(StackUnderflow),
                 Some(iaddr) => {
                     let cnt = icnt as usize;
                     let addr = iaddr as usize;
-                    let s = &self.n_heap[addr..addr+cnt]; 
-                    self.output_buffer.push_str(s);
+                    {
+                        let s = &self.n_heap[addr..addr+cnt]; 
+                        self.output_buffer.push_str(s);
+                    }
+                    if self.auto_flush {
+                        self.flush();
+                    }
+                    None
                 }
             }
         }
-        if self.auto_flush {
-            self.flush();
-        }
     }
 
-    fn s_quote(&mut self) {
+    fn s_quote(&mut self) -> Option<Exception> {
         // ignore the space following S"
         let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
         let naddr = self.n_heap.len();
@@ -118,37 +125,47 @@ impl Output for VM {
         self.s_heap.push_i32(self.idx_lit as i32);
         self.s_heap.push_i32(cnt);
         self.source_index = self.source_index + 1 + cnt as usize + 1;
+        None
     }
 
-    fn dot_quote(&mut self) {
+    fn dot_quote(&mut self) -> Option<Exception> {
         self.s_quote();
         let idx_type = self.idx_type;
         self.compile_word(idx_type);
+        None
     }
 
-    fn dot_paren(&mut self) {
+    fn dot_paren(&mut self) -> Option<Exception> {
         self.s_stack.push(')' as isize);
         self.parse();
         self.output_buffer.extend(self.last_token.chars());
+        None
     }
 
-    fn dot(&mut self) {
+    fn dot(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
-            Some(n) => print!("{} ", n),
-            None => self.abort_with_error(StackUnderflow)
+            Some(n) => {
+                print!("{} ", n);
+                None
+            },
+            None => Some(StackUnderflow)
         }
     }
 
-    fn fdot(&mut self) {
+    fn fdot(&mut self) -> Option<Exception> {
         match self.f_stack.pop() {
-            Some(r) => print!("{} ", r),
-            None => self.abort_with_error(FloatingPointStackUnderflow)
+            Some(r) => {
+                print!("{} ", r);
+                None
+            },
+            None => Some(FloatingPointStackUnderflow)
         }
     }
 
-    fn flush(&mut self) {
+    fn flush(&mut self) -> Option<Exception> {
         print!("{}", self.output_buffer);
         self.output_buffer.clear();
+        None
     }
 }
 
@@ -166,7 +183,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "Hi, how are you");
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
     #[test]
@@ -178,11 +195,11 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.s_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "*+");
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
         vm.flush();
         assert_eq!(vm.s_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "");
-        assert_eq!(vm.error_code, 0);
+        assert!(!vm.has_error());
     }
 
 }

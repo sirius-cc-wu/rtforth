@@ -5,8 +5,7 @@
 $ valgrind --tool=callgrind rf test.fs
 $ callgrind_annotate --auto=yes callgrind.out.xxxx
 
-Benchmark from cargo bench
-===========================
+## Benchmark from cargo bench
 
 2015/09/09
 
@@ -40,3 +39,8 @@ bench_swap                                   :           3 ns/iter (+/- 0)
 bench_to_r_r_fetch_r_from                    :          66 ns/iter (+/- 6)
 bench_two_to_r_two_r_fetch_two_r_from        :          77 ns/iter (+/- 1)
 ```
+
+## Possilble solutions to improve the performance
+
+* Do not return Option<Exception> all every instructions, set error_code and check it when necessary.
+

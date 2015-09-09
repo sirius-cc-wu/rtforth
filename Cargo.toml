@@ -12,4 +12,4 @@ byteorder = "0.3"
 clippy = "*"
 
 [profile.release]
-debug = true
+debug = false

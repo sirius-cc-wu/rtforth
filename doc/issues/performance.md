@@ -7,6 +7,7 @@ $callgrind_annotate callgrind.out.10966 | less
 
 * Without stack checking, over saves 1/3 ir.
 * The most importance fucntion is inner, which takes about 1/2 ir of total run.
+* 以是指執行時，但對 CNC 而言，最重要的可能是每 ms 處理接受到的指令的速度。
 
 ## Benchmark from cargo bench
 

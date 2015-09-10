@@ -23,6 +23,7 @@ use rtforth::exception::Exception::{
 #[cfg(not(test))]
 fn main() {
     let vm = &mut VM::new(65536);
+    let mut bye = false;
     vm.add_output();
     vm.add_tools();
     vm.add_environment();
@@ -47,12 +48,22 @@ fn main() {
         print_version();
     } else if !matches.free.is_empty() {
         for file in matches.free {
-            vm.load(&file);
-            if vm.has_error() {
-                break;
+            match vm.load(&file) {
+                None => {},
+                Some(e) => {
+                    match e {
+                        Bye => {},
+                        _ => {
+                            println!("{} ", e.name());
+                        }
+                    }
+                    vm.abort();
+                    bye = true;
+                    break;
+                }
             }
         }
-        if !vm.has_error() {
+        if !bye {
             repl(vm);
         }
     } else {
@@ -72,14 +83,17 @@ fn repl(vm: &mut VM) {
     while let Ok(line) = rl.readline("") {
         rl.add_history_entry(&line);
         vm.set_source(&line);
-        vm.evaluate();
-        if vm.has_error() {
-            match vm.error_code {
-                Bye => break,
-                _ => {}
-            }
-        } else {
-            println!(" ok");
+        match vm.evaluate() {
+            Some(e) => {
+                match e {
+                    Bye => break,
+                    _ => {
+                        vm.abort();
+                        println!("{} ", e.name());
+                    }
+                }
+            },
+            None => println!(" ok")
         }
     }
     println!("");

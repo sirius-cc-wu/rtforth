@@ -180,10 +180,9 @@ mod tests {
         vm.auto_flush = false;
         vm.add_output();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "Hi, how are you");
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -192,14 +191,12 @@ mod tests {
         vm.auto_flush = false;
         vm.add_output();
         vm.set_source("42 emit 43 emit");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "*+");
-        assert!(!vm.has_error());
-        vm.flush();
+        assert!(vm.flush().is_none());
         assert_eq!(vm.s_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "");
-        assert!(!vm.has_error());
     }
 
 }

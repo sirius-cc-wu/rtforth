@@ -467,13 +467,12 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("1.0 2.5");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 2);
         assert!(0.99999 < vm.f_stack.as_slice()[0]);
         assert!(vm.f_stack.as_slice()[0] < 1.00001);
         assert!(2.49999 < vm.f_stack.as_slice()[1]);
         assert!(vm.f_stack.as_slice()[1] < 2.50001);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -481,9 +480,8 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("1.1 fconstant x x x");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.as_slice(), [1.1, 1.1]);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -491,9 +489,8 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("fvariable fx  fx f@  3.3 fx f!  fx f@");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.as_slice(), [0.0, 3.3]);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -501,7 +498,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("-3.14 fabs");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
@@ -509,7 +506,6 @@ mod tests {
             },
             None => false
         });
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -517,7 +513,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("3.14 fsin");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
@@ -525,7 +521,6 @@ mod tests {
             },
             None => false
         });
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -533,7 +528,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("3.0 fcos");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
@@ -541,7 +536,6 @@ mod tests {
             },
             None => false
         });
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -549,7 +543,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("3.0 ftan");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
@@ -557,7 +551,6 @@ mod tests {
             },
             None => false
         });
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -565,7 +558,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("0.3 fasin");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
@@ -573,7 +566,6 @@ mod tests {
             },
             None => false
         });
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -581,7 +573,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("0.3 facos");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
@@ -589,7 +581,6 @@ mod tests {
             },
             None => false
         });
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -597,7 +588,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("0.3 fatan");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
@@ -605,7 +596,6 @@ mod tests {
             },
             None => false
         });
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -613,7 +603,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("3.0 4.0 fatan2");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
@@ -621,7 +611,6 @@ mod tests {
             },
             None => false
         });
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -629,7 +618,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("0.3 fsqrt");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
@@ -637,7 +626,6 @@ mod tests {
             },
             None => false
         });
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -648,9 +636,8 @@ mod tests {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         }
-        vm.fdrop();
+        assert!(vm.fdrop().is_none());
         assert_eq!(vm.f_stack.as_slice(), []);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -661,9 +648,8 @@ mod tests {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         };
-        vm.fnip();
+        assert!(vm.fnip().is_none());
         assert_eq!(vm.f_stack.as_slice(), [2.0]);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -674,9 +660,8 @@ mod tests {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         };
-        vm.fswap();
+        assert!(vm.fswap().is_none());
         assert_eq!(vm.f_stack.as_slice(), [2.0,1.0]);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -687,9 +672,8 @@ mod tests {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         };
-        vm.fdup();
+        assert!(vm.fdup().is_none());
         assert_eq!(vm.f_stack.as_slice(), [1.0, 1.0]);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -700,9 +684,8 @@ mod tests {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         };
-        vm.fover();
+        assert!(vm.fover().is_none());
         assert_eq!(vm.f_stack.as_slice(), [1.0,2.0,1.0]);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -713,9 +696,8 @@ mod tests {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         };
-        vm.frot();
+        assert!(vm.frot().is_none());
         assert_eq!(vm.f_stack.as_slice(), [2.0, 3.0, 1.0]);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -723,7 +705,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("9.0 10.0 f+ 11.0 f- 12.0 f* 13.0 f/");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
@@ -731,7 +713,6 @@ mod tests {
             },
             None => false
         });
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -739,13 +720,12 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("0.0 f0<   0.1 f0<   -0.1 f0<");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 3);
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.f_stack.as_slice(), []);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -753,13 +733,12 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("0.0 f0=   0.1 f0=   -0.1 f0=");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 3);
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.f_stack.as_slice(), []);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -767,13 +746,12 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("0.0 0.0 f<   0.1 0.0 f<   -0.1 0.0 f<");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 3);
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.f_stack.as_slice(), []);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -781,30 +759,27 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("0.1 0.1 0.0 f~   0.1 0.10000000001 0.0 f~");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.f_stack.as_slice(), []);
-        assert!(!vm.has_error());
         vm.s_stack.clear();
         vm.set_source("0.1 0.1 0.001 f~   0.1 0.109 0.01 f~   0.1 0.111  0.01 f~");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 3);
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.f_stack.as_slice(), []);
-        assert!(!vm.has_error());
         vm.s_stack.clear();
         vm.set_source("0.1 0.1 -0.001 f~   0.1 0.109 -0.1 f~   0.1 0.109  -0.01 f~");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 3);
         assert_eq!(vm.s_stack.pop(), Some(0));
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.s_stack.pop(), Some(-1));
         assert_eq!(vm.f_stack.as_slice(), []);
-        assert!(!vm.has_error());
         vm.s_stack.clear();
     }
 
@@ -813,9 +788,8 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source("0 n>f -1 n>f 1 n>f");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.as_slice(), [0.0, -1.0, 1.0]);
-        assert!(!vm.has_error());
     }
 
     #[test]
@@ -823,8 +797,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source(": test 1.0 2.0 ; test");
-        vm.evaluate();
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.as_slice(), [1.0, 2.0]);
-        assert!(!vm.has_error());
     }
 }

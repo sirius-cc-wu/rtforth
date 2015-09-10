@@ -1,16 +1,19 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
-use exception::Exception::FileIOException;
+use exception::Exception::{
+    self,
+    FileIOException,
+};
 
 pub trait HasLoader {
-    fn load(&mut self, path_name: &str);
+    fn load(&mut self, path_name: &str) -> Option<Exception>;
 }
 
 impl HasLoader for ::core::VM {
-    fn load(&mut self, path_name: &str) {
+    fn load(&mut self, path_name: &str) -> Option<Exception> {
         let mut reader = match File::open(&path_name) {
-            Err(_) => panic!("Cannot open file"),
+            Err(_) => return Some(FileIOException),
             Ok(file) => {
                 BufReader::new(file)
             }
@@ -21,21 +24,17 @@ impl HasLoader for ::core::VM {
             match result {
                 Ok(_) => {
                     if self.input_buffer.is_empty() {
-                        break;
+                        return None;
                     } else {
                         self.source_index = 0;
-                        self.evaluate();
-                        if self.has_error() {
-                            break;
-                        }
+                        match self.evaluate() {
+                            Some(e) => return Some(e),
+                            None => {}
+                        };
                     }
                 },
-                Err(_) => {
-                    self.abort_with_error(FileIOException);
-                    // println!(_.description()));
-                    break;
-                }
-            }
+                Err(_) => return Some(FileIOException)
+            };
         }
     }
 }

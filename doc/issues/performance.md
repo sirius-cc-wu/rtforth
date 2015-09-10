@@ -2,8 +2,11 @@
 
 ## Profiling
 
-$ valgrind --tool=callgrind rf test.fs
-$ callgrind_annotate --auto=yes callgrind.out.xxxx
+$valgrind --dsymutil=yes --tool=callgrind ./target/release/examples/rf ./doc/bench/forth/repeat.fs
+$callgrind_annotate callgrind.out.10966 | less
+
+* Without stack checking, over saves 1/3 ir.
+* The most importance fucntion is inner, which takes about 1/2 ir of total run.
 
 ## Benchmark from cargo bench
 

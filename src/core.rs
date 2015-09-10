@@ -499,15 +499,14 @@ impl VM {
         self.inner();
     }
 
+    #[no_mangle]
+    #[inline(never)]
     pub fn inner(&mut self) -> Option<Exception> {
         while self.instruction_pointer > 0 && self.instruction_pointer < self.s_heap.len() {
             let w = self.s_heap.get_i32(self.instruction_pointer) as usize;
             self.instruction_pointer += mem::size_of::<i32>();
             match self.execute_word (w) {
-                Some(e) => {
-                    self.instruction_pointer = 0;
-                    return Some(e)
-                },
+                Some(e) => return Some(e),
                 None => {}
             }
         }

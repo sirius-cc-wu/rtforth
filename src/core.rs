@@ -25,6 +25,7 @@ use exception::Exception::{
     UnsupportedOperation,
     InterpretingACompileOnlyWord,
     Quit,
+    Pause,
     Bye,
 };
 
@@ -261,7 +262,6 @@ impl<T: fmt::Display> fmt::Debug for Stack<T> {
 // Virtual machine
 pub struct VM {
     is_compiling: bool,
-    is_paused: bool,
     pub s_stack: Stack<isize>,
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
@@ -291,7 +291,6 @@ impl VM {
     pub fn new(heap_size: usize) -> VM {
         let mut vm = VM {
             is_compiling: false,
-            is_paused: true,
             s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
@@ -446,6 +445,12 @@ impl VM {
         vm
     }
 
+    /// Idle is the result of new , quit or completion of inner loop without
+    /// exception, means that VM has nothing to do.
+    pub fn is_idle(& self) -> bool {
+        self.instruction_pointer == 0
+    }
+
     pub fn word_pointer(&self) -> usize {
         self.word_pointer
     }
@@ -496,11 +501,6 @@ impl VM {
 
 // Inner interpreter
 
-    pub fn inner_interpret(&mut self, ip: usize) {
-        self.instruction_pointer = ip;
-        self.inner();
-    }
-
     #[no_mangle]
     #[inline(never)]
     pub fn inner(&mut self) -> Option<Exception> {
@@ -508,6 +508,11 @@ impl VM {
             let w = self.s_heap.get_i32(self.instruction_pointer) as usize;
             self.instruction_pointer += mem::size_of::<i32>();
             match self.execute_word (w) {
+                // TODO: Abort? ip /= 0
+                Some(Quit) => {
+                    self.instruction_pointer = 0;
+                    return None
+                }
                 Some(e) => return Some(e),
                 None => {}
             }
@@ -643,8 +648,6 @@ impl VM {
         None
     }
 
-    // TODO: evaluating a colon definition returns Quit, evaluating a primitive returns None. Fix
-    // this problem. Always return None.
     pub fn evaluate(&mut self) -> Option<Exception> {
         let saved_ip = self.instruction_pointer;
         self.instruction_pointer = 0;
@@ -1902,18 +1905,10 @@ impl VM {
         }
     }
 
+    /// Leave VM's inner loop, keep VM's all state.
+    /// Call inner to resume inner loop.
     pub fn pause(&mut self) -> Option<Exception> {
-        if self.r_stack.len >= self.r_stack.cap {
-            Some(ReturnStackOverflow)
-        } else {
-            unsafe {
-                ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), self.instruction_pointer as isize);
-            }
-            self.r_stack.len += 1;
-            self.instruction_pointer = 0;
-            self.is_paused = true;
-            None
-        }
+        Some(Pause)
     }
 
 // Error handlling
@@ -1933,7 +1928,6 @@ impl VM {
         self.source_index = 0;
         self.instruction_pointer = 0;
         self.last_definition = 0;
-        self.is_paused = false;
         self.interpret();
         Some(Quit)
     }
@@ -1949,8 +1943,12 @@ mod tests {
     use super::*;
     use core::test::Bencher;
     use std::mem;
-    use exception::Exception::Abort;
-    use exception::Exception::Quit;
+    use exception::Exception::{
+        Abort,
+        Quit,
+        Pause,
+        Bye
+    };
 
     #[bench]
     fn bench_noop (b: &mut Bencher) {
@@ -1991,7 +1989,8 @@ mod tests {
         vm.compile_integer(3);
         vm.compile_integer(2);
         vm.compile_integer(1);
-        vm.inner_interpret(ip);
+        vm.instruction_pointer = ip;
+        vm.inner();
         assert_eq!(3usize, vm.s_stack.len());
     }
 
@@ -2007,7 +2006,10 @@ mod tests {
         vm.compile_word(idx);
         vm.compile_word(idx);
         vm.compile_word(idx);
-        b.iter(|| vm.inner_interpret(ip));
+        b.iter(|| {
+            vm.instruction_pointer = ip;
+            vm.inner()
+        });
     }
 
     #[test]
@@ -2710,10 +2712,7 @@ mod tests {
     fn test_colon_and_semi_colon() {
         let vm = &mut VM::new(1024);
         vm.set_source(": 2+3 2 3 + ; 2+3");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(5));
     }
@@ -2794,10 +2793,7 @@ mod tests {
     fn test_to_r_r_fetch_r_from () {
         let vm = &mut VM::new(1024);
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(8));
     }
@@ -2820,10 +2816,7 @@ mod tests {
     fn test_two_to_r_two_r_fetch_two_r_from () {
         let vm = &mut VM::new(1024);
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-3));
     }
@@ -2846,17 +2839,11 @@ mod tests {
     fn test_if_else_then () {
         let vm = &mut VM::new(1024);
         vm.set_source(": t1 0 if true else false then ; t1");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(0));
         vm.set_source(": t2 1 if true else false then ; t2");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(-1));
     }
@@ -2865,10 +2852,7 @@ mod tests {
     fn test_begin_again () {
         let vm = &mut VM::new(1024);
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(3));
     }
@@ -2877,10 +2861,7 @@ mod tests {
     fn test_begin_while_repeat () {
         let vm = &mut VM::new(1024);
         vm.set_source(": t1 0 begin 1+ dup 3 <> while repeat ; t1");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(3));
     }
@@ -2906,7 +2887,7 @@ mod tests {
     }
 
     #[test]
-    fn test_quit () {
+    fn test_quit() {
         let vm = &mut VM::new(1024);
         vm.set_source("1 2 3 quit 5 6 7");
         match vm.evaluate() {
@@ -2918,10 +2899,11 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.input_buffer.len(), 0);
+        assert!(vm.is_idle());
     }
 
     #[test]
-    fn test_abort () {
+    fn test_abort() {
         let vm = &mut VM::new(1024);
         vm.set_source("1 2 3 abort 5 6 7");
         match vm.evaluate() {
@@ -2929,6 +2911,36 @@ mod tests {
             _ => assert!(false)
         }
         assert_eq!(vm.s_stack.len(), 0);
+        assert!(vm.is_idle());
+    }
+
+    #[test]
+    fn test_bye() {
+        let vm = &mut VM::new(1024);
+        vm.set_source("1 2 3 bye 5 6 7");
+        match vm.evaluate() {
+            Some(Bye) => assert!(true),
+            _ => assert!(false)
+        }
+        assert!(vm.is_idle());
+    }
+
+    #[test]
+    fn test_pause() {
+        let vm = &mut VM::new(1024);
+        vm.set_source(": test 1 2 3 pause 5 6 7 ; test");
+        match vm.evaluate() {
+            Some(Pause) => assert!(true),
+            _ => assert!(false)
+        }
+        assert!(!vm.is_idle());
+        assert_eq!(vm.s_stack.len(), 3);
+        match vm.inner() {
+            None => assert!(true),
+            _ => assert!(false)
+        }
+        assert!(vm.is_idle());
+        assert_eq!(vm.s_stack.len(), 6);
     }
 
     #[bench]
@@ -2951,10 +2963,7 @@ mod tests {
     fn test_do_loop() {
         let vm = &mut VM::new(1024);
         vm.set_source(": main 1 5 0 do 1+ loop ;  main");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(6));
     }
@@ -2963,10 +2972,7 @@ mod tests {
     fn test_do_unloop_exit_loop() {
         let vm = &mut VM::new(1024);
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(3));
     }
@@ -2975,17 +2981,11 @@ mod tests {
     fn test_do_plus_loop() {
         let vm = &mut VM::new(1024);
         vm.set_source(": main 1 5 0 do 1+ 2 +loop ;  main");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(4));
         vm.set_source(": main 1 6 0 do 1+ 2 +loop ;  main");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
         assert_eq!(vm.s_stack.pop(), Some(4));
     }
@@ -2994,10 +2994,7 @@ mod tests {
     fn test_do_leave_loop() {
         let vm = &mut VM::new(1024);
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop2(), Some((88, 9)));
     }
@@ -3006,10 +3003,7 @@ mod tests {
     fn test_do_i_loop() {
         let vm = &mut VM::new(1024);
         vm.set_source(": main 3 0 do i loop ;  main");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 3);
         assert_eq!(vm.s_stack.pop3(), Some((0, 1, 2)));
     }
@@ -3018,10 +3012,7 @@ mod tests {
     fn test_do_i_j_loop() {
         let vm = &mut VM::new(1024);
         vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        }
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 4);
         assert_eq!(vm.s_stack.as_slice(), [4, 8, 5, 10]);
     }

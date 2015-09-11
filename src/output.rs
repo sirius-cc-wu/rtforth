@@ -173,7 +173,6 @@ impl Output for VM {
 mod tests {
     use core::VM;
     use super::*;
-    use exception::Exception::Quit;
 
     #[test]
     fn test_s_quote_and_type () {
@@ -181,10 +180,7 @@ mod tests {
         vm.auto_flush = false;
         vm.add_output();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
-        match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
-        };
+        assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.as_slice(), []);
         assert_eq!(vm.output_buffer, "Hi, how are you");
     }

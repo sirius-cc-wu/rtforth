@@ -3,13 +3,16 @@
 ## Profiling
 
 ```
-$valgrind --dsymutil=yes --tool=callgrind ./target/release/examples/rf ./doc/bench/forth/repeat.fs
-$callgrind_annotate callgrind.out.10966 | less
+$valgrind --tool=callgrind ./target/release/examples/rf ./doc/bench/forth/repeat.fs
+$callgrind_annotate callgrind.out.<pid> | less
+$kcachegrind callgrind.out.<pid>&
 ```
+
+### repeat.fs
 
 * Without stack checking, over saves 1/3 ir.
 * The most importance fucntion is inner, which takes about 1/2 ir of total run.
-* 以是指執行時，但對 CNC 而言，最重要的可能是每 ms 處理接受到的指令的速度。
+* for 80000 bench,  inner executes 9,520,189 ir, over 3,040,038 ir, lit, 2,240,056 
 
 ## Benchmark from cargo bench
 
@@ -47,6 +50,4 @@ bench_two_to_r_two_r_fetch_two_r_from        :          77 ns/iter (+/- 1)
 ```
 
 ## Possilble solutions to improve the performance
-
-* Do not return Option<Exception> all every instructions, set error_code and check it when necessary.
 

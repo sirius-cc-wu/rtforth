@@ -461,6 +461,7 @@ impl Float for VM {
 mod tests {
     use core::VM;
     use super::Float;
+    use exception::Exception::Quit;
 
     #[test]
     fn test_evaluate_f64 () {
@@ -797,7 +798,10 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.add_float();
         vm.set_source(": test 1.0 2.0 ; test");
-        assert!(vm.evaluate().is_none());
+        match vm.evaluate() {
+            Some(Quit) => assert!(true),
+            _ => assert!(false)
+        };
         assert_eq!(vm.f_stack.as_slice(), [1.0, 2.0]);
     }
 }

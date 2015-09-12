@@ -1,7 +1,6 @@
 #[derive(Debug, Copy, Clone)]
 pub enum Exception {
     // ANS Forth
-    NoException = 0,
     Abort = -1,
     AbortQuote = -2,
     StackOverflow = -3,
@@ -69,7 +68,6 @@ pub enum Exception {
 impl Exception {
     pub fn name(&self) -> &'static str {
         match *self {
-            Exception::NoException => "No exception",
             Exception::Abort => "Aborted",
             Exception::AbortQuote => "Aborted",
             Exception::StackOverflow => "Stack overflow",

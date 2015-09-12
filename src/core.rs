@@ -14,7 +14,6 @@ use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 
 use exception::Exception::{
     self,
-    NoException,
     Abort,
     UnexpectedEndOfFile,
     UndefinedWord,
@@ -655,7 +654,6 @@ impl VM {
     /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
     /// Never returns Some(Quit).
     pub fn evaluate(&mut self) -> Option<Exception> {
-        let mut err = NoException;
         loop {
             self.parse_word();
             if self.last_token.is_empty() {
@@ -673,7 +671,7 @@ impl VM {
                     if self.is_compiling && !is_immediate_word {
                         self.compile_word(found_index);
                     } else if !self.is_compiling && is_compile_only_word {
-                        err = InterpretingACompileOnlyWord;
+                        return Some(InterpretingACompileOnlyWord);
                     } else {
                         match self.execute_word(found_index) {
                             Some(e) => {
@@ -683,14 +681,14 @@ impl VM {
                                             Some(e2) => match e2 {
                                                 Quit => {},
                                                 _ => {
-                                                    err = e2
+                                                    return Some(e2);
                                                 }
                                             },
                                             None => { /* impossible */ }
                                         }
                                     },
                                     Quit => {},
-                                    _ => err = e
+                                    _ => return Some(e)
                                 }
                             },
                             None => {}
@@ -714,7 +712,7 @@ impl VM {
                                 Ok(t) => {
                                     if self.idx_flit == 0 {
                                         print!("{} ", "Floating point");
-                                        err = UnsupportedOperation;
+                                        return Some(UnsupportedOperation);
                                     } else {
                                         if self.is_compiling {
                                             self.compile_float(t);
@@ -726,17 +724,11 @@ impl VM {
                                 },
                                 Err(_) => {
                                     print!("{} ", &self.last_token);
-                                    err = UndefinedWord;
+                                    return Some(UndefinedWord);
                                 }
                             };
                         }
                     }
-            }
-            match err {
-                NoException => {},
-                _ => {
-                    return Some(err)
-                }
             }
         }
     }

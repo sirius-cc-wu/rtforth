@@ -677,15 +677,12 @@ impl VM {
                     } else {
                         match self.execute_word(found_index) {
                             Some(e) => {
-                                println!("execute_word returns {}", e.name());
                                 match e {
                                     Nest => {
-                                        println!("handle Nest");
                                         match self.inner() {
                                             Some(e2) => match e2 {
                                                 Quit => {},
                                                 _ => {
-                                                    println!("inner returns {}", e2.name());
                                                     err = e2
                                                 }
                                             },
@@ -738,7 +735,6 @@ impl VM {
             match err {
                 NoException => {},
                 _ => {
-                    println!("evaluated to {}", err.name());
                     return Some(err)
                 }
             }

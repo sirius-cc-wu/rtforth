@@ -28,7 +28,9 @@ impl HasLoader for ::core::VM {
                     } else {
                         self.source_index = 0;
                         match self.evaluate() {
-                            Some(e) => return Some(e),
+                            Some(e) => {
+                                return Some(e)
+                            },
                             None => {}
                         };
                     }

@@ -24,7 +24,9 @@ use exception::Exception::{
     ReturnStackOverflow,
     UnsupportedOperation,
     InterpretingACompileOnlyWord,
+    InvalidMemoryAddress,
     Quit,
+    Nest,
     Pause,
     Bye,
 };
@@ -353,6 +355,7 @@ impl VM {
 
         // Compile-only bytecodes
         vm.add_compile_only("exit", VM::exit); // j1, jx, eForth
+        vm.add_compile_only("halt", VM::halt); // rtForth
         vm.add_compile_only("lit", VM::lit); // Ngaro, jx, eForth
         vm.add_compile_only("branch", VM::branch); // j1, eForth
         vm.add_compile_only("0branch", VM::zero_branch); // j1, eForth
@@ -439,14 +442,12 @@ impl VM {
         vm.idx_do = vm.find("_do").expect("_do undefined");
         vm.idx_loop = vm.find("_loop").expect("_loop undefined");
         vm.idx_plus_loop = vm.find("_+loop").expect("_+loop undefined");
-        // S_heap is beginning with quit, because s_heap[0] should not be used.
-        let idx_quit = vm.find("quit").expect("quit undefined");
-        vm.compile_word(idx_quit);
+        let idx_halt = vm.find("halt").expect("halt undefined");
+        vm.compile_word(idx_halt);
         vm
     }
 
-    /// Idle is the result of new , quit or completion of inner loop without
-    /// exception, means that VM has nothing to do.
+    /// Idle is the result of new and reset, means that VM has nothing to do.
     pub fn is_idle(& self) -> bool {
         self.instruction_pointer == 0
     }
@@ -501,6 +502,10 @@ impl VM {
 
 // Inner interpreter
 
+    /// Evaluate a compiled program following self.instruction_pointer.
+    /// Any exception other than Nest causes termination of inner loop.
+    /// Quit is aspecially used for this purpose.
+    /// Never return None and Some(Nest).
     #[no_mangle]
     #[inline(never)]
     pub fn inner(&mut self) -> Option<Exception> {
@@ -508,17 +513,16 @@ impl VM {
             let w = self.s_heap.get_i32(self.instruction_pointer) as usize;
             self.instruction_pointer += mem::size_of::<i32>();
             match self.execute_word (w) {
-                // TODO: Abort? ip /= 0
-                Some(Quit) => {
-                    self.instruction_pointer = 0;
-                    return None
-                }
-                Some(e) => return Some(e),
+                Some(e) => {
+                    match e {
+                        Nest => {},
+                        _ => return Some(e)
+                    }
+                },
                 None => {}
             }
         }
-        self.instruction_pointer = 0;
-        None
+        Some(InvalidMemoryAddress)
     }
 
 // Compiler
@@ -648,15 +652,14 @@ impl VM {
         None
     }
 
+    /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
+    /// Never returns Some(Quit).
     pub fn evaluate(&mut self) -> Option<Exception> {
-        let saved_ip = self.instruction_pointer;
-        self.instruction_pointer = 0;
         let mut err = NoException;
         loop {
             self.parse_word();
             if self.last_token.is_empty() {
-                self.instruction_pointer = saved_ip;
-                return None
+                return None;
             }
             match self.find(&self.last_token) {
                 Some(found_index) => {
@@ -673,15 +676,27 @@ impl VM {
                         err = InterpretingACompileOnlyWord;
                     } else {
                         match self.execute_word(found_index) {
-                            Some(e) => err = e,
-                            None => {
-                                if self.instruction_pointer != 0 {
-                                    match self.inner() {
-                                        Some(e) => err = e,
-                                        None => {}
-                                    };
+                            Some(e) => {
+                                println!("execute_word returns {}", e.name());
+                                match e {
+                                    Nest => {
+                                        println!("handle Nest");
+                                        match self.inner() {
+                                            Some(e2) => match e2 {
+                                                Quit => {},
+                                                _ => {
+                                                    println!("inner returns {}", e2.name());
+                                                    err = e2
+                                                }
+                                            },
+                                            None => { /* impossible */ }
+                                        }
+                                    },
+                                    Quit => {},
+                                    _ => err = e
                                 }
-                            }
+                            },
+                            None => {}
                         };
                     }
                 },
@@ -723,7 +738,7 @@ impl VM {
             match err {
                 NoException => {},
                 _ => {
-                    self.instruction_pointer = saved_ip;
+                    println!("evaluated to {}", err.name());
                     return Some(err)
                 }
             }
@@ -741,7 +756,7 @@ impl VM {
             }
             self.r_stack.len += 1;
             self.instruction_pointer = self.word_list[self.word_pointer].dfa;
-            None
+            Some(Nest)
         }
     }
 
@@ -1117,6 +1132,9 @@ impl VM {
 
 // Primitives
 
+    /// Run-time: ( -- )
+    ///
+    /// No operation
     pub fn noop(&mut self) -> Option<Exception> {
         // Do nothing
         None
@@ -1913,26 +1931,43 @@ impl VM {
 
 // Error handlling
 
-    #[inline(never)]
-    pub fn abort(&mut self) -> Option<Exception> {
+    /// Clear data and floating point stacks.
+    /// Called by VM's client upon Abort.
+    pub fn clear_stacks(&mut self) {
         self.s_stack.clear();
         self.f_stack.clear();
-        self.quit();
-        Some(Abort)
     }
 
-    #[inline(never)]
-    pub fn quit(&mut self) -> Option<Exception> {
+    /// Reset VM, do not clear data stack and floating point stack.
+    /// Called by VM's client upon Quit.
+    pub fn reset(&mut self) {
         self.r_stack.len = 0;
         self.input_buffer.clear();
         self.source_index = 0;
         self.instruction_pointer = 0;
         self.last_definition = 0;
         self.interpret();
+    }
+
+    /// Abort the inner loop with an exception, reset VM and clears stacks.
+    pub fn abort(&mut self) -> Option<Exception> {
+        self.clear_stacks();
+        self.reset();
+        Some(Abort)
+    }
+
+    pub fn halt(&mut self) -> Option<Exception> {
+        self.instruction_pointer = 0;
         Some(Quit)
     }
 
-    #[inline(never)]
+    /// Quit the inner loop and reset VM, without clearing stacks .
+    pub fn quit(&mut self) -> Option<Exception> {
+        self.reset();
+        Some(Quit)
+    }
+
+    /// Emit Bye exception.
     fn bye(&mut self) -> Option<Exception> {
         Some(Bye)
     }
@@ -1944,6 +1979,7 @@ mod tests {
     use core::test::Bencher;
     use std::mem;
     use exception::Exception::{
+        InvalidMemoryAddress,
         Abort,
         Quit,
         Pause,
@@ -1990,7 +2026,15 @@ mod tests {
         vm.compile_integer(2);
         vm.compile_integer(1);
         vm.instruction_pointer = ip;
-        vm.inner();
+        match vm.inner() {
+            Some(e) => {
+                match e {
+                    InvalidMemoryAddress => assert!(true),
+                    _ => assert!(false)
+                }
+            },
+            None => assert!(false)
+        }
         assert_eq!(3usize, vm.s_stack.len());
     }
 
@@ -2008,7 +2052,7 @@ mod tests {
         vm.compile_word(idx);
         b.iter(|| {
             vm.instruction_pointer = ip;
-            vm.inner()
+            vm.inner();
         });
     }
 
@@ -2780,9 +2824,8 @@ mod tests {
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(20));
         assert_eq!(vm.s_stack.pop(), Some(4));
-        // quit at zero position!
-        let idx_quit = vm.find("quit").expect("quit undefined");
-        assert_eq!(vm.s_heap.get_i32(0), idx_quit as i32);
+        let idx_halt = vm.find("halt").expect("halt undefined");
+        assert_eq!(vm.s_heap.get_i32(0), idx_halt as i32);
         assert_eq!(vm.s_heap.get_i32(4), 1);
         assert_eq!(vm.s_heap.get_i32(8), 2);
         assert_eq!(vm.s_heap.get_i32(12), 0);
@@ -2891,15 +2934,13 @@ mod tests {
         let vm = &mut VM::new(1024);
         vm.set_source("1 2 3 quit 5 6 7");
         match vm.evaluate() {
-            Some(Quit) => assert!(true),
-            _ => assert!(false)
+            Some(_) => assert!(false),
+            None => assert!(true),
         };
         assert_eq!(vm.s_stack.len(), 3);
         assert_eq!(vm.s_stack.pop(), Some(3));
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.input_buffer.len(), 0);
-        assert!(vm.is_idle());
     }
 
     #[test]
@@ -2911,7 +2952,6 @@ mod tests {
             _ => assert!(false)
         }
         assert_eq!(vm.s_stack.len(), 0);
-        assert!(vm.is_idle());
     }
 
     #[test]
@@ -2935,10 +2975,7 @@ mod tests {
         }
         assert!(!vm.is_idle());
         assert_eq!(vm.s_stack.len(), 3);
-        match vm.inner() {
-            None => assert!(true),
-            _ => assert!(false)
-        }
+        vm.inner();
         assert!(vm.is_idle());
         assert_eq!(vm.s_stack.len(), 6);
     }
@@ -2955,7 +2992,17 @@ mod tests {
         b.iter(|| {
             vm.dup();
             vm.execute();
-            vm.inner();
+            match vm.inner() {
+                Some(e) => {
+                    match e {
+                        Quit => {},
+                        _ => {
+                            assert!(false);
+                        }
+                    }
+                },
+                None => assert!(false)
+            };
         });
     }
 

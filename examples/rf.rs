@@ -15,7 +15,6 @@ use rtforth::env::Environment;
 use rtforth::facility::Facility;
 use rtforth::float::Float;
 use rtforth::exception::Exception::{
-    Quit,
     Bye,
 };
 
@@ -54,12 +53,10 @@ fn main() {
                 Some(e) => {
                     match e {
                         Bye => {},
-                        Quit => {},
                         _ => {
                             println!("{} ", e.name());
                         }
                     }
-                    vm.abort();
                     bye = true;
                     break;
                 }
@@ -90,7 +87,8 @@ fn repl(vm: &mut VM) {
                 match e {
                     Bye => break,
                     _ => {
-                        vm.abort();
+                        vm.clear_stacks();
+                        vm.reset();
                         println!("{} ", e.name());
                     }
                 }

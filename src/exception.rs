@@ -61,6 +61,7 @@ pub enum Exception {
     ExceptionInSendingOrReceivingACharacter = -57,
     BracketIfElseOrThenException = -58,
     // rtForth's Exceptions
+    Nest = -9997,
     Pause = -9998,
     Bye = -9999,
 } 
@@ -127,6 +128,7 @@ impl Exception {
             Exception::Quit => "QUIT",
             Exception::ExceptionInSendingOrReceivingACharacter => "Exception in sending or receiving a character",
             Exception::BracketIfElseOrThenException => "[IF],[ELSE],[THEN] exception",
+            Exception::Nest => "Nest",
             Exception::Pause => "Pause",
             Exception::Bye => "Bye",
         }

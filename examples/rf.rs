@@ -54,6 +54,8 @@ fn main() {
                     match e {
                         Bye => {},
                         _ => {
+                            vm.clear_stacks();
+                            vm.reset();
                             println!("{} ", e.name());
                         }
                     }

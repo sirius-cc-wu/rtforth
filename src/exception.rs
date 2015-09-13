@@ -1,72 +1,133 @@
 #[derive(Debug, Copy, Clone)]
 pub enum Exception {
-    // ANS Forth
+    /// = -1, ANS Forth
     Abort = -1,
+    /// = -2, ANS Forth
     AbortQuote = -2,
+    /// = -3, ANS Forth
     StackOverflow = -3,
+    /// = -4, ANS Forth
     StackUnderflow = -4,
+    /// = -5, ANS Forth
     ReturnStackOverflow = -5,
+    /// = -6, ANS Forth
     ReturnStackUnderflow = -6,
+    /// = -7, ANS Forth
     DoLoopNestedTooDeeply = -7,
+    /// = -8, ANS Forth
     DictionaryOverflow = -8,
+    /// = -9, ANS Forth
     InvalidMemoryAddress = -9,
+    /// = -10, ANS Forth
     DivisionByZero = -10,
+    /// = -11, ANS Forth
     ResultOutOfRange = -11,
+    /// = -12, ANS Forth
     ArgumentTypeMismatch= -12,
+    /// = -13, ANS Forth
     UndefinedWord = -13,
+    /// = -14, ANS Forth
     InterpretingACompileOnlyWord = -14,
+    /// = -15, ANS Forth
     InvalidForget = -15,
+    /// = -16, ANS Forth
     AttemptToUseZeroLengthString = -16,
+    /// = -17, ANS Forth
     PicturedNumericOutputStringOverflow = -17,
+    /// = -18, ANS Forth
     ParsedStringOverflow = -18,
+    /// = -19, ANS Forth
     DefinitionNameTooLong = -19,
+    /// = -20, ANS Forth
     WriteToAReadOnlyLocation = -20,
+    /// = -21, ANS Forth
     UnsupportedOperation = -21,
+    /// = -22, ANS Forth
     ControlStructureMismatch = -22,
+    /// = -23, ANS Forth
     AddressAlignmentException = -23,
+    /// = -24, ANS Forth
     InvalidNumericArgument = -24,
+    /// = -25, ANS Forth
     ReturnStackImbalance = -25,
+    /// = -26, ANS Forth
     LoopParametersUnavailable = -26,
+    /// = -27, ANS Forth
     InvalidRecursion = -27,
+    /// = -28, ANS Forth
     UserInterrupt = -28,
+    /// = -29, ANS Forth
     CompilerNesting = -29,
+    /// = -30, ANS Forth
     ObsolescentFeature = -30,
+    /// = -31, ANS Forth
     ToBodyUsedOnNonCreatedDefinition = -31,
+    /// = -32, ANS Forth
     InvalidNameArgument = -32,
+    /// = -33, ANS Forth
     BlockReadException = -33,
+    /// = -34, ANS Forth
     BlockWriteException = -34,
+    /// = -35, ANS Forth
     InvalidBlockNumber = -35,
+    /// = -36, ANS Forth
     InvalidFilePosition = -36,
+    /// = -37, ANS Forth
     FileIOException = -37,
+    /// = -38, ANS Forth
     NonExistentFile = -38,
+    /// = -39, ANS Forth
     UnexpectedEndOfFile = -39,
+    /// = -40, ANS Forth
     InvalidBaseForFloatingPointConversion = -40,
+    /// = -41, ANS Forth
     LossOfPrecision = -41,
+    /// = -42, ANS Forth
     FloatingPointDividedByZero = -42,
+    /// = -43, ANS Forth
     FloatingPointResultOutOfRange = -43,
+    /// = -44, ANS Forth
     FloatingPointStackOverflow = -44,
+    /// = -45, ANS Forth
     FloatingPointStackUnderflow = -45,
+    /// = -46, ANS Forth
     FloatingPointInvalidArgument = -46,
+    /// = -47, ANS Forth
     CompilationWordListDeleted = -47,
+    /// = -48, ANS Forth
     InvalidPostpone = -48,
+    /// = -49, ANS Forth
     SearchOrderOverflow = -49,
+    /// = -50, ANS Forth
     SearchOrderUnderflow = -50,
+    /// = -51, ANS Forth
     CompilationWordListChanged = -51,
+    /// = -52, ANS Forth
     ControlFlowStackOverflow = -52,
+    /// = -53, ANS Forth
     ExceptionStackOverflow = -53,
+    /// = -54, ANS Forth
     FloatingPointUnderflow = -54,
+    /// = -55, ANS Forth
     FloatingPointUnidentifiedFault = -55,
+    /// = -56, ANS Forth
     Quit = -56,
+    /// = -57, ANS Forth
     ExceptionInSendingOrReceivingACharacter = -57,
+    /// = -58, ANS Forth
     BracketIfElseOrThenException = -58,
-    // rtForth's Exceptions
+    /// Request to run rtForth's inner loop, used in rtForth's core
+    /// only. rtForth
     Nest = -9997,
+    /// Request to exit rtForth's inner loop temporarily. rtForth
     Pause = -9998,
+    /// request to leave the application. rtForth
     Bye = -9999,
 } 
 
 impl Exception {
-    pub fn name(&self) -> &'static str {
+    /// Description of the exception
+    pub fn description(&self) -> &'static str {
         match *self {
             Exception::Abort => "Aborted",
             Exception::AbortQuote => "Aborted",

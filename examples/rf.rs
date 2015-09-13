@@ -56,7 +56,7 @@ fn main() {
                         _ => {
                             vm.clear_stacks();
                             vm.reset();
-                            println!("{} ", e.name());
+                            println!("{} ", e.description());
                         }
                     }
                     bye = true;
@@ -91,7 +91,7 @@ fn repl(vm: &mut VM) {
                     _ => {
                         vm.clear_stacks();
                         vm.reset();
-                        println!("{} ", e.name());
+                        println!("{} ", e.description());
                     }
                 }
             },

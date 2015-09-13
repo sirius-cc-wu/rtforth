@@ -13,6 +13,7 @@ $kcachegrind callgrind.out.<pid>&
 * Without stack checking, over saves 1/3 ir.
 * The most importance fucntion is inner, which takes about 1/2 ir of total run.
 * for 80000 bench,  inner executes 9,520,189 ir, over 3,040,038 ir, lit, 2,240,056 
+* word_pointer += 1 takes 2.5 ir. But only nest, p_var, p_const, ... use word_pointer. word_pointer can be removed.
 
 ## Benchmark from cargo bench
 

@@ -52,3 +52,4 @@ bench_two_to_r_two_r_fetch_two_r_from        :          77 ns/iter (+/- 1)
 
 ## Possilble solutions to improve the performance
 
+* JIT: https://github.com/jonathandturner/rustyjit

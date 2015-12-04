@@ -110,7 +110,7 @@ impl Heap for Vec<u8> {
 }
 
 pub struct Stack<T> {
-    ptr: Unique<T>,
+    inner: Unique<T>,
     cap: usize,
     len: usize
 }
@@ -129,7 +129,7 @@ impl<T> Stack<T> {
             }
             libc::mprotect(ptr, size_in_bytes, libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE);
             memset(ptr, 0x00, size_in_bytes); 
-            Stack{ ptr: Unique::new(ptr as *mut _), cap: cap, len: 0 }
+            Stack{ inner: Unique::new(ptr as *mut _), cap: cap, len: 0 }
         }
     }
 
@@ -138,7 +138,7 @@ impl<T> Stack<T> {
             Some(v)
         } else {
             unsafe {
-                ptr::write(self.ptr.offset(self.len as isize), v);
+                ptr::write(self.inner.offset(self.len as isize), v);
             }
             self.len += 1;
             None
@@ -151,7 +151,7 @@ impl<T> Stack<T> {
         } else {
             self.len -= 1;
             unsafe {
-                Some(ptr::read(self.ptr.offset(self.len as isize)))
+                Some(ptr::read(self.inner.offset(self.len as isize)))
             }
         }
     }
@@ -161,8 +161,8 @@ impl<T> Stack<T> {
             Some((v1, v2))
         } else {
             unsafe {
-                ptr::write(self.ptr.offset(self.len as isize), v1);
-                ptr::write(self.ptr.offset((self.len+1) as isize), v2);
+                ptr::write(self.inner.offset(self.len as isize), v1);
+                ptr::write(self.inner.offset((self.len+1) as isize), v2);
             }
             self.len += 2;
             None
@@ -174,9 +174,9 @@ impl<T> Stack<T> {
             Some((v1, v2, v3))
         } else {
             unsafe {
-                ptr::write(self.ptr.offset(self.len as isize), v1);
-                ptr::write(self.ptr.offset((self.len+1) as isize), v2);
-                ptr::write(self.ptr.offset((self.len+2) as isize), v3);
+                ptr::write(self.inner.offset(self.len as isize), v1);
+                ptr::write(self.inner.offset((self.len+1) as isize), v2);
+                ptr::write(self.inner.offset((self.len+2) as isize), v3);
             }
             self.len += 3;
             None
@@ -190,8 +190,8 @@ impl<T> Stack<T> {
             self.len -= 2;
             unsafe {
                 Some((
-                    ptr::read(self.ptr.offset(self.len as isize)),
-                    ptr::read(self.ptr.offset((self.len+1) as isize))
+                    ptr::read(self.inner.offset(self.len as isize)),
+                    ptr::read(self.inner.offset((self.len+1) as isize))
                 ))
             }
         }
@@ -204,9 +204,9 @@ impl<T> Stack<T> {
             self.len -= 3;
             unsafe {
                 Some((
-                    ptr::read(self.ptr.offset(self.len as isize)),
-                    ptr::read(self.ptr.offset((self.len+1) as isize)),
-                    ptr::read(self.ptr.offset((self.len+2) as isize)),
+                    ptr::read(self.inner.offset(self.len as isize)),
+                    ptr::read(self.inner.offset((self.len+1) as isize)),
+                    ptr::read(self.inner.offset((self.len+2) as isize)),
                 ))
             }
         }
@@ -217,7 +217,7 @@ impl<T> Stack<T> {
             None
         } else {
             unsafe {
-                Some(ptr::read(self.ptr.offset((self.len-1) as isize)))
+                Some(ptr::read(self.inner.offset((self.len-1) as isize)))
             }
         }
     }
@@ -227,7 +227,7 @@ impl<T> Stack<T> {
             None
         } else {
             unsafe {
-                Some(ptr::read(self.ptr.offset(pos as isize)))
+                Some(ptr::read(self.inner.offset(pos as isize)))
             }
         }
     }
@@ -247,7 +247,7 @@ impl<T> Stack<T> {
     /// # Safety
     /// Because the implementer (me) is still learning Rust, it is uncertain if as_slice is safe. 
     pub fn as_slice(&self) -> &[T] {
-        unsafe { slice::from_raw_parts(self.ptr.get(), self.len) }
+        unsafe { slice::from_raw_parts(self.inner.get(), self.len) }
     }
 }
 
@@ -256,7 +256,7 @@ impl<T: fmt::Display> fmt::Debug for Stack<T> {
         match write!(f, "<{}> ", self.len()) {
             Ok(_) => {
                 for i in 0..(self.len()-1) {
-                    let v = unsafe { ptr::read(self.ptr.offset(i as isize)) };
+                    let v = unsafe { ptr::read(self.inner.offset(i as isize)) };
                     match write!(f, "{} ", v) {
                         Ok(_) => {},
                         Err(e) => { return Err(e); }
@@ -516,7 +516,7 @@ impl VM {
     /// Never return None and Some(Nest).
     #[no_mangle]
     #[inline(never)]
-    pub fn inner(&mut self) -> Option<Exception> {
+    pub fn run(&mut self) -> Option<Exception> {
         while self.instruction_pointer < self.s_heap.len() {
             let w = self.s_heap.get_i32(self.instruction_pointer) as usize;
             self.instruction_pointer += mem::size_of::<i32>();
@@ -686,7 +686,7 @@ impl VM {
                             Some(e) => {
                                 match e {
                                     Nest => {
-                                        match self.inner() {
+                                        match self.run() {
                                             Some(e2) => match e2 {
                                                 Quit => {},
                                                 _ => {
@@ -749,7 +749,7 @@ impl VM {
             Some(ReturnStackOverflow)
         } else {
             unsafe {
-                ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), self.instruction_pointer as isize);
+                ptr::write(self.r_stack.inner.offset(self.r_stack.len as isize), self.instruction_pointer as isize);
             }
             self.r_stack.len += 1;
             self.instruction_pointer = self.word_list[self.word_pointer].dfa;
@@ -1220,7 +1220,7 @@ impl VM {
         } else {
             unsafe {
                 let v = self.s_heap.get_i32(self.instruction_pointer) as isize;
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), v);
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len) as isize), v);
             }
             self.s_stack.len += 1;
             self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
@@ -1233,9 +1233,9 @@ impl VM {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)));
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), t);
+                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)); 
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), t);
             }
             None
         }
@@ -1248,7 +1248,7 @@ impl VM {
             Some(StackOverflow)
         } else {
             unsafe {
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)));
                 self.s_stack.len += 1;
             }
             None
@@ -1270,7 +1270,7 @@ impl VM {
         } else {
             unsafe {
                 self.s_stack.len -= 1;
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
             }
             None
         }
@@ -1283,7 +1283,7 @@ impl VM {
             Some(StackOverflow)
         } else {
             unsafe {
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)));
                 self.s_stack.len += 1;
             }
             None
@@ -1295,11 +1295,11 @@ impl VM {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
-                let n = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)); 
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-3) as isize)));
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), t);
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-3) as isize), n);
+                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)); 
+                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)); 
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-3) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), t);
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-3) as isize), n);
             }
             None
         }
@@ -1322,8 +1322,8 @@ impl VM {
         } else {
             unsafe {
                 self.s_stack.len += 2;
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-3) as isize)));
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-4) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-3) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-4) as isize)));
             }
             None
         }
@@ -1334,12 +1334,12 @@ impl VM {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
-                let n = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)); 
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-3) as isize)));
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-4) as isize)));
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-3) as isize), t);
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-4) as isize), n);
+                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)); 
+                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)); 
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-3) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-4) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-3) as isize), t);
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-4) as isize), n);
             }
             None
         }
@@ -1353,8 +1353,8 @@ impl VM {
         } else {
             unsafe {
                 self.s_stack.len += 2;
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-5) as isize)));
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-6) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-5) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-6) as isize)));
             }
             None
         }
@@ -1373,7 +1373,7 @@ impl VM {
             Some(StackUnderflow)
         } else {
             unsafe {
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)).wrapping_add(1));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)).wrapping_add(1));
             }
             None
         }
@@ -1384,7 +1384,7 @@ impl VM {
             Some(StackUnderflow)
         } else {
             unsafe {
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize))-1);
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize))-1);
             }
             None
         }
@@ -1396,8 +1396,8 @@ impl VM {
         } else {
             unsafe {
                 self.s_stack.len -= 1;
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
-                    ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) + ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize),
+                    ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)) + ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
             }
             None
         }
@@ -1409,8 +1409,8 @@ impl VM {
         } else {
             unsafe {
                 self.s_stack.len -= 1;
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
-                    ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) - ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize),
+                    ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)) - ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
             }
             None
         }
@@ -1422,8 +1422,8 @@ impl VM {
         } else {
             unsafe {
                 self.s_stack.len -= 1;
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
-                    ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) * ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize),
+                    ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)) * ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
             }
             None
         }
@@ -1435,8 +1435,8 @@ impl VM {
         } else {
             unsafe {
                 self.s_stack.len -= 1;
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
-                    ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) / ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize),
+                    ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)) / ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
             }
             None
         }
@@ -1448,8 +1448,8 @@ impl VM {
         } else {
             unsafe {
                 self.s_stack.len -= 1;
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize),
-                    ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)) % ptr::read(self.s_stack.ptr.offset((self.s_stack.len) as isize)));
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize),
+                    ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)) % ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
             }
             None
         }
@@ -1460,10 +1460,10 @@ impl VM {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-1) as isize)); 
-                let n = ptr::read(self.s_stack.ptr.offset((self.s_stack.len-2) as isize)); 
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-2) as isize), n%t);
-                ptr::write(self.s_stack.ptr.offset((self.s_stack.len-1) as isize), n/t);
+                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)); 
+                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)); 
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), n%t);
+                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), n/t);
             }
             None
         }
@@ -1697,7 +1697,7 @@ impl VM {
         } else {
             self.r_stack.len -= 1;
             unsafe {
-                self.instruction_pointer = ptr::read(self.r_stack.ptr.offset(self.r_stack.len as isize)) as usize; 
+                self.instruction_pointer = ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize)) as usize; 
             }
             None
         }
@@ -1845,7 +1845,7 @@ impl VM {
                     Some(ReturnStackOverflow)
                 } else {
                     unsafe {
-                        ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), v);
+                        ptr::write(self.r_stack.inner.offset(self.r_stack.len as isize), v);
                     }
                     self.r_stack.len += 1;
                     None
@@ -1861,7 +1861,7 @@ impl VM {
         } else {
             self.r_stack.len -= 1;
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.ptr.offset(self.r_stack.len as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize))); 
             }
             None
         }
@@ -1872,7 +1872,7 @@ impl VM {
             Some(ReturnStackUnderflow)
         } else {
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len-1) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-1) as isize))); 
             }
             None
         }
@@ -1885,8 +1885,8 @@ impl VM {
                     Some(ReturnStackOverflow)
                 } else {
                     unsafe {
-                        ptr::write(self.r_stack.ptr.offset(self.r_stack.len as isize), n);
-                        ptr::write(self.r_stack.ptr.offset((self.r_stack.len+1) as isize), t);
+                        ptr::write(self.r_stack.inner.offset(self.r_stack.len as isize), n);
+                        ptr::write(self.r_stack.inner.offset((self.r_stack.len+1) as isize), t);
                     }
                     self.r_stack.len += 2;
                     None
@@ -1901,8 +1901,8 @@ impl VM {
         } else {
             self.r_stack.len -= 2;
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.ptr.offset(self.r_stack.len as isize))); 
-                self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len+1) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len+1) as isize))); 
             }
             None
         }
@@ -1913,8 +1913,8 @@ impl VM {
             Some(ReturnStackUnderflow)
         } else {
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len-2) as isize))); 
-                self.s_stack.push(ptr::read(self.r_stack.ptr.offset((self.r_stack.len-1) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-2) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-1) as isize))); 
             }
             None
         }
@@ -2023,7 +2023,7 @@ mod tests {
         vm.compile_integer(2);
         vm.compile_integer(1);
         vm.instruction_pointer = ip;
-        match vm.inner() {
+        match vm.run() {
             Some(e) => {
                 match e {
                     InvalidMemoryAddress => assert!(true),
@@ -2049,7 +2049,7 @@ mod tests {
         vm.compile_word(idx);
         b.iter(|| {
             vm.instruction_pointer = ip;
-            vm.inner();
+            vm.run();
         });
     }
 
@@ -2848,7 +2848,7 @@ mod tests {
         b.iter(|| {
             vm.dup();
             vm.execute();
-            vm.inner();
+            vm.run();
         });
     }
 
@@ -2871,7 +2871,7 @@ mod tests {
         b.iter(|| {
             vm.dup();
             vm.execute();
-            vm.inner();
+            vm.run();
         });
     }
 
@@ -2972,7 +2972,7 @@ mod tests {
         }
         assert!(!vm.is_idle());
         assert_eq!(vm.s_stack.len(), 3);
-        vm.inner();
+        vm.run();
         assert!(vm.is_idle());
         assert_eq!(vm.s_stack.len(), 6);
     }
@@ -2989,7 +2989,7 @@ mod tests {
         b.iter(|| {
             vm.dup();
             vm.execute();
-            match vm.inner() {
+            match vm.run() {
                 Some(e) => {
                     match e {
                         Quit => {},

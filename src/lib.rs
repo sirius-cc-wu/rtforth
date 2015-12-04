@@ -1,7 +1,5 @@
-#![feature(oom)]
+#![feature(libc)]
 #![feature(unique)]
-#![feature(heap_api)]
-#![feature(alloc)]
 #![feature(test)]
 #![feature(plugin)]
 #![plugin(clippy)]

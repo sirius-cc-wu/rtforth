@@ -1,7 +1,10 @@
-extern crate alloc;
+extern crate libc;
 extern crate test;
 
-use self::alloc::{heap, oom};
+extern {
+    fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
+}
+
 use std::mem;
 use std::ptr::{Unique, self};
 use std::str::FromStr;
@@ -117,9 +120,15 @@ impl<T> Stack<T> {
         assert!(cap > 0 && cap <= 2048, "Invalid stack capacity");
         let align = mem::align_of::<isize>();
         let elem_size = mem::size_of::<isize>();
+        let size_in_bytes = cap*elem_size;
         unsafe {
-            let ptr = heap::allocate(cap*elem_size, align);
-            if ptr.is_null() { oom(); }
+            let mut ptr = mem::uninitialized();
+            libc::posix_memalign(&mut ptr, align, size_in_bytes);
+            if ptr.is_null() {
+                panic!("Cannot allocate memory.");
+            }
+            libc::mprotect(ptr, size_in_bytes, libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE);
+            memset(ptr, 0x00, size_in_bytes); 
             Stack{ ptr: Unique::new(ptr as *mut _), cap: cap, len: 0 }
         }
     }

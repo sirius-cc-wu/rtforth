@@ -75,7 +75,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.1.11, Copyright (C) 2015 Mapacode Inc.");
+    println!("rtForth v0.1.12, Copyright (C) 2015 Mapacode Inc.");
 }
 
 fn repl(vm: &mut VM) {

@@ -30,3 +30,7 @@ Rust's vector is not a good implementation for stack:
 
 A new data structure with swap, nip, dup, drop, rot, allot.. as its primitives. These primitives is implemented with unsafe code for performance reasons.
 
+## Problem
+
+s_heap, f_heap, n_heap and wordlist. such a structure make empty difficult to implemented. Combine them into a heap.
+

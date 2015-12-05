@@ -13,6 +13,8 @@ use std::fmt;
 use std::slice;
 use std::io::Write;
 use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
+use ::jitmem::JitMemory; 
+use ::word::Word;
 
 
 use exception::Exception::{
@@ -32,44 +34,6 @@ use exception::Exception::{
     Pause,
     Bye,
 };
-
-// Word
-pub struct Word {
-    is_immediate: bool,
-    is_compile_only: bool,
-    hidden: bool,
-    nfa: usize,
-    dfa: usize,
-    name_len: usize,
-    action: fn(& mut VM) -> Option<Exception>
-}
-
-impl Word {
-    pub fn new(nfa: usize, name_len: usize, dfa: usize, action: fn(& mut VM) -> Option<Exception>) -> Word {
-        Word {
-            is_immediate: false,
-            is_compile_only: false,
-            hidden: false,
-            nfa: nfa,
-            dfa: dfa,
-            name_len: name_len,
-            action: action
-        }
-    }
-
-    pub fn nfa(&self) -> usize {
-        self.nfa
-    }
-
-    pub fn dfa(&self) -> usize {
-        self.dfa
-    }
-
-    pub fn name_len(&self) -> usize {
-        self.name_len
-    }
-
-}
 
 pub trait Heap {
     fn push_f64(&mut self, v: f64);
@@ -128,7 +92,7 @@ impl<T> Stack<T> {
                 panic!("Cannot allocate memory.");
             }
             libc::mprotect(ptr, size_in_bytes, libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE);
-            memset(ptr, 0x00, size_in_bytes); 
+            memset(ptr, 0x00, size_in_bytes);
             Stack{ inner: Unique::new(ptr as *mut _), cap: cap, len: 0 }
         }
     }
@@ -245,7 +209,7 @@ impl<T> Stack<T> {
     }
 
     /// # Safety
-    /// Because the implementer (me) is still learning Rust, it is uncertain if as_slice is safe. 
+    /// Because the implementer (me) is still learning Rust, it is uncertain if as_slice is safe.
     pub fn as_slice(&self) -> &[T] {
         unsafe { slice::from_raw_parts(self.inner.get(), self.len) }
     }
@@ -278,6 +242,7 @@ pub struct VM {
     pub s_heap: Vec<u8>,
     pub n_heap: String,
     pub word_list: Vec<Word>,
+    jit_memory: JitMemory,
     pub instruction_pointer: usize,
     word_pointer: usize,
     pub idx_lit: usize,
@@ -307,6 +272,7 @@ impl VM {
             s_heap: Vec::with_capacity(heap_size),
             n_heap: String::with_capacity(64),
             word_list: Vec::with_capacity(16),
+            jit_memory: JitMemory::new(16),
             instruction_pointer: 0,
             word_pointer: 0,
             idx_lit: 0,
@@ -465,7 +431,10 @@ impl VM {
     }
 
     pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-        self.word_list.push (Word::new(self.n_heap.len(), name.len(), self.s_heap.len(), action));
+        let w = Word::new(self.n_heap.len(), name.len(), self.s_heap.len(), action);
+        self.word_list.push (w);
+        let w1 = Word::new(self.n_heap.len(), name.len(), self.s_heap.len(), action);
+        self.jit_memory.compile_word(w1);
         self.n_heap.push_str(name);
     }
 
@@ -473,12 +442,14 @@ impl VM {
         self.add_primitive (name, action);
         let word = self.word_list.last_mut().unwrap();
         word.is_immediate = true;
+        self.jit_memory.last_word().is_immediate = true;
     }
 
     pub fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
         let word = self.word_list.last_mut().unwrap();
         word.is_compile_only = true;
+        self.jit_memory.last_word().is_compile_only = true;
     }
 
     pub fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
@@ -486,6 +457,9 @@ impl VM {
         let word = self.word_list.last_mut().unwrap();
         word.is_immediate = true;
         word.is_compile_only = true;
+        let w = self.jit_memory.last_word();
+        w.is_immediate = true;
+        w.is_compile_only = true;
     }
 
     pub fn execute_word(&mut self, i: usize) -> Option<Exception> {
@@ -656,7 +630,7 @@ impl VM {
     }
 
     pub fn imm_backslash(&mut self) -> Option<Exception> {
-        self.source_index = self.input_buffer.len(); 
+        self.source_index = self.input_buffer.len();
         None
     }
 
@@ -808,7 +782,7 @@ impl VM {
 
     pub fn semicolon(&mut self) -> Option<Exception>{
         if self.last_definition != 0 {
-            self.s_heap.push_i32(self.idx_exit as i32); 
+            self.s_heap.push_i32(self.idx_exit as i32);
             self.word_list[self.last_definition].hidden = false;
         }
         self.interpret()
@@ -891,7 +865,7 @@ impl VM {
     /// Set up loop control parameters with index n2|u2 and limit n1|u1. An
     /// ambiguous condition exists if n1|u1 and n2|u2 are not both the same
     /// type.  Anything already on the return stack becomes unavailable until
-    /// the loop-control parameters are discarded. 
+    /// the loop-control parameters are discarded.
     pub fn _do(&mut self) -> Option<Exception> {
         match self.r_stack.push(self.instruction_pointer as isize) {
             Some(_) => Some(ReturnStackOverflow),
@@ -908,7 +882,7 @@ impl VM {
     /// unavailable. Add one to the loop index. If the loop index is then equal
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
-    /// beginning of the loop. 
+    /// beginning of the loop.
     pub fn p_loop(&mut self) -> Option<Exception> {
         match self.r_stack.pop2() {
             Some((rn, rt)) => {
@@ -921,7 +895,7 @@ impl VM {
                             self.instruction_pointer += mem::size_of::<i32>();
                             None
                         },
-                        None => Some(ReturnStackUnderflow) 
+                        None => Some(ReturnStackUnderflow)
                     }
                 }
             },
@@ -936,7 +910,7 @@ impl VM {
     /// the boundary between the loop limit minus one and the loop limit,
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
-    /// following the loop. 
+    /// following the loop.
     pub fn p_plus_loop(&mut self) -> Option<Exception> {
         match self.r_stack.pop2() {
             Some((rn, rt)) => {
@@ -951,7 +925,7 @@ impl VM {
                                     self.instruction_pointer += mem::size_of::<i32>();
                                     None
                                 },
-                                None => Some(ReturnStackUnderflow) 
+                                None => Some(ReturnStackUnderflow)
                             }
                         }
                     },
@@ -967,7 +941,7 @@ impl VM {
     /// Discard the loop-control parameters for the current nesting level. An
     /// UNLOOP is required for each nesting level before the definition may be
     /// EXITed. An ambiguous condition exists if the loop-control parameters
-    /// are unavailable. 
+    /// are unavailable.
     pub fn unloop(&mut self) -> Option<Exception> {
         match self.r_stack.pop3() {
             Some(_) => None,
@@ -1094,7 +1068,7 @@ impl VM {
     /// Append the run-time semantics of _LOOP to the current definition.
     /// Resolve the destination of all unresolved occurrences of LEAVE between
     /// the location given by do-sys and the next location for a transfer of
-    /// control, to execute the words following the LOOP. 
+    /// control, to execute the words following the LOOP.
     pub fn imm_loop(&mut self) -> Option<Exception>{
         match self.s_stack.pop() {
             Some(do_part) => {
@@ -1113,7 +1087,7 @@ impl VM {
     /// Append the run-time semantics of _+LOOP to the current definition.
     /// Resolve the destination of all unresolved occurrences of LEAVE between
     /// the location given by do-sys and the next location for a transfer of
-    /// control, to execute the words following +LOOP. 
+    /// control, to execute the words following +LOOP.
     pub fn imm_plus_loop(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(do_part) => {
@@ -1139,7 +1113,7 @@ impl VM {
 
     /// Run-time: ( -- true )
     ///
-    /// Return a true flag, a single-cell value with all bits set. 
+    /// Return a true flag, a single-cell value with all bits set.
     pub fn p_true(&mut self) -> Option<Exception> {
         match self.s_stack.push (-1) {
             Some(_) => Some(StackOverflow),
@@ -1159,7 +1133,7 @@ impl VM {
 
     /// Run-time: (c-addr1 -- c-addr2 )
     ///
-    ///Add the size in address units of a character to c-addr1, giving c-addr2. 
+    ///Add the size in address units of a character to c-addr1, giving c-addr2.
     pub fn char_plus(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) =>
@@ -1202,7 +1176,7 @@ impl VM {
 
     /// Run-time: (n1 -- n2 )
     ///
-    /// n2 is the size in address units of n1 cells. 
+    /// n2 is the size in address units of n1 cells.
     pub fn cells(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) =>
@@ -1233,7 +1207,7 @@ impl VM {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)); 
+                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize));
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)));
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), t);
             }
@@ -1295,8 +1269,8 @@ impl VM {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)); 
-                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)); 
+                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize));
+                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize));
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-3) as isize)));
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), t);
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len-3) as isize), n);
@@ -1334,8 +1308,8 @@ impl VM {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)); 
-                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)); 
+                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize));
+                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize));
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-3) as isize)));
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-4) as isize)));
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len-3) as isize), t);
@@ -1460,8 +1434,8 @@ impl VM {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)); 
-                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)); 
+                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize));
+                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize));
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), n%t);
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), n/t);
             }
@@ -1639,7 +1613,7 @@ impl VM {
     /// Perform a logical left shift of u bit-places on x1, giving x2. Put
     /// zeroes into the least significant bits vacated by the shift. An
     /// ambiguous condition exists if u is greater than or equal to the number
-    /// of bits in a cell. 
+    /// of bits in a cell.
     pub fn lshift(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
@@ -1656,7 +1630,7 @@ impl VM {
     /// Perform a logical right shift of u bit-places on x1, giving x2. Put
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if u is greater than or equal to the number
-    /// of bits in a cell. 
+    /// of bits in a cell.
     pub fn rshift(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
@@ -1673,7 +1647,7 @@ impl VM {
     /// Perform a arithmetic right shift of u bit-places on x1, giving x2. Put
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if u is greater than or equal to the number
-    /// of bits in a cell. 
+    /// of bits in a cell.
     pub fn arshift(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
@@ -1689,7 +1663,7 @@ impl VM {
     ///
     /// Execution: ( -- ) ( R: nest-sys -- )
     /// Return control to the calling definition specified by nest-sys. Before executing EXIT within a
-    /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP. 
+    /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP.
     /// TODO: UNLOOP
     pub fn exit(&mut self) -> Option<Exception> {
         if self.r_stack.len == 0 {
@@ -1697,7 +1671,7 @@ impl VM {
         } else {
             self.r_stack.len -= 1;
             unsafe {
-                self.instruction_pointer = ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize)) as usize; 
+                self.instruction_pointer = ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize)) as usize;
             }
             None
         }
@@ -1705,7 +1679,7 @@ impl VM {
 
     /// Run-time: ( a-addr -- x )
     ///
-    /// x is the value stored at a-addr. 
+    /// x is the value stored at a-addr.
     pub fn fetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
@@ -1719,7 +1693,7 @@ impl VM {
 
     /// Run-time: ( x a-addr -- )
     ///
-    /// Store x at a-addr. 
+    /// Store x at a-addr.
     pub fn store(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) => {
@@ -1733,7 +1707,7 @@ impl VM {
     /// Run-time: ( c-addr -- char )
     ///
     /// Fetch the character stored at c-addr. When the cell size is greater than
-    /// character size, the unused high-order bits are all zeroes. 
+    /// character size, the unused high-order bits are all zeroes.
     pub fn c_fetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
@@ -1749,7 +1723,7 @@ impl VM {
     ///
     /// Store char at c-addr. When character size is smaller than cell size,
     /// only the number of low-order bits corresponding to character size are
-    /// transferred. 
+    /// transferred.
     pub fn c_store(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) => {
@@ -1764,7 +1738,7 @@ impl VM {
     ///
     /// Skip leading space delimiters. Parse name delimited by a space. Find
     /// name and return xt, the execution token for name. An ambiguous
-    /// condition exists if name is not found. 
+    /// condition exists if name is not found.
     pub fn tick(&mut self) -> Option<Exception> {
         self.parse_word();
         if !self.last_token.is_empty() {
@@ -1796,7 +1770,7 @@ impl VM {
 
     /// Run-time: ( -- addr )
     ///
-    /// addr is the data-space pointer. 
+    /// addr is the data-space pointer.
     pub fn here(&mut self) -> Option<Exception> {
         match self.s_stack.push(self.s_heap.len() as isize) {
             Some(_) => Some(StackOverflow),
@@ -1808,7 +1782,7 @@ impl VM {
     ///
     /// If n is greater than zero, reserve n address units of data space. If n
     /// is less than zero, release |n| address units of data space. If n is
-    /// zero, leave the data-space pointer unchanged. 
+    /// zero, leave the data-space pointer unchanged.
     pub fn allot(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
@@ -1827,7 +1801,7 @@ impl VM {
     /// Reserve one cell of data space and store x in the cell. If the
     /// data-space pointer is aligned when , begins execution, it will remain
     /// aligned when , finishes execution. An ambiguous condition exists if the
-    /// data-space pointer is not aligned prior to execution of ,. 
+    /// data-space pointer is not aligned prior to execution of ,.
     pub fn comma(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
@@ -1861,7 +1835,7 @@ impl VM {
         } else {
             self.r_stack.len -= 1;
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize)));
             }
             None
         }
@@ -1872,7 +1846,7 @@ impl VM {
             Some(ReturnStackUnderflow)
         } else {
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-1) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-1) as isize)));
             }
             None
         }
@@ -1901,8 +1875,8 @@ impl VM {
         } else {
             self.r_stack.len -= 2;
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize))); 
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len+1) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize)));
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len+1) as isize)));
             }
             None
         }
@@ -1913,8 +1887,8 @@ impl VM {
             Some(ReturnStackUnderflow)
         } else {
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-2) as isize))); 
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-1) as isize))); 
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-2) as isize)));
+                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-1) as isize)));
             }
             None
         }

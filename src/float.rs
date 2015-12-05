@@ -91,7 +91,7 @@ impl Float for VM {
     }
 
     fn p_fconst(&mut self) -> Option<Exception> {
-        let dfa = self.word_list[self.word_pointer()].dfa();
+        let dfa = self.jit_memory.word(self.word_list[self.word_pointer()]).dfa();
         let v = self.s_heap.get_f64(dfa);
         match self.f_stack.push(v) {
             Some(_) => Some(FloatingPointStackOverflow),

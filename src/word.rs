@@ -1,5 +1,6 @@
 use ::core::VM;
 use ::exception::Exception;
+use std::fmt;
 
 // Word
 pub struct Word {
@@ -40,4 +41,10 @@ impl Word {
     }
 
 }
-
+impl fmt::Debug for Word {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+             "Word imm {}, hidden {}, cmponly {}, nfa {}, dfa {}",
+             self.is_immediate, self.hidden, self.is_compile_only, self.nfa, self.dfa)
+    }
+}

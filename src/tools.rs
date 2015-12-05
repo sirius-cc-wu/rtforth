@@ -26,7 +26,8 @@ impl Tools for VM {
     }
 
     fn words(&mut self) -> Option<Exception> {
-        for w in &self.word_list {
+        for i in &self.word_list {
+            let w = self.jit_memory.word(*i);
             let s = &self.n_heap[w.nfa()..w.nfa()+w.name_len()];
             print!("{} ", s );
         }

@@ -12,13 +12,13 @@ pub trait Output {
     fn add_output(&mut self);
 
     /// Run-time: ( x -- )
-    /// 
+    ///
     /// Put x into output buffer.
     fn emit(&mut self) -> Option<Exception>;
 
     /// Run-time: ( c-addr u -- )
     ///
-    /// Put the character string specified by c-addr and u into output buffer. 
+    /// Put the character string specified by c-addr and u into output buffer.
     fn p_type(&mut self) -> Option<Exception>;
 
     /// Compilation: ( "ccc<quote>" -- )
@@ -29,7 +29,7 @@ pub trait Output {
     /// Run-time: ( -- c-addr u )
     ///
     /// Return c-addr and u describing a string consisting of the characters ccc. A program
-    /// shall not alter the returned string. 
+    /// shall not alter the returned string.
     fn s_quote(&mut self) -> Option<Exception>;
 
     /// Compilation: ( "ccc<quote>" -- )
@@ -39,7 +39,7 @@ pub trait Output {
     ///
     /// Run-time: ( -- )
     ///
-    /// Display ccc. 
+    /// Display ccc.
     fn dot_quote(&mut self) -> Option<Exception>;
 
     /// Execution: ( "ccc&lt;paren&gt;" -- )
@@ -49,7 +49,7 @@ pub trait Output {
 
     /// Run-time: ( n -- )
     ///
-    /// Display n in free field format. 
+    /// Display n in free field format.
     fn dot(&mut self) -> Option<Exception>;
 
     /// Run-time: ( -- ) ( F: r -- )
@@ -87,22 +87,17 @@ impl Output for VM {
     }
 
     fn p_type(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack.pop2() {
             None => Some(StackUnderflow),
-            Some(icnt) => match self.s_stack.pop() {
-                None => Some(StackUnderflow),
-                Some(iaddr) => {
-                    let cnt = icnt as usize;
-                    let addr = iaddr as usize;
-                    {
-                        let s = &self.n_heap[addr..addr+cnt]; 
-                        self.output_buffer.push_str(s);
-                    }
-                    if self.auto_flush {
-                        self.flush();
-                    }
-                    None
+            Some((addr, len)) => {
+                {
+                    let s = &self.jit_memory.get_str(addr as usize, len as usize);
+                    self.output_buffer.push_str(s);                    
                 }
+                if self.auto_flush {
+                    self.flush();
+                }
+                None
             }
         }
     }
@@ -110,20 +105,16 @@ impl Output for VM {
     fn s_quote(&mut self) -> Option<Exception> {
         // ignore the space following S"
         let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
-        let naddr = self.n_heap.len();
-        let mut cnt = 0;
-        for ch in source.chars() {
-            if ch == '"' {
-                break;
-            } else {
-                self.n_heap.push(ch);
-            }
-            cnt = cnt + 1;
-        }
+        let (s, cnt)= match source.find('"') {
+            Some(n) => (&self.input_buffer[self.source_index..self.source_index + n], n),
+            None => (source, source.len())
+        };
+        let addr = self.jit_memory.len();
+        self.jit_memory.compile_str(s);
         self.s_heap.push_i32(self.idx_lit as i32);
-        self.s_heap.push_i32(naddr as i32);
+        self.s_heap.push_i32(addr as i32);
         self.s_heap.push_i32(self.idx_lit as i32);
-        self.s_heap.push_i32(cnt);
+        self.s_heap.push_i32(cnt as i32);
         self.source_index = self.source_index + 1 + cnt as usize + 1;
         None
     }

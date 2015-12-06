@@ -240,7 +240,6 @@ pub struct VM {
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
     pub s_heap: Vec<u8>,
-    pub n_heap: String,
     pub word_list: Vec<usize>,
     pub jit_memory: JitMemory,
     pub instruction_pointer: usize,
@@ -269,7 +268,6 @@ impl VM {
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
             s_heap: Vec::with_capacity(heap_size),
-            n_heap: String::with_capacity(64),
             word_list: Vec::with_capacity(16),
             jit_memory: JitMemory::new(16),
             instruction_pointer: 0,
@@ -429,10 +427,8 @@ impl VM {
     }
 
     pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-        let w = Word::new(self.n_heap.len(), name.len(), self.s_heap.len(), action);
-        self.jit_memory.compile_word(w);
+        self.jit_memory.compile_word(name, self.s_heap.len(), action);
         self.word_list.push (self.jit_memory.last());
-        self.n_heap.push_str(name);
     }
 
     pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
@@ -463,8 +459,7 @@ impl VM {
         let mut i = 0usize;
         for j in &self.word_list {
             let w = self.jit_memory.word(*j);
-            let n = &self.n_heap[w.nfa .. w.nfa+w.name_len];
-            if !w.hidden && n.eq_ignore_ascii_case(name) {
+            if !w.hidden && w.name.eq_ignore_ascii_case(name) {
                 return Some(self.word_list[i]);
             } else {
                 i += 1;
@@ -750,10 +745,8 @@ impl VM {
             None => {}
         }
         if !self.last_token.is_empty() {
-            let w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), action);
-            self.jit_memory.compile_word(w);
+            self.jit_memory.compile_word(&self.last_token, self.s_heap.len(), action);
             self.word_list.push (self.jit_memory.last());
-            self.n_heap.push_str(&self.last_token);
             None
         } else {
             self.jit_memory.forget_last_word();
@@ -817,10 +810,8 @@ impl VM {
             let w = self.jit_memory.word(self.word_pointer);
             let dfa = w.dfa;
             jlen = self.s_heap.get_i32(dfa) as usize;
-            let nlen = self.s_heap.get_i32(dfa+mem::size_of::<i32>()) as usize;
-            let wlen = self.s_heap.get_i32(dfa+2*mem::size_of::<i32>()) as usize;
-            let slen = self.s_heap.get_i32(dfa+3*mem::size_of::<i32>()) as usize;
-            self.n_heap.truncate(nlen);
+            let wlen = self.s_heap.get_i32(dfa+1*mem::size_of::<i32>()) as usize;
+            let slen = self.s_heap.get_i32(dfa+2*mem::size_of::<i32>()) as usize;
             self.word_list.truncate(wlen);
             self.s_heap.truncate(slen);
         }
@@ -831,13 +822,11 @@ impl VM {
     pub fn marker(&mut self) -> Option<Exception> {
         self.define(VM::unmark);
         let jlen = self.jit_memory.len() as i32;
-        let nlen = self.n_heap.len() as i32;
         let wlen = self.word_list.len() as i32;
         let slen = self.s_heap.len() as i32;
         self.s_heap.push_i32(jlen);
-        self.s_heap.push_i32(nlen);
         self.s_heap.push_i32(wlen);
-        self.s_heap.push_i32(slen+4*(mem::size_of::<i32>() as i32));
+        self.s_heap.push_i32(slen+3*(mem::size_of::<i32>() as i32));
         None
     }
 
@@ -1970,7 +1959,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         assert!(vm.find("").is_none());
         assert!(vm.find("word-not-exist").is_none());
-        assert_eq!(mem::align_of::<usize>(), vm.find("noop").unwrap());
+        vm.find("noop").expect("noop not found");
     }
 
     #[bench]

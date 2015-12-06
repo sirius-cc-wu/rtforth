@@ -2,7 +2,10 @@ extern crate libc;
 
 use std::mem;
 use std::ptr::Unique;
+use std::slice;
 use ::word::Word;
+use ::core::VM;
+use ::exception::Exception;
 
 extern {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
@@ -41,8 +44,16 @@ impl JitMemory {
         self.len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == mem::align_of::<usize>()
+    }
+
     pub fn last(&self) -> usize {
         self.last
+    }
+
+    pub fn get_str(&self, addr: usize, len: usize) -> &str {
+        unsafe { mem::transmute(slice::from_raw_parts::<u8>(self.inner.offset(addr as isize), len)) }
     }
 
     // Setter
@@ -78,16 +89,21 @@ impl JitMemory {
         }
     }
 
-    pub fn compile_word(&mut self, w: Word) {
-        self.align();
-        let len = self.len;
+    pub fn compile_word(&mut self, name: &str, dfa: usize, action: fn(& mut VM) -> Option<Exception>) {
         unsafe {
+            self.align();
+            let ptr = self.inner.offset(self.len as isize);
+            self.compile_str(name);
+            let s = mem::transmute(slice::from_raw_parts::<u8>(ptr, name.len()));
+            self.align();
+            let len = self.len;
+            let w = Word::new(s, dfa, action);
             let w1 = self.inner.offset(len as isize) as *mut Word;
             *w1 = w;
             (*w1).link = self.last;
             self.last = len;
         }
-        self.len = len + mem::size_of::<Word>();
+        self.len += mem::size_of::<Word>();
     }
 
     pub fn compile_u8(&mut self, v: u8) {
@@ -96,7 +112,19 @@ impl JitMemory {
             let v1 = self.inner.offset(len as isize) as *mut u8;
             *v1 = v;
         }
-        self.len = len + mem::size_of::<u8>();
+        self.len += mem::size_of::<u8>();
+    }
+
+    pub fn compile_str(&mut self, s: &str) {
+        let mut len = self.len;
+        let bytes = s.as_bytes();
+        unsafe {
+            for byte in bytes {
+                *self.inner.offset(len as isize) = *byte;
+                len += mem::size_of::<u8>();
+            }
+        }
+        self.len += bytes.len();
     }
 
     pub fn align(&mut self) {

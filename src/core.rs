@@ -257,7 +257,6 @@ pub struct VM {
     pub input_buffer: String,
     pub source_index: usize,
     pub last_token: String,
-    last_definition: usize,
     pub output_buffer: String,
     pub auto_flush: bool,
 }
@@ -287,7 +286,6 @@ impl VM {
             input_buffer: String::with_capacity(128),
             source_index: 0,
             last_token: String::with_capacity(64),
-            last_definition: 0,
             output_buffer: String::with_capacity(128),
             auto_flush: true
         };
@@ -433,23 +431,23 @@ impl VM {
     pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         let w = Word::new(self.n_heap.len(), name.len(), self.s_heap.len(), action);
         self.jit_memory.compile_word(w);
-        self.word_list.push (self.jit_memory.last);
+        self.word_list.push (self.jit_memory.last());
         self.n_heap.push_str(name);
     }
 
     pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        self.jit_memory.last_word().is_immediate = true;
+        self.jit_memory.last_word().unwrap().is_immediate = true;
     }
 
     pub fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        self.jit_memory.last_word().is_compile_only = true;
+        self.jit_memory.last_word().unwrap().is_compile_only = true;
     }
 
     pub fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        let w = self.jit_memory.last_word();
+        let w = self.jit_memory.last_word().unwrap();
         w.is_immediate = true;
         w.is_compile_only = true;
     }
@@ -753,13 +751,12 @@ impl VM {
         }
         if !self.last_token.is_empty() {
             let w = Word::new(self.n_heap.len(), self.last_token.len(), self.s_heap.len(), action);
-            self.last_definition = self.word_list.len();
             self.jit_memory.compile_word(w);
-            self.word_list.push (self.jit_memory.last);
+            self.word_list.push (self.jit_memory.last());
             self.n_heap.push_str(&self.last_token);
             None
         } else {
-            self.last_definition = 0;
+            self.jit_memory.forget_last_word();
             Some(UnexpectedEndOfFile)
         }
     }
@@ -768,18 +765,19 @@ impl VM {
         match self.define(VM::nest) {
             Some(e) => Some(e),
             None => {
-                let i = self.word_list[self.last_definition];
-                self.jit_memory.mut_word(i).hidden = true;
+                self.jit_memory.last_word().unwrap().hidden = true;
                 self.compile()
             }
         }
     }
 
     pub fn semicolon(&mut self) -> Option<Exception>{
-        if self.last_definition != 0 {
-            self.s_heap.push_i32(self.idx_exit as i32);
-            let i = self.word_list[self.last_definition];
-            self.jit_memory.mut_word(i).hidden = false;
+        match self.jit_memory.last_word() {
+            Some(w) => {
+                self.s_heap.push_i32(self.idx_exit as i32);
+                w.hidden = false;
+            },
+            None => {}
         }
         self.interpret()
     }
@@ -1054,7 +1052,7 @@ impl VM {
     }
 
     pub fn imm_recurse(&mut self) -> Option<Exception> {
-        self.s_heap.push_i32(self.word_list[self.last_definition] as i32);
+        self.s_heap.push_i32(self.jit_memory.last() as i32);
         None
     }
 
@@ -1920,7 +1918,7 @@ impl VM {
         self.input_buffer.clear();
         self.source_index = 0;
         self.instruction_pointer = 0;
-        self.last_definition = 0;
+        self.jit_memory.reset();
         self.interpret();
     }
 
@@ -1972,7 +1970,7 @@ mod tests {
         let vm = &mut VM::new(1024);
         assert!(vm.find("").is_none());
         assert!(vm.find("word-not-exist").is_none());
-        assert_eq!(0usize, vm.find("noop").unwrap());
+        assert_eq!(mem::align_of::<usize>(), vm.find("noop").unwrap());
     }
 
     #[bench]
@@ -2017,7 +2015,7 @@ mod tests {
     fn bench_inner_interpreter_without_nest (b: &mut Bencher) {
         let vm = &mut VM::new(1024);
         let ip = vm.s_heap.len();
-        let idx = 0; // NOP
+        let idx = vm.find("noop").expect("noop not exists");
         vm.compile_word(idx);
         vm.compile_word(idx);
         vm.compile_word(idx);
@@ -2907,7 +2905,7 @@ mod tests {
     #[test]
     fn test_quit() {
         let vm = &mut VM::new(1024);
-        vm.set_source("1 2 3 quit 5 6 7");
+        vm.set_source(": main 1 2 ; main 3 quit 5 6 7");
         match vm.evaluate() {
             Some(_) => assert!(false),
             None => assert!(true),
@@ -2916,6 +2914,13 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(3));
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.jit_memory.last(), 0);
+        assert_eq!(vm.jit_memory.len(), mem::align_of::<usize>());
+        assert_eq!(vm.r_stack.len, 0);
+        assert_eq!(vm.input_buffer.len(), 0);
+        assert_eq!(vm.source_index, 0);
+        assert_eq!(vm.instruction_pointer, 0);
+        assert!(!vm.is_compiling);
     }
 
     #[test]

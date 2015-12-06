@@ -14,7 +14,7 @@ pub struct JitMemory {
     pub inner: Unique<u8>,
     cap: usize,
     len: usize,
-    pub last: usize,
+    last: usize,
 }
 
 impl JitMemory {
@@ -31,7 +31,7 @@ impl JitMemory {
         JitMemory {
             inner: unsafe { Unique::new(ptr as *mut u8) },
             cap: size,
-            len: 0,
+            len: mem::align_of::<usize>(),
             last: 0,
         }
     }
@@ -40,7 +40,21 @@ impl JitMemory {
     pub fn len(&self) -> usize {
         self.len
     }
+
+    pub fn last(&self) -> usize {
+        self.last
+    }
+
     // Setter
+    pub fn reset(&mut self) {
+        self.forget_last_word();
+        self.len = mem::align_of::<usize>();
+    }
+
+    pub fn forget_last_word(&mut self) {
+        self.last = 0;
+    }
+
     // Basic operations
 
     pub fn word(&self, pos: usize) -> &Word {
@@ -55,9 +69,13 @@ impl JitMemory {
         }
     }
 
-    pub fn last_word(&mut self) -> &mut Word {
-        let last = self.last;
-        self.mut_word(last)
+    pub fn last_word(&mut self) -> Option<&mut Word> {
+        if self.last != 0 {
+            let last = self.last;
+            Some(self.mut_word(last))
+        } else {
+            None
+        }
     }
 
     pub fn compile_word(&mut self, w: Word) {

@@ -456,8 +456,7 @@ impl VM {
 
     pub fn execute_word(&mut self, i: usize) -> Option<Exception> {
         self.word_pointer = i;
-        let w = self.word_list[i];
-        (self.jit_memory.word(w).action)(self)
+        (self.jit_memory.word(i).action)(self)
     }
 
     /// Find the word with name 'name'.
@@ -468,7 +467,7 @@ impl VM {
             let w = self.jit_memory.word(*j);
             let n = &self.n_heap[w.nfa .. w.nfa+w.name_len];
             if !w.hidden && n.eq_ignore_ascii_case(name) {
-                return Some(i);
+                return Some(self.word_list[i]);
             } else {
                 i += 1;
             }
@@ -641,8 +640,7 @@ impl VM {
                     let is_immediate_word;
                     let is_compile_only_word;
                     {
-                        let w = self.word_list[found_index];
-                        let word = &self.jit_memory.word(w);
+                        let word = &self.jit_memory.word(found_index);
                         is_immediate_word = word.is_immediate;
                         is_compile_only_word = word.is_compile_only;
                     }
@@ -721,31 +719,27 @@ impl VM {
                 ptr::write(self.r_stack.inner.offset(self.r_stack.len as isize), self.instruction_pointer as isize);
             }
             self.r_stack.len += 1;
-            let w = self.word_list[self.word_pointer];
-            self.instruction_pointer = self.jit_memory.word(w).dfa;
+            self.instruction_pointer = self.jit_memory.word(self.word_pointer).dfa;
             Some(Nest)
         }
     }
 
     pub fn p_var(&mut self) -> Option<Exception> {
-        let w = self.word_list[self.word_pointer];
-        match self.s_stack.push(self.jit_memory.word(w).dfa as isize) {
+        match self.s_stack.push(self.jit_memory.word(self.word_pointer).dfa as isize) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
     pub fn p_const(&mut self) -> Option<Exception> {
-        let w = self.word_list[self.word_pointer];
-        match self.s_stack.push(self.s_heap.get_i32(self.jit_memory.word(w).dfa) as isize) {
+        match self.s_stack.push(self.s_heap.get_i32(self.jit_memory.word(self.word_pointer).dfa) as isize) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
     pub fn p_fvar(&mut self) -> Option<Exception> {
-        let w = self.word_list[self.word_pointer];
-        match self.s_stack.push(self.jit_memory.word(w).dfa as isize) {
+        match self.s_stack.push(self.jit_memory.word(self.word_pointer).dfa as isize) {
             Some(_) => Some(StackOverflow),
             None => None
         }
@@ -820,29 +814,32 @@ impl VM {
     }
 
     pub fn unmark(&mut self) -> Option<Exception> {
-        let i = self.word_list[self.word_pointer];
+        let jlen;
         {
-            let w = self.jit_memory.word(i);
+            let w = self.jit_memory.word(self.word_pointer);
             let dfa = w.dfa;
-            let nlen = self.s_heap.get_i32(dfa) as usize;
-            let wlen = self.s_heap.get_i32(dfa+mem::size_of::<i32>()) as usize;
-            let slen = self.s_heap.get_i32(dfa+2*mem::size_of::<i32>()) as usize;
+            jlen = self.s_heap.get_i32(dfa) as usize;
+            let nlen = self.s_heap.get_i32(dfa+mem::size_of::<i32>()) as usize;
+            let wlen = self.s_heap.get_i32(dfa+2*mem::size_of::<i32>()) as usize;
+            let slen = self.s_heap.get_i32(dfa+3*mem::size_of::<i32>()) as usize;
             self.n_heap.truncate(nlen);
             self.word_list.truncate(wlen);
             self.s_heap.truncate(slen);
         }
-        self.jit_memory.truncate(i);
+        self.jit_memory.truncate(jlen);
         None
     }
 
     pub fn marker(&mut self) -> Option<Exception> {
         self.define(VM::unmark);
+        let jlen = self.jit_memory.len() as i32;
         let nlen = self.n_heap.len() as i32;
         let wlen = self.word_list.len() as i32;
         let slen = self.s_heap.len() as i32;
+        self.s_heap.push_i32(jlen);
         self.s_heap.push_i32(nlen);
         self.s_heap.push_i32(wlen);
-        self.s_heap.push_i32(slen+3*(mem::size_of::<i32>() as i32));
+        self.s_heap.push_i32(slen+4*(mem::size_of::<i32>() as i32));
         None
     }
 
@@ -1057,7 +1054,7 @@ impl VM {
     }
 
     pub fn imm_recurse(&mut self) -> Option<Exception> {
-        self.s_heap.push_i32(self.last_definition as i32);
+        self.s_heap.push_i32(self.word_list[self.last_definition] as i32);
         None
     }
 
@@ -2797,7 +2794,7 @@ mod tests {
     #[test]
     fn test_here_comma_compile_interpret () {
         let vm = &mut VM::new(1024);
-        vm.set_source("here 1 , 2 , ] noop execute [ here");
+        vm.set_source("here 1 , 2 , ] lit exit [ here");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
         assert_eq!(vm.s_stack.pop(), Some(20));
@@ -2806,8 +2803,8 @@ mod tests {
         assert_eq!(vm.s_heap.get_i32(0), idx_halt as i32);
         assert_eq!(vm.s_heap.get_i32(4), 1);
         assert_eq!(vm.s_heap.get_i32(8), 2);
-        assert_eq!(vm.s_heap.get_i32(12), 0);
-        assert_eq!(vm.s_heap.get_i32(16), 1);
+        assert_eq!(vm.s_heap.get_i32(12), vm.idx_lit as i32);
+        assert_eq!(vm.s_heap.get_i32(16), vm.idx_exit as i32);
     }
 
     #[test]

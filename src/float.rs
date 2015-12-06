@@ -91,7 +91,7 @@ impl Float for VM {
     }
 
     fn p_fconst(&mut self) -> Option<Exception> {
-        let dfa = self.jit_memory.word(self.word_list[self.word_pointer()]).dfa();
+        let dfa = self.jit_memory.word(self.word_pointer()).dfa();
         let v = self.s_heap.get_f64(dfa);
         match self.f_stack.push(v) {
             Some(_) => Some(FloatingPointStackOverflow),
@@ -322,7 +322,7 @@ impl Float for VM {
                     Some(n) =>
                         match self.f_stack.push3(n, t, n) {
                             Some(_) => Some(FloatingPointStackOverflow),
-                            None => None 
+                            None => None
                         },
                     None => Some(FloatingPointStackUnderflow)
                 },
@@ -423,7 +423,7 @@ impl Float for VM {
             Some(t) =>
                 match self.s_stack.push(if t<0.0 {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
-                    None => None 
+                    None => None
                 },
             None => Some(FloatingPointStackUnderflow)
         }
@@ -622,7 +622,7 @@ mod tests {
         assert_eq!(vm.f_stack.len(), 1);
         assert!(match vm.f_stack.pop() {
             Some(t) => {
-                t > 0.547721 && t < 0.547723 
+                t > 0.547721 && t < 0.547723
             },
             None => false
         });

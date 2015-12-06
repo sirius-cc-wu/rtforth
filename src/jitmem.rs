@@ -36,7 +36,12 @@ impl JitMemory {
         }
     }
 
-    // Setting
+    // Getter
+    pub fn len(&self) -> usize {
+        self.len
+    }
+    // Setter
+    // Basic operations
 
     pub fn word(&self, pos: usize) -> &Word {
         unsafe {

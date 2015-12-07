@@ -14,9 +14,6 @@ use std::slice;
 use std::io::Write;
 use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 use ::jitmem::JitMemory;
-use ::word::Word;
-
-
 use exception::Exception::{
     self,
     Abort,
@@ -239,7 +236,6 @@ pub struct VM {
     pub s_stack: Stack<isize>,
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
-    pub s_heap: Vec<u8>,
     pub word_list: Vec<usize>,
     pub jit_memory: JitMemory,
     pub instruction_pointer: usize,
@@ -252,6 +248,7 @@ pub struct VM {
     idx_do: usize,
     idx_loop: usize,
     idx_plus_loop: usize,
+    pub idx_s_quote: usize,
     pub idx_type: usize,
     pub input_buffer: String,
     pub source_index: usize,
@@ -267,7 +264,6 @@ impl VM {
             s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
-            s_heap: Vec::with_capacity(heap_size),
             word_list: Vec::with_capacity(16),
             jit_memory: JitMemory::new(16),
             instruction_pointer: 0,
@@ -280,6 +276,7 @@ impl VM {
             idx_do: 0,
             idx_loop: 0,
             idx_plus_loop: 0,
+            idx_s_quote: 0,
             idx_type: 0,
             input_buffer: String::with_capacity(128),
             source_index: 0,
@@ -413,7 +410,7 @@ impl VM {
         vm.idx_loop = vm.find("_loop").expect("_loop undefined");
         vm.idx_plus_loop = vm.find("_+loop").expect("_+loop undefined");
         let idx_halt = vm.find("halt").expect("halt undefined");
-        vm.compile_word(idx_halt);
+        vm.jit_memory.put_u32(idx_halt as u32, 0);
         vm
     }
 
@@ -427,7 +424,7 @@ impl VM {
     }
 
     pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-        self.jit_memory.compile_word(name, self.s_heap.len(), action);
+        self.jit_memory.compile_word(name, action);
         self.word_list.push (self.jit_memory.last());
     }
 
@@ -477,8 +474,8 @@ impl VM {
     #[no_mangle]
     #[inline(never)]
     pub fn run(&mut self) -> Option<Exception> {
-        while self.instruction_pointer < self.s_heap.len() {
-            let w = self.s_heap.get_i32(self.instruction_pointer) as usize;
+        while 0 < self.instruction_pointer && self.instruction_pointer < self.jit_memory.len() {
+            let w = self.jit_memory.get_i32(self.instruction_pointer) as usize;
             self.instruction_pointer += mem::size_of::<i32>();
             match self.execute_word (w) {
                 Some(e) => {
@@ -490,25 +487,29 @@ impl VM {
                 None => {}
             }
         }
-        Some(InvalidMemoryAddress)
+        if self.instruction_pointer == 0 {
+            None
+        } else {
+            Some(InvalidMemoryAddress)
+        }
     }
 
 // Compiler
 
     pub fn compile_word(&mut self, word_index: usize) {
-        self.s_heap.push_i32(word_index as i32);
+        self.jit_memory.compile_i32(word_index as i32);
     }
 
     /// Compile integer 'i'.
     fn compile_integer (&mut self, i: isize) {
-        self.s_heap.push_i32(self.idx_lit as i32);
-        self.s_heap.push_i32(i as i32);
+        self.jit_memory.compile_i32(self.idx_lit as i32);
+        self.jit_memory.compile_i32(i as i32);
     }
 
     /// Compile float 'f'.
     fn compile_float (&mut self, f: f64) {
-        self.s_heap.push_i32(self.idx_flit as i32);
-        self.s_heap.push_f64(f);
+        self.jit_memory.compile_i32(self.idx_flit as i32);
+        self.jit_memory.compile_f64(f);
     }
 
 // Evaluation
@@ -725,7 +726,7 @@ impl VM {
     }
 
     pub fn p_const(&mut self) -> Option<Exception> {
-        match self.s_stack.push(self.s_heap.get_i32(self.jit_memory.word(self.word_pointer).dfa) as isize) {
+        match self.s_stack.push(self.jit_memory.get_i32(self.jit_memory.word(self.word_pointer).dfa) as isize) {
             Some(_) => Some(StackOverflow),
             None => None
         }
@@ -745,7 +746,7 @@ impl VM {
             None => {}
         }
         if !self.last_token.is_empty() {
-            self.jit_memory.compile_word(&self.last_token, self.s_heap.len(), action);
+            self.jit_memory.compile_word(&self.last_token, action);
             self.word_list.push (self.jit_memory.last());
             None
         } else {
@@ -765,9 +766,9 @@ impl VM {
     }
 
     pub fn semicolon(&mut self) -> Option<Exception>{
+        self.jit_memory.compile_i32(self.idx_exit as i32);
         match self.jit_memory.last_word() {
             Some(w) => {
-                self.s_heap.push_i32(self.idx_exit as i32);
                 w.hidden = false;
             },
             None => {}
@@ -783,7 +784,7 @@ impl VM {
         match self.define(VM::p_var) {
             Some(e) => Some(e),
             None => {
-                self.s_heap.push_i32(0);
+                self.jit_memory.compile_i32(0);
                 None
             }
         }
@@ -795,7 +796,7 @@ impl VM {
                 match self.define(VM::p_const) {
                     Some(e) => Some(e),
                     None => {
-                        self.s_heap.push_i32(v as i32);
+                        self.jit_memory.compile_i32(v as i32);
                         None
                     }
                 }
@@ -809,11 +810,9 @@ impl VM {
         {
             let w = self.jit_memory.word(self.word_pointer);
             let dfa = w.dfa;
-            jlen = self.s_heap.get_i32(dfa) as usize;
-            let wlen = self.s_heap.get_i32(dfa+1*mem::size_of::<i32>()) as usize;
-            let slen = self.s_heap.get_i32(dfa+2*mem::size_of::<i32>()) as usize;
+            jlen = self.jit_memory.get_i32(dfa) as usize;
+            let wlen = self.jit_memory.get_i32(dfa+1*mem::size_of::<i32>()) as usize;
             self.word_list.truncate(wlen);
-            self.s_heap.truncate(slen);
         }
         self.jit_memory.truncate(jlen);
         None
@@ -823,17 +822,15 @@ impl VM {
         self.define(VM::unmark);
         let jlen = self.jit_memory.len() as i32;
         let wlen = self.word_list.len() as i32;
-        let slen = self.s_heap.len() as i32;
-        self.s_heap.push_i32(jlen);
-        self.s_heap.push_i32(wlen);
-        self.s_heap.push_i32(slen+3*(mem::size_of::<i32>() as i32));
+        self.jit_memory.compile_i32(jlen+2*(mem::size_of::<i32>() as i32));
+        self.jit_memory.compile_i32(wlen);
         None
     }
 
 // Control
 
     pub fn branch(&mut self) -> Option<Exception> {
-        self.instruction_pointer = self.s_heap.get_i32(self.instruction_pointer) as usize;
+        self.instruction_pointer = self.jit_memory.get_i32(self.instruction_pointer) as usize;
         None
     }
 
@@ -943,7 +940,7 @@ impl VM {
     pub fn leave(&mut self) -> Option<Exception> {
         match self.r_stack.pop3() {
             Some((third, _, _)) => {
-                self.instruction_pointer = self.s_heap.get_i32(third as usize) as usize;
+                self.instruction_pointer = self.jit_memory.get_i32(third as usize) as usize;
                 None
             },
             None => Some(ReturnStackUnderflow)
@@ -976,19 +973,19 @@ impl VM {
     }
 
     pub fn imm_if(&mut self) -> Option<Exception> {
-        self.s_heap.push_i32(self.idx_zero_branch as i32);
-        self.s_heap.push_i32(0);
+        self.jit_memory.compile_i32(self.idx_zero_branch as i32);
+        self.jit_memory.compile_i32(0);
         self.here()
     }
 
     pub fn imm_else(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(if_part) => {
-                self.s_heap.push_i32(self.idx_branch as i32);
-                self.s_heap.push_i32(0);
+                self.jit_memory.compile_i32(self.idx_branch as i32);
+                self.jit_memory.compile_i32(0);
                 self.here();
-                let here = self.s_heap.len();
-                self.s_heap.put_i32((if_part - mem::size_of::<i32>() as isize) as usize, here as i32);
+                let here = self.jit_memory.len();
+                self.jit_memory.put_i32(here as i32, (if_part - mem::size_of::<i32>() as isize) as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -998,8 +995,8 @@ impl VM {
     pub fn imm_then(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(branch_part) => {
-                let here = self.s_heap.len();
-                self.s_heap.put_i32((branch_part - mem::size_of::<i32>() as isize) as usize, here as i32);
+                let here = self.jit_memory.len();
+                self.jit_memory.put_i32(here as i32, (branch_part - mem::size_of::<i32>() as isize) as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1011,18 +1008,18 @@ impl VM {
     }
 
     pub fn imm_while(&mut self) -> Option<Exception> {
-        self.s_heap.push_i32(self.idx_zero_branch as i32);
-        self.s_heap.push_i32(0);
+        self.jit_memory.compile_i32(self.idx_zero_branch as i32);
+        self.jit_memory.compile_i32(0);
         self.here()
     }
 
     pub fn imm_repeat(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((begin_part, while_part)) => {
-                self.s_heap.push_i32(self.idx_branch as i32);
-                self.s_heap.push_i32(begin_part as i32);
-                let here = self.s_heap.len();
-                self.s_heap.put_i32((while_part - mem::size_of::<i32>() as isize) as usize, here as i32);
+                self.jit_memory.compile_i32(self.idx_branch as i32);
+                self.jit_memory.compile_i32(begin_part as i32);
+                let here = self.jit_memory.len();
+                self.jit_memory.put_i32(here as i32, (while_part - mem::size_of::<i32>() as isize) as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1032,8 +1029,8 @@ impl VM {
     pub fn imm_again(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(begin_part) => {
-                self.s_heap.push_i32(self.idx_branch as i32);
-                self.s_heap.push_i32(begin_part as i32);
+                self.jit_memory.compile_i32(self.idx_branch as i32);
+                self.jit_memory.compile_i32(begin_part as i32);
                 None
             },
             None => Some(StackUnderflow)
@@ -1041,7 +1038,8 @@ impl VM {
     }
 
     pub fn imm_recurse(&mut self) -> Option<Exception> {
-        self.s_heap.push_i32(self.jit_memory.last() as i32);
+        let last = self.jit_memory.last();
+        self.jit_memory.compile_u32(last as u32);
         None
     }
 
@@ -1049,8 +1047,8 @@ impl VM {
     ///
     /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
     pub fn imm_do(&mut self) -> Option<Exception> {
-        self.s_heap.push_i32(self.idx_do as i32);
-        self.s_heap.push_i32(0);
+        self.jit_memory.compile_i32(self.idx_do as i32);
+        self.jit_memory.compile_i32(0);
         self.here()
     }
 
@@ -1063,10 +1061,10 @@ impl VM {
     pub fn imm_loop(&mut self) -> Option<Exception>{
         match self.s_stack.pop() {
             Some(do_part) => {
-                self.s_heap.push_i32(self.idx_loop as i32);
-                self.s_heap.push_i32(do_part as i32);
-                let here = self.s_heap.len();
-                self.s_heap.put_i32((do_part - mem::size_of::<i32>() as isize) as usize, here as i32);
+                self.jit_memory.compile_i32(self.idx_loop as i32);
+                self.jit_memory.compile_i32(do_part as i32);
+                let here = self.jit_memory.len();
+                self.jit_memory.put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1082,10 +1080,10 @@ impl VM {
     pub fn imm_plus_loop(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(do_part) => {
-                self.s_heap.push_i32(self.idx_plus_loop as i32);
-                self.s_heap.push_i32(do_part as i32);
-                let here = self.s_heap.len();
-                self.s_heap.put_i32((do_part - mem::size_of::<i32>() as isize) as usize, here as i32);
+                self.jit_memory.compile_i32(self.idx_plus_loop as i32);
+                self.jit_memory.compile_i32(do_part as i32);
+                let here = self.jit_memory.len();
+                self.jit_memory.put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1184,7 +1182,7 @@ impl VM {
             Some(StackOverflow)
         } else {
             unsafe {
-                let v = self.s_heap.get_i32(self.instruction_pointer) as isize;
+                let v = self.jit_memory.get_i32(self.instruction_pointer) as isize;
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len) as isize), v);
             }
             self.s_stack.len += 1;
@@ -1674,7 +1672,7 @@ impl VM {
     pub fn fetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
-                match self.s_stack.push(self.s_heap.get_i32(t as usize) as isize) {
+                match self.s_stack.push(self.jit_memory.get_i32(t as usize) as isize) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1688,7 +1686,7 @@ impl VM {
     pub fn store(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) => {
-                self.s_heap.put_i32(t as usize,  n as i32);
+                self.jit_memory.put_i32(n as i32, t as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1702,7 +1700,7 @@ impl VM {
     pub fn c_fetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
-                match self.s_stack.push(self.s_heap.get_u8(t as usize) as isize) {
+                match self.s_stack.push(self.jit_memory.get_u8(t as usize) as isize) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1718,7 +1716,7 @@ impl VM {
     pub fn c_store(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) => {
-                self.s_heap.put_u8(t as usize,  n as u8);
+                self.jit_memory.put_u8(n as u8, t as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1763,7 +1761,7 @@ impl VM {
     ///
     /// addr is the data-space pointer.
     pub fn here(&mut self) -> Option<Exception> {
-        match self.s_stack.push(self.s_heap.len() as isize) {
+        match self.s_stack.push(self.jit_memory.len() as isize) {
             Some(_) => Some(StackOverflow),
             None => None
         }
@@ -1777,10 +1775,7 @@ impl VM {
     pub fn allot(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
-                unsafe {
-                    let len = (self.s_heap.len() as isize + v) as usize;
-                    self.s_heap.set_len(len);
-                }
+                self.jit_memory.allot(v);
                 None
             },
             None => Some(StackUnderflow)
@@ -1796,7 +1791,7 @@ impl VM {
     pub fn comma(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
-                self.s_heap.push_i32(v as i32);
+                self.jit_memory.compile_i32(v as i32);
                 None
             },
             None => Some(StackUnderflow)
@@ -1983,7 +1978,7 @@ mod tests {
     #[test]
     fn test_inner_interpreter_without_nest () {
         let vm = &mut VM::new(1024);
-        let ip = vm.s_heap.len();
+        let ip = vm.jit_memory.len();
         vm.compile_integer(3);
         vm.compile_integer(2);
         vm.compile_integer(1);
@@ -2003,7 +1998,7 @@ mod tests {
     #[bench]
     fn bench_inner_interpreter_without_nest (b: &mut Bencher) {
         let vm = &mut VM::new(1024);
-        let ip = vm.s_heap.len();
+        let ip = vm.jit_memory.len();
         let idx = vm.find("noop").expect("noop not exists");
         vm.compile_word(idx);
         vm.compile_word(idx);
@@ -2781,17 +2776,22 @@ mod tests {
     #[test]
     fn test_here_comma_compile_interpret () {
         let vm = &mut VM::new(1024);
+        let here = vm.jit_memory.len();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
-        assert_eq!(vm.s_stack.pop(), Some(20));
-        assert_eq!(vm.s_stack.pop(), Some(4));
+        match vm.s_stack.pop2() {
+            Some((n, t)) => {
+                assert_eq!(t-n, 4*mem::size_of::<u32>() as isize);
+            },
+            None => { assert!(false); }
+        }
         let idx_halt = vm.find("halt").expect("halt undefined");
-        assert_eq!(vm.s_heap.get_i32(0), idx_halt as i32);
-        assert_eq!(vm.s_heap.get_i32(4), 1);
-        assert_eq!(vm.s_heap.get_i32(8), 2);
-        assert_eq!(vm.s_heap.get_i32(12), vm.idx_lit as i32);
-        assert_eq!(vm.s_heap.get_i32(16), vm.idx_exit as i32);
+        assert_eq!(vm.jit_memory.get_i32(0), idx_halt as i32);
+        assert_eq!(vm.jit_memory.get_i32(here+0), 1);
+        assert_eq!(vm.jit_memory.get_i32(here+4), 2);
+        assert_eq!(vm.jit_memory.get_i32(here+8), vm.idx_lit as i32);
+        assert_eq!(vm.jit_memory.get_i32(here+12), vm.idx_exit as i32);
     }
 
     #[test]
@@ -2970,7 +2970,7 @@ mod tests {
                         }
                     }
                 },
-                None => assert!(false)
+                None => assert!(true)
             };
         });
     }

@@ -1,8 +1,10 @@
+use std::mem;
 use core::VM;
 use core::Heap;
 use exception::Exception::{
     self,
     StackUnderflow,
+    StackOverflow,
     FloatingPointStackUnderflow
 };
 
@@ -20,6 +22,9 @@ pub trait Output {
     ///
     /// Put the character string specified by c-addr and u into output buffer.
     fn p_type(&mut self) -> Option<Exception>;
+
+    /// Runtime of S"
+    fn p_s_quote(&mut self) -> Option<Exception>;
 
     /// Compilation: ( "ccc<quote>" -- )
     ///
@@ -63,13 +68,15 @@ pub trait Output {
 impl Output for VM {
 
     fn add_output(&mut self) {
-        self.add_primitive ("emit", VM::emit);
-        self.add_primitive ("type", VM::p_type);
-        self.add_immediate ("s\"", VM::s_quote);
-        self.add_immediate (".\"", VM::dot_quote);
-        self.add_immediate (".(", VM::dot_paren);
-        self.add_primitive (".", VM::dot);
-        self.add_primitive ("f.", VM::fdot);
+        self.add_primitive("emit", VM::emit);
+        self.add_primitive("type", VM::p_type);
+        self.add_primitive("_s\"", VM::p_s_quote);
+        self.add_immediate("s\"", VM::s_quote);
+        self.add_immediate(".\"", VM::dot_quote);
+        self.add_immediate(".(", VM::dot_paren);
+        self.add_primitive(".", VM::dot);
+        self.add_primitive("f.", VM::fdot);
+        self.idx_s_quote = self.find("_s\"").expect("_s\" undefined");
         self.idx_type = self.find("type").expect("type undefined");
     }
 
@@ -92,7 +99,7 @@ impl Output for VM {
             Some((addr, len)) => {
                 {
                     let s = &self.jit_memory.get_str(addr as usize, len as usize);
-                    self.output_buffer.push_str(s);                    
+                    self.output_buffer.push_str(s);
                 }
                 if self.auto_flush {
                     self.flush();
@@ -102,19 +109,28 @@ impl Output for VM {
         }
     }
 
+    fn p_s_quote(&mut self) -> Option<Exception> {
+        let cnt = self.jit_memory.get_i32(self.instruction_pointer);
+        let addr = self.instruction_pointer + mem::size_of::<i32>();
+        match self.s_stack.push2(addr as isize, cnt as isize) {
+            Some(_) => { Some(StackOverflow) },
+            None => {
+                self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>() + cnt as usize;
+                None
+            }
+        }
+    }
+
     fn s_quote(&mut self) -> Option<Exception> {
-        // ignore the space following S"
         let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
         let (s, cnt)= match source.find('"') {
             Some(n) => (&self.input_buffer[self.source_index..self.source_index + n], n),
             None => (source, source.len())
         };
-        let addr = self.jit_memory.len();
+        self.jit_memory.compile_i32(self.idx_s_quote as i32);
+        self.jit_memory.compile_i32(cnt as i32);
         self.jit_memory.compile_str(s);
-        self.s_heap.push_i32(self.idx_lit as i32);
-        self.s_heap.push_i32(addr as i32);
-        self.s_heap.push_i32(self.idx_lit as i32);
-        self.s_heap.push_i32(cnt as i32);
+        // ignore the space following S"
         self.source_index = self.source_index + 1 + cnt as usize + 1;
         None
     }

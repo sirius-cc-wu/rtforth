@@ -80,7 +80,7 @@ impl Float for VM {
     }
 
     fn flit(&mut self) -> Option<Exception> {
-        let v = self.s_heap.get_f64(self.instruction_pointer as usize);
+        let v = self.jit_memory.get_f64(self.instruction_pointer as usize);
         match self.f_stack.push (v) {
             Some(_) => Some(FloatingPointStackOverflow),
             None => {
@@ -92,7 +92,7 @@ impl Float for VM {
 
     fn p_fconst(&mut self) -> Option<Exception> {
         let dfa = self.jit_memory.word(self.word_pointer()).dfa();
-        let v = self.s_heap.get_f64(dfa);
+        let v = self.jit_memory.get_f64(dfa);
         match self.f_stack.push(v) {
             Some(_) => Some(FloatingPointStackOverflow),
             None => None
@@ -101,7 +101,7 @@ impl Float for VM {
 
     fn fvariable(&mut self) -> Option<Exception> {
         self.define(VM::p_fvar);
-        self.s_heap.push_f64(0.0);
+        self.jit_memory.compile_f64(0.0);
         None
     }
 
@@ -109,7 +109,7 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(v) => {
                 self.define(VM::p_fconst);
-                self.s_heap.push_f64(v);
+                self.jit_memory.compile_f64(v);
                 None
             },
             None => Some(FloatingPointStackUnderflow)
@@ -121,7 +121,7 @@ impl Float for VM {
     fn ffetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
-                match self.f_stack.push(self.s_heap.get_f64(t as usize)) {
+                match self.f_stack.push(self.jit_memory.get_f64(t as usize)) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 },
@@ -134,7 +134,7 @@ impl Float for VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) => {
-                        self.s_heap.put_f64(t as usize, n);
+                        self.jit_memory.put_f64(n, t as usize);
                         None
                     },
                     None => Some(StackUnderflow)

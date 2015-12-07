@@ -811,7 +811,7 @@ impl VM {
             let w = self.jit_memory.word(self.word_pointer);
             let dfa = w.dfa;
             jlen = self.jit_memory.get_i32(dfa) as usize;
-            let wlen = self.jit_memory.get_i32(dfa+1*mem::size_of::<i32>()) as usize;
+            let wlen = self.jit_memory.get_i32(dfa+mem::size_of::<i32>()) as usize;
             self.word_list.truncate(wlen);
         }
         self.jit_memory.truncate(jlen);

@@ -24,7 +24,7 @@ pub trait Facility {
     /// use rtforth::core::VM;
     /// use rtforth::facility::Facility;
     /// use rtforth::tools::Tools;
-    /// let mut vm = VM::new(1024);
+    /// let mut vm = VM::new(16);
     /// vm.add_facility();
     /// vm.add_tools();
     /// vm.set_source("ntime .s");
@@ -42,7 +42,7 @@ pub trait Facility {
     /// use rtforth::core::VM;
     /// use rtforth::facility::Facility;
     /// use rtforth::tools::Tools;
-    /// let mut vm = VM::new(1024);
+    /// let mut vm = VM::new(16);
     /// vm.add_facility();
     /// vm.add_tools();
     /// vm.set_source("utime .s");
@@ -93,4 +93,3 @@ impl Facility for VM {
         }
     }
 }
-

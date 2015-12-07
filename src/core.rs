@@ -88,7 +88,7 @@ impl<T> Stack<T> {
             if ptr.is_null() {
                 panic!("Cannot allocate memory.");
             }
-            libc::mprotect(ptr, size_in_bytes, libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE);
+            libc::mprotect(ptr, size_in_bytes, libc::PROT_READ | libc::PROT_WRITE);
             memset(ptr, 0x00, size_in_bytes);
             Stack{ inner: Unique::new(ptr as *mut _), cap: cap, len: 0 }
         }
@@ -258,14 +258,14 @@ pub struct VM {
 }
 
 impl VM {
-    pub fn new(heap_size: usize) -> VM {
+    pub fn new(pages: usize) -> VM {
         let mut vm = VM {
             is_compiling: false,
             s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
             word_list: Vec::with_capacity(16),
-            jit_memory: JitMemory::new(16),
+            jit_memory: JitMemory::new(pages),
             instruction_pointer: 0,
             word_pointer: 0,
             idx_lit: 0,
@@ -1945,13 +1945,13 @@ mod tests {
 
     #[bench]
     fn bench_noop (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         b.iter(|| vm.noop());
     }
 
     #[test]
     fn test_find() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         assert!(vm.find("").is_none());
         assert!(vm.find("word-not-exist").is_none());
         vm.find("noop").expect("noop not found");
@@ -1959,25 +1959,25 @@ mod tests {
 
     #[bench]
     fn bench_find_word_not_exist(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         b.iter(|| vm.find("unknown"));
     }
 
     #[bench]
     fn bench_find_word_at_beginning_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         b.iter(|| vm.find("noop"));
     }
 
     #[bench]
     fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         b.iter(|| vm.find("bye"));
     }
 
     #[test]
     fn test_inner_interpreter_without_nest () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         let ip = vm.jit_memory.len();
         vm.compile_integer(3);
         vm.compile_integer(2);
@@ -1997,7 +1997,7 @@ mod tests {
 
     #[bench]
     fn bench_inner_interpreter_without_nest (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         let ip = vm.jit_memory.len();
         let idx = vm.find("noop").expect("noop not exists");
         vm.compile_word(idx);
@@ -2015,7 +2015,7 @@ mod tests {
 
     #[test]
     fn test_drop() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         assert!(vm.p_drop().is_none());
         assert!(vm.s_stack.is_empty());
@@ -2023,7 +2023,7 @@ mod tests {
 
     #[bench]
     fn bench_drop(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         b.iter(|| {
             vm.p_drop();
@@ -2033,7 +2033,7 @@ mod tests {
 
     #[test]
     fn test_nip() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         assert!(vm.nip().is_none());
@@ -2043,7 +2043,7 @@ mod tests {
 
     #[bench]
     fn bench_nip(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(1);
         b.iter(|| {
@@ -2054,7 +2054,7 @@ mod tests {
 
     #[test]
     fn test_swap () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         assert!(vm.swap().is_none());
@@ -2065,7 +2065,7 @@ mod tests {
 
     #[bench]
     fn bench_swap (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         b.iter(|| vm.swap());
@@ -2073,7 +2073,7 @@ mod tests {
 
     #[test]
     fn test_dup () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         assert!(vm.dup().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -2083,7 +2083,7 @@ mod tests {
 
     #[bench]
     fn bench_dup (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         b.iter(|| {
             vm.dup();
@@ -2093,7 +2093,7 @@ mod tests {
 
     #[test]
     fn test_over () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         assert!(vm.over().is_none());
@@ -2105,7 +2105,7 @@ mod tests {
 
     #[bench]
     fn bench_over (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         b.iter(|| {
@@ -2116,7 +2116,7 @@ mod tests {
 
     #[test]
     fn test_rot () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2129,7 +2129,7 @@ mod tests {
 
     #[bench]
     fn bench_rot (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2138,7 +2138,7 @@ mod tests {
 
     #[test]
     fn test_2drop () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         assert!(vm.two_drop().is_none());
@@ -2147,7 +2147,7 @@ mod tests {
 
     #[bench]
     fn bench_2drop (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         b.iter(|| {
             vm.s_stack.push(1);
             vm.s_stack.push(2);
@@ -2157,7 +2157,7 @@ mod tests {
 
     #[test]
     fn test_2dup () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         assert!(vm.two_dup().is_none());
@@ -2170,7 +2170,7 @@ mod tests {
 
     #[bench]
     fn bench_2dup (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         b.iter(|| {
@@ -2181,7 +2181,7 @@ mod tests {
 
     #[test]
     fn test_2swap () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2196,7 +2196,7 @@ mod tests {
 
     #[bench]
     fn bench_2swap (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2206,7 +2206,7 @@ mod tests {
 
     #[test]
     fn test_2over () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2218,7 +2218,7 @@ mod tests {
 
     #[bench]
     fn bench_2over (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2231,7 +2231,7 @@ mod tests {
 
     #[test]
     fn test_depth() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.depth();
         vm.depth();
         vm.depth();
@@ -2240,7 +2240,7 @@ mod tests {
 
     #[test]
     fn test_one_plus() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         assert!(vm.one_plus().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2249,7 +2249,7 @@ mod tests {
 
     #[bench]
     fn bench_one_plus(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(0);
         b.iter(|| {
             vm.one_plus();
@@ -2258,7 +2258,7 @@ mod tests {
 
     #[test]
     fn test_one_minus() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(2);
         assert!(vm.one_minus().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2267,7 +2267,7 @@ mod tests {
 
     #[bench]
     fn bench_one_minus(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(0);
         b.iter(|| {
             vm.one_minus();
@@ -2276,7 +2276,7 @@ mod tests {
 
     #[test]
     fn test_minus() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(5);
         vm.s_stack.push(7);
         assert!(vm.minus().is_none());
@@ -2286,7 +2286,7 @@ mod tests {
 
     #[bench]
     fn bench_minus(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(0);
         b.iter(|| {
             vm.dup();
@@ -2296,7 +2296,7 @@ mod tests {
 
     #[test]
     fn test_plus() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(5);
         vm.s_stack.push(7);
         assert!(vm.plus().is_none());
@@ -2306,7 +2306,7 @@ mod tests {
 
     #[bench]
     fn bench_plus(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         b.iter(|| {
             vm.dup();
@@ -2316,7 +2316,7 @@ mod tests {
 
     #[test]
     fn test_star () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(5);
         vm.s_stack.push(7);
         assert!(vm.star().is_none());
@@ -2326,7 +2326,7 @@ mod tests {
 
     #[bench]
     fn bench_star(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         b.iter(|| {
             vm.dup();
@@ -2336,7 +2336,7 @@ mod tests {
 
     #[test]
     fn test_slash () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(30);
         vm.s_stack.push(7);
         assert!(vm.slash().is_none());
@@ -2346,7 +2346,7 @@ mod tests {
 
     #[bench]
     fn bench_slash(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         b.iter(|| {
             vm.dup();
@@ -2356,7 +2356,7 @@ mod tests {
 
     #[test]
     fn test_mod () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(30);
         vm.s_stack.push(7);
         assert!(vm.p_mod().is_none());
@@ -2366,7 +2366,7 @@ mod tests {
 
     #[bench]
     fn bench_mod(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         b.iter(|| {
@@ -2377,7 +2377,7 @@ mod tests {
 
     #[test]
     fn test_slash_mod () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(30);
         vm.s_stack.push(7);
         assert!(vm.slash_mod().is_none());
@@ -2388,7 +2388,7 @@ mod tests {
 
     #[bench]
     fn bench_slash_mod(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push2(1, 2);
         b.iter(|| {
             vm.slash_mod();
@@ -2399,7 +2399,7 @@ mod tests {
 
     #[test]
     fn test_abs () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(-30);
         assert!(vm.abs().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2408,7 +2408,7 @@ mod tests {
 
     #[test]
     fn test_negate () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(30);
         assert!(vm.negate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2417,7 +2417,7 @@ mod tests {
 
     #[test]
     fn test_zero_less () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(-1);
         assert!(vm.zero_less().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2430,7 +2430,7 @@ mod tests {
 
     #[test]
     fn test_zero_equals () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(0);
         assert!(vm.zero_equals().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2447,7 +2447,7 @@ mod tests {
 
     #[test]
     fn test_zero_greater () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         assert!(vm.zero_greater().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2460,7 +2460,7 @@ mod tests {
 
     #[test]
     fn test_zero_not_equals () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(0);
         assert!(vm.zero_not_equals().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2477,7 +2477,7 @@ mod tests {
 
     #[test]
     fn test_less_than () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(-1);
         vm.s_stack.push(0);
         assert!(vm.less_than().is_none());
@@ -2492,7 +2492,7 @@ mod tests {
 
     #[test]
     fn test_equals () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(0);
         vm.s_stack.push(0);
         assert!(vm.equals().is_none());
@@ -2512,7 +2512,7 @@ mod tests {
 
     #[test]
     fn test_greater_than () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(0);
         assert!(vm.greater_than().is_none());
@@ -2527,7 +2527,7 @@ mod tests {
 
     #[test]
     fn test_not_equals () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(0);
         vm.s_stack.push(0);
         assert!(vm.not_equals().is_none());
@@ -2547,7 +2547,7 @@ mod tests {
 
     #[test]
     fn test_between () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
@@ -2576,7 +2576,7 @@ mod tests {
 
     #[test]
     fn test_invert () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(707);
         assert!(vm.invert().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2585,7 +2585,7 @@ mod tests {
 
     #[test]
     fn test_and () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(707);
         vm.s_stack.push(007);
         assert!(vm.and().is_none());
@@ -2595,7 +2595,7 @@ mod tests {
 
     #[test]
     fn test_or () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(707);
         vm.s_stack.push(07);
         assert!(vm.or().is_none());
@@ -2605,7 +2605,7 @@ mod tests {
 
     #[test]
     fn test_xor () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(707);
         vm.s_stack.push(07);
         assert!(vm.xor().is_none());
@@ -2615,7 +2615,7 @@ mod tests {
 
     #[test]
     fn test_lshift () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(1);
         vm.s_stack.push(1);
         assert!(vm.lshift().is_none());
@@ -2630,7 +2630,7 @@ mod tests {
 
     #[test]
     fn test_rshift () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(8);
         vm.s_stack.push(1);
         assert!(vm.rshift().is_none());
@@ -2645,7 +2645,7 @@ mod tests {
 
     #[test]
     fn test_arshift () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.s_stack.push(8);
         vm.s_stack.push(1);
         assert!(vm.arshift().is_none());
@@ -2660,7 +2660,7 @@ mod tests {
 
     #[test]
     fn test_parse_word () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("hello world\t\r\n\"");
         assert!(vm.parse_word().is_none());
         assert_eq!(vm.last_token, "hello");
@@ -2674,7 +2674,7 @@ mod tests {
 
     #[test]
     fn test_evaluate () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("false true dup 1+ 2 -3");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 5);
@@ -2687,7 +2687,7 @@ mod tests {
 
     #[bench]
     fn bench_compile_words_at_beginning_of_wordlist (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("marker empty");
         assert!(vm.evaluate().is_none());
         b.iter(|| {
@@ -2699,7 +2699,7 @@ mod tests {
 
     #[bench]
     fn bench_compile_words_at_end_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("marker empty");
         vm.evaluate();
         b.iter(|| {
@@ -2711,7 +2711,7 @@ mod tests {
 
     #[test]
     fn test_colon_and_semi_colon() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": 2+3 2 3 + ; 2+3");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2720,7 +2720,7 @@ mod tests {
 
     #[test]
     fn test_constant () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("5 constant x x x");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -2730,7 +2730,7 @@ mod tests {
 
     #[test]
     fn test_variable_and_store_fetch () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("variable x  x @  3 x !  x @");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -2740,7 +2740,7 @@ mod tests {
 
     #[test]
     fn test_char_plus_and_chars() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("2 char+  9 chars");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.as_slice(), [3, 9]);
@@ -2748,7 +2748,7 @@ mod tests {
 
     #[test]
     fn test_cell_plus_and_cells() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("2 cell+  9 cells");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.as_slice(), [6, 36]);
@@ -2756,7 +2756,7 @@ mod tests {
 
     #[test]
     fn test_execute () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("1 2  ' swap execute");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -2766,7 +2766,7 @@ mod tests {
 
     #[test]
     fn test_here_allot () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("here 2 cells allot here -");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2775,7 +2775,7 @@ mod tests {
 
     #[test]
     fn test_here_comma_compile_interpret () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         let here = vm.jit_memory.len();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
         assert!(vm.evaluate().is_none());
@@ -2796,7 +2796,7 @@ mod tests {
 
     #[test]
     fn test_to_r_r_fetch_r_from () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2805,7 +2805,7 @@ mod tests {
 
     #[bench]
     fn bench_to_r_r_fetch_r_from (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": main 3 >r r@ drop r> drop ;");
         vm.evaluate();
         vm.set_source("' main");
@@ -2819,7 +2819,7 @@ mod tests {
 
     #[test]
     fn test_two_to_r_two_r_fetch_two_r_from () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2828,7 +2828,7 @@ mod tests {
 
     #[bench]
     fn bench_two_to_r_two_r_fetch_two_r_from (b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": main 1 2 2>r 2r@ 2drop 2r> 2drop ;");
         vm.evaluate();
         vm.set_source("' main");
@@ -2842,7 +2842,7 @@ mod tests {
 
     #[test]
     fn test_if_else_then () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": t1 0 if true else false then ; t1");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2855,7 +2855,7 @@ mod tests {
 
     #[test]
     fn test_begin_again () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2864,7 +2864,7 @@ mod tests {
 
     #[test]
     fn test_begin_while_repeat () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": t1 0 begin 1+ dup 3 <> while repeat ; t1");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2873,7 +2873,7 @@ mod tests {
 
     #[test]
     fn test_backlash () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("1 2 3 \\ 5 6 7");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 3);
@@ -2884,7 +2884,7 @@ mod tests {
 
     #[test]
     fn test_marker_unmark () {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("marker empty here empty here =");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2893,7 +2893,7 @@ mod tests {
 
     #[test]
     fn test_quit() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": main 1 2 ; main 3 quit 5 6 7");
         match vm.evaluate() {
             Some(_) => assert!(false),
@@ -2914,7 +2914,7 @@ mod tests {
 
     #[test]
     fn test_abort() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("1 2 3 abort 5 6 7");
         match vm.evaluate() {
             Some(Abort) => assert!(true),
@@ -2925,7 +2925,7 @@ mod tests {
 
     #[test]
     fn test_bye() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source("1 2 3 bye 5 6 7");
         match vm.evaluate() {
             Some(Bye) => assert!(true),
@@ -2936,7 +2936,7 @@ mod tests {
 
     #[test]
     fn test_pause() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": test 1 2 3 pause 5 6 7 ; test");
         match vm.evaluate() {
             Some(Pause) => assert!(true),
@@ -2951,7 +2951,7 @@ mod tests {
 
     #[bench]
     fn bench_fib(b: &mut Bencher) {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": fib dup 2 < if drop 1 else dup 1- recurse swap 2 - recurse + then ;");
         assert!(vm.evaluate().is_none());
         vm.set_source(": main 7 fib drop ;");
@@ -2977,7 +2977,7 @@ mod tests {
 
     #[test]
     fn test_do_loop() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": main 1 5 0 do 1+ loop ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2986,7 +2986,7 @@ mod tests {
 
     #[test]
     fn test_do_unloop_exit_loop() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2995,7 +2995,7 @@ mod tests {
 
     #[test]
     fn test_do_plus_loop() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": main 1 5 0 do 1+ 2 +loop ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -3008,7 +3008,7 @@ mod tests {
 
     #[test]
     fn test_do_leave_loop() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -3017,7 +3017,7 @@ mod tests {
 
     #[test]
     fn test_do_i_loop() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": main 3 0 do i loop ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 3);
@@ -3026,7 +3026,7 @@ mod tests {
 
     #[test]
     fn test_do_i_j_loop() {
-        let vm = &mut VM::new(1024);
+        let vm = &mut VM::new(16);
         vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 4);

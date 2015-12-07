@@ -27,7 +27,7 @@ impl JitMemory {
         unsafe {
             ptr = mem::uninitialized();
             libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(ptr, size, libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE);
+            libc::mprotect(ptr, size, libc::PROT_READ | libc::PROT_WRITE);
 
             memset(ptr, 0xcc, size);  // prepopulate with 'int3'
         }

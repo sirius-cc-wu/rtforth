@@ -13,10 +13,12 @@ extern {
 
 const PAGE_SIZE: usize = 4096;
 
+#[allow(dead_code)]
 pub struct JitMemory {
     pub inner: Unique<u8>,
     cap: usize,
     len: usize,
+    // last word in current word list
     last: usize,
 }
 
@@ -45,6 +47,7 @@ impl JitMemory {
         self.len
     }
 
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.len == mem::align_of::<usize>()
     }
@@ -57,6 +60,7 @@ impl JitMemory {
         unsafe { *(self.inner.offset(addr as isize) as *mut u8) }
     }
 
+    #[allow(dead_code)]
     pub fn get_u32(&self, addr: usize) -> u32 {
         unsafe { *(self.inner.offset(addr as isize) as *mut u32) }
     }
@@ -74,15 +78,10 @@ impl JitMemory {
     }
 
     // Setter
-    pub fn reset(&mut self) {
-        self.forget_last_word();
-        self.len = mem::align_of::<usize>();
-    }
 
-    pub fn forget_last_word(&mut self) {
-        self.last = 0;
+    pub fn set_last(&mut self, addr: usize) {
+        self.last = addr;
     }
-
     // Basic operations
 
     pub fn word(&self, pos: usize) -> &Word {
@@ -94,15 +93,6 @@ impl JitMemory {
     pub fn mut_word(&mut self, pos: usize) -> &mut Word {
         unsafe {
             &mut *(self.inner.offset(pos as isize) as *mut Word)
-        }
-    }
-
-    pub fn last_word(&mut self) -> Option<&mut Word> {
-        if self.last != 0 {
-            let last = self.last;
-            Some(self.mut_word(last))
-        } else {
-            None
         }
     }
 
@@ -135,6 +125,7 @@ impl JitMemory {
         }
     }
 
+    #[allow(dead_code)]
     pub fn compile_u8(&mut self, v: u8) {
         let len = self.len;
         self.put_u8(v, len);

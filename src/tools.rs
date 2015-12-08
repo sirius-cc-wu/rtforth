@@ -26,12 +26,18 @@ impl Tools for VM {
     }
 
     fn words(&mut self) -> Option<Exception> {
-        for i in &self.word_list {
-            let w = self.jit_memory.word(*i);
-            print!("{} ", w.name );
-        }
         println!("");
-        None
+        let mut w = self.jit_memory.word(self.jit_memory.last());
+        loop {
+            if !w.hidden {
+                print!("{} ", w.name );
+            }
+            if w.link != 0 {
+                w = self.jit_memory.word(w.link);
+            } else {
+                return None
+            }
+        }
     }
 
     fn dot_s(&mut self) -> Option<Exception> {

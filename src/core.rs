@@ -236,7 +236,6 @@ pub struct VM {
     pub s_stack: Stack<isize>,
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
-    pub word_list: Vec<usize>,
     pub jit_memory: JitMemory,
     pub instruction_pointer: usize,
     word_pointer: usize,
@@ -255,6 +254,8 @@ pub struct VM {
     pub last_token: String,
     pub output_buffer: String,
     pub auto_flush: bool,
+    // Last definition, 0 if last define fails.
+    last_definition: usize,
 }
 
 impl VM {
@@ -264,7 +265,6 @@ impl VM {
             s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
-            word_list: Vec::with_capacity(16),
             jit_memory: JitMemory::new(pages),
             instruction_pointer: 0,
             word_pointer: 0,
@@ -282,7 +282,8 @@ impl VM {
             source_index: 0,
             last_token: String::with_capacity(64),
             output_buffer: String::with_capacity(128),
-            auto_flush: true
+            auto_flush: true,
+            last_definition: 0,
         };
         // Bytecodes
         vm.add_primitive("noop", VM::noop); // j1, Ngaro, jx
@@ -425,22 +426,22 @@ impl VM {
 
     pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.jit_memory.compile_word(name, action);
-        self.word_list.push (self.jit_memory.last());
+        self.last_definition = self.jit_memory.last();
     }
 
     pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        self.jit_memory.last_word().unwrap().is_immediate = true;
+        self.jit_memory.mut_word(self.last_definition).is_immediate = true;
     }
 
     pub fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        self.jit_memory.last_word().unwrap().is_compile_only = true;
+        self.jit_memory.mut_word(self.last_definition).is_compile_only = true;
     }
 
     pub fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        let w = self.jit_memory.last_word().unwrap();
+        let w = self.jit_memory.mut_word(self.last_definition);
         w.is_immediate = true;
         w.is_compile_only = true;
     }
@@ -453,16 +454,20 @@ impl VM {
     /// Find the word with name 'name'.
     /// If not found returns zero.
     pub fn find(&self, name: &str) -> Option<usize> {
-        let mut i = 0usize;
-        for j in &self.word_list {
-            let w = self.jit_memory.word(*j);
+        let mut i = self.jit_memory.last();
+        let mut w = self.jit_memory.word(i);
+        loop {
             if !w.hidden && w.name.eq_ignore_ascii_case(name) {
-                return Some(self.word_list[i]);
+                return Some(i);
             } else {
-                i += 1;
+                if w.link != 0 {
+                    i = w.link;
+                    w = self.jit_memory.word(i);
+                } else {
+                    return None
+                }
             }
         }
-        None
     }
 
 // Inner interpreter
@@ -747,10 +752,10 @@ impl VM {
         }
         if !self.last_token.is_empty() {
             self.jit_memory.compile_word(&self.last_token, action);
-            self.word_list.push (self.jit_memory.last());
+            self.last_definition = self.jit_memory.last();
             None
         } else {
-            self.jit_memory.forget_last_word();
+            self.last_definition = 0;
             Some(UnexpectedEndOfFile)
         }
     }
@@ -759,19 +764,16 @@ impl VM {
         match self.define(VM::nest) {
             Some(e) => Some(e),
             None => {
-                self.jit_memory.last_word().unwrap().hidden = true;
+                self.jit_memory.mut_word(self.last_definition).hidden = true;
                 self.compile()
             }
         }
     }
 
     pub fn semicolon(&mut self) -> Option<Exception>{
-        self.jit_memory.compile_i32(self.idx_exit as i32);
-        match self.jit_memory.last_word() {
-            Some(w) => {
-                w.hidden = false;
-            },
-            None => {}
+        if self.last_definition != 0 {
+            self.jit_memory.compile_i32(self.idx_exit as i32);
+            self.jit_memory.mut_word(self.last_definition).hidden = false;
         }
         self.interpret()
     }
@@ -811,19 +813,16 @@ impl VM {
             let w = self.jit_memory.word(self.word_pointer);
             let dfa = w.dfa;
             jlen = self.jit_memory.get_i32(dfa) as usize;
-            let wlen = self.jit_memory.get_i32(dfa+mem::size_of::<i32>()) as usize;
-            self.word_list.truncate(wlen);
         }
         self.jit_memory.truncate(jlen);
+        self.jit_memory.set_last(self.word_pointer);
         None
     }
 
     pub fn marker(&mut self) -> Option<Exception> {
         self.define(VM::unmark);
         let jlen = self.jit_memory.len() as i32;
-        let wlen = self.word_list.len() as i32;
-        self.jit_memory.compile_i32(jlen+2*(mem::size_of::<i32>() as i32));
-        self.jit_memory.compile_i32(wlen);
+        self.jit_memory.compile_i32(jlen+(mem::size_of::<i32>() as i32));
         None
     }
 
@@ -1902,7 +1901,6 @@ impl VM {
         self.input_buffer.clear();
         self.source_index = 0;
         self.instruction_pointer = 0;
-        self.jit_memory.reset();
         self.interpret();
     }
 
@@ -2903,8 +2901,6 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(3));
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.jit_memory.last(), 0);
-        assert_eq!(vm.jit_memory.len(), mem::align_of::<usize>());
         assert_eq!(vm.r_stack.len, 0);
         assert_eq!(vm.input_buffer.len(), 0);
         assert_eq!(vm.source_index, 0);

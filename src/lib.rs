@@ -2,7 +2,6 @@
 #![feature(unique)]
 #![feature(test)]
 #![feature(plugin)]
-#![plugin(clippy)]
 
 extern crate byteorder;
 pub mod core;

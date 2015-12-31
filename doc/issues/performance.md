@@ -53,3 +53,49 @@ bench_two_to_r_two_r_fetch_two_r_from        :          77 ns/iter (+/- 1)
 ## Possilble solutions to improve the performance
 
 * JIT: https://github.com/jonathandturner/rustyjit
+
+* Stack checking: Elizabeth said:
+
+Testing is supposed to be an interactive process. You do not
+write a bunch of definitions and then try executing the highest-level
+one. You try each, in turn, typing appropriate arguments as needed and
+then checking the stack afterwords, testing bottom-up. If you do this
+you will quickly find stack as well as logical problems. I would never
+write a system that checked the stack at every word! Stack checking
+should be performed whenever you're at the command-line level.
+type:
+
+But others support checking before access:
+
+Gforth effectively does such a check (it uses a memory protection trap
+instead of a runtime comparison, but it still signals the error where it
+happens).  I've found it very helpful. 
+
+How is that implemented?  There is an unmapped page where the memory
+location for the stack item below the bottom of the stack would lie,
+so accessing that memory location causes a segmentation violation in
+the OS, and when the access is to a place close to the bottom of the
+data stack, Gforth translates this into a "-4 throw" (stack
+underflow).  So this does not cost any checks at run-time.
+
+There is a cost, though: For accurate error reporting the debugging
+engine always stores the IP and the RP in memory.  Also, the debugging
+engine keeps all stack items in memory (no stack caching in
+registers), and does not use static superinstructions: Stack caching
+occasionally loads memory cells below the stack bottom into a register
+(when the stack is empty), and for static superinstructions there is
+only one IP to report for a sequence of primitives. 
+
+
+On the other hand, the unmapped page is really "cost-free"; we do it only on
+CPUs with MMU, though.  All OSes on these CPUs are now friendly enough.  We
+do it on the floating point stack, too, but not on return stack and locals
+stack, to avoid aliasing problems.  Early versions of Gforth, when CPUs with
+direct mapped non-associative cache were still popular even had a
+displacement for the floating point stack, so that all four stacks didn't
+alias in normal operating conditions. 
+
+It also might work on some of the current Cortex M's--they don't have
+MMU's per se, but they have some memory segmention to protect tasks from
+each other.  I don't know the details of this so I'm not sure if it's
+really doable. 

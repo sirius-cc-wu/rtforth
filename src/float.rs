@@ -401,7 +401,6 @@ impl Float for VM {
         }
     }
 
-    #[allow(float_cmp)]
     fn fproximate(&mut self) -> Option<Exception> {
         match self.f_stack.pop3() {
             Some((x1, x2, x3)) => {

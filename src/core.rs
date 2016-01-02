@@ -673,9 +673,10 @@ impl VM {
                     }
                 },
                 None => {
-                    let evaluators: &[fn(&mut VM)->Result<(), Exception>] = &[VM::evaluate_integer, VM::evaluate_float];
                     let mut done = false;
-                    for h in evaluators {
+                    let len = self.evaluators.len();
+                    for i in 0..len {
+                        let h = self.evaluators[i];
                         match h(self) {
                             Ok(_) => {
                                 done = true;

@@ -232,7 +232,7 @@ impl<T: fmt::Display> fmt::Debug for Stack<T> {
 
 // Virtual machine
 pub struct VM {
-    is_compiling: bool,
+    pub is_compiling: bool,
     pub s_stack: Stack<isize>,
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
@@ -285,7 +285,7 @@ impl VM {
             output_buffer: String::with_capacity(128),
             auto_flush: true,
             last_definition: 0,
-            evaluators: vec![VM::evaluate_integer, VM::evaluate_float],
+            evaluators: vec![VM::evaluate_integer],
         };
         // Bytecodes
         vm.add_primitive("noop", VM::noop); // j1, Ngaro, jx
@@ -513,12 +513,6 @@ impl VM {
         self.jit_memory.compile_i32(i as i32);
     }
 
-    /// Compile float 'f'.
-    fn compile_float (&mut self, f: f64) {
-        self.jit_memory.compile_i32(self.idx_flit as i32);
-        self.jit_memory.compile_f64(f);
-    }
-
 // Evaluation
 
     pub fn interpret(& mut self) -> Option<Exception> {
@@ -714,27 +708,6 @@ impl VM {
                 Ok(())
             },
             Err(_) => Err(UnsupportedOperation)
-        }
-    }
-
-    pub fn evaluate_float(&mut self) -> Result<(), Exception> {
-        match FromStr::from_str(&self.last_token) {
-            Ok(t) => {
-                if self.idx_flit == 0 {
-                    print!("{} ", "Floating point");
-                    Err(UnsupportedOperation)
-                } else {
-                    if self.is_compiling {
-                        self.compile_float(t);
-                    } else {
-                        self.f_stack.push (t);
-                    }
-                    Ok(())
-                }
-            },
-            Err(_) => {
-                Err(UnsupportedOperation)
-            }
         }
     }
 

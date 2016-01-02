@@ -1,5 +1,6 @@
 use core::VM;
 use core::Heap;
+use std::str::FromStr;
 
 use std::mem;
 
@@ -9,10 +10,13 @@ use exception::Exception::{
     StackOverflow,
     FloatingPointStackOverflow,
     FloatingPointStackUnderflow,
+    UnsupportedOperation,
 };
 
 pub trait Float {
     fn add_float(&mut self);
+    fn compile_float (&mut self, f: f64);
+    fn evaluate_float(&mut self) -> Result<(), Exception>;
     fn flit(&mut self) -> Option<Exception>;
     fn p_fconst(&mut self) -> Option<Exception>;
     fn fvariable(&mut self) -> Option<Exception>;
@@ -76,7 +80,37 @@ impl Float for VM {
         self.add_primitive ("f0<", VM::f_zero_less_than);
         self.add_primitive ("f0=", VM::f_zero_equals);
         self.add_primitive ("f<", VM::f_less_than);
+
+        self.evaluators.push(VM::evaluate_float);
         self.idx_flit = self.find("flit").expect("flit undefined");
+    }
+
+    /// Compile float 'f'.
+    fn compile_float (&mut self, f: f64) {
+        self.jit_memory.compile_i32(self.idx_flit as i32);
+        self.jit_memory.compile_f64(f);
+    }
+
+    /// Evaluate float.
+    fn evaluate_float(&mut self) -> Result<(), Exception> {
+        match FromStr::from_str(&self.last_token) {
+            Ok(t) => {
+                if self.idx_flit == 0 {
+                    print!("{} ", "Floating point");
+                    Err(UnsupportedOperation)
+                } else {
+                    if self.is_compiling {
+                        self.compile_float(t);
+                    } else {
+                        self.f_stack.push (t);
+                    }
+                    Ok(())
+                }
+            },
+            Err(_) => {
+                Err(UnsupportedOperation)
+            }
+        }
     }
 
     fn flit(&mut self) -> Option<Exception> {

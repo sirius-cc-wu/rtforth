@@ -256,7 +256,7 @@ pub struct VM {
     pub auto_flush: bool,
     // Last definition, 0 if last define fails.
     last_definition: usize,
-    pub evaluators: Vec<fn(&mut VM)->Result<(), Exception>>,
+    pub evaluators: Option<Vec<fn(&mut VM) -> Result<(), Exception>>>,
 }
 
 impl VM {
@@ -285,7 +285,7 @@ impl VM {
             output_buffer: String::with_capacity(128),
             auto_flush: true,
             last_definition: 0,
-            evaluators: vec![VM::evaluate_integer],
+            evaluators: Some(vec![VM::evaluate_integer]),
         };
         // Bytecodes
         vm.add_primitive("noop", VM::noop); // j1, Ngaro, jx
@@ -668,27 +668,25 @@ impl VM {
                 },
                 None => {
                     let mut done = false;
-                    let len = self.evaluators.len();
-                    for i in 0..len {
-                        let h = self.evaluators[i];
-                        match h(self) {
-                            Ok(_) => {
-                                done = true;
-                                break;
-                            },
-                            Err(e) => {
-                                match e {
-                                    UndefinedWord => {
-                                        return Some(e);
+                    // Swap out the evaluators to work around borrow checker.
+                    let optional_evaluators = mem::replace(&mut self.evaluators, None);
+                    match optional_evaluators {
+                        Some(ref evaluators) => {
+                            for h in evaluators {
+                                match h(self) {
+                                    Ok(_) => {
+                                        done = true;
+                                        break;
                                     },
-                                    _ => continue
+                                    Err(_) => { continue }
                                 }
                             }
-                        }
+                        },
+                        None => {}
                     }
-                    if done {
-                        continue;
-                    } else {
+                    self.evaluators = optional_evaluators;
+                    if done { continue }
+                    else {
                         print!("{} ", &self.last_token);
                         return Some(UndefinedWord)
                     }

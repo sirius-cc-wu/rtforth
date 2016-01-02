@@ -81,7 +81,16 @@ impl Float for VM {
         self.add_primitive ("f0=", VM::f_zero_equals);
         self.add_primitive ("f<", VM::f_less_than);
 
-        self.evaluators.push(VM::evaluate_float);
+        let optional_evaluators = mem::replace(&mut self.evaluators, None);
+        match optional_evaluators {
+            Some(mut evaluators) => {
+                evaluators.push(VM::evaluate_float);
+                self.evaluators = Some(evaluators);
+            },
+            None => {
+                self.evaluators = Some(vec![VM::evaluate_float]);
+            }
+        }
         self.idx_flit = self.find("flit").expect("flit undefined");
     }
 

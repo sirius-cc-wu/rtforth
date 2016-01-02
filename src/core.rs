@@ -709,6 +709,20 @@ impl VM {
         }
     }
 
+    /// Extend `f` to evaluators.
+    /// Will create a vector for evaluators if there was no evaluator.
+    pub fn extend_evaluator(&mut self, f: fn(&mut VM) -> Result<(), Exception>) {
+        let optional_evaluators = mem::replace(&mut self.evaluators, None);
+        match optional_evaluators {
+            Some(mut evaluators) => {
+                evaluators.push(f);
+                self.evaluators = Some(evaluators);
+            },
+            None => {
+                self.evaluators = Some(vec![f]);
+            }
+        }
+    }
 // High level definitions
 
     pub fn nest(&mut self) -> Option<Exception> {

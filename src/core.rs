@@ -256,6 +256,7 @@ pub struct VM {
     pub auto_flush: bool,
     // Last definition, 0 if last define fails.
     last_definition: usize,
+    pub evaluators: Vec<fn(&mut VM)->Result<(), Exception>>,
 }
 
 impl VM {
@@ -284,6 +285,7 @@ impl VM {
             output_buffer: String::with_capacity(128),
             auto_flush: true,
             last_definition: 0,
+            evaluators: vec![VM::evaluate_integer, VM::evaluate_float],
         };
         // Bytecodes
         vm.add_primitive("noop", VM::noop); // j1, Ngaro, jx
@@ -670,40 +672,67 @@ impl VM {
                         };
                     }
                 },
-                None =>
-                    // Integer?
-                    match FromStr::from_str(&self.last_token) {
-                        Ok(t) => {
-                            if self.is_compiling {
-                                self.compile_integer(t);
-                            } else {
-                                self.s_stack.push (t);
-                            }
-                            continue
-                        },
-                        Err(_) => {
-                            // Floating point?
-                            match FromStr::from_str(&self.last_token) {
-                                Ok(t) => {
-                                    if self.idx_flit == 0 {
-                                        print!("{} ", "Floating point");
-                                        return Some(UnsupportedOperation);
-                                    } else {
-                                        if self.is_compiling {
-                                            self.compile_float(t);
-                                        } else {
-                                            self.f_stack.push (t);
-                                        }
-                                        continue
-                                    }
-                                },
-                                Err(_) => {
-                                    print!("{} ", &self.last_token);
-                                    return Some(UndefinedWord);
+                None => {
+                    let evaluators: &[fn(&mut VM)->Result<(), Exception>] = &[VM::evaluate_integer, VM::evaluate_float];
+                    let mut done = false;
+                    for h in evaluators {
+                        match h(self) {
+                            Ok(_) => {
+                                done = true;
+                                break;
+                            },
+                            Err(e) => {
+                                match e {
+                                    UndefinedWord => {
+                                        return Some(e);
+                                    },
+                                    _ => continue
                                 }
-                            };
+                            }
                         }
                     }
+                    if done {
+                        continue;
+                    } else {
+                        print!("{} ", &self.last_token);
+                        return Some(UndefinedWord)
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn evaluate_integer(&mut self) -> Result<(), Exception> {
+        match FromStr::from_str(&self.last_token) {
+            Ok(t) => {
+                if self.is_compiling {
+                    self.compile_integer(t);
+                } else {
+                    self.s_stack.push (t);
+                }
+                Ok(())
+            },
+            Err(_) => Err(UnsupportedOperation)
+        }
+    }
+
+    pub fn evaluate_float(&mut self) -> Result<(), Exception> {
+        match FromStr::from_str(&self.last_token) {
+            Ok(t) => {
+                if self.idx_flit == 0 {
+                    print!("{} ", "Floating point");
+                    Err(UnsupportedOperation)
+                } else {
+                    if self.is_compiling {
+                        self.compile_float(t);
+                    } else {
+                        self.f_stack.push (t);
+                    }
+                    Ok(())
+                }
+            },
+            Err(_) => {
+                Err(UnsupportedOperation)
             }
         }
     }

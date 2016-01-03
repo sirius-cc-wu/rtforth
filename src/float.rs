@@ -1,5 +1,4 @@
-use core::VM;
-use core::Heap;
+use core::{VM, Heap, Extension};
 use std::str::FromStr;
 
 use std::mem;
@@ -13,8 +12,15 @@ use exception::Exception::{
     UnsupportedOperation,
 };
 
+pub struct FloatExtension {
+    idx_flit: usize,
+}
+
+impl Extension for FloatExtension {}
+
 pub trait Float {
     fn add_float(&mut self);
+    fn get_float_extension(&mut self) -> &FloatExtension;
     fn compile_float (&mut self, f: f64);
     fn evaluate_float(&mut self) -> Result<(), Exception>;
     fn flit(&mut self) -> Option<Exception>;
@@ -82,12 +88,24 @@ impl Float for VM {
         self.add_primitive ("f<", VM::f_less_than);
 
         self.extend_evaluator(VM::evaluate_float);
-        self.idx_flit = self.find("flit").expect("flit undefined");
+        let mut extension = Box::new(FloatExtension {idx_flit: 0});
+        (&mut extension).idx_flit = self.find("flit").expect("flit undefined");
+        self.extend("Float", extension);
+    }
+
+    fn get_float_extension(&mut self) -> &FloatExtension {
+        match unsafe{ self.get_extension::<FloatExtension>("Float") } {
+            Some(ext) => ext,
+            None => {
+                panic!("Cannot find float extension.")
+            }
+        }
     }
 
     /// Compile float 'f'.
     fn compile_float (&mut self, f: f64) {
-        self.jit_memory.compile_i32(self.idx_flit as i32);
+        let idx_flit = self.get_float_extension().idx_flit;
+        self.jit_memory.compile_i32(idx_flit as i32);
         self.jit_memory.compile_f64(f);
     }
 
@@ -95,7 +113,7 @@ impl Float for VM {
     fn evaluate_float(&mut self) -> Result<(), Exception> {
         match FromStr::from_str(&self.last_token) {
             Ok(t) => {
-                if self.idx_flit == 0 {
+                if self.get_float_extension().idx_flit == 0 {
                     print!("{} ", "Floating point");
                     Err(UnsupportedOperation)
                 } else {

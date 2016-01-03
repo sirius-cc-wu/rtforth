@@ -6,11 +6,13 @@ extern {
 }
 
 use std::mem;
+use std::raw;
 use std::ptr::{Unique, self};
 use std::str::FromStr;
 use std::ascii::AsciiExt;
 use std::fmt;
 use std::slice;
+use std::collections::HashMap;
 use std::io::Write;
 use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 use ::jitmem::JitMemory;
@@ -230,6 +232,8 @@ impl<T: fmt::Display> fmt::Debug for Stack<T> {
     }
 }
 
+pub trait Extension {}
+
 // Virtual machine
 pub struct VM {
     pub is_compiling: bool,
@@ -241,7 +245,6 @@ pub struct VM {
     word_pointer: usize,
     pub idx_lit: usize,
     idx_exit: usize,
-    pub idx_flit: usize,
     idx_zero_branch: usize,
     idx_branch: usize,
     idx_do: usize,
@@ -257,6 +260,7 @@ pub struct VM {
     // Last definition, 0 if last define fails.
     last_definition: usize,
     pub evaluators: Option<Vec<fn(&mut VM) -> Result<(), Exception>>>,
+    pub extensions: HashMap<&'static str, Box<Extension>>,
 }
 
 impl VM {
@@ -271,7 +275,6 @@ impl VM {
             word_pointer: 0,
             idx_lit: 0,
             idx_exit: 0,
-            idx_flit: 0,
             idx_zero_branch: 0,
             idx_branch: 0,
             idx_do: 0,
@@ -286,6 +289,7 @@ impl VM {
             auto_flush: true,
             last_definition: 0,
             evaluators: Some(vec![VM::evaluate_integer]),
+            extensions: HashMap::new(),
         };
         // Bytecodes
         vm.add_primitive("noop", VM::noop); // j1, Ngaro, jx
@@ -723,6 +727,28 @@ impl VM {
             }
         }
     }
+
+    /// Extend VM with an `extension`.
+    pub fn extend(&mut self, name: &'static str, extension: Box<Extension>) {
+        self.extensions.insert(name, extension);
+    }
+
+    /// Get extension of type T with name.
+    /// Note: Behavior is undefined when extension corresponding to name is not of type T.
+    /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
+    pub unsafe fn get_extension<T>(&self, name: &str) -> Option<&T> {
+            let option = self.extensions.get(name);
+            match option {
+                    Some(v) => {
+                            let tobj: raw::TraitObject = mem::transmute(&**v);
+                            Some(mem::transmute(tobj.data))
+                    },
+                    None => {
+                            None
+                    }
+            }
+    }
+
 // High level definitions
 
     pub fn nest(&mut self) -> Option<Exception> {

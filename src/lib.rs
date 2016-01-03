@@ -2,6 +2,7 @@
 #![feature(unique)]
 #![feature(test)]
 #![feature(plugin)]
+#![feature(raw)]
 
 extern crate byteorder;
 pub mod core;

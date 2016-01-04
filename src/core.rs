@@ -736,7 +736,7 @@ impl VM {
     /// Get extension of type T with name.
     /// Note: Behavior is undefined when extension corresponding to name is not of type T.
     /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
-    pub unsafe fn get_extension<T>(&self, name: &str) -> Option<&T> {
+    pub unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T> {
             let option = self.extensions.get(name);
             match option {
                     Some(v) => {

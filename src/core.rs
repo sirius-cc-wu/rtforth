@@ -673,7 +673,7 @@ impl VM {
                 None => {
                     let mut done = false;
                     // Swap out the evaluators to work around borrow checker.
-                    let optional_evaluators = mem::replace(&mut self.evaluators, None);
+                    let optional_evaluators = self.evaluators.take();
                     match optional_evaluators {
                         Some(ref evaluators) => {
                             for h in evaluators {
@@ -716,7 +716,7 @@ impl VM {
     /// Extend `f` to evaluators.
     /// Will create a vector for evaluators if there was no evaluator.
     pub fn extend_evaluator(&mut self, f: fn(&mut VM) -> Result<(), Exception>) {
-        let optional_evaluators = mem::replace(&mut self.evaluators, None);
+        let optional_evaluators = self.evaluators.take();
         match optional_evaluators {
             Some(mut evaluators) => {
                 evaluators.push(f);

@@ -238,7 +238,7 @@ pub trait Extension {}
 pub struct VM {
     pub is_compiling: bool,
     _s_stack: Stack<isize>,
-    r_stack: Stack<isize>,
+    _r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
     pub jit_memory: JitMemory,
     pub instruction_pointer: usize,
@@ -268,7 +268,7 @@ impl VM {
         let mut vm = VM {
             is_compiling: false,
             _s_stack: Stack::with_capacity(64),
-            r_stack: Stack::with_capacity(64),
+            _r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
             jit_memory: JitMemory::new(pages),
             instruction_pointer: 0,
@@ -421,9 +421,16 @@ impl VM {
         vm
     }
 
+    /// Data stack
     pub fn s_stack(&mut self) -> &mut Stack<isize> {
       &mut self._s_stack
     }
+
+    /// Return stack
+    pub fn r_stack(&mut self) -> &mut Stack<isize> {
+      &mut self._r_stack
+    }
+
     /// Idle is the result of new and reset, means that VM has nothing to do.
     pub fn is_idle(& self) -> bool {
         self.instruction_pointer == 0
@@ -755,13 +762,14 @@ impl VM {
 // High level definitions
 
     pub fn nest(&mut self) -> Option<Exception> {
-        if self.r_stack.len == self.r_stack.cap {
+        let rlen = self.r_stack().len;
+        if rlen == self.r_stack().cap {
             Some(ReturnStackOverflow)
         } else {
             unsafe {
-                ptr::write(self.r_stack.inner.offset(self.r_stack.len as isize), self.instruction_pointer as isize);
+                ptr::write(self.r_stack().inner.offset(rlen as isize), self.instruction_pointer as isize);
             }
-            self.r_stack.len += 1;
+            self.r_stack().len += 1;
             self.instruction_pointer = self.jit_memory.word(self.word_pointer).dfa;
             Some(Nest)
         }
@@ -901,7 +909,8 @@ impl VM {
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded.
     pub fn _do(&mut self) -> Option<Exception> {
-        match self.r_stack.push(self.instruction_pointer as isize) {
+        let ip = self.instruction_pointer as isize;
+        match self.r_stack().push(ip) {
             Some(_) => Some(ReturnStackOverflow),
             None => {
                 self.instruction_pointer += mem::size_of::<i32>();
@@ -918,13 +927,13 @@ impl VM {
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
     pub fn p_loop(&mut self) -> Option<Exception> {
-        match self.r_stack.pop2() {
+        match self.r_stack().pop2() {
             Some((rn, rt)) => {
                 if rt+1 < rn {
-                    self.r_stack.push2(rn, rt+1);
+                    self.r_stack().push2(rn, rt+1);
                     self.branch()
                 } else {
-                    match self.r_stack.pop() {
+                    match self.r_stack().pop() {
                         Some(_) => {
                             self.instruction_pointer += mem::size_of::<i32>();
                             None
@@ -946,15 +955,15 @@ impl VM {
     /// current loop control parameters and continue execution immediately
     /// following the loop.
     pub fn p_plus_loop(&mut self) -> Option<Exception> {
-        match self.r_stack.pop2() {
+        match self.r_stack().pop2() {
             Some((rn, rt)) => {
                 match self.s_stack().pop() {
                     Some(t) => {
                         if rt+t < rn {
-                            self.r_stack.push2(rn, rt+t);
+                            self.r_stack().push2(rn, rt+t);
                             self.branch()
                         } else {
-                            match self.r_stack.pop() {
+                            match self.r_stack().pop() {
                                 Some(_) => {
                                     self.instruction_pointer += mem::size_of::<i32>();
                                     None
@@ -977,14 +986,14 @@ impl VM {
     /// EXITed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
     pub fn unloop(&mut self) -> Option<Exception> {
-        match self.r_stack.pop3() {
+        match self.r_stack().pop3() {
             Some(_) => None,
             None => Some(ReturnStackUnderflow)
         }
     }
 
     pub fn leave(&mut self) -> Option<Exception> {
-        match self.r_stack.pop3() {
+        match self.r_stack().pop3() {
             Some((third, _, _)) => {
                 self.instruction_pointer = self.jit_memory.get_i32(third as usize) as usize;
                 None
@@ -994,7 +1003,7 @@ impl VM {
     }
 
     pub fn p_i(&mut self) -> Option<Exception> {
-        match self.r_stack.last() {
+        match self.r_stack().last() {
             Some(i) => {
                 match self.s_stack().push(i) {
                     Some(_) => Some(StackOverflow),
@@ -1006,8 +1015,8 @@ impl VM {
     }
 
     pub fn p_j(&mut self) -> Option<Exception> {
-        let pos = self.r_stack.len() - 4;
-        match self.r_stack.get(pos) {
+        let pos = self.r_stack().len() - 4;
+        match self.r_stack().get(pos) {
             Some(j) => {
                 match self.s_stack().push(j) {
                     Some(_) => Some(StackOverflow),
@@ -1704,12 +1713,12 @@ impl VM {
     /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP.
     /// TODO: UNLOOP
     pub fn exit(&mut self) -> Option<Exception> {
-        if self.r_stack.len == 0 {
+        if self.r_stack().len == 0 {
             Some(ReturnStackUnderflow)
         } else {
-            self.r_stack.len -= 1;
+            self.r_stack().len -= 1;
             unsafe {
-                self.instruction_pointer = ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize)) as usize;
+                self.instruction_pointer = ptr::read(self.r_stack().inner.offset(self.r_stack().len as isize)) as usize;
             }
             None
         }
@@ -1853,15 +1862,16 @@ impl VM {
     }
 
     pub fn p_to_r(&mut self) -> Option<Exception> {
+        let rlen = self.r_stack().len;
         match self.s_stack().pop() {
             Some(v) => {
-                if self.r_stack.len >= self.r_stack.cap {
+                if rlen >= self.r_stack().cap {
                     Some(ReturnStackOverflow)
                 } else {
                     unsafe {
-                        ptr::write(self.r_stack.inner.offset(self.r_stack.len as isize), v);
+                        ptr::write(self.r_stack().inner.offset(rlen as isize), v);
                     }
-                    self.r_stack.len += 1;
+                    self.r_stack().len += 1;
                     None
                 }
             },
@@ -1870,12 +1880,12 @@ impl VM {
     }
 
     pub fn r_from(&mut self) -> Option<Exception> {
-        if self.r_stack.len == 0 {
+        if self.r_stack().len == 0 {
             Some(ReturnStackUnderflow)
         } else {
-            self.r_stack.len -= 1;
+            self.r_stack().len -= 1;
             unsafe {
-                let p = self.r_stack.inner.offset(self.r_stack.len as isize);
+                let p = self.r_stack().inner.offset(self.r_stack().len as isize);
                 self.s_stack().push(ptr::read(p));
             }
             None
@@ -1883,11 +1893,11 @@ impl VM {
     }
 
     pub fn r_fetch(&mut self) -> Option<Exception> {
-        if self.r_stack.len == 0 {
+        if self.r_stack().len == 0 {
             Some(ReturnStackUnderflow)
         } else {
             unsafe {
-                let p = self.r_stack.inner.offset((self.r_stack.len-1) as isize);
+                let p = self.r_stack().inner.offset((self.r_stack().len-1) as isize);
                 self.s_stack().push(ptr::read(p));
             }
             None
@@ -1895,16 +1905,17 @@ impl VM {
     }
 
     pub fn two_to_r(&mut self) -> Option<Exception> {
+        let rlen = self.r_stack().len;
         match self.s_stack().pop2() {
             Some((n,t)) =>
-                if self.r_stack.len >= self.r_stack.cap-1 {
+                if rlen >= self.r_stack().cap-1 {
                     Some(ReturnStackOverflow)
                 } else {
                     unsafe {
-                        ptr::write(self.r_stack.inner.offset(self.r_stack.len as isize), n);
-                        ptr::write(self.r_stack.inner.offset((self.r_stack.len+1) as isize), t);
+                        ptr::write(self.r_stack().inner.offset(rlen as isize), n);
+                        ptr::write(self.r_stack().inner.offset((rlen+1) as isize), t);
                     }
-                    self.r_stack.len += 2;
+                    self.r_stack().len += 2;
                     None
                 },
             None => Some(StackUnderflow)
@@ -1912,14 +1923,14 @@ impl VM {
     }
 
     pub fn two_r_from(&mut self) -> Option<Exception> {
-        if self.r_stack.len < 2 {
+        if self.r_stack().len < 2 {
             Some(ReturnStackUnderflow)
         } else {
-            self.r_stack.len -= 2;
+            self.r_stack().len -= 2;
             unsafe {
-                let p = self.r_stack.inner.offset(self.r_stack.len as isize);
+                let p = self.r_stack().inner.offset(self.r_stack().len as isize);
                 self.s_stack().push(ptr::read(p));
-                let p = self.r_stack.inner.offset((self.r_stack.len+1) as isize);
+                let p = self.r_stack().inner.offset((self.r_stack().len+1) as isize);
                 self.s_stack().push(ptr::read(p));
             }
             None
@@ -1927,13 +1938,13 @@ impl VM {
     }
 
     pub fn two_r_fetch(&mut self) -> Option<Exception> {
-        if self.r_stack.len < 2 {
+        if self.r_stack().len < 2 {
             Some(ReturnStackUnderflow)
         } else {
             unsafe {
-                let p = self.r_stack.inner.offset((self.r_stack.len-2) as isize);
+                let p = self.r_stack().inner.offset((self.r_stack().len-2) as isize);
                 self.s_stack().push(ptr::read(p));
-                let p = self.r_stack.inner.offset((self.r_stack.len-1) as isize);
+                let p = self.r_stack().inner.offset((self.r_stack().len-1) as isize);
                 self.s_stack().push(ptr::read(p));
             }
             None
@@ -1958,7 +1969,7 @@ impl VM {
     /// Reset VM, do not clear data stack and floating point stack.
     /// Called by VM's client upon Quit.
     pub fn reset(&mut self) {
-        self.r_stack.len = 0;
+        self.r_stack().len = 0;
         self.input_buffer.clear();
         self.source_index = 0;
         self.instruction_pointer = 0;
@@ -2962,7 +2973,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Some(3));
         assert_eq!(vm.s_stack().pop(), Some(2));
         assert_eq!(vm.s_stack().pop(), Some(1));
-        assert_eq!(vm.r_stack.len, 0);
+        assert_eq!(vm.r_stack().len, 0);
         assert_eq!(vm.input_buffer.len(), 0);
         assert_eq!(vm.source_index, 0);
         assert_eq!(vm.instruction_pointer, 0);

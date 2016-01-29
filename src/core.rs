@@ -239,7 +239,7 @@ pub struct VM {
     pub is_compiling: bool,
     _s_stack: Stack<isize>,
     _r_stack: Stack<isize>,
-    pub f_stack: Stack<f64>,
+    _f_stack: Stack<f64>,
     pub jit_memory: JitMemory,
     pub instruction_pointer: usize,
     word_pointer: usize,
@@ -269,7 +269,7 @@ impl VM {
             is_compiling: false,
             _s_stack: Stack::with_capacity(64),
             _r_stack: Stack::with_capacity(64),
-            f_stack: Stack::with_capacity(16),
+            _f_stack: Stack::with_capacity(16),
             jit_memory: JitMemory::new(pages),
             instruction_pointer: 0,
             word_pointer: 0,
@@ -429,6 +429,11 @@ impl VM {
     /// Return stack
     pub fn r_stack(&mut self) -> &mut Stack<isize> {
       &mut self._r_stack
+    }
+
+    /// Floating point stack
+    pub fn f_stack(&mut self) -> &mut Stack<f64> {
+      &mut self._f_stack
     }
 
     /// Idle is the result of new and reset, means that VM has nothing to do.
@@ -1963,7 +1968,7 @@ impl VM {
     /// Called by VM's client upon Abort.
     pub fn clear_stacks(&mut self) {
         self.s_stack().clear();
-        self.f_stack.clear();
+        self.f_stack().clear();
     }
 
     /// Reset VM, do not clear data stack and floating point stack.

@@ -120,7 +120,7 @@ impl Float for VM {
                     if self.is_compiling {
                         self.compile_float(t);
                     } else {
-                        self.f_stack.push (t);
+                        self.f_stack().push (t);
                     }
                     Ok(())
                 }
@@ -133,7 +133,7 @@ impl Float for VM {
 
     fn flit(&mut self) -> Option<Exception> {
         let v = self.jit_memory.get_f64(self.instruction_pointer as usize);
-        match self.f_stack.push (v) {
+        match self.f_stack().push (v) {
             Some(_) => Some(FloatingPointStackOverflow),
             None => {
                 self.instruction_pointer = self.instruction_pointer + mem::size_of::<f64>();
@@ -145,7 +145,7 @@ impl Float for VM {
     fn p_fconst(&mut self) -> Option<Exception> {
         let dfa = self.jit_memory.word(self.word_pointer()).dfa();
         let v = self.jit_memory.get_f64(dfa);
-        match self.f_stack.push(v) {
+        match self.f_stack().push(v) {
             Some(_) => Some(FloatingPointStackOverflow),
             None => None
         }
@@ -158,7 +158,7 @@ impl Float for VM {
     }
 
     fn fconstant(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(v) => {
                 self.define(VM::p_fconst);
                 self.jit_memory.compile_f64(v);
@@ -172,11 +172,13 @@ impl Float for VM {
 
     fn ffetch(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
-            Some(t) =>
-                match self.f_stack.push(self.jit_memory.get_f64(t as usize)) {
+            Some(t) => {
+                let v = self.jit_memory.get_f64(t as usize);
+                match self.f_stack().push(v) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
-                },
+                }
+            },
             None => Some(StackUnderflow)
         }
     }
@@ -184,7 +186,7 @@ impl Float for VM {
     fn fstore(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
             Some(t) =>
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(n) => {
                         self.jit_memory.put_f64(n, t as usize);
                         None
@@ -196,9 +198,9 @@ impl Float for VM {
     }
 
     fn fabs(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.push(t.abs()) {
+                match self.f_stack().push(t.abs()) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 },
@@ -207,9 +209,9 @@ impl Float for VM {
     }
 
     fn fsin(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.push(t.sin()) {
+                match self.f_stack().push(t.sin()) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 },
@@ -218,9 +220,9 @@ impl Float for VM {
     }
 
     fn fcos(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.push(t.cos()) {
+                match self.f_stack().push(t.cos()) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 },
@@ -229,9 +231,9 @@ impl Float for VM {
     }
 
     fn ftan(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.push(t.tan()) {
+                match self.f_stack().push(t.tan()) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 },
@@ -240,9 +242,9 @@ impl Float for VM {
     }
 
     fn fasin(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.push(t.asin()) {
+                match self.f_stack().push(t.asin()) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 },
@@ -251,9 +253,9 @@ impl Float for VM {
     }
 
     fn facos(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.push(t.acos()) {
+                match self.f_stack().push(t.acos()) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 },
@@ -262,9 +264,9 @@ impl Float for VM {
     }
 
     fn fatan(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.push(t.atan()) {
+                match self.f_stack().push(t.atan()) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 },
@@ -273,11 +275,11 @@ impl Float for VM {
     }
 
     fn fatan2(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) => {
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(n) =>
-                        match self.f_stack.push(n.atan2(t)) {
+                        match self.f_stack().push(n.atan2(t)) {
                             Some(_) => Some(FloatingPointStackOverflow),
                             None => None
                         },
@@ -289,9 +291,9 @@ impl Float for VM {
     }
 
     fn fsqrt(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.push(t.sqrt()) {
+                match self.f_stack().push(t.sqrt()) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 },
@@ -300,11 +302,11 @@ impl Float for VM {
     }
 
     fn fswap(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(n) =>
-                        match self.f_stack.push2(t, n) {
+                        match self.f_stack().push2(t, n) {
                             Some(_) => Some(FloatingPointStackOverflow),
                             None => None
                         },
@@ -315,11 +317,11 @@ impl Float for VM {
     }
 
     fn fnip(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(_) =>
-                        match self.f_stack.push(t) {
+                        match self.f_stack().push(t) {
                             Some(_) => Some(FloatingPointStackOverflow),
                             None => None
                         },
@@ -330,9 +332,9 @@ impl Float for VM {
     }
 
     fn fdup(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) => {
-                match self.f_stack.push2(t, t) {
+                match self.f_stack().push2(t, t) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 }
@@ -342,20 +344,20 @@ impl Float for VM {
     }
 
     fn fdrop(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(_) => None,
             None => Some(FloatingPointStackUnderflow)
         }
     }
 
     fn frot(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(x3) =>
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(x2) =>
-                        match self.f_stack.pop() {
+                        match self.f_stack().pop() {
                             Some(x1) =>
-                                match self.f_stack.push3(x2, x3, x1) {
+                                match self.f_stack().push3(x2, x3, x1) {
                                     Some(_) => Some(FloatingPointStackOverflow),
                                     None => None
                                 },
@@ -368,11 +370,11 @@ impl Float for VM {
     }
 
     fn fover(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(n) =>
-                        match self.f_stack.push3(n, t, n) {
+                        match self.f_stack().push3(n, t, n) {
                             Some(_) => Some(FloatingPointStackOverflow),
                             None => None
                         },
@@ -385,7 +387,7 @@ impl Float for VM {
     fn n_to_f(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
             Some(t) =>
-                match self.f_stack.push(t as f64) {
+                match self.f_stack().push(t as f64) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
                 },
@@ -394,11 +396,11 @@ impl Float for VM {
     }
 
     fn fplus(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(n) =>
-                        match self.f_stack.push(n+t) {
+                        match self.f_stack().push(n+t) {
                             Some(_) => Some(FloatingPointStackOverflow),
                             None => None
                         },
@@ -409,11 +411,11 @@ impl Float for VM {
     }
 
     fn fminus(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(n) =>
-                        match self.f_stack.push(n-t) {
+                        match self.f_stack().push(n-t) {
                             Some(_) => Some(FloatingPointStackOverflow),
                             None => None
                         },
@@ -424,11 +426,11 @@ impl Float for VM {
     }
 
     fn fstar(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(n) =>
-                        match self.f_stack.push(n*t) {
+                        match self.f_stack().push(n*t) {
                             Some(_) => Some(FloatingPointStackOverflow),
                             None => None
                         },
@@ -439,11 +441,11 @@ impl Float for VM {
     }
 
     fn fslash(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(n) =>
-                        match self.f_stack.push(n/t) {
+                        match self.f_stack().push(n/t) {
                             Some(_) => Some(FloatingPointStackOverflow),
                             None => None
                         },
@@ -454,7 +456,7 @@ impl Float for VM {
     }
 
     fn fproximate(&mut self) -> Option<Exception> {
-        match self.f_stack.pop3() {
+        match self.f_stack().pop3() {
             Some((x1, x2, x3)) => {
                 if x3 > 0.0 {
                     self.s_stack().push(if (x1-x2).abs() < x3 {-1} else {0});
@@ -470,7 +472,7 @@ impl Float for VM {
     }
 
     fn f_zero_less_than(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
                 match self.s_stack().push(if t<0.0 {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
@@ -481,7 +483,7 @@ impl Float for VM {
     }
 
     fn f_zero_equals(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
                 match self.s_stack().push(if t==0.0 {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
@@ -492,9 +494,9 @@ impl Float for VM {
     }
 
     fn f_less_than(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(t) =>
-                match self.f_stack.pop() {
+                match self.f_stack().pop() {
                     Some(n) =>
                         match self.s_stack().push(if n<t {-1} else {0}) {
                             Some(_) => Some(StackOverflow),
@@ -519,11 +521,11 @@ mod tests {
         vm.add_float();
         vm.set_source("1.0 2.5");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 2);
-        assert!(0.99999 < vm.f_stack.as_slice()[0]);
-        assert!(vm.f_stack.as_slice()[0] < 1.00001);
-        assert!(2.49999 < vm.f_stack.as_slice()[1]);
-        assert!(vm.f_stack.as_slice()[1] < 2.50001);
+        assert_eq!(vm.f_stack().len(), 2);
+        assert!(0.99999 < vm.f_stack().as_slice()[0]);
+        assert!(vm.f_stack().as_slice()[0] < 1.00001);
+        assert!(2.49999 < vm.f_stack().as_slice()[1]);
+        assert!(vm.f_stack().as_slice()[1] < 2.50001);
     }
 
     #[test]
@@ -532,7 +534,7 @@ mod tests {
         vm.add_float();
         vm.set_source("1.1 fconstant x x x");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.as_slice(), [1.1, 1.1]);
+        assert_eq!(vm.f_stack().as_slice(), [1.1, 1.1]);
     }
 
     #[test]
@@ -541,7 +543,7 @@ mod tests {
         vm.add_float();
         vm.set_source("fvariable fx  fx f@  3.3 fx f!  fx f@");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.as_slice(), [0.0, 3.3]);
+        assert_eq!(vm.f_stack().as_slice(), [0.0, 3.3]);
     }
 
     #[test]
@@ -550,8 +552,8 @@ mod tests {
         vm.add_float();
         vm.set_source("-3.14 fabs");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 1);
-        assert!(match vm.f_stack.pop() {
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
             Some(t) => {
                 t > 3.13999 && t < 3.14001
             },
@@ -565,8 +567,8 @@ mod tests {
         vm.add_float();
         vm.set_source("3.14 fsin");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 1);
-        assert!(match vm.f_stack.pop() {
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
             Some(t) => {
                 t > 0.0015925 && t < 0.0015927
             },
@@ -580,8 +582,8 @@ mod tests {
         vm.add_float();
         vm.set_source("3.0 fcos");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 1);
-        assert!(match vm.f_stack.pop() {
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
             Some(t) => {
                 t > -0.989993 && t < -0.989991
             },
@@ -595,8 +597,8 @@ mod tests {
         vm.add_float();
         vm.set_source("3.0 ftan");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 1);
-        assert!(match vm.f_stack.pop() {
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
             Some(t) => {
                 t > -0.142547 && t < -0.142545
             },
@@ -610,8 +612,8 @@ mod tests {
         vm.add_float();
         vm.set_source("0.3 fasin");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 1);
-        assert!(match vm.f_stack.pop() {
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
             Some(t) => {
                 t > 0.304691 && t < 0.304693
             },
@@ -625,8 +627,8 @@ mod tests {
         vm.add_float();
         vm.set_source("0.3 facos");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 1);
-        assert!(match vm.f_stack.pop() {
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
             Some(t) => {
                 t > 1.266102 && t < 1.266104
             },
@@ -640,8 +642,8 @@ mod tests {
         vm.add_float();
         vm.set_source("0.3 fatan");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 1);
-        assert!(match vm.f_stack.pop() {
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
             Some(t) => {
                 t > 0.291455 && t < 0.291457
             },
@@ -655,8 +657,8 @@ mod tests {
         vm.add_float();
         vm.set_source("3.0 4.0 fatan2");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 1);
-        assert!(match vm.f_stack.pop() {
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
             Some(t) => {
                 t > 0.643500  && t < 0.643502
             },
@@ -670,8 +672,8 @@ mod tests {
         vm.add_float();
         vm.set_source("0.3 fsqrt");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 1);
-        assert!(match vm.f_stack.pop() {
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
             Some(t) => {
                 t > 0.547721 && t < 0.547723
             },
@@ -683,72 +685,72 @@ mod tests {
     fn test_fdrop() {
         let vm = &mut VM::new(16);
         vm.add_float();
-        match vm.f_stack.push(1.0) {
+        match vm.f_stack().push(1.0) {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         }
         assert!(vm.fdrop().is_none());
-        assert_eq!(vm.f_stack.as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), []);
     }
 
     #[test]
     fn test_fnip() {
         let vm = &mut VM::new(16);
         vm.add_float();
-        match vm.f_stack.push2(1.0, 2.0) {
+        match vm.f_stack().push2(1.0, 2.0) {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         };
         assert!(vm.fnip().is_none());
-        assert_eq!(vm.f_stack.as_slice(), [2.0]);
+        assert_eq!(vm.f_stack().as_slice(), [2.0]);
     }
 
     #[test]
     fn test_fswap () {
         let vm = &mut VM::new(16);
         vm.add_float();
-        match vm.f_stack.push2(1.0, 2.0) {
+        match vm.f_stack().push2(1.0, 2.0) {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         };
         assert!(vm.fswap().is_none());
-        assert_eq!(vm.f_stack.as_slice(), [2.0,1.0]);
+        assert_eq!(vm.f_stack().as_slice(), [2.0,1.0]);
     }
 
     #[test]
     fn test_fdup () {
         let vm = &mut VM::new(16);
         vm.add_float();
-        match vm.f_stack.push(1.0) {
+        match vm.f_stack().push(1.0) {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         };
         assert!(vm.fdup().is_none());
-        assert_eq!(vm.f_stack.as_slice(), [1.0, 1.0]);
+        assert_eq!(vm.f_stack().as_slice(), [1.0, 1.0]);
     }
 
     #[test]
     fn test_fover () {
         let vm = &mut VM::new(16);
         vm.add_float();
-        match vm.f_stack.push2(1.0, 2.0) {
+        match vm.f_stack().push2(1.0, 2.0) {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         };
         assert!(vm.fover().is_none());
-        assert_eq!(vm.f_stack.as_slice(), [1.0,2.0,1.0]);
+        assert_eq!(vm.f_stack().as_slice(), [1.0,2.0,1.0]);
     }
 
     #[test]
     fn test_frot () {
         let vm = &mut VM::new(16);
         vm.add_float();
-        match vm.f_stack.push3(1.0, 2.0, 3.0) {
+        match vm.f_stack().push3(1.0, 2.0, 3.0) {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
         };
         assert!(vm.frot().is_none());
-        assert_eq!(vm.f_stack.as_slice(), [2.0, 3.0, 1.0]);
+        assert_eq!(vm.f_stack().as_slice(), [2.0, 3.0, 1.0]);
     }
 
     #[test]
@@ -757,8 +759,8 @@ mod tests {
         vm.add_float();
         vm.set_source("9.0 10.0 f+ 11.0 f- 12.0 f* 13.0 f/");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.len(), 1);
-        assert!(match vm.f_stack.pop() {
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
             Some(t) => {
                 t > 7.384614 && t < 7.384616
             },
@@ -776,7 +778,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Some(-1));
         assert_eq!(vm.s_stack().pop(), Some(0));
         assert_eq!(vm.s_stack().pop(), Some(0));
-        assert_eq!(vm.f_stack.as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), []);
     }
 
     #[test]
@@ -789,7 +791,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Some(0));
         assert_eq!(vm.s_stack().pop(), Some(0));
         assert_eq!(vm.s_stack().pop(), Some(-1));
-        assert_eq!(vm.f_stack.as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), []);
     }
 
     #[test]
@@ -802,7 +804,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Some(-1));
         assert_eq!(vm.s_stack().pop(), Some(0));
         assert_eq!(vm.s_stack().pop(), Some(0));
-        assert_eq!(vm.f_stack.as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), []);
     }
 
     #[test]
@@ -814,7 +816,7 @@ mod tests {
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Some(0));
         assert_eq!(vm.s_stack().pop(), Some(-1));
-        assert_eq!(vm.f_stack.as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), []);
         vm.s_stack().clear();
         vm.set_source("0.1 0.1 0.001 f~   0.1 0.109 0.01 f~   0.1 0.111  0.01 f~");
         assert!(vm.evaluate().is_none());
@@ -822,7 +824,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Some(0));
         assert_eq!(vm.s_stack().pop(), Some(-1));
         assert_eq!(vm.s_stack().pop(), Some(-1));
-        assert_eq!(vm.f_stack.as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), []);
         vm.s_stack().clear();
         vm.set_source("0.1 0.1 -0.001 f~   0.1 0.109 -0.1 f~   0.1 0.109  -0.01 f~");
         assert!(vm.evaluate().is_none());
@@ -830,7 +832,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Some(0));
         assert_eq!(vm.s_stack().pop(), Some(-1));
         assert_eq!(vm.s_stack().pop(), Some(-1));
-        assert_eq!(vm.f_stack.as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), []);
         vm.s_stack().clear();
     }
 
@@ -840,7 +842,7 @@ mod tests {
         vm.add_float();
         vm.set_source("0 n>f -1 n>f 1 n>f");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.as_slice(), [0.0, -1.0, 1.0]);
+        assert_eq!(vm.f_stack().as_slice(), [0.0, -1.0, 1.0]);
     }
 
     #[test]
@@ -849,6 +851,6 @@ mod tests {
         vm.add_float();
         vm.set_source(": test 1.0 2.0 ; test");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.as_slice(), [1.0, 2.0]);
+        assert_eq!(vm.f_stack().as_slice(), [1.0, 2.0]);
     }
 }

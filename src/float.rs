@@ -171,7 +171,7 @@ impl Float for VM {
 // Floating point primitives
 
     fn ffetch(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) =>
                 match self.f_stack.push(self.jit_memory.get_f64(t as usize)) {
                     Some(_) => Some(FloatingPointStackOverflow),
@@ -182,7 +182,7 @@ impl Float for VM {
     }
 
     fn fstore(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) => {
@@ -383,7 +383,7 @@ impl Float for VM {
     }
 
     fn n_to_f(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) =>
                 match self.f_stack.push(t as f64) {
                     Some(_) => Some(FloatingPointStackOverflow),
@@ -457,11 +457,11 @@ impl Float for VM {
         match self.f_stack.pop3() {
             Some((x1, x2, x3)) => {
                 if x3 > 0.0 {
-                    self.s_stack.push(if (x1-x2).abs() < x3 {-1} else {0});
+                    self.s_stack().push(if (x1-x2).abs() < x3 {-1} else {0});
                 } else if x3 == 0.0 {
-                    self.s_stack.push(if x1==x2 {-1} else {0});
+                    self.s_stack().push(if x1==x2 {-1} else {0});
                 } else {
-                    self.s_stack.push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) {-1} else {0});
+                    self.s_stack().push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) {-1} else {0});
                 }
                 None
             },
@@ -472,7 +472,7 @@ impl Float for VM {
     fn f_zero_less_than(&mut self) -> Option<Exception> {
         match self.f_stack.pop() {
             Some(t) =>
-                match self.s_stack.push(if t<0.0 {-1} else {0}) {
+                match self.s_stack().push(if t<0.0 {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -483,7 +483,7 @@ impl Float for VM {
     fn f_zero_equals(&mut self) -> Option<Exception> {
         match self.f_stack.pop() {
             Some(t) =>
-                match self.s_stack.push(if t==0.0 {-1} else {0}) {
+                match self.s_stack().push(if t==0.0 {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -496,7 +496,7 @@ impl Float for VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) =>
-                        match self.s_stack.push(if n<t {-1} else {0}) {
+                        match self.s_stack().push(if n<t {-1} else {0}) {
                             Some(_) => Some(StackOverflow),
                             None => None
                         },
@@ -772,10 +772,10 @@ mod tests {
         vm.add_float();
         vm.set_source("0.0 f0<   0.1 f0<   -0.1 f0<");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        assert_eq!(vm.s_stack().pop(), Some(0));
         assert_eq!(vm.f_stack.as_slice(), []);
     }
 
@@ -785,10 +785,10 @@ mod tests {
         vm.add_float();
         vm.set_source("0.0 f0=   0.1 f0=   -0.1 f0=");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        assert_eq!(vm.s_stack().pop(), Some(-1));
         assert_eq!(vm.f_stack.as_slice(), []);
     }
 
@@ -798,10 +798,10 @@ mod tests {
         vm.add_float();
         vm.set_source("0.0 0.0 f<   0.1 0.0 f<   -0.1 0.0 f<");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        assert_eq!(vm.s_stack().pop(), Some(0));
         assert_eq!(vm.f_stack.as_slice(), []);
     }
 
@@ -811,27 +811,27 @@ mod tests {
         vm.add_float();
         vm.set_source("0.1 0.1 0.0 f~   0.1 0.10000000001 0.0 f~");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 2);
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack().len(), 2);
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        assert_eq!(vm.s_stack().pop(), Some(-1));
         assert_eq!(vm.f_stack.as_slice(), []);
-        vm.s_stack.clear();
+        vm.s_stack().clear();
         vm.set_source("0.1 0.1 0.001 f~   0.1 0.109 0.01 f~   0.1 0.111  0.01 f~");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        assert_eq!(vm.s_stack().pop(), Some(-1));
         assert_eq!(vm.f_stack.as_slice(), []);
-        vm.s_stack.clear();
+        vm.s_stack().clear();
         vm.set_source("0.1 0.1 -0.001 f~   0.1 0.109 -0.1 f~   0.1 0.109  -0.01 f~");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        assert_eq!(vm.s_stack().pop(), Some(-1));
         assert_eq!(vm.f_stack.as_slice(), []);
-        vm.s_stack.clear();
+        vm.s_stack().clear();
     }
 
     #[test]

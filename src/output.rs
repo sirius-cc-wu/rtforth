@@ -81,7 +81,7 @@ impl Output for VM {
     }
 
     fn emit(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             None => Some(StackUnderflow),
             Some(ch) => {
                 self.output_buffer.push(ch as u8 as char);
@@ -94,7 +94,7 @@ impl Output for VM {
     }
 
     fn p_type(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             None => Some(StackUnderflow),
             Some((addr, len)) => {
                 {
@@ -112,7 +112,7 @@ impl Output for VM {
     fn p_s_quote(&mut self) -> Option<Exception> {
         let cnt = self.jit_memory.get_i32(self.instruction_pointer);
         let addr = self.instruction_pointer + mem::size_of::<i32>();
-        match self.s_stack.push2(addr as isize, cnt as isize) {
+        match self.s_stack().push2(addr as isize, cnt as isize) {
             Some(_) => { Some(StackOverflow) },
             None => {
                 self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>() + cnt as usize;
@@ -143,14 +143,14 @@ impl Output for VM {
     }
 
     fn dot_paren(&mut self) -> Option<Exception> {
-        self.s_stack.push(')' as isize);
+        self.s_stack().push(')' as isize);
         self.parse();
         self.output_buffer.extend(self.last_token.chars());
         None
     }
 
     fn dot(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(n) => {
                 print!("{} ", n);
                 None
@@ -199,10 +199,10 @@ mod tests {
         vm.add_output();
         vm.set_source("42 emit 43 emit");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.as_slice(), []);
+        assert_eq!(vm.s_stack().as_slice(), []);
         assert_eq!(vm.output_buffer, "*+");
         assert!(vm.flush().is_none());
-        assert_eq!(vm.s_stack.as_slice(), []);
+        assert_eq!(vm.s_stack().as_slice(), []);
         assert_eq!(vm.output_buffer, "");
     }
 

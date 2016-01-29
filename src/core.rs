@@ -237,7 +237,7 @@ pub trait Extension {}
 // Virtual machine
 pub struct VM {
     pub is_compiling: bool,
-    pub s_stack: Stack<isize>,
+    _s_stack: Stack<isize>,
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
     pub jit_memory: JitMemory,
@@ -267,7 +267,7 @@ impl VM {
     pub fn new(pages: usize) -> VM {
         let mut vm = VM {
             is_compiling: false,
-            s_stack: Stack::with_capacity(64),
+            _s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
             jit_memory: JitMemory::new(pages),
@@ -421,6 +421,9 @@ impl VM {
         vm
     }
 
+    pub fn s_stack(&mut self) -> &mut Stack<isize> {
+      &mut self._s_stack
+    }
     /// Idle is the result of new and reset, means that VM has nothing to do.
     pub fn is_idle(& self) -> bool {
         self.instruction_pointer == 0
@@ -564,7 +567,7 @@ impl VM {
         self.parse_word();
         match self.last_token.chars().nth(0) {
             Some(c) =>
-                match self.s_stack.push(c as isize) {
+                match self.s_stack().push(c as isize) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -581,7 +584,7 @@ impl VM {
     /// Place char, the value of the first character of name, on the stack.
     pub fn bracket_char(&mut self) -> Option<Exception> {
         self.char();
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(ch) => {
                 self.compile_integer(ch);
                 None
@@ -594,7 +597,7 @@ impl VM {
     ///
     /// Parse ccc delimited by the delimiter char.
     pub fn parse(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(v) => {
                 self.last_token.clear();
                 let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
@@ -615,7 +618,7 @@ impl VM {
     }
 
     pub fn imm_paren(&mut self) -> Option<Exception> {
-        match self.s_stack.push(')' as isize) {
+        match self.s_stack().push(')' as isize) {
             Some(_) => Some(StackOverflow),
             None => self.parse()
         }
@@ -705,7 +708,7 @@ impl VM {
                 if self.is_compiling {
                     self.compile_integer(t);
                 } else {
-                    self.s_stack.push (t);
+                    self.s_stack().push (t);
                 }
                 Ok(())
             },
@@ -765,21 +768,24 @@ impl VM {
     }
 
     pub fn p_var(&mut self) -> Option<Exception> {
-        match self.s_stack.push(self.jit_memory.word(self.word_pointer).dfa as isize) {
+        let v = self.jit_memory.word(self.word_pointer).dfa as isize;
+        match self.s_stack().push(v) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
     pub fn p_const(&mut self) -> Option<Exception> {
-        match self.s_stack.push(self.jit_memory.get_i32(self.jit_memory.word(self.word_pointer).dfa) as isize) {
+        let v = self.jit_memory.get_i32(self.jit_memory.word(self.word_pointer).dfa) as isize;
+        match self.s_stack().push(v) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
     pub fn p_fvar(&mut self) -> Option<Exception> {
-        match self.s_stack.push(self.jit_memory.word(self.word_pointer).dfa as isize) {
+        let dfa = self.jit_memory.word(self.word_pointer).dfa as isize;
+        match self.s_stack().push(dfa) {
             Some(_) => Some(StackOverflow),
             None => None
         }
@@ -834,7 +840,7 @@ impl VM {
     }
 
     pub fn constant(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(v) => {
                 match self.define(VM::p_const) {
                     Some(e) => Some(e),
@@ -875,7 +881,7 @@ impl VM {
     }
 
     pub fn zero_branch(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(v) => {
                 if v == 0 {
                     self.branch()
@@ -942,7 +948,7 @@ impl VM {
     pub fn p_plus_loop(&mut self) -> Option<Exception> {
         match self.r_stack.pop2() {
             Some((rn, rt)) => {
-                match self.s_stack.pop() {
+                match self.s_stack().pop() {
                     Some(t) => {
                         if rt+t < rn {
                             self.r_stack.push2(rn, rt+t);
@@ -990,7 +996,7 @@ impl VM {
     pub fn p_i(&mut self) -> Option<Exception> {
         match self.r_stack.last() {
             Some(i) => {
-                match self.s_stack.push(i) {
+                match self.s_stack().push(i) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 }
@@ -1003,7 +1009,7 @@ impl VM {
         let pos = self.r_stack.len() - 4;
         match self.r_stack.get(pos) {
             Some(j) => {
-                match self.s_stack.push(j) {
+                match self.s_stack().push(j) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 }
@@ -1019,7 +1025,7 @@ impl VM {
     }
 
     pub fn imm_else(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(if_part) => {
                 self.jit_memory.compile_i32(self.idx_branch as i32);
                 self.jit_memory.compile_i32(0);
@@ -1033,7 +1039,7 @@ impl VM {
     }
 
     pub fn imm_then(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(branch_part) => {
                 let here = self.jit_memory.len();
                 self.jit_memory.put_i32(here as i32, (branch_part - mem::size_of::<i32>() as isize) as usize);
@@ -1054,7 +1060,7 @@ impl VM {
     }
 
     pub fn imm_repeat(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((begin_part, while_part)) => {
                 self.jit_memory.compile_i32(self.idx_branch as i32);
                 self.jit_memory.compile_i32(begin_part as i32);
@@ -1067,7 +1073,7 @@ impl VM {
     }
 
     pub fn imm_again(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(begin_part) => {
                 self.jit_memory.compile_i32(self.idx_branch as i32);
                 self.jit_memory.compile_i32(begin_part as i32);
@@ -1099,7 +1105,7 @@ impl VM {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the LOOP.
     pub fn imm_loop(&mut self) -> Option<Exception>{
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(do_part) => {
                 self.jit_memory.compile_i32(self.idx_loop as i32);
                 self.jit_memory.compile_i32(do_part as i32);
@@ -1118,7 +1124,7 @@ impl VM {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following +LOOP.
     pub fn imm_plus_loop(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(do_part) => {
                 self.jit_memory.compile_i32(self.idx_plus_loop as i32);
                 self.jit_memory.compile_i32(do_part as i32);
@@ -1144,7 +1150,7 @@ impl VM {
     ///
     /// Return a true flag, a single-cell value with all bits set.
     pub fn p_true(&mut self) -> Option<Exception> {
-        match self.s_stack.push (-1) {
+        match self.s_stack().push (-1) {
             Some(_) => Some(StackOverflow),
             None => None
         }
@@ -1154,7 +1160,7 @@ impl VM {
     ///
     /// Return a false flag.
     pub fn p_false(&mut self) -> Option<Exception> {
-        match self.s_stack.push (0) {
+        match self.s_stack().push (0) {
             Some(_) => Some(StackOverflow),
             None => None
         }
@@ -1164,9 +1170,9 @@ impl VM {
     ///
     ///Add the size in address units of a character to c-addr1, giving c-addr2.
     pub fn char_plus(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(v) =>
-                match self.s_stack.push(v + mem::size_of::<u8>() as isize) {
+                match self.s_stack().push(v + mem::size_of::<u8>() as isize) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1178,9 +1184,9 @@ impl VM {
     ///
     /// n2 is the size in address units of n1 characters.
     pub fn chars(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(v) =>
-                match self.s_stack.push(v*mem::size_of::<u8>() as isize) {
+                match self.s_stack().push(v*mem::size_of::<u8>() as isize) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1193,9 +1199,9 @@ impl VM {
     ///
     /// Add the size in address units of a cell to a-addr1, giving a-addr2.
     pub fn cell_plus(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(v) =>
-                match self.s_stack.push(v + mem::size_of::<i32>() as isize) {
+                match self.s_stack().push(v + mem::size_of::<i32>() as isize) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1207,9 +1213,9 @@ impl VM {
     ///
     /// n2 is the size in address units of n1 cells.
     pub fn cells(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(v) =>
-                match self.s_stack.push(v*mem::size_of::<i32>() as isize) {
+                match self.s_stack().push(v*mem::size_of::<i32>() as isize) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1218,264 +1224,267 @@ impl VM {
     }
 
     pub fn lit(&mut self) -> Option<Exception> {
-        if self.s_stack.len >= self.s_stack.cap {
+        let len = self.s_stack().len;
+        if  len >= self.s_stack().cap {
             Some(StackOverflow)
         } else {
             unsafe {
                 let v = self.jit_memory.get_i32(self.instruction_pointer) as isize;
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len) as isize), v);
+                ptr::write(self.s_stack().inner.offset(len as isize), v);
             }
-            self.s_stack.len += 1;
+            self.s_stack().len += 1;
             self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
             None
         }
     }
 
     pub fn swap(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        if self.s_stack().len < 2 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize));
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)));
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), t);
+                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize)));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), t);
             }
             None
         }
     }
 
     pub fn dup(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 1 {
+        let len = self.s_stack().len;
+        if len < 1 {
             Some(StackUnderflow)
-        } else if self.s_stack.len >= self.s_stack.cap {
+        } else if len >= self.s_stack().cap {
             Some(StackOverflow)
         } else {
             unsafe {
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)));
-                self.s_stack.len += 1;
+                ptr::write(self.s_stack().inner.offset(len as isize), ptr::read(self.s_stack().inner.offset((len-1) as isize)));
+                self.s_stack().len += 1;
             }
             None
         }
     }
 
     pub fn p_drop(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 1 {
+        if self.s_stack().len < 1 {
             Some(StackUnderflow)
         } else {
-            self.s_stack.len -= 1;
+            self.s_stack().len -= 1;
             None
         }
     }
 
     pub fn nip(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        if self.s_stack().len < 2 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                self.s_stack.len -= 1;
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
+                self.s_stack().len -= 1;
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             None
         }
     }
 
     pub fn over(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        let len = self.s_stack().len;
+        if len < 2 {
             Some(StackUnderflow)
-        } else if self.s_stack.len >= self.s_stack.cap {
+        } else if len >= self.s_stack().cap {
             Some(StackOverflow)
         } else {
             unsafe {
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize)));
-                self.s_stack.len += 1;
+                ptr::write(self.s_stack().inner.offset(len as isize), ptr::read(self.s_stack().inner.offset((len-2) as isize)));
+                self.s_stack().len += 1;
             }
             None
         }
     }
 
     pub fn rot(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 3 {
+        if self.s_stack().len < 3 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize));
-                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize));
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-3) as isize)));
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), t);
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-3) as isize), n);
+                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
+                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-3) as isize)));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), t);
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-3) as isize), n);
             }
             None
         }
     }
 
     pub fn two_drop(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        if self.s_stack().len < 2 {
             Some(StackUnderflow)
         } else {
-            self.s_stack.len -= 2;
+            self.s_stack().len -= 2;
             None
         }
     }
 
     pub fn two_dup(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        if self.s_stack().len < 2 {
             Some(StackUnderflow)
-        } else if self.s_stack.len + 2 > self.s_stack.cap {
+        } else if self.s_stack().len + 2 > self.s_stack().cap {
             Some(StackOverflow)
         } else {
             unsafe {
-                self.s_stack.len += 2;
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-3) as isize)));
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-4) as isize)));
+                self.s_stack().len += 2;
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-3) as isize)));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-4) as isize)));
             }
             None
         }
     }
 
     pub fn two_swap(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 4 {
+        if self.s_stack().len < 4 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize));
-                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize));
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-3) as isize)));
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-4) as isize)));
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-3) as isize), t);
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-4) as isize), n);
+                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
+                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-3) as isize)));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-4) as isize)));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-3) as isize), t);
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-4) as isize), n);
             }
             None
         }
     }
 
     pub fn two_over(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 4 {
+        if self.s_stack().len < 4 {
             Some(StackUnderflow)
-        } else if self.s_stack.len + 2 > self.s_stack.cap {
+        } else if self.s_stack().len + 2 > self.s_stack().cap {
             Some(StackOverflow)
         } else {
             unsafe {
-                self.s_stack.len += 2;
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-5) as isize)));
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-6) as isize)));
+                self.s_stack().len += 2;
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-5) as isize)));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-6) as isize)));
             }
             None
         }
     }
 
     pub fn depth(&mut self) -> Option<Exception> {
-        let len = self.s_stack.len;
-        match self.s_stack.push(len as isize) {
+        let len = self.s_stack().len;
+        match self.s_stack().push(len as isize) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
     pub fn one_plus(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 1 {
+        if self.s_stack().len < 1 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)).wrapping_add(1));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)).wrapping_add(1));
             }
             None
         }
     }
 
     pub fn one_minus(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 1 {
+        if self.s_stack().len < 1 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize))-1);
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize))-1);
             }
             None
         }
     }
 
     pub fn plus(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        if self.s_stack().len < 2 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                self.s_stack.len -= 1;
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize),
-                    ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)) + ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
+                self.s_stack().len -= 1;
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
+                    ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) + ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             None
         }
     }
 
     pub fn minus(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        if self.s_stack().len < 2 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                self.s_stack.len -= 1;
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize),
-                    ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)) - ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
+                self.s_stack().len -= 1;
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
+                    ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) - ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             None
         }
     }
 
     pub fn star(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        if self.s_stack().len < 2 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                self.s_stack.len -= 1;
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize),
-                    ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)) * ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
+                self.s_stack().len -= 1;
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
+                    ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) * ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             None
         }
     }
 
     pub fn slash(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        if self.s_stack().len < 2 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                self.s_stack.len -= 1;
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize),
-                    ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)) / ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
+                self.s_stack().len -= 1;
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
+                    ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) / ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             None
         }
     }
 
     pub fn p_mod(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        if self.s_stack().len < 2 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                self.s_stack.len -= 1;
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize),
-                    ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize)) % ptr::read(self.s_stack.inner.offset((self.s_stack.len) as isize)));
+                self.s_stack().len -= 1;
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
+                    ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) % ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             None
         }
     }
 
     pub fn slash_mod(&mut self) -> Option<Exception> {
-        if self.s_stack.len < 2 {
+        if self.s_stack().len < 2 {
             Some(StackUnderflow)
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack.inner.offset((self.s_stack.len-1) as isize));
-                let n = ptr::read(self.s_stack.inner.offset((self.s_stack.len-2) as isize));
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-2) as isize), n%t);
-                ptr::write(self.s_stack.inner.offset((self.s_stack.len-1) as isize), n/t);
+                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
+                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize));
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), n%t);
+                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), n/t);
             }
             None
         }
     }
 
     pub fn abs(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) =>
-                match self.s_stack.push(t.abs()) {
+                match self.s_stack().push(t.abs()) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1484,9 +1493,9 @@ impl VM {
     }
 
     pub fn negate(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) =>
-                match self.s_stack.push(-t) {
+                match self.s_stack().push(-t) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1495,9 +1504,9 @@ impl VM {
     }
 
     pub fn zero_less(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) =>
-                match self.s_stack.push(if t<0 {-1} else {0}) {
+                match self.s_stack().push(if t<0 {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1506,9 +1515,9 @@ impl VM {
     }
 
     pub fn zero_equals(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) =>
-                match self.s_stack.push(if t==0 {-1} else {0}) {
+                match self.s_stack().push(if t==0 {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1517,9 +1526,9 @@ impl VM {
     }
 
     pub fn zero_greater(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) =>
-                match self.s_stack.push(if t>0 {-1} else {0}) {
+                match self.s_stack().push(if t>0 {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1528,9 +1537,9 @@ impl VM {
     }
 
     pub fn zero_not_equals(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) =>
-                match self.s_stack.push(if t!=0 {-1} else {0}) {
+                match self.s_stack().push(if t!=0 {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1539,9 +1548,9 @@ impl VM {
     }
 
     pub fn equals(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
-                match self.s_stack.push(if t==n {-1} else {0}) {
+                match self.s_stack().push(if t==n {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1550,9 +1559,9 @@ impl VM {
     }
 
     pub fn less_than(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
-                match self.s_stack.push(if n<t {-1} else {0}) {
+                match self.s_stack().push(if n<t {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1561,9 +1570,9 @@ impl VM {
     }
 
     pub fn greater_than(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
-                match self.s_stack.push(if n>t {-1} else {0}) {
+                match self.s_stack().push(if n>t {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1572,9 +1581,9 @@ impl VM {
     }
 
     pub fn not_equals(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
-                match self.s_stack.push(if n!=t {-1} else {0}) {
+                match self.s_stack().push(if n!=t {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1583,9 +1592,9 @@ impl VM {
     }
 
     pub fn between(&mut self) -> Option<Exception> {
-        match self.s_stack.pop3() {
+        match self.s_stack().pop3() {
             Some((x1, x2, x3)) =>
-                match self.s_stack.push(if x2<=x1 && x1<=x3 {-1} else {0}) {
+                match self.s_stack().push(if x2<=x1 && x1<=x3 {-1} else {0}) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1594,9 +1603,9 @@ impl VM {
     }
 
     pub fn invert(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) =>
-                match self.s_stack.push(!t) {
+                match self.s_stack().push(!t) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1605,9 +1614,9 @@ impl VM {
     }
 
     pub fn and(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
-                match self.s_stack.push(t & n) {
+                match self.s_stack().push(t & n) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1616,9 +1625,9 @@ impl VM {
     }
 
     pub fn or(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
-                match self.s_stack.push(t | n) {
+                match self.s_stack().push(t | n) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1627,9 +1636,9 @@ impl VM {
     }
 
     pub fn xor(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
-                match self.s_stack.push(t ^ n) {
+                match self.s_stack().push(t ^ n) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1644,9 +1653,9 @@ impl VM {
     /// ambiguous condition exists if u is greater than or equal to the number
     /// of bits in a cell.
     pub fn lshift(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
-                match self.s_stack.push(n << t) {
+                match self.s_stack().push(n << t) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1661,9 +1670,9 @@ impl VM {
     /// ambiguous condition exists if u is greater than or equal to the number
     /// of bits in a cell.
     pub fn rshift(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
-                match self.s_stack.push((n as usize >> t) as isize) {
+                match self.s_stack().push((n as usize >> t) as isize) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1678,9 +1687,9 @@ impl VM {
     /// ambiguous condition exists if u is greater than or equal to the number
     /// of bits in a cell.
     pub fn arshift(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
-                match self.s_stack.push(n >> t) {
+                match self.s_stack().push(n >> t) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -1710,12 +1719,14 @@ impl VM {
     ///
     /// x is the value stored at a-addr.
     pub fn fetch(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.push(self.jit_memory.get_i32(t as usize) as isize) {
+        match self.s_stack().pop() {
+            Some(t) => {
+                let v = self.jit_memory.get_i32(t as usize) as isize;
+                match self.s_stack().push(v) {
                     Some(_) => Some(StackOverflow),
                     None => None
-                },
+                }
+            },
             None => Some(StackUnderflow)
         }
     }
@@ -1724,7 +1735,7 @@ impl VM {
     ///
     /// Store x at a-addr.
     pub fn store(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) => {
                 self.jit_memory.put_i32(n as i32, t as usize);
                 None
@@ -1738,12 +1749,14 @@ impl VM {
     /// Fetch the character stored at c-addr. When the cell size is greater than
     /// character size, the unused high-order bits are all zeroes.
     pub fn c_fetch(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.push(self.jit_memory.get_u8(t as usize) as isize) {
+        match self.s_stack().pop() {
+            Some(t) => {
+                let v = self.jit_memory.get_u8(t as usize) as isize;
+                match self.s_stack().push(v) {
                     Some(_) => Some(StackOverflow),
                     None => None
-                },
+                }
+            },
             None => Some(StackUnderflow)
         }
     }
@@ -1754,7 +1767,7 @@ impl VM {
     /// only the number of low-order bits corresponding to character size are
     /// transferred.
     pub fn c_store(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) => {
                 self.jit_memory.put_u8(n as u8, t as usize);
                 None
@@ -1773,7 +1786,7 @@ impl VM {
         if !self.last_token.is_empty() {
             match self.find(&self.last_token) {
                 Some(found_index) =>
-                    match self.s_stack.push(found_index as isize) {
+                    match self.s_stack().push(found_index as isize) {
                         Some(_) => Some(StackOverflow),
                         None => None
                     },
@@ -1789,7 +1802,7 @@ impl VM {
     /// Remove xt from the stack and perform the semantics identified by it.
     /// Other stack effects are due to the word EXECUTEd.
     pub fn execute(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(t) => {
                 self.execute_word(t as usize)
             },
@@ -1801,7 +1814,8 @@ impl VM {
     ///
     /// addr is the data-space pointer.
     pub fn here(&mut self) -> Option<Exception> {
-        match self.s_stack.push(self.jit_memory.len() as isize) {
+        let v = self.jit_memory.len() as isize;
+        match self.s_stack().push(v) {
             Some(_) => Some(StackOverflow),
             None => None
         }
@@ -1813,7 +1827,7 @@ impl VM {
     /// is less than zero, release |n| address units of data space. If n is
     /// zero, leave the data-space pointer unchanged.
     pub fn allot(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(v) => {
                 self.jit_memory.allot(v);
                 None
@@ -1829,7 +1843,7 @@ impl VM {
     /// aligned when , finishes execution. An ambiguous condition exists if the
     /// data-space pointer is not aligned prior to execution of ,.
     pub fn comma(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(v) => {
                 self.jit_memory.compile_i32(v as i32);
                 None
@@ -1839,7 +1853,7 @@ impl VM {
     }
 
     pub fn p_to_r(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(v) => {
                 if self.r_stack.len >= self.r_stack.cap {
                     Some(ReturnStackOverflow)
@@ -1861,7 +1875,8 @@ impl VM {
         } else {
             self.r_stack.len -= 1;
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize)));
+                let p = self.r_stack.inner.offset(self.r_stack.len as isize);
+                self.s_stack().push(ptr::read(p));
             }
             None
         }
@@ -1872,14 +1887,15 @@ impl VM {
             Some(ReturnStackUnderflow)
         } else {
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-1) as isize)));
+                let p = self.r_stack.inner.offset((self.r_stack.len-1) as isize);
+                self.s_stack().push(ptr::read(p));
             }
             None
         }
     }
 
     pub fn two_to_r(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             Some((n,t)) =>
                 if self.r_stack.len >= self.r_stack.cap-1 {
                     Some(ReturnStackOverflow)
@@ -1901,8 +1917,10 @@ impl VM {
         } else {
             self.r_stack.len -= 2;
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset(self.r_stack.len as isize)));
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len+1) as isize)));
+                let p = self.r_stack.inner.offset(self.r_stack.len as isize);
+                self.s_stack().push(ptr::read(p));
+                let p = self.r_stack.inner.offset((self.r_stack.len+1) as isize);
+                self.s_stack().push(ptr::read(p));
             }
             None
         }
@@ -1913,8 +1931,10 @@ impl VM {
             Some(ReturnStackUnderflow)
         } else {
             unsafe {
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-2) as isize)));
-                self.s_stack.push(ptr::read(self.r_stack.inner.offset((self.r_stack.len-1) as isize)));
+                let p = self.r_stack.inner.offset((self.r_stack.len-2) as isize);
+                self.s_stack().push(ptr::read(p));
+                let p = self.r_stack.inner.offset((self.r_stack.len-1) as isize);
+                self.s_stack().push(ptr::read(p));
             }
             None
         }
@@ -1931,7 +1951,7 @@ impl VM {
     /// Clear data and floating point stacks.
     /// Called by VM's client upon Abort.
     pub fn clear_stacks(&mut self) {
-        self.s_stack.clear();
+        self.s_stack().clear();
         self.f_stack.clear();
     }
 
@@ -2031,7 +2051,7 @@ mod tests {
             },
             None => assert!(false)
         }
-        assert_eq!(3usize, vm.s_stack.len());
+        assert_eq!(3usize, vm.s_stack().len());
     }
 
     #[bench]
@@ -2055,141 +2075,141 @@ mod tests {
     #[test]
     fn test_drop() {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
         assert!(vm.p_drop().is_none());
-        assert!(vm.s_stack.is_empty());
+        assert!(vm.s_stack().is_empty());
     }
 
     #[bench]
     fn bench_drop(b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
         b.iter(|| {
             vm.p_drop();
-            vm.s_stack.push(1);
+            vm.s_stack().push(1);
         });
     }
 
     #[test]
     fn test_nip() {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         assert!(vm.nip().is_none());
-        assert!(vm.s_stack.len()==1);
-        assert!(vm.s_stack.last() == Some(2));
+        assert!(vm.s_stack().len()==1);
+        assert!(vm.s_stack().last() == Some(2));
     }
 
     #[bench]
     fn bench_nip(b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
+        vm.s_stack().push(1);
         b.iter(|| {
             vm.nip();
-            vm.s_stack.push(1);
+            vm.s_stack().push(1);
         });
     }
 
     #[test]
     fn test_swap () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         assert!(vm.swap().is_none());
-        assert_eq!(vm.s_stack.len(), 2);
-        assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack().len(), 2);
+        assert_eq!(vm.s_stack().pop(), Some(1));
+        assert_eq!(vm.s_stack().pop(), Some(2));
     }
 
     #[bench]
     fn bench_swap (b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         b.iter(|| vm.swap());
     }
 
     #[test]
     fn test_dup () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
         assert!(vm.dup().is_none());
-        assert_eq!(vm.s_stack.len(), 2);
-        assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack().len(), 2);
+        assert_eq!(vm.s_stack().pop(), Some(1));
+        assert_eq!(vm.s_stack().pop(), Some(1));
     }
 
     #[bench]
     fn bench_dup (b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
         b.iter(|| {
             vm.dup();
-            vm.s_stack.pop();
+            vm.s_stack().pop();
         });
     }
 
     #[test]
     fn test_over () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         assert!(vm.over().is_none());
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop(), Some(1));
+        assert_eq!(vm.s_stack().pop(), Some(2));
+        assert_eq!(vm.s_stack().pop(), Some(1));
     }
 
     #[bench]
     fn bench_over (b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         b.iter(|| {
             vm.over();
-            vm.s_stack.pop();
+            vm.s_stack().pop();
         });
     }
 
     #[test]
     fn test_rot () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
-        vm.s_stack.push(3);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
         assert!(vm.rot().is_none());
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.s_stack.pop(), Some(3));
-        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop(), Some(1));
+        assert_eq!(vm.s_stack().pop(), Some(3));
+        assert_eq!(vm.s_stack().pop(), Some(2));
     }
 
     #[bench]
     fn bench_rot (b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
-        vm.s_stack.push(3);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
         b.iter(|| vm.rot());
     }
 
     #[test]
     fn test_2drop () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         assert!(vm.two_drop().is_none());
-        assert!(vm.s_stack.is_empty());
+        assert!(vm.s_stack().is_empty());
     }
 
     #[bench]
     fn bench_2drop (b: &mut Bencher) {
         let vm = &mut VM::new(16);
         b.iter(|| {
-            vm.s_stack.push(1);
-            vm.s_stack.push(2);
+            vm.s_stack().push(1);
+            vm.s_stack().push(2);
             vm.two_drop();
         });
     }
@@ -2197,21 +2217,21 @@ mod tests {
     #[test]
     fn test_2dup () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         assert!(vm.two_dup().is_none());
-        assert_eq!(vm.s_stack.len(), 4);
-        assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack().len(), 4);
+        assert_eq!(vm.s_stack().pop(), Some(2));
+        assert_eq!(vm.s_stack().pop(), Some(1));
+        assert_eq!(vm.s_stack().pop(), Some(2));
+        assert_eq!(vm.s_stack().pop(), Some(1));
     }
 
     #[bench]
     fn bench_2dup (b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         b.iter(|| {
             vm.two_dup();
             vm.two_drop();
@@ -2221,47 +2241,47 @@ mod tests {
     #[test]
     fn test_2swap () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
-        vm.s_stack.push(3);
-        vm.s_stack.push(4);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
+        vm.s_stack().push(4);
         assert!(vm.two_swap().is_none());
-        assert_eq!(vm.s_stack.len(), 4);
-        assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.s_stack.pop(), Some(4));
-        assert_eq!(vm.s_stack.pop(), Some(3));
+        assert_eq!(vm.s_stack().len(), 4);
+        assert_eq!(vm.s_stack().pop(), Some(2));
+        assert_eq!(vm.s_stack().pop(), Some(1));
+        assert_eq!(vm.s_stack().pop(), Some(4));
+        assert_eq!(vm.s_stack().pop(), Some(3));
     }
 
     #[bench]
     fn bench_2swap (b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
-        vm.s_stack.push(3);
-        vm.s_stack.push(4);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
+        vm.s_stack().push(4);
         b.iter(|| vm.two_swap());
     }
 
     #[test]
     fn test_2over () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
-        vm.s_stack.push(3);
-        vm.s_stack.push(4);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
+        vm.s_stack().push(4);
         assert!(vm.two_over().is_none());
-        assert_eq!(vm.s_stack.len(), 6);
-        assert_eq!(vm.s_stack.as_slice(), [1, 2, 3, 4, 1, 2]);
+        assert_eq!(vm.s_stack().len(), 6);
+        assert_eq!(vm.s_stack().as_slice(), [1, 2, 3, 4, 1, 2]);
     }
 
     #[bench]
     fn bench_2over (b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
-        vm.s_stack.push(3);
-        vm.s_stack.push(4);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
+        vm.s_stack().push(4);
         b.iter(|| {
             vm.two_over();
             vm.two_drop();
@@ -2274,22 +2294,22 @@ mod tests {
         vm.depth();
         vm.depth();
         vm.depth();
-        assert_eq!(vm.s_stack.as_slice(), [0, 1, 2]);
+        assert_eq!(vm.s_stack().as_slice(), [0, 1, 2]);
     }
 
     #[test]
     fn test_one_plus() {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
         assert!(vm.one_plus().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(2));
     }
 
     #[bench]
     fn bench_one_plus(b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(0);
+        vm.s_stack().push(0);
         b.iter(|| {
             vm.one_plus();
         });
@@ -2298,16 +2318,16 @@ mod tests {
     #[test]
     fn test_one_minus() {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(2);
+        vm.s_stack().push(2);
         assert!(vm.one_minus().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(1));
     }
 
     #[bench]
     fn bench_one_minus(b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(0);
+        vm.s_stack().push(0);
         b.iter(|| {
             vm.one_minus();
         });
@@ -2316,17 +2336,17 @@ mod tests {
     #[test]
     fn test_minus() {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(5);
-        vm.s_stack.push(7);
+        vm.s_stack().push(5);
+        vm.s_stack().push(7);
         assert!(vm.minus().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-2));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-2));
     }
 
     #[bench]
     fn bench_minus(b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(0);
+        vm.s_stack().push(0);
         b.iter(|| {
             vm.dup();
             vm.minus();
@@ -2336,17 +2356,17 @@ mod tests {
     #[test]
     fn test_plus() {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(5);
-        vm.s_stack.push(7);
+        vm.s_stack().push(5);
+        vm.s_stack().push(7);
         assert!(vm.plus().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(12));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(12));
     }
 
     #[bench]
     fn bench_plus(b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
         b.iter(|| {
             vm.dup();
             vm.plus();
@@ -2356,17 +2376,17 @@ mod tests {
     #[test]
     fn test_star () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(5);
-        vm.s_stack.push(7);
+        vm.s_stack().push(5);
+        vm.s_stack().push(7);
         assert!(vm.star().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(35));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(35));
     }
 
     #[bench]
     fn bench_star(b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
         b.iter(|| {
             vm.dup();
             vm.star();
@@ -2376,17 +2396,17 @@ mod tests {
     #[test]
     fn test_slash () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(30);
-        vm.s_stack.push(7);
+        vm.s_stack().push(30);
+        vm.s_stack().push(7);
         assert!(vm.slash().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(4));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(4));
     }
 
     #[bench]
     fn bench_slash(b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
         b.iter(|| {
             vm.dup();
             vm.slash();
@@ -2396,305 +2416,305 @@ mod tests {
     #[test]
     fn test_mod () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(30);
-        vm.s_stack.push(7);
+        vm.s_stack().push(30);
+        vm.s_stack().push(7);
         assert!(vm.p_mod().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(2));
     }
 
     #[bench]
     fn bench_mod(b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         b.iter(|| {
             vm.p_mod();
-            vm.s_stack.push(2);
+            vm.s_stack().push(2);
         });
     }
 
     #[test]
     fn test_slash_mod () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(30);
-        vm.s_stack.push(7);
+        vm.s_stack().push(30);
+        vm.s_stack().push(7);
         assert!(vm.slash_mod().is_none());
-        assert_eq!(vm.s_stack.len(), 2);
-        assert_eq!(vm.s_stack.pop(), Some(4));
-        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack().len(), 2);
+        assert_eq!(vm.s_stack().pop(), Some(4));
+        assert_eq!(vm.s_stack().pop(), Some(2));
     }
 
     #[bench]
     fn bench_slash_mod(b: &mut Bencher) {
         let vm = &mut VM::new(16);
-        vm.s_stack.push2(1, 2);
+        vm.s_stack().push2(1, 2);
         b.iter(|| {
             vm.slash_mod();
             vm.p_drop();
-            vm.s_stack.push(2)
+            vm.s_stack().push(2)
         });
     }
 
     #[test]
     fn test_abs () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(-30);
+        vm.s_stack().push(-30);
         assert!(vm.abs().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(30));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(30));
     }
 
     #[test]
     fn test_negate () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(30);
+        vm.s_stack().push(30);
         assert!(vm.negate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-30));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-30));
     }
 
     #[test]
     fn test_zero_less () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(-1);
+        vm.s_stack().push(-1);
         assert!(vm.zero_less().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        vm.s_stack.push(0);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        vm.s_stack().push(0);
         assert!(vm.zero_less().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
     }
 
     #[test]
     fn test_zero_equals () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(0);
+        vm.s_stack().push(0);
         assert!(vm.zero_equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        vm.s_stack.push(-1);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        vm.s_stack().push(-1);
         assert!(vm.zero_equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        vm.s_stack.push(1);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        vm.s_stack().push(1);
         assert!(vm.zero_equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
     }
 
     #[test]
     fn test_zero_greater () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
         assert!(vm.zero_greater().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        vm.s_stack.push(0);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        vm.s_stack().push(0);
         assert!(vm.zero_greater().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
     }
 
     #[test]
     fn test_zero_not_equals () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(0);
+        vm.s_stack().push(0);
         assert!(vm.zero_not_equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        vm.s_stack.push(-1);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        vm.s_stack().push(-1);
         assert!(vm.zero_not_equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        vm.s_stack.push(1);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        vm.s_stack().push(1);
         assert!(vm.zero_not_equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
     }
 
     #[test]
     fn test_less_than () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(-1);
-        vm.s_stack.push(0);
+        vm.s_stack().push(-1);
+        vm.s_stack().push(0);
         assert!(vm.less_than().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        vm.s_stack.push(0);
-        vm.s_stack.push(0);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
         assert!(vm.less_than().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
     }
 
     #[test]
     fn test_equals () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(0);
-        vm.s_stack.push(0);
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
         assert!(vm.equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        vm.s_stack.push(-1);
-        vm.s_stack.push(0);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        vm.s_stack().push(-1);
+        vm.s_stack().push(0);
         assert!(vm.equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        vm.s_stack.push(1);
-        vm.s_stack.push(0);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
         assert!(vm.equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
     }
 
     #[test]
     fn test_greater_than () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(0);
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
         assert!(vm.greater_than().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        vm.s_stack.push(0);
-        vm.s_stack.push(0);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
         assert!(vm.greater_than().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
     }
 
     #[test]
     fn test_not_equals () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(0);
-        vm.s_stack.push(0);
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
         assert!(vm.not_equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        vm.s_stack.push(-1);
-        vm.s_stack.push(0);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        vm.s_stack().push(-1);
+        vm.s_stack().push(0);
         assert!(vm.not_equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        vm.s_stack.push(1);
-        vm.s_stack.push(0);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
         assert!(vm.not_equals().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
     }
 
     #[test]
     fn test_between () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         assert!(vm.between().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        vm.s_stack.push(1);
-        vm.s_stack.push(0);
-        vm.s_stack.push(1);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(1);
         assert!(vm.between().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        vm.s_stack.push(0);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        vm.s_stack().push(0);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         assert!(vm.between().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        vm.s_stack.push(3);
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        vm.s_stack().push(3);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         assert!(vm.between().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
     }
 
     #[test]
     fn test_invert () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(707);
+        vm.s_stack().push(707);
         assert!(vm.invert().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-708));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-708));
     }
 
     #[test]
     fn test_and () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(707);
-        vm.s_stack.push(007);
+        vm.s_stack().push(707);
+        vm.s_stack().push(007);
         assert!(vm.and().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(3));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(3));
     }
 
     #[test]
     fn test_or () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(707);
-        vm.s_stack.push(07);
+        vm.s_stack().push(707);
+        vm.s_stack().push(07);
         assert!(vm.or().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(711));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(711));
     }
 
     #[test]
     fn test_xor () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(707);
-        vm.s_stack.push(07);
+        vm.s_stack().push(707);
+        vm.s_stack().push(07);
         assert!(vm.xor().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(708));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(708));
     }
 
     #[test]
     fn test_lshift () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(1);
-        vm.s_stack.push(1);
+        vm.s_stack().push(1);
+        vm.s_stack().push(1);
         assert!(vm.lshift().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(2));
-        vm.s_stack.push(1);
-        vm.s_stack.push(2);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(2));
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         assert!(vm.lshift().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(4));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(4));
     }
 
     #[test]
     fn test_rshift () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(8);
-        vm.s_stack.push(1);
+        vm.s_stack().push(8);
+        vm.s_stack().push(1);
         assert!(vm.rshift().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(4));
-        vm.s_stack.push(-1);
-        vm.s_stack.push(1);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(4));
+        vm.s_stack().push(-1);
+        vm.s_stack().push(1);
         assert!(vm.rshift().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert!(vm.s_stack.pop().unwrap() > 0);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert!(vm.s_stack().pop().unwrap() > 0);
     }
 
     #[test]
     fn test_arshift () {
         let vm = &mut VM::new(16);
-        vm.s_stack.push(8);
-        vm.s_stack.push(1);
+        vm.s_stack().push(8);
+        vm.s_stack().push(1);
         assert!(vm.arshift().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(4));
-        vm.s_stack.push(-8);
-        vm.s_stack.push(1);
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(4));
+        vm.s_stack().push(-8);
+        vm.s_stack().push(1);
         assert!(vm.arshift().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-4));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-4));
     }
 
     #[test]
@@ -2716,12 +2736,12 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source("false true dup 1+ 2 -3");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 5);
-        assert_eq!(vm.s_stack.pop(), Some(-3));
-        assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.s_stack.pop(), Some(0));
-        assert_eq!(vm.s_stack.pop(), Some(-1));
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 5);
+        assert_eq!(vm.s_stack().pop(), Some(-3));
+        assert_eq!(vm.s_stack().pop(), Some(2));
+        assert_eq!(vm.s_stack().pop(), Some(0));
+        assert_eq!(vm.s_stack().pop(), Some(-1));
+        assert_eq!(vm.s_stack().pop(), Some(0));
     }
 
     #[bench]
@@ -2732,7 +2752,7 @@ mod tests {
         b.iter(|| {
             vm.set_source(": main noop noop noop noop noop noop noop noop ; empty");
             vm.evaluate();
-            vm.s_stack.clear();
+            vm.s_stack().clear();
         });
     }
 
@@ -2744,7 +2764,7 @@ mod tests {
         b.iter(|| {
             vm.set_source(": main bye bye bye bye bye bye bye bye ; empty");
             vm.evaluate();
-            vm.s_stack.clear();
+            vm.s_stack().clear();
         });
     }
 
@@ -2753,8 +2773,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": 2+3 2 3 + ; 2+3");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(5));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(5));
     }
 
     #[test]
@@ -2762,9 +2782,9 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source("5 constant x x x");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 2);
-        assert_eq!(vm.s_stack.pop(), Some(5));
-        assert_eq!(vm.s_stack.pop(), Some(5));
+        assert_eq!(vm.s_stack().len(), 2);
+        assert_eq!(vm.s_stack().pop(), Some(5));
+        assert_eq!(vm.s_stack().pop(), Some(5));
     }
 
     #[test]
@@ -2772,9 +2792,9 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source("variable x  x @  3 x !  x @");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 2);
-        assert_eq!(vm.s_stack.pop(), Some(3));
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 2);
+        assert_eq!(vm.s_stack().pop(), Some(3));
+        assert_eq!(vm.s_stack().pop(), Some(0));
     }
 
     #[test]
@@ -2782,7 +2802,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source("2 char+  9 chars");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.as_slice(), [3, 9]);
+        assert_eq!(vm.s_stack().as_slice(), [3, 9]);
     }
 
     #[test]
@@ -2790,7 +2810,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source("2 cell+  9 cells");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.as_slice(), [6, 36]);
+        assert_eq!(vm.s_stack().as_slice(), [6, 36]);
     }
 
     #[test]
@@ -2798,9 +2818,9 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source("1 2  ' swap execute");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 2);
-        assert_eq!(vm.s_stack.pop(), Some(1));
-        assert_eq!(vm.s_stack.pop(), Some(2));
+        assert_eq!(vm.s_stack().len(), 2);
+        assert_eq!(vm.s_stack().pop(), Some(1));
+        assert_eq!(vm.s_stack().pop(), Some(2));
     }
 
     #[test]
@@ -2808,8 +2828,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source("here 2 cells allot here -");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-((mem::size_of::<i32>()*2) as isize)));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-((mem::size_of::<i32>()*2) as isize)));
     }
 
     #[test]
@@ -2818,8 +2838,8 @@ mod tests {
         let here = vm.jit_memory.len();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 2);
-        match vm.s_stack.pop2() {
+        assert_eq!(vm.s_stack().len(), 2);
+        match vm.s_stack().pop2() {
             Some((n, t)) => {
                 assert_eq!(t-n, 4*mem::size_of::<u32>() as isize);
             },
@@ -2838,8 +2858,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(8));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(8));
     }
 
     #[bench]
@@ -2861,8 +2881,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-3));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-3));
     }
 
     #[bench]
@@ -2884,12 +2904,12 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": t1 0 if true else false then ; t1");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(0));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(0));
         vm.set_source(": t2 1 if true else false then ; t2");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
     }
 
     #[test]
@@ -2897,8 +2917,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(3));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(3));
     }
 
     #[test]
@@ -2906,8 +2926,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": t1 0 begin 1+ dup 3 <> while repeat ; t1");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(3));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(3));
     }
 
     #[test]
@@ -2915,10 +2935,10 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source("1 2 3 \\ 5 6 7");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack.pop(), Some(3));
-        assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop(), Some(3));
+        assert_eq!(vm.s_stack().pop(), Some(2));
+        assert_eq!(vm.s_stack().pop(), Some(1));
     }
 
     #[test]
@@ -2926,8 +2946,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source("marker empty here empty here =");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(-1));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(-1));
     }
 
     #[test]
@@ -2938,10 +2958,10 @@ mod tests {
             Some(_) => assert!(false),
             None => assert!(true),
         };
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack.pop(), Some(3));
-        assert_eq!(vm.s_stack.pop(), Some(2));
-        assert_eq!(vm.s_stack.pop(), Some(1));
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop(), Some(3));
+        assert_eq!(vm.s_stack().pop(), Some(2));
+        assert_eq!(vm.s_stack().pop(), Some(1));
         assert_eq!(vm.r_stack.len, 0);
         assert_eq!(vm.input_buffer.len(), 0);
         assert_eq!(vm.source_index, 0);
@@ -2957,7 +2977,7 @@ mod tests {
             Some(Abort) => assert!(true),
             _ => assert!(false)
         }
-        assert_eq!(vm.s_stack.len(), 0);
+        assert_eq!(vm.s_stack().len(), 0);
     }
 
     #[test]
@@ -2980,10 +3000,10 @@ mod tests {
             _ => assert!(false)
         }
         assert!(!vm.is_idle());
-        assert_eq!(vm.s_stack.len(), 3);
+        assert_eq!(vm.s_stack().len(), 3);
         vm.run();
         assert!(vm.is_idle());
-        assert_eq!(vm.s_stack.len(), 6);
+        assert_eq!(vm.s_stack().len(), 6);
     }
 
     #[bench]
@@ -3017,8 +3037,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": main 1 5 0 do 1+ loop ;  main");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(6));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(6));
     }
 
     #[test]
@@ -3026,8 +3046,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(3));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(3));
     }
 
     #[test]
@@ -3035,12 +3055,12 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": main 1 5 0 do 1+ 2 +loop ;  main");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(4));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(4));
         vm.set_source(": main 1 6 0 do 1+ 2 +loop ;  main");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 1);
-        assert_eq!(vm.s_stack.pop(), Some(4));
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), Some(4));
     }
 
     #[test]
@@ -3048,8 +3068,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 2);
-        assert_eq!(vm.s_stack.pop2(), Some((88, 9)));
+        assert_eq!(vm.s_stack().len(), 2);
+        assert_eq!(vm.s_stack().pop2(), Some((88, 9)));
     }
 
     #[test]
@@ -3057,8 +3077,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": main 3 0 do i loop ;  main");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 3);
-        assert_eq!(vm.s_stack.pop3(), Some((0, 1, 2)));
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop3(), Some((0, 1, 2)));
     }
 
     #[test]
@@ -3066,7 +3086,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.len(), 4);
-        assert_eq!(vm.s_stack.as_slice(), [4, 8, 5, 10]);
+        assert_eq!(vm.s_stack().len(), 4);
+        assert_eq!(vm.s_stack().as_slice(), [4, 8, 5, 10]);
     }
 }

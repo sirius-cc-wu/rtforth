@@ -27,14 +27,14 @@ impl Environment for VM {
     }
 
     fn max_n(&mut self) -> Option<Exception> {
-        match self.s_stack.push(isize::max_value()) {
+        match self.s_stack().push(isize::max_value()) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
     fn max_u(&mut self) -> Option<Exception> {
-        match self.s_stack.push(usize::max_value() as isize) {
+        match self.s_stack().push(usize::max_value() as isize) {
             Some(_) => Some(StackOverflow),
             None => None
         }
@@ -53,7 +53,7 @@ mod tests {
         vm.add_environment();
         vm.set_source("max-n dup 1+ +");
         vm.evaluate();
-        match vm.s_stack.pop() {
+        match vm.s_stack().pop() {
             Some(t) => assert_eq!(t, -1),
             None => assert!(false)
         }
@@ -65,7 +65,7 @@ mod tests {
         vm.add_environment();
         vm.set_source("max-u 1+");
         vm.evaluate();
-        match vm.s_stack.pop() {
+        match vm.s_stack().pop() {
             Some(t) => assert_eq!(t, 0),
             None => assert!(false)
         }

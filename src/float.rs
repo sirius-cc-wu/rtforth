@@ -111,7 +111,7 @@ impl Float for VM {
 
     /// Evaluate float.
     fn evaluate_float(&mut self) -> Result<(), Exception> {
-        match FromStr::from_str(&self.last_token) {
+        match FromStr::from_str(self.jit_memory.last_token()) {
             Ok(t) => {
                 if self.get_float_extension().idx_flit == 0 {
                     print!("{} ", "Floating point");

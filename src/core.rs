@@ -254,7 +254,6 @@ pub struct VM {
     pub idx_type: usize,
     pub input_buffer: String,
     pub source_index: usize,
-    pub last_token: String,
     pub output_buffer: String,
     pub auto_flush: bool,
     // Last definition, 0 if last define fails.
@@ -284,7 +283,6 @@ impl VM {
             idx_type: 0,
             input_buffer: String::with_capacity(128),
             source_index: 0,
-            last_token: String::with_capacity(64),
             output_buffer: String::with_capacity(128),
             auto_flush: true,
             last_definition: 0,
@@ -446,7 +444,11 @@ impl VM {
     }
 
     pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-        self.jit_memory.compile_word(name, action);
+        self.jit_memory.clear_last_token();
+        for b in name.bytes() {
+          self.jit_memory.extend_last_token(b);
+        }
+        self.jit_memory.compile_word(action);
         self.last_definition = self.jit_memory.last();
     }
 
@@ -554,21 +556,28 @@ impl VM {
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
     pub fn parse_word(&mut self) -> Option<Exception> {
-        self.last_token.clear();
+        self.jit_memory.clear_last_token();
         let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
+        let mut skip = 0;
         let mut cnt = 0;
         for ch in source.chars() {
-            cnt = cnt + 1;
             match ch {
                 '\t' | '\n' | '\r' | ' ' => {
-                    if !self.last_token.is_empty() {
+                    if cnt != 0 {
                         break;
+                    } else {
+                      skip = skip + ch.len_utf8();
                     }
                 },
-                _ => self.last_token.push(ch)
+                _ => {
+                  cnt = cnt + ch.len_utf8();
+                }
             };
         }
-        self.source_index = self.source_index + cnt;
+        for b in (&self.input_buffer[self.source_index+skip..self.source_index+skip+cnt]).bytes() {
+          self.jit_memory.extend_last_token(b);
+        }
+        self.source_index = self.source_index + skip + cnt;
         None
     }
 
@@ -577,7 +586,7 @@ impl VM {
     /// Skip leading space delimiters. Parse name delimited by a space. Put the value of its first character onto the stack.
     pub fn char(&mut self) -> Option<Exception> {
         self.parse_word();
-        match self.last_token.chars().nth(0) {
+        match self.jit_memory.last_token().chars().nth(0) {
             Some(c) =>
                 match self.s_stack().push(c as isize) {
                     Some(_) => Some(StackOverflow),
@@ -611,16 +620,17 @@ impl VM {
     pub fn parse(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
             Some(v) => {
-                self.last_token.clear();
+                self.jit_memory.clear_last_token();
                 let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
                 let mut cnt = 0;
                 for ch in source.chars() {
-                    cnt = cnt + 1;
                     if ch as isize == v {
                         break;
-                    } else {
-                        self.last_token.push(ch);
                     }
+                    cnt = cnt + ch.len_utf8();
+                }
+                for b in (&self.input_buffer[self.source_index..self.source_index + cnt]).bytes() {
+                  self.jit_memory.extend_last_token(b);
                 }
                 self.source_index = self.source_index + cnt;
                 None
@@ -646,10 +656,10 @@ impl VM {
     pub fn evaluate(&mut self) -> Option<Exception> {
         loop {
             self.parse_word();
-            if self.last_token.is_empty() {
+            if self.jit_memory.last_token().is_empty() {
                 return None;
             }
-            match self.find(&self.last_token) {
+            match self.find(&self.jit_memory.last_token()) {
                 Some(found_index) => {
                     let is_immediate_word;
                     let is_compile_only_word;
@@ -706,7 +716,7 @@ impl VM {
                     self.evaluators = optional_evaluators;
                     if done { continue }
                     else {
-                        print!("{} ", &self.last_token);
+                        print!("{} ", &self.jit_memory.last_token());
                         return Some(UndefinedWord)
                     }
                 }
@@ -715,7 +725,7 @@ impl VM {
     }
 
     pub fn evaluate_integer(&mut self) -> Result<(), Exception> {
-        match FromStr::from_str(&self.last_token) {
+        match FromStr::from_str(&self.jit_memory.last_token()) {
             Ok(t) => {
                 if self.is_compiling {
                     self.compile_integer(t);
@@ -806,12 +816,12 @@ impl VM {
 
     pub fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception> {
         self.parse_word();
-        match self.find(&self.last_token) {
-            Some(_) => print!("Redefining {}", self.last_token),
+        match self.find(&self.jit_memory.last_token()) {
+            Some(_) => print!("Redefining {}", self.jit_memory.last_token()),
             None => {}
         }
-        if !self.last_token.is_empty() {
-            self.jit_memory.compile_word(&self.last_token, action);
+        if !self.jit_memory.last_token().is_empty() {
+            self.jit_memory.compile_word(action);
             self.last_definition = self.jit_memory.last();
             None
         } else {
@@ -1797,8 +1807,8 @@ impl VM {
     /// condition exists if name is not found.
     pub fn tick(&mut self) -> Option<Exception> {
         self.parse_word();
-        if !self.last_token.is_empty() {
-            match self.find(&self.last_token) {
+        if !self.jit_memory.last_token().is_empty() {
+            match self.find(self.jit_memory.last_token()) {
                 Some(found_index) =>
                     match self.s_stack().push(found_index as isize) {
                         Some(_) => Some(StackOverflow),
@@ -2738,13 +2748,13 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.set_source("hello world\t\r\n\"");
         assert!(vm.parse_word().is_none());
-        assert_eq!(vm.last_token, "hello");
-        assert_eq!(vm.source_index, 6);
+        assert_eq!(vm.jit_memory.last_token(), "hello");
+        assert_eq!(vm.source_index, 5);
         assert!(vm.parse_word().is_none());
-        assert_eq!(vm.last_token, "world");
-        assert_eq!(vm.source_index, 12);
+        assert_eq!(vm.jit_memory.last_token(), "world");
+        assert_eq!(vm.source_index, 11);
         assert!(vm.parse_word().is_none());
-        assert_eq!(vm.last_token, "\"");
+        assert_eq!(vm.jit_memory.last_token(), "\"");
     }
 
     #[test]

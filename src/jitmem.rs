@@ -3,6 +3,7 @@ extern crate libc;
 use std::mem;
 use std::ptr::Unique;
 use std::slice;
+use std::str::from_utf8_unchecked;
 use ::word::Word;
 use ::core::VM;
 use ::exception::Exception;
@@ -11,13 +12,34 @@ extern {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
 }
 
+/// Memory Map
 const PAGE_SIZE: usize = 4096;
+
+const HALT_OFFSET: isize = 0;
+const INPUT_BUFFER_OFFSET: isize = 128;
+const OUTPUT_BUFFER_OFFSET: isize = 256;
+const LAST_TOKEN_BUFFER_OFFSET: isize = 512;
+const DICTIONARY_OFFSET: isize = 576;
+
+const INPUT_BUFFER_LEN: usize = (OUTPUT_BUFFER_OFFSET-INPUT_BUFFER_OFFSET) as usize;
+const OUTPUT_BUFFER_LEN: usize = (LAST_TOKEN_BUFFER_OFFSET-OUTPUT_BUFFER_OFFSET) as usize;
+const LAST_TOKEN_BUFFER_LEN: usize = (DICTIONARY_OFFSET-LAST_TOKEN_BUFFER_OFFSET) as usize;
+
+struct Buffer {
+  data: *const u8,
+  len: usize,
+  cap: usize,
+}
 
 #[allow(dead_code)]
 pub struct JitMemory {
     pub inner: Unique<u8>,
     cap: usize,
     len: usize,
+    input_buffer: Buffer,
+    output_buffer: Buffer,
+    last_token_buffer: Buffer,
+    source_index: usize,
     // last word in current word list
     last: usize,
 }
@@ -30,16 +52,25 @@ impl JitMemory {
             ptr = mem::uninitialized();
             libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
             libc::mprotect(ptr, size, libc::PROT_READ | libc::PROT_WRITE);
-
             memset(ptr, 0xcc, size);  // prepopulate with 'int3'
         }
-        JitMemory {
-            inner: unsafe { Unique::new(ptr as *mut u8) },
+        let inner = unsafe { Unique::new(ptr as *mut u8) };
+        let input_data = unsafe{ inner.offset(INPUT_BUFFER_OFFSET) as *const u8 };
+        let output_data = unsafe{ inner.offset(OUTPUT_BUFFER_OFFSET) as *const u8 };
+        let last_token_data = unsafe{ inner.offset(LAST_TOKEN_BUFFER_OFFSET) as *const u8 };
+        let mut result = JitMemory {
+            inner: inner,
             cap: size,
             // Space at 0 is reserved for halt.
             len: mem::align_of::<usize>(),
+            input_buffer: Buffer { data: input_data, len: 0, cap: INPUT_BUFFER_LEN },
+            output_buffer: Buffer { data: output_data, len: 0, cap: OUTPUT_BUFFER_LEN },
+            last_token_buffer: Buffer { data: last_token_data, len: 0, cap: LAST_TOKEN_BUFFER_LEN },
+            source_index: 0,
             last: 0,
-        }
+        };
+        result.len = DICTIONARY_OFFSET as usize;
+        result
     }
 
     // Getter
@@ -54,6 +85,25 @@ impl JitMemory {
 
     pub fn last(&self) -> usize {
         self.last
+    }
+
+    pub fn last_token(&self) -> &str {
+      let value = unsafe{ slice::from_raw_parts(self.last_token_buffer.data, self.last_token_buffer.len) };
+      unsafe{ from_utf8_unchecked(value) }
+    }
+
+    pub fn clear_last_token(&mut self) {
+      self.last_token_buffer.len = 0;
+    }
+
+    pub fn extend_last_token(&mut self, b: u8) {
+      if self.last_token_buffer.len == self.last_token_buffer.cap {
+        panic!("extend_last_token failed");
+      } else {
+        let len = self.last_token_buffer.len;
+        unsafe{ *(self.last_token_buffer.data.offset(len as isize) as *mut u8) = b };
+        self.last_token_buffer.len += 1;
+      }
     }
 
     pub fn get_u8(&self, addr: usize) -> u8 {
@@ -82,6 +132,7 @@ impl JitMemory {
     pub fn set_last(&mut self, addr: usize) {
         self.last = addr;
     }
+
     // Basic operations
 
     pub fn word(&self, pos: usize) -> &Word {
@@ -96,13 +147,19 @@ impl JitMemory {
         }
     }
 
-    pub fn compile_word(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+    /// Compile a word of action with name in last_token.
+    pub fn compile_word(&mut self, action: fn(& mut VM) -> Option<Exception>) {
         unsafe {
             // name
             self.align();
             let ptr = self.inner.offset(self.len as isize);
-            self.compile_str(name);
-            let s = mem::transmute(slice::from_raw_parts::<u8>(ptr, name.len()));
+            let mut len = 0;
+            for b in self.last_token().bytes() {
+              *ptr.offset(len) = b;
+              len += 1;
+            }
+            self.len += len as usize;
+            let s = mem::transmute(slice::from_raw_parts::<u8>(ptr, len as usize));
             // Word
             self.align();
             let len = self.len;

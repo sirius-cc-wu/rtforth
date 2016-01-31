@@ -25,10 +25,26 @@ const INPUT_BUFFER_LEN: usize = (OUTPUT_BUFFER_OFFSET-INPUT_BUFFER_OFFSET) as us
 const OUTPUT_BUFFER_LEN: usize = (LAST_TOKEN_BUFFER_OFFSET-OUTPUT_BUFFER_OFFSET) as usize;
 const LAST_TOKEN_BUFFER_LEN: usize = (DICTIONARY_OFFSET-LAST_TOKEN_BUFFER_OFFSET) as usize;
 
-struct Buffer {
+pub struct Buffer {
   data: *const u8,
   len: usize,
   cap: usize,
+}
+
+impl Buffer {
+  fn len(&self) -> usize { self.len }
+  pub fn clear(&mut self) { self.len = 0; }
+  fn slice(&self) -> &[u8] { unsafe{ slice::from_raw_parts(self.data, self.len) }}
+  fn str_slice(&self) -> &str { unsafe{ from_utf8_unchecked(self.slice()) }}
+  pub fn extend(&mut self, b: u8) {
+    if self.len == self.cap {
+      panic!("extend buffer failed");
+    } else {
+      let len = self.len;
+      unsafe{ *(self.data.offset(len as isize) as *mut u8) = b };
+      self.len += 1;
+    }
+  }
 }
 
 #[allow(dead_code)]
@@ -83,28 +99,9 @@ impl JitMemory {
         self.len == mem::align_of::<usize>()
     }
 
-    pub fn last(&self) -> usize {
-        self.last
-    }
-
-    pub fn last_token(&self) -> &str {
-      let value = unsafe{ slice::from_raw_parts(self.last_token_buffer.data, self.last_token_buffer.len) };
-      unsafe{ from_utf8_unchecked(value) }
-    }
-
-    pub fn clear_last_token(&mut self) {
-      self.last_token_buffer.len = 0;
-    }
-
-    pub fn extend_last_token(&mut self, b: u8) {
-      if self.last_token_buffer.len == self.last_token_buffer.cap {
-        panic!("extend_last_token failed");
-      } else {
-        let len = self.last_token_buffer.len;
-        unsafe{ *(self.last_token_buffer.data.offset(len as isize) as *mut u8) = b };
-        self.last_token_buffer.len += 1;
-      }
-    }
+    pub fn last(&self) -> usize { self.last }
+    pub fn last_token(&self) -> &str { self.last_token_buffer.str_slice() }
+    pub fn last_token_buffer(&mut self) -> &mut Buffer { &mut self.last_token_buffer }
 
     pub fn get_u8(&self, addr: usize) -> u8 {
         unsafe { *(self.inner.offset(addr as isize) as *mut u8) }

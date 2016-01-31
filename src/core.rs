@@ -444,9 +444,9 @@ impl VM {
     }
 
     pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-        self.jit_memory.clear_last_token();
+        self.jit_memory.last_token_buffer().clear();
         for b in name.bytes() {
-          self.jit_memory.extend_last_token(b);
+          self.jit_memory.last_token_buffer().extend(b);
         }
         self.jit_memory.compile_word(action);
         self.last_definition = self.jit_memory.last();
@@ -556,7 +556,7 @@ impl VM {
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
     pub fn parse_word(&mut self) -> Option<Exception> {
-        self.jit_memory.clear_last_token();
+        self.jit_memory.last_token_buffer().clear();
         let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
         let mut skip = 0;
         let mut cnt = 0;
@@ -575,7 +575,7 @@ impl VM {
             };
         }
         for b in (&self.input_buffer[self.source_index+skip..self.source_index+skip+cnt]).bytes() {
-          self.jit_memory.extend_last_token(b);
+          self.jit_memory.last_token_buffer().extend(b);
         }
         self.source_index = self.source_index + skip + cnt;
         None
@@ -620,7 +620,7 @@ impl VM {
     pub fn parse(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
             Some(v) => {
-                self.jit_memory.clear_last_token();
+                self.jit_memory.last_token_buffer().clear();
                 let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
                 let mut cnt = 0;
                 for ch in source.chars() {
@@ -630,7 +630,7 @@ impl VM {
                     cnt = cnt + ch.len_utf8();
                 }
                 for b in (&self.input_buffer[self.source_index..self.source_index + cnt]).bytes() {
-                  self.jit_memory.extend_last_token(b);
+                  self.jit_memory.last_token_buffer().extend(b);
                 }
                 self.source_index = self.source_index + cnt;
                 None

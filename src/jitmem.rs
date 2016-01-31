@@ -15,15 +15,16 @@ extern {
 /// Memory Map
 const PAGE_SIZE: usize = 4096;
 
+
+const INPUT_BUFFER_LEN: usize = 128;
+const OUTPUT_BUFFER_LEN: usize = 128;
+const LAST_TOKEN_BUFFER_LEN: usize = 64;
+
 const HALT_OFFSET: isize = 0;
 const INPUT_BUFFER_OFFSET: isize = 128;
-const OUTPUT_BUFFER_OFFSET: isize = 256;
-const LAST_TOKEN_BUFFER_OFFSET: isize = 512;
-const DICTIONARY_OFFSET: isize = 576;
-
-const INPUT_BUFFER_LEN: usize = (OUTPUT_BUFFER_OFFSET-INPUT_BUFFER_OFFSET) as usize;
-const OUTPUT_BUFFER_LEN: usize = (LAST_TOKEN_BUFFER_OFFSET-OUTPUT_BUFFER_OFFSET) as usize;
-const LAST_TOKEN_BUFFER_LEN: usize = (DICTIONARY_OFFSET-LAST_TOKEN_BUFFER_OFFSET) as usize;
+const OUTPUT_BUFFER_OFFSET: isize = INPUT_BUFFER_OFFSET + INPUT_BUFFER_LEN as isize;
+const LAST_TOKEN_BUFFER_OFFSET: isize = OUTPUT_BUFFER_OFFSET + OUTPUT_BUFFER_LEN as isize;
+const DICTIONARY_OFFSET: isize = LAST_TOKEN_BUFFER_OFFSET + LAST_TOKEN_BUFFER_LEN as isize;
 
 pub struct Buffer {
   data: *const u8,

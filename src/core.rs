@@ -253,7 +253,6 @@ pub struct VM {
     pub idx_s_quote: usize,
     pub idx_type: usize,
     pub input_buffer: String,
-    pub source_index: usize,
     pub output_buffer: String,
     pub auto_flush: bool,
     // Last definition, 0 if last define fails.
@@ -282,7 +281,6 @@ impl VM {
             idx_s_quote: 0,
             idx_type: 0,
             input_buffer: String::with_capacity(128),
-            source_index: 0,
             output_buffer: String::with_capacity(128),
             auto_flush: true,
             last_definition: 0,
@@ -549,7 +547,7 @@ impl VM {
     pub fn set_source(&mut self, s: &str) {
         self.input_buffer.clear();
         self.input_buffer.push_str(s);
-        self.source_index = 0;
+        self.jit_memory.reset_source();
     }
 
     /// Run-time: ( "ccc" -- )
@@ -557,7 +555,7 @@ impl VM {
     /// Parse word delimited by white space, skipping leading white spaces.
     pub fn parse_word(&mut self) -> Option<Exception> {
         self.jit_memory.last_token_buffer().clear();
-        let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
+        let source = &self.input_buffer[self.jit_memory.source_index()..];
         let mut skip = 0;
         let mut cnt = 0;
         for ch in source.chars() {
@@ -574,10 +572,10 @@ impl VM {
                 }
             };
         }
-        for b in (&self.input_buffer[self.source_index+skip..self.source_index+skip+cnt]).bytes() {
+        for b in (&self.input_buffer[self.jit_memory.source_index()+skip..self.jit_memory.source_index()+skip+cnt]).bytes() {
           self.jit_memory.last_token_buffer().extend(b);
         }
-        self.source_index = self.source_index + skip + cnt;
+        self.jit_memory.skip(skip + cnt);
         None
     }
 
@@ -621,7 +619,7 @@ impl VM {
         match self.s_stack().pop() {
             Some(v) => {
                 self.jit_memory.last_token_buffer().clear();
-                let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
+                let source = &self.input_buffer[self.jit_memory.source_index()..];
                 let mut cnt = 0;
                 for ch in source.chars() {
                     if ch as isize == v {
@@ -629,10 +627,10 @@ impl VM {
                     }
                     cnt = cnt + ch.len_utf8();
                 }
-                for b in (&self.input_buffer[self.source_index..self.source_index + cnt]).bytes() {
+                for b in (&self.input_buffer[self.jit_memory.source_index()..self.jit_memory.source_index() + cnt]).bytes() {
                   self.jit_memory.last_token_buffer().extend(b);
                 }
-                self.source_index = self.source_index + cnt;
+                self.jit_memory.skip(cnt);
                 None
             },
             None => Some(StackUnderflow)
@@ -647,7 +645,7 @@ impl VM {
     }
 
     pub fn imm_backslash(&mut self) -> Option<Exception> {
-        self.source_index = self.input_buffer.len();
+        self.jit_memory.set_source_index(self.input_buffer.len());
         None
     }
 
@@ -1986,7 +1984,7 @@ impl VM {
     pub fn reset(&mut self) {
         self.r_stack().len = 0;
         self.input_buffer.clear();
-        self.source_index = 0;
+        self.jit_memory.reset_source();
         self.instruction_pointer = 0;
         self.interpret();
     }
@@ -2749,10 +2747,10 @@ mod tests {
         vm.set_source("hello world\t\r\n\"");
         assert!(vm.parse_word().is_none());
         assert_eq!(vm.jit_memory.last_token(), "hello");
-        assert_eq!(vm.source_index, 5);
+        assert_eq!(vm.jit_memory.source_index(), 5);
         assert!(vm.parse_word().is_none());
         assert_eq!(vm.jit_memory.last_token(), "world");
-        assert_eq!(vm.source_index, 11);
+        assert_eq!(vm.jit_memory.source_index(), 11);
         assert!(vm.parse_word().is_none());
         assert_eq!(vm.jit_memory.last_token(), "\"");
     }
@@ -2990,7 +2988,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Some(1));
         assert_eq!(vm.r_stack().len, 0);
         assert_eq!(vm.input_buffer.len(), 0);
-        assert_eq!(vm.source_index, 0);
+        assert_eq!(vm.jit_memory.source_index(), 0);
         assert_eq!(vm.instruction_pointer, 0);
         assert!(!vm.is_compiling);
     }

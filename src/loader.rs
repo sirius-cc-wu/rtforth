@@ -26,7 +26,7 @@ impl HasLoader for ::core::VM {
                     if self.input_buffer.is_empty() {
                         return None;
                     } else {
-                        self.source_index = 0;
+                        self.jit_memory.reset_source();
                         match self.evaluate() {
                             Some(e) => {
                                 return Some(e)

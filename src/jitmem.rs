@@ -15,7 +15,6 @@ extern {
 /// Memory Map
 const PAGE_SIZE: usize = 4096;
 
-
 const INPUT_BUFFER_LEN: usize = 128;
 const OUTPUT_BUFFER_LEN: usize = 128;
 const LAST_TOKEN_BUFFER_LEN: usize = 64;
@@ -103,6 +102,10 @@ impl JitMemory {
     pub fn last(&self) -> usize { self.last }
     pub fn last_token(&self) -> &str { self.last_token_buffer.str_slice() }
     pub fn last_token_buffer(&mut self) -> &mut Buffer { &mut self.last_token_buffer }
+    pub fn source_index(&self) -> usize { self.source_index }
+    pub fn skip(&mut self, n: usize) { self.source_index += n }
+    pub fn reset_source(&mut self) { self.source_index = 0 }
+    pub fn set_source_index(&mut self, n: usize) { self.source_index =n }
 
     pub fn get_u8(&self, addr: usize) -> u8 {
         unsafe { *(self.inner.offset(addr as isize) as *mut u8) }

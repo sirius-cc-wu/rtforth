@@ -1,4 +1,4 @@
-use core::VM;
+use core::{VM, Core};
 use std::ops::BitAnd;
 use std::ops::Shr;
 use exception::Exception;
@@ -21,10 +21,11 @@ pub trait Facility {
     /// Examples:
     ///
     /// ```
-    /// use rtforth::core::VM;
+    /// use rtforth::core::{VM, Core};
     /// use rtforth::facility::Facility;
     /// use rtforth::tools::Tools;
-    /// let mut vm = VM::new(16);
+    /// let vm = &mut VM::new(16);
+    /// vm.add_core();
     /// vm.add_facility();
     /// vm.add_tools();
     /// vm.set_source("ntime .s");
@@ -39,10 +40,10 @@ pub trait Facility {
     /// Examples:
     ///
     /// ```
-    /// use rtforth::core::VM;
+    /// use rtforth::core::{VM, Core};
     /// use rtforth::facility::Facility;
     /// use rtforth::tools::Tools;
-    /// let mut vm = VM::new(16);
+    /// let vm = &mut VM::new(16);
     /// vm.add_facility();
     /// vm.add_tools();
     /// vm.set_source("utime .s");

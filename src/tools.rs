@@ -1,4 +1,4 @@
-use core::VM;
+use core::{VM, Core};
 use exception::Exception::{
     self
 };

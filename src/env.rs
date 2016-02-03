@@ -1,4 +1,4 @@
-use core::VM;
+use core::{VM, Core};
 use exception::Exception::{
     self,
     StackOverflow,
@@ -44,12 +44,13 @@ impl Environment for VM {
 
 #[cfg(test)]
 mod tests {
-    use core::VM;
+    use core::{VM, Core};
     use super::*;
 
     #[test]
     fn test_max_n() {
-        let mut vm = VM::new(16);
+        let vm = &mut VM::new(16);
+        vm.add_core();
         vm.add_environment();
         vm.set_source("max-n dup 1+ +");
         vm.evaluate();
@@ -61,7 +62,8 @@ mod tests {
     #[test]
 
     fn test_max_u() {
-        let mut vm = VM::new(16);
+        let vm = &mut VM::new(16);
+        vm.add_core();
         vm.add_environment();
         vm.set_source("max-u 1+");
         vm.evaluate();

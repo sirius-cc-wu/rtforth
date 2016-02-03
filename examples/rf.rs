@@ -4,7 +4,7 @@ extern crate rustyline;
 
 use std::env;
 use getopts::Options;
-use rtforth::core::VM;
+use rtforth::core::{VM, Core};
 use rtforth::loader::HasLoader;
 use rtforth::output::Output;
 use rtforth::tools::Tools;
@@ -21,6 +21,7 @@ use rtforth::exception::Exception::{
 fn main() {
     let vm = &mut VM::new(65536);
     let mut bye = false;
+    vm.add_core();
     vm.add_output();
     vm.add_tools();
     vm.add_environment();

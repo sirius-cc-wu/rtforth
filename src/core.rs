@@ -265,7 +265,7 @@ pub struct VM {
 
 impl VM {
     pub fn new(pages: usize) -> VM {
-        let mut vm = VM {
+        VM {
             is_compiling: false,
             s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
@@ -290,176 +290,630 @@ impl VM {
             last_definition: 0,
             evaluators: Some(vec![VM::evaluate_integer]),
             extensions: HashMap::new(),
-        };
-        // Bytecodes
-        vm.add_primitive("noop", VM::noop); // j1, Ngaro, jx
-        vm.add_primitive("execute", VM::execute); // jx, eForth
-        vm.add_primitive("dup", VM::dup); // j1, Ngaro, jx, eForth
-        vm.add_primitive("drop", VM::p_drop); // j1, Ngaro, jx, eForth
-        vm.add_primitive("swap", VM::swap); // j1, Ngaro, jx, eForth
-        vm.add_primitive("over", VM::over); // j1, jx, eForth
-        vm.add_primitive("nip", VM::nip); // j1, jx
-        vm.add_primitive("depth", VM::depth); // j1, jx
-        vm.add_primitive("0<", VM::zero_less); // eForth
-        vm.add_primitive("=", VM::equals); // j1, jx
-        vm.add_primitive("<", VM::less_than); // j1, jx
-        vm.add_primitive("invert", VM::invert); // j1, jx
-        vm.add_primitive("and", VM::and); // j1, Ngaro, jx, eForth
-        vm.add_primitive("or", VM::or); // j1, Ngaro, jx, eForth
-        vm.add_primitive("xor", VM::xor); // j1, Ngaro, jx, eForth
-        vm.add_primitive("lshift", VM::lshift); // jx, Ngaro
-        vm.add_primitive("rshift", VM::rshift); // jx
-        vm.add_primitive("arshift", VM::arshift); // jx, Ngaro
-        vm.add_primitive("1+", VM::one_plus); // Ngaro
-        vm.add_primitive("1-", VM::one_minus); // Ngaro, jx
-        vm.add_primitive("-", VM::minus); // Ngaro
-        vm.add_primitive("+", VM::plus); // j1, Ngaro, jx
-        vm.add_primitive("*", VM::star); // Ngaro
-        vm.add_primitive("/mod", VM::slash_mod); // Ngaro
-        vm.add_primitive("cell+", VM::cell_plus); // eForth
-        vm.add_primitive("cells", VM::cells); // eForth
-        vm.add_primitive("@", VM::fetch); // j1, jx, eForth
-        vm.add_primitive("!", VM::store); // j1, jx, eForth
-        vm.add_primitive("char+", VM::char_plus); // eForth
-        vm.add_primitive("chars", VM::chars); // eForth
-        vm.add_primitive("here", VM::here);
-        vm.add_primitive("allot", VM::allot);
-        vm.add_primitive("c@", VM::c_fetch);
-        vm.add_primitive("c!", VM::c_store);
-
-        // Compile-only bytecodes
-        vm.add_compile_only("exit", VM::exit); // j1, jx, eForth
-        vm.add_compile_only("halt", VM::halt); // rtForth
-        vm.add_compile_only("lit", VM::lit); // Ngaro, jx, eForth
-        vm.add_compile_only("branch", VM::branch); // j1, eForth
-        vm.add_compile_only("0branch", VM::zero_branch); // j1, eForth
-        vm.add_compile_only(">r", VM::p_to_r); // j1, Ngaro, jx, eForth
-        vm.add_compile_only("r>", VM::r_from); // j1, Ngaro, jx, eForth
-        vm.add_compile_only("r@", VM::r_fetch); // j1, jx, eForth
-        vm.add_compile_only("2>r", VM::two_to_r); // jx
-        vm.add_compile_only("2r>", VM::two_r_from); // jx
-        vm.add_compile_only("2r@", VM::two_r_fetch); // jx
-        vm.add_compile_only("_do", VM::_do); // jx
-        vm.add_compile_only("_loop", VM::p_loop); // jx
-        vm.add_compile_only("_+loop", VM::p_plus_loop); // jx
-        vm.add_compile_only("unloop", VM::unloop); // jx
-        vm.add_compile_only("leave", VM::leave); // jx
-        vm.add_compile_only("i", VM::p_i); // jx
-        vm.add_compile_only("j", VM::p_j); // jx
-
-        // Candidates for bytecodes
-        // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
-        // j1: U<, RET, IO@, IO!
-        // eForth: UM+, !IO, ?RX, TX!
-        // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, UP!, UP+, PAUSE,
-
-        // Immediate words
-        vm.add_immediate("(", VM::imm_paren);
-        vm.add_immediate("\\", VM::imm_backslash);
-        vm.add_immediate("[", VM::interpret);
-        vm.add_immediate_and_compile_only("[char]", VM::bracket_char);
-        vm.add_immediate_and_compile_only(";", VM::semicolon);
-        vm.add_immediate_and_compile_only("if", VM::imm_if);
-        vm.add_immediate_and_compile_only("else", VM::imm_else);
-        vm.add_immediate_and_compile_only("then", VM::imm_then);
-        vm.add_immediate_and_compile_only("begin", VM::imm_begin);
-        vm.add_immediate_and_compile_only("while", VM::imm_while);
-        vm.add_immediate_and_compile_only("repeat", VM::imm_repeat);
-        vm.add_immediate_and_compile_only("again", VM::imm_again);
-        vm.add_immediate_and_compile_only("recurse", VM::imm_recurse);
-        vm.add_immediate_and_compile_only("do", VM::imm_do);
-        vm.add_immediate_and_compile_only("loop", VM::imm_loop);
-        vm.add_immediate_and_compile_only("+loop", VM::imm_plus_loop);
-
-        // Compile-only words
-
-        // More Primitives
-        vm.add_primitive("true", VM::p_true);
-        vm.add_primitive("false", VM::p_false);
-        vm.add_primitive("not", VM::zero_equals);
-        vm.add_primitive("0=", VM::zero_equals);
-        vm.add_primitive("0>", VM::zero_greater);
-        vm.add_primitive("0<>", VM::zero_not_equals);
-        vm.add_primitive(">", VM::greater_than);
-        vm.add_primitive("<>", VM::not_equals);
-        vm.add_primitive("rot", VM::rot);
-        vm.add_primitive("2dup", VM::two_dup);
-        vm.add_primitive("2drop", VM::two_drop);
-        vm.add_primitive("2swap", VM::two_swap);
-        vm.add_primitive("2over", VM::two_over);
-        vm.add_primitive("pause", VM::pause);
-        vm.add_primitive("/", VM::slash);
-        vm.add_primitive("mod", VM::p_mod);
-        vm.add_primitive("abs", VM::abs);
-        vm.add_primitive("negate", VM::negate);
-        vm.add_primitive("between", VM::between);
-        vm.add_primitive("parse-word", VM::parse_word);;
-        vm.add_primitive("char", VM::char);
-        vm.add_primitive("parse", VM::parse);
-        vm.add_primitive("evaluate", VM::evaluate);;
-        vm.add_primitive(":", VM::colon);
-        vm.add_primitive("constant", VM::constant);
-        vm.add_primitive("variable", VM::variable);
-        vm.add_primitive("create", VM::create);
-        vm.add_primitive("'", VM::tick);
-        vm.add_primitive("]", VM::compile);
-        vm.add_primitive(",", VM::comma);
-        vm.add_primitive("marker", VM::marker);
-        vm.add_primitive("quit", VM::quit);
-        vm.add_primitive("abort", VM::abort);
-        vm.add_primitive("bye", VM::bye);
-
-        vm.idx_lit = vm.find("lit").expect("lit undefined");
-        vm.idx_exit = vm.find("exit").expect("exit undefined");
-        vm.idx_zero_branch = vm.find("0branch").expect("0branch undefined");
-        vm.idx_branch = vm.find("branch").expect("branch undefined");
-        vm.idx_do = vm.find("_do").expect("_do undefined");
-        vm.idx_loop = vm.find("_loop").expect("_loop undefined");
-        vm.idx_plus_loop = vm.find("_+loop").expect("_+loop undefined");
-        let idx_halt = vm.find("halt").expect("halt undefined");
-        vm.jit_memory.put_u32(idx_halt as u32, 0);
-        vm
+        }
     }
+}
+
+pub trait Core {
+  /// Add core primitives to self.
+  fn add_core(&mut self);
+
+  /// Idle is the result of new and reset, means that VM has nothing to do.
+  fn is_idle(& self) -> bool;
+
+  fn word_pointer(&self) -> usize;
+
+  fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
+
+  fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
+
+  fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
+
+  fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
+
+  fn execute_word(&mut self, i: usize) -> Option<Exception>;
+
+  /// Find the word with name 'name'.
+  /// If not found returns zero.
+  fn find(&self, name: &str) -> Option<usize>;
+
+  //------------------
+  // Inner interpreter
+  //------------------
+
+  /// Evaluate a compiled program following self.instruction_pointer.
+  /// Any exception other than Nest causes termination of inner loop.
+  /// Quit is aspecially used for this purpose.
+  /// Never return None and Some(Nest).
+  fn run(&mut self) -> Option<Exception>;
+
+  //---------
+  // Compiler
+  //---------
+
+  fn compile_word(&mut self, word_index: usize);
+
+  /// Compile integer 'i'.
+  fn compile_integer (&mut self, i: isize);
+
+  //-----------
+  // Evaluation
+  //-----------
+
+  fn interpret(& mut self) -> Option<Exception>;
+
+  fn compile(& mut self) -> Option<Exception>;
+
+  fn set_source(&mut self, s: &str);
+
+  /// Run-time: ( "ccc" -- )
+  ///
+  /// Parse word delimited by white space, skipping leading white spaces.
+  fn parse_word(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( "&lt;spaces&gt;name" -- char)
+  ///
+  /// Skip leading space delimiters. Parse name delimited by a space. Put the value of its first character onto the stack.
+  fn char(&mut self) -> Option<Exception>;
+
+  /// Compilation: ( "&lt;spaces&gt;name" -- )
+  ///
+  /// Skip leading space delimiters. Parse name delimited by a space. Append the run-time semantics given below to the current definition.
+  ///
+  /// Run-time: ( -- char )
+  ///
+  /// Place char, the value of the first character of name, on the stack.
+  fn bracket_char(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( char "ccc&lt;char&gt;" -- )
+  ///
+  /// Parse ccc delimited by the delimiter char.
+  fn parse(&mut self) -> Option<Exception>;
+
+  fn imm_paren(&mut self) -> Option<Exception>;
+
+  fn imm_backslash(&mut self) -> Option<Exception>;
+
+  /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
+  /// Never returns Some(Quit).
+  fn evaluate(&mut self) -> Option<Exception>;
+
+  fn evaluate_integer(&mut self) -> Result<(), Exception>;
+
+  /// Extend `f` to evaluators.
+  /// Will create a vector for evaluators if there was no evaluator.
+  fn extend_evaluator(&mut self, f: fn(&mut VM) -> Result<(), Exception>);
+
+  /// Extend VM with an `extension`.
+  fn extend(&mut self, name: &'static str, extension: Box<Extension>);
+
+  /// Get extension of type T with name.
+  /// Note: Behavior is undefined when extension corresponding to name is not of type T.
+  /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
+  unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T>;
+
+  //-----------------------
+  // High level definitions
+  //-----------------------
+
+  fn nest(&mut self) -> Option<Exception>;
+
+  fn p_var(&mut self) -> Option<Exception>;
+
+  fn p_const(&mut self) -> Option<Exception>;
+
+  fn p_fvar(&mut self) -> Option<Exception>;
+
+  fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception>;
+
+  fn colon(&mut self) -> Option<Exception>;
+
+  fn semicolon(&mut self) -> Option<Exception>;
+
+  fn create(&mut self) -> Option<Exception>;
+
+  fn variable(&mut self) -> Option<Exception>;
+
+  fn constant(&mut self) -> Option<Exception>;
+
+  fn unmark(&mut self) -> Option<Exception>;
+
+  fn marker(&mut self) -> Option<Exception>;
+
+  //--------
+  // Control
+  //--------
+
+  fn branch(&mut self) -> Option<Exception>;
+
+  fn zero_branch(&mut self) -> Option<Exception>;
+
+  /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
+  ///
+  /// Set up loop control parameters with index n2|u2 and limit n1|u1. An
+  /// ambiguous condition exists if n1|u1 and n2|u2 are not both the same
+  /// type.  Anything already on the return stack becomes unavailable until
+  /// the loop-control parameters are discarded.
+  fn _do(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
+  ///
+  /// An ambiguous condition exists if the loop control parameters are
+  /// unavailable. Add one to the loop index. If the loop index is then equal
+  /// to the loop limit, discard the loop parameters and continue execution
+  /// immediately following the loop. Otherwise continue execution at the
+  /// beginning of the loop.
+  fn p_loop(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
+  ///
+  /// An ambiguous condition exists if the loop control parameters are
+  /// unavailable. Add n to the loop index. If the loop index did not cross
+  /// the boundary between the loop limit minus one and the loop limit,
+  /// continue execution at the beginning of the loop. Otherwise, discard the
+  /// current loop control parameters and continue execution immediately
+  /// following the loop.
+  fn p_plus_loop(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( -- ) ( R: loop-sys -- )
+  ///
+  /// Discard the loop-control parameters for the current nesting level. An
+  /// UNLOOP is required for each nesting level before the definition may be
+  /// EXITed. An ambiguous condition exists if the loop-control parameters
+  /// are unavailable.
+  fn unloop(&mut self) -> Option<Exception>;
+
+  fn leave(&mut self) -> Option<Exception>;
+
+  fn p_i(&mut self) -> Option<Exception>;
+
+  fn p_j(&mut self) -> Option<Exception>;
+
+  fn imm_if(&mut self) -> Option<Exception>;
+
+  fn imm_else(&mut self) -> Option<Exception>;
+
+  fn imm_then(&mut self) -> Option<Exception>;
+
+  fn imm_begin(&mut self) -> Option<Exception>;
+
+  fn imm_while(&mut self) -> Option<Exception>;
+
+  fn imm_repeat(&mut self) -> Option<Exception>;
+
+  fn imm_again(&mut self) -> Option<Exception>;
+
+  fn imm_recurse(&mut self) -> Option<Exception>;
+
+  /// Execution: ( -- a-ddr )
+  ///
+  /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
+  fn imm_do(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( a-addr -- )
+  ///
+  /// Append the run-time semantics of _LOOP to the current definition.
+  /// Resolve the destination of all unresolved occurrences of LEAVE between
+  /// the location given by do-sys and the next location for a transfer of
+  /// control, to execute the words following the LOOP.
+  fn imm_loop(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( a-addr -- )
+  ///
+  /// Append the run-time semantics of _+LOOP to the current definition.
+  /// Resolve the destination of all unresolved occurrences of LEAVE between
+  /// the location given by do-sys and the next location for a transfer of
+  /// control, to execute the words following +LOOP.
+  fn imm_plus_loop(&mut self) -> Option<Exception>;
+
+  //-----------
+  // Primitives
+  //-----------
+
+  /// Run-time: ( -- )
+  ///
+  /// No operation
+  fn noop(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( -- true )
+  ///
+  /// Return a true flag, a single-cell value with all bits set.
+  fn p_true(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( -- false )
+  ///
+  /// Return a false flag.
+  fn p_false(&mut self) -> Option<Exception>;
+
+  /// Run-time: (c-addr1 -- c-addr2 )
+  ///
+  ///Add the size in address units of a character to c-addr1, giving c-addr2.
+  fn char_plus(&mut self) -> Option<Exception>;
+
+  /// Run-time: (n1 -- n2 )
+  ///
+  /// n2 is the size in address units of n1 characters.
+  fn chars(&mut self) -> Option<Exception>;
+
+  /// Run-time: (a-addr1 -- a-addr2 )
+  ///
+  /// Add the size in address units of a cell to a-addr1, giving a-addr2.
+  fn cell_plus(&mut self) -> Option<Exception>;
+
+  /// Run-time: (n1 -- n2 )
+  ///
+  /// n2 is the size in address units of n1 cells.
+  fn cells(&mut self) -> Option<Exception>;
+
+  fn lit(&mut self) -> Option<Exception>;
+
+  fn swap(&mut self) -> Option<Exception>;
+
+  fn dup(&mut self) -> Option<Exception>;
+
+  fn p_drop(&mut self) -> Option<Exception>;
+
+  fn nip(&mut self) -> Option<Exception>;
+
+  fn over(&mut self) -> Option<Exception>;
+
+  fn rot(&mut self) -> Option<Exception>;
+
+  fn two_drop(&mut self) -> Option<Exception>;
+
+  fn two_dup(&mut self) -> Option<Exception>;
+
+  fn two_swap(&mut self) -> Option<Exception>;
+
+  fn two_over(&mut self) -> Option<Exception>;
+
+  fn depth(&mut self) -> Option<Exception>;
+
+  fn one_plus(&mut self) -> Option<Exception>;
+
+  fn one_minus(&mut self) -> Option<Exception>;
+
+  fn plus(&mut self) -> Option<Exception>;
+
+  fn minus(&mut self) -> Option<Exception>;
+
+  fn star(&mut self) -> Option<Exception>;
+
+  fn slash(&mut self) -> Option<Exception>;
+
+  fn p_mod(&mut self) -> Option<Exception>;
+
+  fn slash_mod(&mut self) -> Option<Exception>;
+
+  fn abs(&mut self) -> Option<Exception>;
+
+  fn negate(&mut self) -> Option<Exception>;
+
+  fn zero_less(&mut self) -> Option<Exception>;
+
+  fn zero_equals(&mut self) -> Option<Exception>;
+
+  fn zero_greater(&mut self) -> Option<Exception>;
+
+  fn zero_not_equals(&mut self) -> Option<Exception>;
+
+  fn equals(&mut self) -> Option<Exception>;
+
+  fn less_than(&mut self) -> Option<Exception>;
+
+  fn greater_than(&mut self) -> Option<Exception>;
+
+  fn not_equals(&mut self) -> Option<Exception>;
+
+  fn between(&mut self) -> Option<Exception>;
+
+  fn invert(&mut self) -> Option<Exception>;
+
+  fn and(&mut self) -> Option<Exception>;
+
+  fn or(&mut self) -> Option<Exception>;
+
+  fn xor(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( x1 u -- x2 )
+  ///
+  /// Perform a logical left shift of u bit-places on x1, giving x2. Put
+  /// zeroes into the least significant bits vacated by the shift. An
+  /// ambiguous condition exists if u is greater than or equal to the number
+  /// of bits in a cell.
+  fn lshift(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( x1 u -- x2 )
+  ///
+  /// Perform a logical right shift of u bit-places on x1, giving x2. Put
+  /// zeroes into the most significant bits vacated by the shift. An
+  /// ambiguous condition exists if u is greater than or equal to the number
+  /// of bits in a cell.
+  fn rshift(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( x1 u -- x2 )
+  ///
+  /// Perform a arithmetic right shift of u bit-places on x1, giving x2. Put
+  /// zeroes into the most significant bits vacated by the shift. An
+  /// ambiguous condition exists if u is greater than or equal to the number
+  /// of bits in a cell.
+  fn arshift(&mut self) -> Option<Exception>;
+
+  /// Interpretation: Interpretation semantics for this word are undefined.
+  ///
+  /// Execution: ( -- ) ( R: nest-sys -- )
+  /// Return control to the calling definition specified by nest-sys. Before executing EXIT within a
+  /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP.
+  /// TODO: UNLOOP
+  fn exit(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( a-addr -- x )
+  ///
+  /// x is the value stored at a-addr.
+  fn fetch(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( x a-addr -- )
+  ///
+  /// Store x at a-addr.
+  fn store(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( c-addr -- char )
+  ///
+  /// Fetch the character stored at c-addr. When the cell size is greater than
+  /// character size, the unused high-order bits are all zeroes.
+  fn c_fetch(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( char c-addr -- )
+  ///
+  /// Store char at c-addr. When character size is smaller than cell size,
+  /// only the number of low-order bits corresponding to character size are
+  /// transferred.
+  fn c_store(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( "<spaces>name" -- xt )
+  ///
+  /// Skip leading space delimiters. Parse name delimited by a space. Find
+  /// name and return xt, the execution token for name. An ambiguous
+  /// condition exists if name is not found.
+  fn tick(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( i*x xt -- j*x )
+  ///
+  /// Remove xt from the stack and perform the semantics identified by it.
+  /// Other stack effects are due to the word EXECUTEd.
+  fn execute(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( -- addr )
+  ///
+  /// addr is the data-space pointer.
+  fn here(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( n -- )
+  ///
+  /// If n is greater than zero, reserve n address units of data space. If n
+  /// is less than zero, release |n| address units of data space. If n is
+  /// zero, leave the data-space pointer unchanged.
+  fn allot(&mut self) -> Option<Exception>;
+
+  /// Run-time: ( x -- )
+  ///
+  /// Reserve one cell of data space and store x in the cell. If the
+  /// data-space pointer is aligned when , begins execution, it will remain
+  /// aligned when , finishes execution. An ambiguous condition exists if the
+  /// data-space pointer is not aligned prior to execution of ,.
+  fn comma(&mut self) -> Option<Exception>;
+
+  fn p_to_r(&mut self) -> Option<Exception>;
+
+  fn r_from(&mut self) -> Option<Exception>;
+
+  fn r_fetch(&mut self) -> Option<Exception>;
+
+  fn two_to_r(&mut self) -> Option<Exception>;
+
+  fn two_r_from(&mut self) -> Option<Exception>;
+
+  fn two_r_fetch(&mut self) -> Option<Exception>;
+
+  /// Leave VM's inner loop, keep VM's all state.
+  /// Call inner to resume inner loop.
+  fn pause(&mut self) -> Option<Exception>;
+
+  //----------------
+  // Error handlling
+  //----------------
+
+  /// Clear data and floating point stacks.
+  /// Called by VM's client upon Abort.
+  fn clear_stacks(&mut self);
+
+  /// Reset VM, do not clear data stack and floating point stack.
+  /// Called by VM's client upon Quit.
+  fn reset(&mut self);
+
+  /// Abort the inner loop with an exception, reset VM and clears stacks.
+  fn abort(&mut self) -> Option<Exception>;
+
+  fn halt(&mut self) -> Option<Exception>;
+
+  /// Quit the inner loop and reset VM, without clearing stacks .
+  fn quit(&mut self) -> Option<Exception>;
+
+  /// Emit Bye exception.
+  fn bye(&mut self) -> Option<Exception>;
+
+}
+
+impl Core for VM {
+  fn add_core(&mut self) {
+    // Bytecodes
+    self.add_primitive("noop", VM::noop); // j1, Ngaro, jx
+    self.add_primitive("execute", VM::execute); // jx, eForth
+    self.add_primitive("dup", VM::dup); // j1, Ngaro, jx, eForth
+    self.add_primitive("drop", VM::p_drop); // j1, Ngaro, jx, eForth
+    self.add_primitive("swap", VM::swap); // j1, Ngaro, jx, eForth
+    self.add_primitive("over", VM::over); // j1, jx, eForth
+    self.add_primitive("nip", VM::nip); // j1, jx
+    self.add_primitive("depth", VM::depth); // j1, jx
+    self.add_primitive("0<", VM::zero_less); // eForth
+    self.add_primitive("=", VM::equals); // j1, jx
+    self.add_primitive("<", VM::less_than); // j1, jx
+    self.add_primitive("invert", VM::invert); // j1, jx
+    self.add_primitive("and", VM::and); // j1, Ngaro, jx, eForth
+    self.add_primitive("or", VM::or); // j1, Ngaro, jx, eForth
+    self.add_primitive("xor", VM::xor); // j1, Ngaro, jx, eForth
+    self.add_primitive("lshift", VM::lshift); // jx, Ngaro
+    self.add_primitive("rshift", VM::rshift); // jx
+    self.add_primitive("arshift", VM::arshift); // jx, Ngaro
+    self.add_primitive("1+", VM::one_plus); // Ngaro
+    self.add_primitive("1-", VM::one_minus); // Ngaro, jx
+    self.add_primitive("-", VM::minus); // Ngaro
+    self.add_primitive("+", VM::plus); // j1, Ngaro, jx
+    self.add_primitive("*", VM::star); // Ngaro
+    self.add_primitive("/mod", VM::slash_mod); // Ngaro
+    self.add_primitive("cell+", VM::cell_plus); // eForth
+    self.add_primitive("cells", VM::cells); // eForth
+    self.add_primitive("@", VM::fetch); // j1, jx, eForth
+    self.add_primitive("!", VM::store); // j1, jx, eForth
+    self.add_primitive("char+", VM::char_plus); // eForth
+    self.add_primitive("chars", VM::chars); // eForth
+    self.add_primitive("here", VM::here);
+    self.add_primitive("allot", VM::allot);
+    self.add_primitive("c@", VM::c_fetch);
+    self.add_primitive("c!", VM::c_store);
+
+    // Compile-only bytecodes
+    self.add_compile_only("exit", VM::exit); // j1, jx, eForth
+    self.add_compile_only("halt", VM::halt); // rtForth
+    self.add_compile_only("lit", VM::lit); // Ngaro, jx, eForth
+    self.add_compile_only("branch", VM::branch); // j1, eForth
+    self.add_compile_only("0branch", VM::zero_branch); // j1, eForth
+    self.add_compile_only(">r", VM::p_to_r); // j1, Ngaro, jx, eForth
+    self.add_compile_only("r>", VM::r_from); // j1, Ngaro, jx, eForth
+    self.add_compile_only("r@", VM::r_fetch); // j1, jx, eForth
+    self.add_compile_only("2>r", VM::two_to_r); // jx
+    self.add_compile_only("2r>", VM::two_r_from); // jx
+    self.add_compile_only("2r@", VM::two_r_fetch); // jx
+    self.add_compile_only("_do", VM::_do); // jx
+    self.add_compile_only("_loop", VM::p_loop); // jx
+    self.add_compile_only("_+loop", VM::p_plus_loop); // jx
+    self.add_compile_only("unloop", VM::unloop); // jx
+    self.add_compile_only("leave", VM::leave); // jx
+    self.add_compile_only("i", VM::p_i); // jx
+    self.add_compile_only("j", VM::p_j); // jx
+
+    // Candidates for bytecodes
+    // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
+    // j1: U<, RET, IO@, IO!
+    // eForth: UM+, !IO, ?RX, TX!
+    // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, UP!, UP+, PAUSE,
+
+    // Immediate words
+    self.add_immediate("(", VM::imm_paren);
+    self.add_immediate("\\", VM::imm_backslash);
+    self.add_immediate("[", VM::interpret);
+    self.add_immediate_and_compile_only("[char]", VM::bracket_char);
+    self.add_immediate_and_compile_only(";", VM::semicolon);
+    self.add_immediate_and_compile_only("if", VM::imm_if);
+    self.add_immediate_and_compile_only("else", VM::imm_else);
+    self.add_immediate_and_compile_only("then", VM::imm_then);
+    self.add_immediate_and_compile_only("begin", VM::imm_begin);
+    self.add_immediate_and_compile_only("while", VM::imm_while);
+    self.add_immediate_and_compile_only("repeat", VM::imm_repeat);
+    self.add_immediate_and_compile_only("again", VM::imm_again);
+    self.add_immediate_and_compile_only("recurse", VM::imm_recurse);
+    self.add_immediate_and_compile_only("do", VM::imm_do);
+    self.add_immediate_and_compile_only("loop", VM::imm_loop);
+    self.add_immediate_and_compile_only("+loop", VM::imm_plus_loop);
+
+    // Compile-only words
+
+    // More Primitives
+    self.add_primitive("true", VM::p_true);
+    self.add_primitive("false", VM::p_false);
+    self.add_primitive("not", VM::zero_equals);
+    self.add_primitive("0=", VM::zero_equals);
+    self.add_primitive("0>", VM::zero_greater);
+    self.add_primitive("0<>", VM::zero_not_equals);
+    self.add_primitive(">", VM::greater_than);
+    self.add_primitive("<>", VM::not_equals);
+    self.add_primitive("rot", VM::rot);
+    self.add_primitive("2dup", VM::two_dup);
+    self.add_primitive("2drop", VM::two_drop);
+    self.add_primitive("2swap", VM::two_swap);
+    self.add_primitive("2over", VM::two_over);
+    self.add_primitive("pause", VM::pause);
+    self.add_primitive("/", VM::slash);
+    self.add_primitive("mod", VM::p_mod);
+    self.add_primitive("abs", VM::abs);
+    self.add_primitive("negate", VM::negate);
+    self.add_primitive("between", VM::between);
+    self.add_primitive("parse-word", VM::parse_word);;
+    self.add_primitive("char", VM::char);
+    self.add_primitive("parse", VM::parse);
+    self.add_primitive("evaluate", VM::evaluate);;
+    self.add_primitive(":", VM::colon);
+    self.add_primitive("constant", VM::constant);
+    self.add_primitive("variable", VM::variable);
+    self.add_primitive("create", VM::create);
+    self.add_primitive("'", VM::tick);
+    self.add_primitive("]", VM::compile);
+    self.add_primitive(",", VM::comma);
+    self.add_primitive("marker", VM::marker);
+    self.add_primitive("quit", VM::quit);
+    self.add_primitive("abort", VM::abort);
+    self.add_primitive("bye", VM::bye);
+
+    self.idx_lit = self.find("lit").expect("lit undefined");
+    self.idx_exit = self.find("exit").expect("exit undefined");
+    self.idx_zero_branch = self.find("0branch").expect("0branch undefined");
+    self.idx_branch = self.find("branch").expect("branch undefined");
+    self.idx_do = self.find("_do").expect("_do undefined");
+    self.idx_loop = self.find("_loop").expect("_loop undefined");
+    self.idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
+    let idx_halt = self.find("halt").expect("halt undefined");
+    self.jit_memory.put_u32(idx_halt as u32, 0);
+  }
 
     /// Idle is the result of new and reset, means that VM has nothing to do.
-    pub fn is_idle(& self) -> bool {
+    fn is_idle(& self) -> bool {
         self.instruction_pointer == 0
     }
 
-    pub fn word_pointer(&self) -> usize {
+    fn word_pointer(&self) -> usize {
         self.word_pointer
     }
 
-    pub fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+    fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.jit_memory.compile_word(name, action);
         self.last_definition = self.jit_memory.last();
     }
 
-    pub fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+    fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
         self.jit_memory.mut_word(self.last_definition).is_immediate = true;
     }
 
-    pub fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+    fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
         self.jit_memory.mut_word(self.last_definition).is_compile_only = true;
     }
 
-    pub fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+    fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
         let w = self.jit_memory.mut_word(self.last_definition);
         w.is_immediate = true;
         w.is_compile_only = true;
     }
 
-    pub fn execute_word(&mut self, i: usize) -> Option<Exception> {
+    fn execute_word(&mut self, i: usize) -> Option<Exception> {
         self.word_pointer = i;
         (self.jit_memory.word(i).action)(self)
     }
 
     /// Find the word with name 'name'.
     /// If not found returns zero.
-    pub fn find(&self, name: &str) -> Option<usize> {
+    fn find(&self, name: &str) -> Option<usize> {
         let mut i = self.jit_memory.last();
         let mut w = self.jit_memory.word(i);
         loop {
@@ -484,7 +938,7 @@ impl VM {
     /// Never return None and Some(Nest).
     #[no_mangle]
     #[inline(never)]
-    pub fn run(&mut self) -> Option<Exception> {
+    fn run(&mut self) -> Option<Exception> {
         while 0 < self.instruction_pointer && self.instruction_pointer < self.jit_memory.len() {
             let w = self.jit_memory.get_i32(self.instruction_pointer) as usize;
             self.instruction_pointer += mem::size_of::<i32>();
@@ -507,7 +961,7 @@ impl VM {
 
 // Compiler
 
-    pub fn compile_word(&mut self, word_index: usize) {
+    fn compile_word(&mut self, word_index: usize) {
         self.jit_memory.compile_i32(word_index as i32);
     }
 
@@ -519,17 +973,17 @@ impl VM {
 
 // Evaluation
 
-    pub fn interpret(& mut self) -> Option<Exception> {
+    fn interpret(& mut self) -> Option<Exception> {
         self.is_compiling = false;
         None
     }
 
-    pub fn compile(& mut self) -> Option<Exception> {
+    fn compile(& mut self) -> Option<Exception> {
         self.is_compiling = true;
         None
     }
 
-    pub fn set_source(&mut self, s: &str) {
+    fn set_source(&mut self, s: &str) {
         self.input_buffer.clear();
         self.input_buffer.push_str(s);
         self.source_index = 0;
@@ -538,7 +992,7 @@ impl VM {
     /// Run-time: ( "ccc" -- )
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
-    pub fn parse_word(&mut self) -> Option<Exception> {
+    fn parse_word(&mut self) -> Option<Exception> {
         self.last_token.clear();
         let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
         let mut cnt = 0;
@@ -560,7 +1014,7 @@ impl VM {
     /// Run-time: ( "&lt;spaces&gt;name" -- char)
     ///
     /// Skip leading space delimiters. Parse name delimited by a space. Put the value of its first character onto the stack.
-    pub fn char(&mut self) -> Option<Exception> {
+    fn char(&mut self) -> Option<Exception> {
         self.parse_word();
         match self.last_token.chars().nth(0) {
             Some(c) =>
@@ -579,7 +1033,7 @@ impl VM {
     /// Run-time: ( -- char )
     ///
     /// Place char, the value of the first character of name, on the stack.
-    pub fn bracket_char(&mut self) -> Option<Exception> {
+    fn bracket_char(&mut self) -> Option<Exception> {
         self.char();
         match self.s_stack.pop() {
             Some(ch) => {
@@ -593,7 +1047,7 @@ impl VM {
     /// Run-time: ( char "ccc&lt;char&gt;" -- )
     ///
     /// Parse ccc delimited by the delimiter char.
-    pub fn parse(&mut self) -> Option<Exception> {
+    fn parse(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
                 self.last_token.clear();
@@ -614,21 +1068,21 @@ impl VM {
         }
     }
 
-    pub fn imm_paren(&mut self) -> Option<Exception> {
+    fn imm_paren(&mut self) -> Option<Exception> {
         match self.s_stack.push(')' as isize) {
             Some(_) => Some(StackOverflow),
             None => self.parse()
         }
     }
 
-    pub fn imm_backslash(&mut self) -> Option<Exception> {
+    fn imm_backslash(&mut self) -> Option<Exception> {
         self.source_index = self.input_buffer.len();
         None
     }
 
     /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
     /// Never returns Some(Quit).
-    pub fn evaluate(&mut self) -> Option<Exception> {
+    fn evaluate(&mut self) -> Option<Exception> {
         loop {
             self.parse_word();
             if self.last_token.is_empty() {
@@ -699,7 +1153,7 @@ impl VM {
         }
     }
 
-    pub fn evaluate_integer(&mut self) -> Result<(), Exception> {
+    fn evaluate_integer(&mut self) -> Result<(), Exception> {
         match FromStr::from_str(&self.last_token) {
             Ok(t) => {
                 if self.is_compiling {
@@ -715,7 +1169,7 @@ impl VM {
 
     /// Extend `f` to evaluators.
     /// Will create a vector for evaluators if there was no evaluator.
-    pub fn extend_evaluator(&mut self, f: fn(&mut VM) -> Result<(), Exception>) {
+    fn extend_evaluator(&mut self, f: fn(&mut VM) -> Result<(), Exception>) {
         let optional_evaluators = self.evaluators.take();
         match optional_evaluators {
             Some(mut evaluators) => {
@@ -729,14 +1183,14 @@ impl VM {
     }
 
     /// Extend VM with an `extension`.
-    pub fn extend(&mut self, name: &'static str, extension: Box<Extension>) {
+    fn extend(&mut self, name: &'static str, extension: Box<Extension>) {
         self.extensions.insert(name, extension);
     }
 
     /// Get extension of type T with name.
     /// Note: Behavior is undefined when extension corresponding to name is not of type T.
     /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
-    pub unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T> {
+    unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T> {
             let option = self.extensions.get(name);
             match option {
                     Some(v) => {
@@ -751,7 +1205,7 @@ impl VM {
 
 // High level definitions
 
-    pub fn nest(&mut self) -> Option<Exception> {
+    fn nest(&mut self) -> Option<Exception> {
         if self.r_stack.len == self.r_stack.cap {
             Some(ReturnStackOverflow)
         } else {
@@ -764,28 +1218,28 @@ impl VM {
         }
     }
 
-    pub fn p_var(&mut self) -> Option<Exception> {
+    fn p_var(&mut self) -> Option<Exception> {
         match self.s_stack.push(self.jit_memory.word(self.word_pointer).dfa as isize) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
-    pub fn p_const(&mut self) -> Option<Exception> {
+    fn p_const(&mut self) -> Option<Exception> {
         match self.s_stack.push(self.jit_memory.get_i32(self.jit_memory.word(self.word_pointer).dfa) as isize) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
-    pub fn p_fvar(&mut self) -> Option<Exception> {
+    fn p_fvar(&mut self) -> Option<Exception> {
         match self.s_stack.push(self.jit_memory.word(self.word_pointer).dfa as isize) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
-    pub fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception> {
+    fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception> {
         self.parse_word();
         match self.find(&self.last_token) {
             Some(_) => print!("Redefining {}", self.last_token),
@@ -801,7 +1255,7 @@ impl VM {
         }
     }
 
-    pub fn colon(&mut self) -> Option<Exception> {
+    fn colon(&mut self) -> Option<Exception> {
         match self.define(VM::nest) {
             Some(e) => Some(e),
             None => {
@@ -811,7 +1265,7 @@ impl VM {
         }
     }
 
-    pub fn semicolon(&mut self) -> Option<Exception>{
+    fn semicolon(&mut self) -> Option<Exception>{
         if self.last_definition != 0 {
             self.jit_memory.compile_i32(self.idx_exit as i32);
             self.jit_memory.mut_word(self.last_definition).hidden = false;
@@ -819,11 +1273,11 @@ impl VM {
         self.interpret()
     }
 
-    pub fn create(&mut self) -> Option<Exception> {
+    fn create(&mut self) -> Option<Exception> {
         self.define(VM::p_var)
     }
 
-    pub fn variable(&mut self) -> Option<Exception> {
+    fn variable(&mut self) -> Option<Exception> {
         match self.define(VM::p_var) {
             Some(e) => Some(e),
             None => {
@@ -833,7 +1287,7 @@ impl VM {
         }
     }
 
-    pub fn constant(&mut self) -> Option<Exception> {
+    fn constant(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
                 match self.define(VM::p_const) {
@@ -848,7 +1302,7 @@ impl VM {
         }
     }
 
-    pub fn unmark(&mut self) -> Option<Exception> {
+    fn unmark(&mut self) -> Option<Exception> {
         let jlen;
         {
             let w = self.jit_memory.word(self.word_pointer);
@@ -860,7 +1314,7 @@ impl VM {
         None
     }
 
-    pub fn marker(&mut self) -> Option<Exception> {
+    fn marker(&mut self) -> Option<Exception> {
         self.define(VM::unmark);
         let jlen = self.jit_memory.len() as i32;
         self.jit_memory.compile_i32(jlen+(mem::size_of::<i32>() as i32));
@@ -869,12 +1323,12 @@ impl VM {
 
 // Control
 
-    pub fn branch(&mut self) -> Option<Exception> {
+    fn branch(&mut self) -> Option<Exception> {
         self.instruction_pointer = self.jit_memory.get_i32(self.instruction_pointer) as usize;
         None
     }
 
-    pub fn zero_branch(&mut self) -> Option<Exception> {
+    fn zero_branch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
                 if v == 0 {
@@ -894,7 +1348,7 @@ impl VM {
     /// ambiguous condition exists if n1|u1 and n2|u2 are not both the same
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded.
-    pub fn _do(&mut self) -> Option<Exception> {
+    fn _do(&mut self) -> Option<Exception> {
         match self.r_stack.push(self.instruction_pointer as isize) {
             Some(_) => Some(ReturnStackOverflow),
             None => {
@@ -911,7 +1365,7 @@ impl VM {
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
-    pub fn p_loop(&mut self) -> Option<Exception> {
+    fn p_loop(&mut self) -> Option<Exception> {
         match self.r_stack.pop2() {
             Some((rn, rt)) => {
                 if rt+1 < rn {
@@ -939,7 +1393,7 @@ impl VM {
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
     /// following the loop.
-    pub fn p_plus_loop(&mut self) -> Option<Exception> {
+    fn p_plus_loop(&mut self) -> Option<Exception> {
         match self.r_stack.pop2() {
             Some((rn, rt)) => {
                 match self.s_stack.pop() {
@@ -970,14 +1424,14 @@ impl VM {
     /// UNLOOP is required for each nesting level before the definition may be
     /// EXITed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
-    pub fn unloop(&mut self) -> Option<Exception> {
+    fn unloop(&mut self) -> Option<Exception> {
         match self.r_stack.pop3() {
             Some(_) => None,
             None => Some(ReturnStackUnderflow)
         }
     }
 
-    pub fn leave(&mut self) -> Option<Exception> {
+    fn leave(&mut self) -> Option<Exception> {
         match self.r_stack.pop3() {
             Some((third, _, _)) => {
                 self.instruction_pointer = self.jit_memory.get_i32(third as usize) as usize;
@@ -987,7 +1441,7 @@ impl VM {
         }
     }
 
-    pub fn p_i(&mut self) -> Option<Exception> {
+    fn p_i(&mut self) -> Option<Exception> {
         match self.r_stack.last() {
             Some(i) => {
                 match self.s_stack.push(i) {
@@ -999,7 +1453,7 @@ impl VM {
         }
     }
 
-    pub fn p_j(&mut self) -> Option<Exception> {
+    fn p_j(&mut self) -> Option<Exception> {
         let pos = self.r_stack.len() - 4;
         match self.r_stack.get(pos) {
             Some(j) => {
@@ -1012,13 +1466,13 @@ impl VM {
         }
     }
 
-    pub fn imm_if(&mut self) -> Option<Exception> {
+    fn imm_if(&mut self) -> Option<Exception> {
         self.jit_memory.compile_i32(self.idx_zero_branch as i32);
         self.jit_memory.compile_i32(0);
         self.here()
     }
 
-    pub fn imm_else(&mut self) -> Option<Exception> {
+    fn imm_else(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(if_part) => {
                 self.jit_memory.compile_i32(self.idx_branch as i32);
@@ -1032,7 +1486,7 @@ impl VM {
         }
     }
 
-    pub fn imm_then(&mut self) -> Option<Exception> {
+    fn imm_then(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(branch_part) => {
                 let here = self.jit_memory.len();
@@ -1043,17 +1497,17 @@ impl VM {
         }
     }
 
-    pub fn imm_begin(&mut self) -> Option<Exception> {
+    fn imm_begin(&mut self) -> Option<Exception> {
         self.here()
     }
 
-    pub fn imm_while(&mut self) -> Option<Exception> {
+    fn imm_while(&mut self) -> Option<Exception> {
         self.jit_memory.compile_i32(self.idx_zero_branch as i32);
         self.jit_memory.compile_i32(0);
         self.here()
     }
 
-    pub fn imm_repeat(&mut self) -> Option<Exception> {
+    fn imm_repeat(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((begin_part, while_part)) => {
                 self.jit_memory.compile_i32(self.idx_branch as i32);
@@ -1066,7 +1520,7 @@ impl VM {
         }
     }
 
-    pub fn imm_again(&mut self) -> Option<Exception> {
+    fn imm_again(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(begin_part) => {
                 self.jit_memory.compile_i32(self.idx_branch as i32);
@@ -1077,7 +1531,7 @@ impl VM {
         }
     }
 
-    pub fn imm_recurse(&mut self) -> Option<Exception> {
+    fn imm_recurse(&mut self) -> Option<Exception> {
         let last = self.jit_memory.last();
         self.jit_memory.compile_u32(last as u32);
         None
@@ -1086,7 +1540,7 @@ impl VM {
     /// Execution: ( -- a-ddr )
     ///
     /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
-    pub fn imm_do(&mut self) -> Option<Exception> {
+    fn imm_do(&mut self) -> Option<Exception> {
         self.jit_memory.compile_i32(self.idx_do as i32);
         self.jit_memory.compile_i32(0);
         self.here()
@@ -1098,7 +1552,7 @@ impl VM {
     /// Resolve the destination of all unresolved occurrences of LEAVE between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the LOOP.
-    pub fn imm_loop(&mut self) -> Option<Exception>{
+    fn imm_loop(&mut self) -> Option<Exception>{
         match self.s_stack.pop() {
             Some(do_part) => {
                 self.jit_memory.compile_i32(self.idx_loop as i32);
@@ -1117,7 +1571,7 @@ impl VM {
     /// Resolve the destination of all unresolved occurrences of LEAVE between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following +LOOP.
-    pub fn imm_plus_loop(&mut self) -> Option<Exception> {
+    fn imm_plus_loop(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(do_part) => {
                 self.jit_memory.compile_i32(self.idx_plus_loop as i32);
@@ -1135,7 +1589,7 @@ impl VM {
     /// Run-time: ( -- )
     ///
     /// No operation
-    pub fn noop(&mut self) -> Option<Exception> {
+    fn noop(&mut self) -> Option<Exception> {
         // Do nothing
         None
     }
@@ -1143,7 +1597,7 @@ impl VM {
     /// Run-time: ( -- true )
     ///
     /// Return a true flag, a single-cell value with all bits set.
-    pub fn p_true(&mut self) -> Option<Exception> {
+    fn p_true(&mut self) -> Option<Exception> {
         match self.s_stack.push (-1) {
             Some(_) => Some(StackOverflow),
             None => None
@@ -1153,7 +1607,7 @@ impl VM {
     /// Run-time: ( -- false )
     ///
     /// Return a false flag.
-    pub fn p_false(&mut self) -> Option<Exception> {
+    fn p_false(&mut self) -> Option<Exception> {
         match self.s_stack.push (0) {
             Some(_) => Some(StackOverflow),
             None => None
@@ -1163,7 +1617,7 @@ impl VM {
     /// Run-time: (c-addr1 -- c-addr2 )
     ///
     ///Add the size in address units of a character to c-addr1, giving c-addr2.
-    pub fn char_plus(&mut self) -> Option<Exception> {
+    fn char_plus(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) =>
                 match self.s_stack.push(v + mem::size_of::<u8>() as isize) {
@@ -1177,7 +1631,7 @@ impl VM {
     /// Run-time: (n1 -- n2 )
     ///
     /// n2 is the size in address units of n1 characters.
-    pub fn chars(&mut self) -> Option<Exception> {
+    fn chars(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) =>
                 match self.s_stack.push(v*mem::size_of::<u8>() as isize) {
@@ -1192,7 +1646,7 @@ impl VM {
     /// Run-time: (a-addr1 -- a-addr2 )
     ///
     /// Add the size in address units of a cell to a-addr1, giving a-addr2.
-    pub fn cell_plus(&mut self) -> Option<Exception> {
+    fn cell_plus(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) =>
                 match self.s_stack.push(v + mem::size_of::<i32>() as isize) {
@@ -1206,7 +1660,7 @@ impl VM {
     /// Run-time: (n1 -- n2 )
     ///
     /// n2 is the size in address units of n1 cells.
-    pub fn cells(&mut self) -> Option<Exception> {
+    fn cells(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) =>
                 match self.s_stack.push(v*mem::size_of::<i32>() as isize) {
@@ -1217,7 +1671,7 @@ impl VM {
         }
     }
 
-    pub fn lit(&mut self) -> Option<Exception> {
+    fn lit(&mut self) -> Option<Exception> {
         if self.s_stack.len >= self.s_stack.cap {
             Some(StackOverflow)
         } else {
@@ -1231,7 +1685,7 @@ impl VM {
         }
     }
 
-    pub fn swap(&mut self) -> Option<Exception> {
+    fn swap(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else {
@@ -1244,7 +1698,7 @@ impl VM {
         }
     }
 
-    pub fn dup(&mut self) -> Option<Exception> {
+    fn dup(&mut self) -> Option<Exception> {
         if self.s_stack.len < 1 {
             Some(StackUnderflow)
         } else if self.s_stack.len >= self.s_stack.cap {
@@ -1258,7 +1712,7 @@ impl VM {
         }
     }
 
-    pub fn p_drop(&mut self) -> Option<Exception> {
+    fn p_drop(&mut self) -> Option<Exception> {
         if self.s_stack.len < 1 {
             Some(StackUnderflow)
         } else {
@@ -1267,7 +1721,7 @@ impl VM {
         }
     }
 
-    pub fn nip(&mut self) -> Option<Exception> {
+    fn nip(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else {
@@ -1279,7 +1733,7 @@ impl VM {
         }
     }
 
-    pub fn over(&mut self) -> Option<Exception> {
+    fn over(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else if self.s_stack.len >= self.s_stack.cap {
@@ -1293,7 +1747,7 @@ impl VM {
         }
     }
 
-    pub fn rot(&mut self) -> Option<Exception> {
+    fn rot(&mut self) -> Option<Exception> {
         if self.s_stack.len < 3 {
             Some(StackUnderflow)
         } else {
@@ -1308,7 +1762,7 @@ impl VM {
         }
     }
 
-    pub fn two_drop(&mut self) -> Option<Exception> {
+    fn two_drop(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else {
@@ -1317,7 +1771,7 @@ impl VM {
         }
     }
 
-    pub fn two_dup(&mut self) -> Option<Exception> {
+    fn two_dup(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else if self.s_stack.len + 2 > self.s_stack.cap {
@@ -1332,7 +1786,7 @@ impl VM {
         }
     }
 
-    pub fn two_swap(&mut self) -> Option<Exception> {
+    fn two_swap(&mut self) -> Option<Exception> {
         if self.s_stack.len < 4 {
             Some(StackUnderflow)
         } else {
@@ -1348,7 +1802,7 @@ impl VM {
         }
     }
 
-    pub fn two_over(&mut self) -> Option<Exception> {
+    fn two_over(&mut self) -> Option<Exception> {
         if self.s_stack.len < 4 {
             Some(StackUnderflow)
         } else if self.s_stack.len + 2 > self.s_stack.cap {
@@ -1363,7 +1817,7 @@ impl VM {
         }
     }
 
-    pub fn depth(&mut self) -> Option<Exception> {
+    fn depth(&mut self) -> Option<Exception> {
         let len = self.s_stack.len;
         match self.s_stack.push(len as isize) {
             Some(_) => Some(StackOverflow),
@@ -1371,7 +1825,7 @@ impl VM {
         }
     }
 
-    pub fn one_plus(&mut self) -> Option<Exception> {
+    fn one_plus(&mut self) -> Option<Exception> {
         if self.s_stack.len < 1 {
             Some(StackUnderflow)
         } else {
@@ -1382,7 +1836,7 @@ impl VM {
         }
     }
 
-    pub fn one_minus(&mut self) -> Option<Exception> {
+    fn one_minus(&mut self) -> Option<Exception> {
         if self.s_stack.len < 1 {
             Some(StackUnderflow)
         } else {
@@ -1393,7 +1847,7 @@ impl VM {
         }
     }
 
-    pub fn plus(&mut self) -> Option<Exception> {
+    fn plus(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else {
@@ -1406,7 +1860,7 @@ impl VM {
         }
     }
 
-    pub fn minus(&mut self) -> Option<Exception> {
+    fn minus(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else {
@@ -1419,7 +1873,7 @@ impl VM {
         }
     }
 
-    pub fn star(&mut self) -> Option<Exception> {
+    fn star(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else {
@@ -1432,7 +1886,7 @@ impl VM {
         }
     }
 
-    pub fn slash(&mut self) -> Option<Exception> {
+    fn slash(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else {
@@ -1445,7 +1899,7 @@ impl VM {
         }
     }
 
-    pub fn p_mod(&mut self) -> Option<Exception> {
+    fn p_mod(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else {
@@ -1458,7 +1912,7 @@ impl VM {
         }
     }
 
-    pub fn slash_mod(&mut self) -> Option<Exception> {
+    fn slash_mod(&mut self) -> Option<Exception> {
         if self.s_stack.len < 2 {
             Some(StackUnderflow)
         } else {
@@ -1472,7 +1926,7 @@ impl VM {
         }
     }
 
-    pub fn abs(&mut self) -> Option<Exception> {
+    fn abs(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(t.abs()) {
@@ -1483,7 +1937,7 @@ impl VM {
         }
     }
 
-    pub fn negate(&mut self) -> Option<Exception> {
+    fn negate(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(-t) {
@@ -1494,7 +1948,7 @@ impl VM {
         }
     }
 
-    pub fn zero_less(&mut self) -> Option<Exception> {
+    fn zero_less(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(if t<0 {-1} else {0}) {
@@ -1505,7 +1959,7 @@ impl VM {
         }
     }
 
-    pub fn zero_equals(&mut self) -> Option<Exception> {
+    fn zero_equals(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(if t==0 {-1} else {0}) {
@@ -1516,7 +1970,7 @@ impl VM {
         }
     }
 
-    pub fn zero_greater(&mut self) -> Option<Exception> {
+    fn zero_greater(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(if t>0 {-1} else {0}) {
@@ -1527,7 +1981,7 @@ impl VM {
         }
     }
 
-    pub fn zero_not_equals(&mut self) -> Option<Exception> {
+    fn zero_not_equals(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(if t!=0 {-1} else {0}) {
@@ -1538,7 +1992,7 @@ impl VM {
         }
     }
 
-    pub fn equals(&mut self) -> Option<Exception> {
+    fn equals(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(if t==n {-1} else {0}) {
@@ -1549,7 +2003,7 @@ impl VM {
         }
     }
 
-    pub fn less_than(&mut self) -> Option<Exception> {
+    fn less_than(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(if n<t {-1} else {0}) {
@@ -1560,7 +2014,7 @@ impl VM {
         }
     }
 
-    pub fn greater_than(&mut self) -> Option<Exception> {
+    fn greater_than(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(if n>t {-1} else {0}) {
@@ -1571,7 +2025,7 @@ impl VM {
         }
     }
 
-    pub fn not_equals(&mut self) -> Option<Exception> {
+    fn not_equals(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(if n!=t {-1} else {0}) {
@@ -1582,7 +2036,7 @@ impl VM {
         }
     }
 
-    pub fn between(&mut self) -> Option<Exception> {
+    fn between(&mut self) -> Option<Exception> {
         match self.s_stack.pop3() {
             Some((x1, x2, x3)) =>
                 match self.s_stack.push(if x2<=x1 && x1<=x3 {-1} else {0}) {
@@ -1593,7 +2047,7 @@ impl VM {
         }
     }
 
-    pub fn invert(&mut self) -> Option<Exception> {
+    fn invert(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(!t) {
@@ -1604,7 +2058,7 @@ impl VM {
         }
     }
 
-    pub fn and(&mut self) -> Option<Exception> {
+    fn and(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(t & n) {
@@ -1615,7 +2069,7 @@ impl VM {
         }
     }
 
-    pub fn or(&mut self) -> Option<Exception> {
+    fn or(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(t | n) {
@@ -1626,7 +2080,7 @@ impl VM {
         }
     }
 
-    pub fn xor(&mut self) -> Option<Exception> {
+    fn xor(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(t ^ n) {
@@ -1643,7 +2097,7 @@ impl VM {
     /// zeroes into the least significant bits vacated by the shift. An
     /// ambiguous condition exists if u is greater than or equal to the number
     /// of bits in a cell.
-    pub fn lshift(&mut self) -> Option<Exception> {
+    fn lshift(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(n << t) {
@@ -1660,7 +2114,7 @@ impl VM {
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if u is greater than or equal to the number
     /// of bits in a cell.
-    pub fn rshift(&mut self) -> Option<Exception> {
+    fn rshift(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push((n as usize >> t) as isize) {
@@ -1677,7 +2131,7 @@ impl VM {
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if u is greater than or equal to the number
     /// of bits in a cell.
-    pub fn arshift(&mut self) -> Option<Exception> {
+    fn arshift(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 match self.s_stack.push(n >> t) {
@@ -1694,7 +2148,7 @@ impl VM {
     /// Return control to the calling definition specified by nest-sys. Before executing EXIT within a
     /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP.
     /// TODO: UNLOOP
-    pub fn exit(&mut self) -> Option<Exception> {
+    fn exit(&mut self) -> Option<Exception> {
         if self.r_stack.len == 0 {
             Some(ReturnStackUnderflow)
         } else {
@@ -1709,7 +2163,7 @@ impl VM {
     /// Run-time: ( a-addr -- x )
     ///
     /// x is the value stored at a-addr.
-    pub fn fetch(&mut self) -> Option<Exception> {
+    fn fetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(self.jit_memory.get_i32(t as usize) as isize) {
@@ -1723,7 +2177,7 @@ impl VM {
     /// Run-time: ( x a-addr -- )
     ///
     /// Store x at a-addr.
-    pub fn store(&mut self) -> Option<Exception> {
+    fn store(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) => {
                 self.jit_memory.put_i32(n as i32, t as usize);
@@ -1737,7 +2191,7 @@ impl VM {
     ///
     /// Fetch the character stored at c-addr. When the cell size is greater than
     /// character size, the unused high-order bits are all zeroes.
-    pub fn c_fetch(&mut self) -> Option<Exception> {
+    fn c_fetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) =>
                 match self.s_stack.push(self.jit_memory.get_u8(t as usize) as isize) {
@@ -1753,7 +2207,7 @@ impl VM {
     /// Store char at c-addr. When character size is smaller than cell size,
     /// only the number of low-order bits corresponding to character size are
     /// transferred.
-    pub fn c_store(&mut self) -> Option<Exception> {
+    fn c_store(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) => {
                 self.jit_memory.put_u8(n as u8, t as usize);
@@ -1768,7 +2222,7 @@ impl VM {
     /// Skip leading space delimiters. Parse name delimited by a space. Find
     /// name and return xt, the execution token for name. An ambiguous
     /// condition exists if name is not found.
-    pub fn tick(&mut self) -> Option<Exception> {
+    fn tick(&mut self) -> Option<Exception> {
         self.parse_word();
         if !self.last_token.is_empty() {
             match self.find(&self.last_token) {
@@ -1788,7 +2242,7 @@ impl VM {
     ///
     /// Remove xt from the stack and perform the semantics identified by it.
     /// Other stack effects are due to the word EXECUTEd.
-    pub fn execute(&mut self) -> Option<Exception> {
+    fn execute(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(t) => {
                 self.execute_word(t as usize)
@@ -1800,7 +2254,7 @@ impl VM {
     /// Run-time: ( -- addr )
     ///
     /// addr is the data-space pointer.
-    pub fn here(&mut self) -> Option<Exception> {
+    fn here(&mut self) -> Option<Exception> {
         match self.s_stack.push(self.jit_memory.len() as isize) {
             Some(_) => Some(StackOverflow),
             None => None
@@ -1812,7 +2266,7 @@ impl VM {
     /// If n is greater than zero, reserve n address units of data space. If n
     /// is less than zero, release |n| address units of data space. If n is
     /// zero, leave the data-space pointer unchanged.
-    pub fn allot(&mut self) -> Option<Exception> {
+    fn allot(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
                 self.jit_memory.allot(v);
@@ -1828,7 +2282,7 @@ impl VM {
     /// data-space pointer is aligned when , begins execution, it will remain
     /// aligned when , finishes execution. An ambiguous condition exists if the
     /// data-space pointer is not aligned prior to execution of ,.
-    pub fn comma(&mut self) -> Option<Exception> {
+    fn comma(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
                 self.jit_memory.compile_i32(v as i32);
@@ -1838,7 +2292,7 @@ impl VM {
         }
     }
 
-    pub fn p_to_r(&mut self) -> Option<Exception> {
+    fn p_to_r(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
                 if self.r_stack.len >= self.r_stack.cap {
@@ -1855,7 +2309,7 @@ impl VM {
         }
     }
 
-    pub fn r_from(&mut self) -> Option<Exception> {
+    fn r_from(&mut self) -> Option<Exception> {
         if self.r_stack.len == 0 {
             Some(ReturnStackUnderflow)
         } else {
@@ -1867,7 +2321,7 @@ impl VM {
         }
     }
 
-    pub fn r_fetch(&mut self) -> Option<Exception> {
+    fn r_fetch(&mut self) -> Option<Exception> {
         if self.r_stack.len == 0 {
             Some(ReturnStackUnderflow)
         } else {
@@ -1878,7 +2332,7 @@ impl VM {
         }
     }
 
-    pub fn two_to_r(&mut self) -> Option<Exception> {
+    fn two_to_r(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) =>
                 if self.r_stack.len >= self.r_stack.cap-1 {
@@ -1895,7 +2349,7 @@ impl VM {
         }
     }
 
-    pub fn two_r_from(&mut self) -> Option<Exception> {
+    fn two_r_from(&mut self) -> Option<Exception> {
         if self.r_stack.len < 2 {
             Some(ReturnStackUnderflow)
         } else {
@@ -1908,7 +2362,7 @@ impl VM {
         }
     }
 
-    pub fn two_r_fetch(&mut self) -> Option<Exception> {
+    fn two_r_fetch(&mut self) -> Option<Exception> {
         if self.r_stack.len < 2 {
             Some(ReturnStackUnderflow)
         } else {
@@ -1922,7 +2376,7 @@ impl VM {
 
     /// Leave VM's inner loop, keep VM's all state.
     /// Call inner to resume inner loop.
-    pub fn pause(&mut self) -> Option<Exception> {
+    fn pause(&mut self) -> Option<Exception> {
         Some(Pause)
     }
 
@@ -1930,14 +2384,14 @@ impl VM {
 
     /// Clear data and floating point stacks.
     /// Called by VM's client upon Abort.
-    pub fn clear_stacks(&mut self) {
+    fn clear_stacks(&mut self) {
         self.s_stack.clear();
         self.f_stack.clear();
     }
 
     /// Reset VM, do not clear data stack and floating point stack.
     /// Called by VM's client upon Quit.
-    pub fn reset(&mut self) {
+    fn reset(&mut self) {
         self.r_stack.len = 0;
         self.input_buffer.clear();
         self.source_index = 0;
@@ -1946,19 +2400,19 @@ impl VM {
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
-    pub fn abort(&mut self) -> Option<Exception> {
+    fn abort(&mut self) -> Option<Exception> {
         self.clear_stacks();
         self.reset();
         Some(Abort)
     }
 
-    pub fn halt(&mut self) -> Option<Exception> {
+    fn halt(&mut self) -> Option<Exception> {
         self.instruction_pointer = 0;
         Some(Quit)
     }
 
     /// Quit the inner loop and reset VM, without clearing stacks .
-    pub fn quit(&mut self) -> Option<Exception> {
+    fn quit(&mut self) -> Option<Exception> {
         self.reset();
         Some(Quit)
     }
@@ -1971,7 +2425,7 @@ impl VM {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{VM, Core};
     use core::test::Bencher;
     use std::mem;
     use exception::Exception::{
@@ -1991,6 +2445,7 @@ mod tests {
     #[test]
     fn test_find() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         assert!(vm.find("").is_none());
         assert!(vm.find("word-not-exist").is_none());
         vm.find("noop").expect("noop not found");
@@ -1999,24 +2454,28 @@ mod tests {
     #[bench]
     fn bench_find_word_not_exist(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         b.iter(|| vm.find("unknown"));
     }
 
     #[bench]
     fn bench_find_word_at_beginning_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         b.iter(|| vm.find("noop"));
     }
 
     #[bench]
     fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         b.iter(|| vm.find("bye"));
     }
 
     #[test]
     fn test_inner_interpreter_without_nest () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         let ip = vm.jit_memory.len();
         vm.compile_integer(3);
         vm.compile_integer(2);
@@ -2037,6 +2496,7 @@ mod tests {
     #[bench]
     fn bench_inner_interpreter_without_nest (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         let ip = vm.jit_memory.len();
         let idx = vm.find("noop").expect("noop not exists");
         vm.compile_word(idx);
@@ -2055,6 +2515,7 @@ mod tests {
     #[test]
     fn test_drop() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         assert!(vm.p_drop().is_none());
         assert!(vm.s_stack.is_empty());
@@ -2063,6 +2524,7 @@ mod tests {
     #[bench]
     fn bench_drop(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         b.iter(|| {
             vm.p_drop();
@@ -2073,6 +2535,7 @@ mod tests {
     #[test]
     fn test_nip() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         assert!(vm.nip().is_none());
@@ -2083,6 +2546,7 @@ mod tests {
     #[bench]
     fn bench_nip(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(1);
         b.iter(|| {
@@ -2094,6 +2558,7 @@ mod tests {
     #[test]
     fn test_swap () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         assert!(vm.swap().is_none());
@@ -2105,6 +2570,7 @@ mod tests {
     #[bench]
     fn bench_swap (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         b.iter(|| vm.swap());
@@ -2113,6 +2579,7 @@ mod tests {
     #[test]
     fn test_dup () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         assert!(vm.dup().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -2123,6 +2590,7 @@ mod tests {
     #[bench]
     fn bench_dup (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         b.iter(|| {
             vm.dup();
@@ -2133,6 +2601,7 @@ mod tests {
     #[test]
     fn test_over () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         assert!(vm.over().is_none());
@@ -2145,6 +2614,7 @@ mod tests {
     #[bench]
     fn bench_over (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         b.iter(|| {
@@ -2156,6 +2626,7 @@ mod tests {
     #[test]
     fn test_rot () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2169,6 +2640,7 @@ mod tests {
     #[bench]
     fn bench_rot (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2178,6 +2650,7 @@ mod tests {
     #[test]
     fn test_2drop () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         assert!(vm.two_drop().is_none());
@@ -2187,6 +2660,7 @@ mod tests {
     #[bench]
     fn bench_2drop (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         b.iter(|| {
             vm.s_stack.push(1);
             vm.s_stack.push(2);
@@ -2197,6 +2671,7 @@ mod tests {
     #[test]
     fn test_2dup () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         assert!(vm.two_dup().is_none());
@@ -2210,6 +2685,7 @@ mod tests {
     #[bench]
     fn bench_2dup (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         b.iter(|| {
@@ -2221,6 +2697,7 @@ mod tests {
     #[test]
     fn test_2swap () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2236,6 +2713,7 @@ mod tests {
     #[bench]
     fn bench_2swap (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2246,6 +2724,7 @@ mod tests {
     #[test]
     fn test_2over () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2258,6 +2737,7 @@ mod tests {
     #[bench]
     fn bench_2over (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         vm.s_stack.push(3);
@@ -2271,6 +2751,7 @@ mod tests {
     #[test]
     fn test_depth() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.depth();
         vm.depth();
         vm.depth();
@@ -2280,6 +2761,7 @@ mod tests {
     #[test]
     fn test_one_plus() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         assert!(vm.one_plus().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2289,6 +2771,7 @@ mod tests {
     #[bench]
     fn bench_one_plus(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(0);
         b.iter(|| {
             vm.one_plus();
@@ -2298,6 +2781,7 @@ mod tests {
     #[test]
     fn test_one_minus() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(2);
         assert!(vm.one_minus().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2307,6 +2791,7 @@ mod tests {
     #[bench]
     fn bench_one_minus(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(0);
         b.iter(|| {
             vm.one_minus();
@@ -2316,6 +2801,7 @@ mod tests {
     #[test]
     fn test_minus() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(5);
         vm.s_stack.push(7);
         assert!(vm.minus().is_none());
@@ -2326,6 +2812,7 @@ mod tests {
     #[bench]
     fn bench_minus(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(0);
         b.iter(|| {
             vm.dup();
@@ -2336,6 +2823,7 @@ mod tests {
     #[test]
     fn test_plus() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(5);
         vm.s_stack.push(7);
         assert!(vm.plus().is_none());
@@ -2346,6 +2834,7 @@ mod tests {
     #[bench]
     fn bench_plus(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         b.iter(|| {
             vm.dup();
@@ -2356,6 +2845,7 @@ mod tests {
     #[test]
     fn test_star () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(5);
         vm.s_stack.push(7);
         assert!(vm.star().is_none());
@@ -2366,6 +2856,7 @@ mod tests {
     #[bench]
     fn bench_star(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         b.iter(|| {
             vm.dup();
@@ -2376,6 +2867,7 @@ mod tests {
     #[test]
     fn test_slash () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(30);
         vm.s_stack.push(7);
         assert!(vm.slash().is_none());
@@ -2386,6 +2878,7 @@ mod tests {
     #[bench]
     fn bench_slash(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         b.iter(|| {
             vm.dup();
@@ -2396,6 +2889,7 @@ mod tests {
     #[test]
     fn test_mod () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(30);
         vm.s_stack.push(7);
         assert!(vm.p_mod().is_none());
@@ -2406,6 +2900,7 @@ mod tests {
     #[bench]
     fn bench_mod(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(2);
         b.iter(|| {
@@ -2417,6 +2912,7 @@ mod tests {
     #[test]
     fn test_slash_mod () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(30);
         vm.s_stack.push(7);
         assert!(vm.slash_mod().is_none());
@@ -2428,6 +2924,7 @@ mod tests {
     #[bench]
     fn bench_slash_mod(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push2(1, 2);
         b.iter(|| {
             vm.slash_mod();
@@ -2439,6 +2936,7 @@ mod tests {
     #[test]
     fn test_abs () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(-30);
         assert!(vm.abs().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2448,6 +2946,7 @@ mod tests {
     #[test]
     fn test_negate () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(30);
         assert!(vm.negate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2457,6 +2956,7 @@ mod tests {
     #[test]
     fn test_zero_less () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(-1);
         assert!(vm.zero_less().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2470,6 +2970,7 @@ mod tests {
     #[test]
     fn test_zero_equals () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(0);
         assert!(vm.zero_equals().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2487,6 +2988,7 @@ mod tests {
     #[test]
     fn test_zero_greater () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         assert!(vm.zero_greater().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2500,6 +3002,7 @@ mod tests {
     #[test]
     fn test_zero_not_equals () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(0);
         assert!(vm.zero_not_equals().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2517,6 +3020,7 @@ mod tests {
     #[test]
     fn test_less_than () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(-1);
         vm.s_stack.push(0);
         assert!(vm.less_than().is_none());
@@ -2532,6 +3036,7 @@ mod tests {
     #[test]
     fn test_equals () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(0);
         vm.s_stack.push(0);
         assert!(vm.equals().is_none());
@@ -2552,6 +3057,7 @@ mod tests {
     #[test]
     fn test_greater_than () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(0);
         assert!(vm.greater_than().is_none());
@@ -2567,6 +3073,7 @@ mod tests {
     #[test]
     fn test_not_equals () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(0);
         vm.s_stack.push(0);
         assert!(vm.not_equals().is_none());
@@ -2587,6 +3094,7 @@ mod tests {
     #[test]
     fn test_between () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(1);
         vm.s_stack.push(2);
@@ -2616,6 +3124,7 @@ mod tests {
     #[test]
     fn test_invert () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(707);
         assert!(vm.invert().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2625,6 +3134,7 @@ mod tests {
     #[test]
     fn test_and () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(707);
         vm.s_stack.push(007);
         assert!(vm.and().is_none());
@@ -2635,6 +3145,7 @@ mod tests {
     #[test]
     fn test_or () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(707);
         vm.s_stack.push(07);
         assert!(vm.or().is_none());
@@ -2645,6 +3156,7 @@ mod tests {
     #[test]
     fn test_xor () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(707);
         vm.s_stack.push(07);
         assert!(vm.xor().is_none());
@@ -2655,6 +3167,7 @@ mod tests {
     #[test]
     fn test_lshift () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(1);
         vm.s_stack.push(1);
         assert!(vm.lshift().is_none());
@@ -2670,6 +3183,7 @@ mod tests {
     #[test]
     fn test_rshift () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(8);
         vm.s_stack.push(1);
         assert!(vm.rshift().is_none());
@@ -2685,6 +3199,7 @@ mod tests {
     #[test]
     fn test_arshift () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.s_stack.push(8);
         vm.s_stack.push(1);
         assert!(vm.arshift().is_none());
@@ -2700,6 +3215,7 @@ mod tests {
     #[test]
     fn test_parse_word () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("hello world\t\r\n\"");
         assert!(vm.parse_word().is_none());
         assert_eq!(vm.last_token, "hello");
@@ -2714,6 +3230,7 @@ mod tests {
     #[test]
     fn test_evaluate () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("false true dup 1+ 2 -3");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 5);
@@ -2727,6 +3244,7 @@ mod tests {
     #[bench]
     fn bench_compile_words_at_beginning_of_wordlist (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("marker empty");
         assert!(vm.evaluate().is_none());
         b.iter(|| {
@@ -2739,6 +3257,7 @@ mod tests {
     #[bench]
     fn bench_compile_words_at_end_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("marker empty");
         vm.evaluate();
         b.iter(|| {
@@ -2751,6 +3270,7 @@ mod tests {
     #[test]
     fn test_colon_and_semi_colon() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": 2+3 2 3 + ; 2+3");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2760,6 +3280,7 @@ mod tests {
     #[test]
     fn test_constant () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("5 constant x x x");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -2770,6 +3291,7 @@ mod tests {
     #[test]
     fn test_variable_and_store_fetch () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("variable x  x @  3 x !  x @");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -2780,6 +3302,7 @@ mod tests {
     #[test]
     fn test_char_plus_and_chars() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("2 char+  9 chars");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.as_slice(), [3, 9]);
@@ -2788,6 +3311,7 @@ mod tests {
     #[test]
     fn test_cell_plus_and_cells() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("2 cell+  9 cells");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.as_slice(), [6, 36]);
@@ -2796,6 +3320,7 @@ mod tests {
     #[test]
     fn test_execute () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("1 2  ' swap execute");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -2806,6 +3331,7 @@ mod tests {
     #[test]
     fn test_here_allot () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("here 2 cells allot here -");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2815,6 +3341,7 @@ mod tests {
     #[test]
     fn test_here_comma_compile_interpret () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         let here = vm.jit_memory.len();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
         assert!(vm.evaluate().is_none());
@@ -2836,6 +3363,7 @@ mod tests {
     #[test]
     fn test_to_r_r_fetch_r_from () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2845,6 +3373,7 @@ mod tests {
     #[bench]
     fn bench_to_r_r_fetch_r_from (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": main 3 >r r@ drop r> drop ;");
         vm.evaluate();
         vm.set_source("' main");
@@ -2859,6 +3388,7 @@ mod tests {
     #[test]
     fn test_two_to_r_two_r_fetch_two_r_from () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2868,6 +3398,7 @@ mod tests {
     #[bench]
     fn bench_two_to_r_two_r_fetch_two_r_from (b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": main 1 2 2>r 2r@ 2drop 2r> 2drop ;");
         vm.evaluate();
         vm.set_source("' main");
@@ -2882,6 +3413,7 @@ mod tests {
     #[test]
     fn test_if_else_then () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": t1 0 if true else false then ; t1");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2895,6 +3427,7 @@ mod tests {
     #[test]
     fn test_begin_again () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2904,6 +3437,7 @@ mod tests {
     #[test]
     fn test_begin_while_repeat () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": t1 0 begin 1+ dup 3 <> while repeat ; t1");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2913,6 +3447,7 @@ mod tests {
     #[test]
     fn test_backlash () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("1 2 3 \\ 5 6 7");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 3);
@@ -2924,6 +3459,7 @@ mod tests {
     #[test]
     fn test_marker_unmark () {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("marker empty here empty here =");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -2933,6 +3469,7 @@ mod tests {
     #[test]
     fn test_quit() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": main 1 2 ; main 3 quit 5 6 7");
         match vm.evaluate() {
             Some(_) => assert!(false),
@@ -2952,6 +3489,7 @@ mod tests {
     #[test]
     fn test_abort() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("1 2 3 abort 5 6 7");
         match vm.evaluate() {
             Some(Abort) => assert!(true),
@@ -2963,6 +3501,7 @@ mod tests {
     #[test]
     fn test_bye() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source("1 2 3 bye 5 6 7");
         match vm.evaluate() {
             Some(Bye) => assert!(true),
@@ -2974,6 +3513,7 @@ mod tests {
     #[test]
     fn test_pause() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": test 1 2 3 pause 5 6 7 ; test");
         match vm.evaluate() {
             Some(Pause) => assert!(true),
@@ -2989,6 +3529,7 @@ mod tests {
     #[bench]
     fn bench_fib(b: &mut Bencher) {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": fib dup 2 < if drop 1 else dup 1- recurse swap 2 - recurse + then ;");
         assert!(vm.evaluate().is_none());
         vm.set_source(": main 7 fib drop ;");
@@ -3015,6 +3556,7 @@ mod tests {
     #[test]
     fn test_do_loop() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": main 1 5 0 do 1+ loop ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -3024,6 +3566,7 @@ mod tests {
     #[test]
     fn test_do_unloop_exit_loop() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -3033,6 +3576,7 @@ mod tests {
     #[test]
     fn test_do_plus_loop() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": main 1 5 0 do 1+ 2 +loop ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 1);
@@ -3046,6 +3590,7 @@ mod tests {
     #[test]
     fn test_do_leave_loop() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -3055,6 +3600,7 @@ mod tests {
     #[test]
     fn test_do_i_loop() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": main 3 0 do i loop ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 3);
@@ -3064,6 +3610,7 @@ mod tests {
     #[test]
     fn test_do_i_j_loop() {
         let vm = &mut VM::new(16);
+        vm.add_core();
         vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 4);

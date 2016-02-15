@@ -232,6 +232,7 @@ impl<T: fmt::Display> fmt::Debug for Stack<T> {
     }
 }
 
+#[deprecated]
 pub trait Extension {}
 
 // Virtual machine
@@ -244,6 +245,7 @@ pub struct VM {
     pub instruction_pointer: usize,
     word_pointer: usize,
     pub idx_lit: usize,
+    pub idx_flit: usize,
     idx_exit: usize,
     idx_zero_branch: usize,
     idx_branch: usize,
@@ -260,6 +262,7 @@ pub struct VM {
     // Last definition, 0 if last define fails.
     last_definition: usize,
     pub evaluators: Option<Vec<fn(&mut VM) -> Result<(), Exception>>>,
+    #[deprecated]
     pub extensions: HashMap<&'static str, Box<Extension>>,
 }
 
@@ -274,6 +277,7 @@ impl VM {
             instruction_pointer: 0,
             word_pointer: 0,
             idx_lit: 0,
+            idx_flit: 0,
             idx_exit: 0,
             idx_zero_branch: 0,
             idx_branch: 0,
@@ -390,6 +394,7 @@ pub trait Core {
   /// Get extension of type T with name.
   /// Note: Behavior is undefined when extension corresponding to name is not of type T.
   /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
+  #[deprecated]
   unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T>;
 
   //-----------------------

@@ -30,7 +30,7 @@ impl HasLoader for VM {
                         return None;
                     } else {
                         self.set_input_buffer(input_buffer);
-                        self.source_index = 0;
+                        self.state().source_index = 0;
                         match self.evaluate() {
                             Some(e) => {
                                 return Some(e);

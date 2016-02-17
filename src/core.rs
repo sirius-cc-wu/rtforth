@@ -243,33 +243,51 @@ impl<T: fmt::Display> fmt::Debug for Stack<T> {
 #[deprecated]
 pub trait Extension {}
 
+pub struct ForwardReferences {
+    pub idx_lit: usize,
+    pub idx_flit: usize,
+    pub idx_exit: usize,
+    pub idx_zero_branch: usize,
+    pub idx_branch: usize,
+    pub idx_do: usize,
+    pub idx_loop: usize,
+    pub idx_plus_loop: usize,
+    pub idx_s_quote: usize,
+    pub idx_type: usize,
+}
+
+pub struct State {
+    pub is_compiling: bool,
+    pub instruction_pointer: usize,
+    word_pointer: usize,
+    pub source_index: usize,
+    pub auto_flush: bool,
+    // Last definition, 0 if last define fails.
+    pub last_definition: usize,
+}
+
+impl State {
+    /// Idle is the result of new and reset, means that VM has nothing to do.
+    fn is_idle(&self) -> bool {
+        self.instruction_pointer == 0
+    }
+    pub fn word_pointer(&self) -> usize {
+        self.word_pointer
+    }
+}
+
 // Virtual machine
 pub struct VM {
-    pub is_compiling: bool,
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
     f_stk: Stack<f64>,
     jitmem: JitMemory,
-    pub instruction_pointer: usize,
-    word_pointer: usize,
-    pub idx_lit: usize,
-    pub idx_flit: usize,
-    idx_exit: usize,
-    idx_zero_branch: usize,
-    idx_branch: usize,
-    idx_do: usize,
-    idx_loop: usize,
-    idx_plus_loop: usize,
-    pub idx_s_quote: usize,
-    pub idx_type: usize,
     inbuf: Option<String>,
-    pub source_index: usize,
     tkn: Option<String>,
     outbuf: Option<String>,
-    pub auto_flush: bool,
-    // Last definition, 0 if last define fails.
-    last_definition: usize,
-    pub evaluators: Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>>,
+    state: State,
+    references: ForwardReferences,
+    evals: Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>>,
     #[deprecated]
     pub extensions: HashMap<&'static str, Box<Extension>>,
 }
@@ -277,30 +295,34 @@ pub struct VM {
 impl VM {
     pub fn new(pages: usize) -> VM {
         VM {
-            is_compiling: false,
             s_stk: Stack::with_capacity(64),
             r_stk: Stack::with_capacity(64),
             f_stk: Stack::with_capacity(16),
             jitmem: JitMemory::new(pages),
-            instruction_pointer: 0,
-            word_pointer: 0,
-            idx_lit: 0,
-            idx_flit: 0,
-            idx_exit: 0,
-            idx_zero_branch: 0,
-            idx_branch: 0,
-            idx_do: 0,
-            idx_loop: 0,
-            idx_plus_loop: 0,
-            idx_s_quote: 0,
-            idx_type: 0,
             inbuf: Some(String::with_capacity(128)),
-            source_index: 0,
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
-            auto_flush: true,
-            last_definition: 0,
-            evaluators: Some(vec![VM::evaluate_integer]),
+            state: State {
+                is_compiling: false,
+                instruction_pointer: 0,
+                word_pointer: 0,
+                source_index: 0,
+                auto_flush: true,
+                last_definition: 0,
+            },
+            references: ForwardReferences {
+                idx_lit: 0,
+                idx_flit: 0,
+                idx_exit: 0,
+                idx_zero_branch: 0,
+                idx_branch: 0,
+                idx_do: 0,
+                idx_loop: 0,
+                idx_plus_loop: 0,
+                idx_s_quote: 0,
+                idx_type: 0,
+            },
+            evals: Some(vec![Core::evaluate_integer]),
             extensions: HashMap::new(),
         }
     }
@@ -317,6 +339,10 @@ pub trait Access {
   fn s_stack(&mut self) -> &mut Stack<isize>;
   fn r_stack(&mut self) -> &mut Stack<isize>;
   fn f_stack(&mut self) -> &mut Stack<f64>;
+  fn state(&mut self) -> &mut State;
+  fn references(&mut self) -> &mut ForwardReferences;
+  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>>;
+  fn set_evaluators(&mut self, Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>);
 }
 
 impl Access for VM {
@@ -350,16 +376,23 @@ impl Access for VM {
   fn f_stack(&mut self) -> &mut Stack<f64> {
     &mut self.f_stk
   }
+  fn state(&mut self) -> &mut State {
+    &mut self.state
+  }
+  fn references(&mut self) -> &mut ForwardReferences {
+    &mut self.references
+  }
+  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>> {
+    &mut self.evals
+  }
+  fn set_evaluators(&mut self, evaluators: Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>) {
+    self.evals = Some(evaluators)
+  }
 }
 
 pub trait Core : Access {
   /// Add core primitives to self.
   fn add_core(&mut self);
-
-  /// Idle is the result of new and reset, means that VM has nothing to do.
-  fn is_idle(& self) -> bool;
-
-  fn word_pointer(&self) -> usize;
 
   fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
 
@@ -379,7 +412,7 @@ pub trait Core : Access {
   // Inner interpreter
   //------------------
 
-  /// Evaluate a compiled program following self.instruction_pointer.
+  /// Evaluate a compiled program following self.state().instruction_pointer.
   /// Any exception other than Nest causes termination of inner loop.
   /// Quit is aspecially used for this purpose.
   /// Never return None and Some(Nest).
@@ -923,53 +956,44 @@ impl Core for VM {
     self.add_primitive("abort", Core::abort);
     self.add_primitive("bye", Core::bye);
 
-    self.idx_lit = self.find("lit").expect("lit undefined");
-    self.idx_exit = self.find("exit").expect("exit undefined");
-    self.idx_zero_branch = self.find("0branch").expect("0branch undefined");
-    self.idx_branch = self.find("branch").expect("branch undefined");
-    self.idx_do = self.find("_do").expect("_do undefined");
-    self.idx_loop = self.find("_loop").expect("_loop undefined");
-    self.idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
+    self.references().idx_lit = self.find("lit").expect("lit undefined");
+    self.references().idx_exit = self.find("exit").expect("exit undefined");
+    self.references().idx_zero_branch = self.find("0branch").expect("0branch undefined");
+    self.references().idx_branch = self.find("branch").expect("branch undefined");
+    self.references().idx_do = self.find("_do").expect("_do undefined");
+    self.references().idx_loop = self.find("_loop").expect("_loop undefined");
+    self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
     let idx_halt = self.find("halt").expect("halt undefined");
     self.jit_memory().put_u32(idx_halt as u32, 0);
   }
 
-    /// Idle is the result of new and reset, means that VM has nothing to do.
-    fn is_idle(& self) -> bool {
-        self.instruction_pointer == 0
-    }
-
-    fn word_pointer(&self) -> usize {
-        self.word_pointer
-    }
-
     fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.jit_memory().compile_word(name, action);
-        self.last_definition = self.jit_memory().last();
+        self.state().last_definition = self.jit_memory().last();
     }
 
     fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        let def = self.last_definition;
+        let def = self.state().last_definition;
         self.jit_memory().mut_word(def).is_immediate = true;
     }
 
     fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        let def = self.last_definition;
+        let def = self.state().last_definition;
         self.jit_memory().mut_word(def).is_compile_only = true;
     }
 
     fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        let def = self.last_definition;
+        let def = self.state().last_definition;
         let w = self.jit_memory().mut_word(def);
         w.is_immediate = true;
         w.is_compile_only = true;
     }
 
     fn execute_word(&mut self, i: usize) -> Option<Exception> {
-        self.word_pointer = i;
+        self.state().word_pointer = i;
         (self.jit_memory().word(i).action)(self)
     }
 
@@ -990,17 +1014,17 @@ impl Core for VM {
 
 // Inner interpreter
 
-    /// Evaluate a compiled program following self.instruction_pointer.
+    /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception other than Nest causes termination of inner loop.
     /// Quit is aspecially used for this purpose.
     /// Never return None and Some(Nest).
     #[no_mangle]
     #[inline(never)]
     fn run(&mut self) -> Option<Exception> {
-        while 0 < self.instruction_pointer && self.instruction_pointer < self.jit_memory().len() {
-            let ip = self.instruction_pointer;
+        let mut ip = self.state().instruction_pointer;
+        while 0 < ip && ip < self.jit_memory().len() {
             let w = self.jit_memory().get_i32(ip) as usize;
-            self.instruction_pointer += mem::size_of::<i32>();
+            self.state().instruction_pointer += mem::size_of::<i32>();
             match self.execute_word (w) {
                 Some(e) => {
                     match e {
@@ -1010,8 +1034,9 @@ impl Core for VM {
                 },
                 None => {}
             }
+            ip = self.state().instruction_pointer;
         }
-        if self.instruction_pointer == 0 {
+        if ip == 0 {
             None
         } else {
             Some(InvalidMemoryAddress)
@@ -1026,7 +1051,7 @@ impl Core for VM {
 
     /// Compile integer 'i'.
     fn compile_integer (&mut self, i: isize) {
-        let idx = self.idx_lit as i32;
+        let idx = self.references().idx_lit as i32;
         self.jit_memory().compile_i32(idx);
         self.jit_memory().compile_i32(i as i32);
     }
@@ -1034,12 +1059,12 @@ impl Core for VM {
 // Evaluation
 
     fn interpret(& mut self) -> Option<Exception> {
-        self.is_compiling = false;
+        self.state().is_compiling = false;
         None
     }
 
     fn compile(& mut self) -> Option<Exception> {
-        self.is_compiling = true;
+        self.state().is_compiling = true;
         None
     }
 
@@ -1047,7 +1072,7 @@ impl Core for VM {
         let mut buffer = self.input_buffer().take().unwrap();
         buffer.clear();
         buffer.push_str(s);
-        self.source_index = 0;
+        self.state().source_index = 0;
         self.set_input_buffer(buffer);
     }
 
@@ -1059,7 +1084,7 @@ impl Core for VM {
         last_token.clear();
         let input_buffer = self.input_buffer().take().unwrap();
         {
-            let source = &input_buffer[self.source_index..input_buffer.len()];
+            let source = &input_buffer[self.state().source_index..input_buffer.len()];
             let mut cnt = 0;
             for ch in source.chars() {
                 cnt = cnt + 1;
@@ -1072,7 +1097,7 @@ impl Core for VM {
                     _ => last_token.push(ch)
                 };
             }
-            self.source_index = self.source_index + cnt;
+            self.state().source_index = self.state().source_index + cnt;
         }
         self.set_last_token(last_token);
         self.set_input_buffer(input_buffer);
@@ -1126,7 +1151,7 @@ impl Core for VM {
                 let mut last_token = self.last_token().take().unwrap();
                 last_token.clear();
                 {
-                    let source = &input_buffer[self.source_index..input_buffer.len()];
+                    let source = &input_buffer[self.state().source_index..input_buffer.len()];
                     let mut cnt = 0;
                     for ch in source.chars() {
                         cnt = cnt + 1;
@@ -1136,7 +1161,7 @@ impl Core for VM {
                             last_token.push(ch);
                         }
                     }
-                    self.source_index = self.source_index + cnt;
+                    self.state().source_index = self.state().source_index + cnt;
                 }
                 self.set_last_token(last_token);
                 self.set_input_buffer(input_buffer);
@@ -1157,7 +1182,7 @@ impl Core for VM {
     }
 
     fn imm_backslash(&mut self) -> Option<Exception> {
-        self.source_index = match *self.input_buffer() {
+        self.state().source_index = match *self.input_buffer() {
           Some(ref buf) => buf.len(),
           None => 0
         };
@@ -1185,9 +1210,9 @@ impl Core for VM {
                         is_immediate_word = word.is_immediate;
                         is_compile_only_word = word.is_compile_only;
                     }
-                    if self.is_compiling && !is_immediate_word {
+                    if self.state().is_compiling && !is_immediate_word {
                         self.compile_word(found_index);
-                    } else if !self.is_compiling && is_compile_only_word {
+                    } else if !self.state().is_compiling && is_compile_only_word {
                         result = Some(InterpretingACompileOnlyWord);
                         break;
                     } else {
@@ -1223,23 +1248,17 @@ impl Core for VM {
                 },
                 None => {
                     let mut done = false;
-                    // Swap out the evaluators to work around borrow checker.
-                    let optional_evaluators = self.evaluators.take();
-                    match optional_evaluators {
-                        Some(ref evaluators) => {
-                            for h in evaluators {
-                                match h(self, &last_token) {
-                                    Ok(_) => {
-                                        done = true;
-                                        break;
-                                    },
-                                    Err(_) => { continue }
-                                }
-                            }
-                        },
-                        None => {}
+                    let evaluators = self.evaluators().take().unwrap();
+                    for h in &evaluators {
+                        match h(self, &last_token) {
+                            Ok(_) => {
+                                done = true;
+                                break;
+                            },
+                            Err(_) => { continue }
+                        }
                     }
-                    self.evaluators = optional_evaluators;
+                    self.set_evaluators(evaluators);
                     if !done {
                         print!("{} ", &last_token);
                         result = Some(UndefinedWord);
@@ -1256,7 +1275,7 @@ impl Core for VM {
     fn evaluate_integer(&mut self, token: &str) -> Result<(), Exception> {
         match FromStr::from_str(token) {
             Ok(t) => {
-                if self.is_compiling {
+                if self.state().is_compiling {
                     self.compile_integer(t);
                 } else {
                     self.s_stack().push (t);
@@ -1270,14 +1289,14 @@ impl Core for VM {
     /// Extend `f` to evaluators.
     /// Will create a vector for evaluators if there was no evaluator.
     fn extend_evaluator(&mut self, f: fn(&mut VM, token: &str) -> Result<(), Exception>) {
-        let optional_evaluators = self.evaluators.take();
+        let optional_evaluators = self.evaluators().take();
         match optional_evaluators {
             Some(mut evaluators) => {
                 evaluators.push(f);
-                self.evaluators = Some(evaluators);
+                self.set_evaluators(evaluators);
             },
             None => {
-                self.evaluators = Some(vec![f]);
+                self.set_evaluators(vec![f]);
             }
         }
     }
@@ -1310,17 +1329,17 @@ impl Core for VM {
             Some(ReturnStackOverflow)
         } else {
             unsafe {
-                ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), self.instruction_pointer as isize);
+                ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), self.state().instruction_pointer as isize);
             }
             self.r_stack().len += 1;
-            let wp = self.word_pointer;
-            self.instruction_pointer = self.jit_memory().word(wp).dfa;
+            let wp = self.state().word_pointer;
+            self.state().instruction_pointer = self.jit_memory().word(wp).dfa;
             Some(Nest)
         }
     }
 
     fn p_var(&mut self) -> Option<Exception> {
-        let wp = self.word_pointer;
+        let wp = self.state().word_pointer;
         let dfa = self.jit_memory().word(wp).dfa as isize;
         match self.s_stack().push(dfa) {
             Some(_) => Some(StackOverflow),
@@ -1329,7 +1348,7 @@ impl Core for VM {
     }
 
     fn p_const(&mut self) -> Option<Exception> {
-        let wp = self.word_pointer;
+        let wp = self.state().word_pointer;
         let dfa = self.jit_memory().word(wp).dfa;
         let value = self.jit_memory().get_i32(dfa) as isize;
         match self.s_stack().push(value) {
@@ -1339,7 +1358,7 @@ impl Core for VM {
     }
 
     fn p_fvar(&mut self) -> Option<Exception> {
-        let wp = self.word_pointer;
+        let wp = self.state().word_pointer;
         let dfa = self.jit_memory().word(wp).dfa as isize;
         match self.s_stack().push(dfa) {
             Some(_) => Some(StackOverflow),
@@ -1356,11 +1375,11 @@ impl Core for VM {
         }
         if !last_token.is_empty() {
             self.jit_memory().compile_word(&last_token, action);
-            self.last_definition = self.jit_memory().last();
+            self.state().last_definition = self.jit_memory().last();
             self.set_last_token(last_token);
             None
         } else {
-            self.last_definition = 0;
+            self.state().last_definition = 0;
             self.set_last_token(last_token);
             Some(UnexpectedEndOfFile)
         }
@@ -1370,7 +1389,7 @@ impl Core for VM {
         match self.define(Core::nest) {
             Some(e) => Some(e),
             None => {
-                let def = self.last_definition;
+                let def = self.state().last_definition;
                 self.jit_memory().mut_word(def).hidden = true;
                 self.compile()
             }
@@ -1378,10 +1397,10 @@ impl Core for VM {
     }
 
     fn semicolon(&mut self) -> Option<Exception>{
-        if self.last_definition != 0 {
-            let idx = self.idx_exit as i32;
+        if self.state().last_definition != 0 {
+            let idx = self.references().idx_exit as i32;
             self.jit_memory().compile_i32(idx);
-            let def = self.last_definition;
+            let def = self.state().last_definition;
             self.jit_memory().mut_word(def).hidden = false;
         }
         self.interpret()
@@ -1417,7 +1436,7 @@ impl Core for VM {
     }
 
     fn unmark(&mut self) -> Option<Exception> {
-        let wp = self.word_pointer;
+        let wp = self.state().word_pointer;
         let dfa = self.jit_memory().word(wp).dfa;
         let jlen = self.jit_memory().get_i32(dfa) as usize;
         self.jit_memory().truncate(jlen);
@@ -1435,8 +1454,8 @@ impl Core for VM {
 // Control
 
     fn branch(&mut self) -> Option<Exception> {
-        let ip = self.instruction_pointer;
-        self.instruction_pointer = self.jit_memory().get_i32(ip) as usize;
+        let ip = self.state().instruction_pointer;
+        self.state().instruction_pointer = self.jit_memory().get_i32(ip) as usize;
         None
     }
 
@@ -1446,7 +1465,7 @@ impl Core for VM {
                 if v == 0 {
                     self.branch()
                 } else {
-                    self.instruction_pointer += mem::size_of::<i32>();
+                    self.state().instruction_pointer += mem::size_of::<i32>();
                     None
                 }
             },
@@ -1461,11 +1480,11 @@ impl Core for VM {
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded.
     fn _do(&mut self) -> Option<Exception> {
-        let ip = self.instruction_pointer as isize;
+        let ip = self.state().instruction_pointer as isize;
         match self.r_stack().push(ip) {
             Some(_) => Some(ReturnStackOverflow),
             None => {
-                self.instruction_pointer += mem::size_of::<i32>();
+                self.state().instruction_pointer += mem::size_of::<i32>();
                 self.two_to_r()
             }
         }
@@ -1487,7 +1506,7 @@ impl Core for VM {
                 } else {
                     match self.r_stack().pop() {
                         Some(_) => {
-                            self.instruction_pointer += mem::size_of::<i32>();
+                            self.state().instruction_pointer += mem::size_of::<i32>();
                             None
                         },
                         None => Some(ReturnStackUnderflow)
@@ -1517,7 +1536,7 @@ impl Core for VM {
                         } else {
                             match self.r_stack().pop() {
                                 Some(_) => {
-                                    self.instruction_pointer += mem::size_of::<i32>();
+                                    self.state().instruction_pointer += mem::size_of::<i32>();
                                     None
                                 },
                                 None => Some(ReturnStackUnderflow)
@@ -1547,7 +1566,7 @@ impl Core for VM {
     fn leave(&mut self) -> Option<Exception> {
         match self.r_stack().pop3() {
             Some((third, _, _)) => {
-                self.instruction_pointer = self.jit_memory().get_i32(third as usize) as usize;
+                self.state().instruction_pointer = self.jit_memory().get_i32(third as usize) as usize;
                 None
             },
             None => Some(ReturnStackUnderflow)
@@ -1580,7 +1599,7 @@ impl Core for VM {
     }
 
     fn imm_if(&mut self) -> Option<Exception> {
-        let idx = self.idx_zero_branch as i32;
+        let idx = self.references().idx_zero_branch as i32;
         self.jit_memory().compile_i32(idx);
         self.jit_memory().compile_i32(0);
         self.here()
@@ -1589,7 +1608,7 @@ impl Core for VM {
     fn imm_else(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
             Some(if_part) => {
-                let idx = self.idx_branch as i32;
+                let idx = self.references().idx_branch as i32;
                 self.jit_memory().compile_i32(idx);
                 self.jit_memory().compile_i32(0);
                 self.here();
@@ -1617,7 +1636,7 @@ impl Core for VM {
     }
 
     fn imm_while(&mut self) -> Option<Exception> {
-        let idx = self.idx_zero_branch as i32;
+        let idx = self.references().idx_zero_branch as i32;
         self.jit_memory().compile_i32(idx);
         self.jit_memory().compile_i32(0);
         self.here()
@@ -1626,7 +1645,7 @@ impl Core for VM {
     fn imm_repeat(&mut self) -> Option<Exception> {
         match self.s_stack().pop2() {
             Some((begin_part, while_part)) => {
-                let idx = self.idx_branch as i32;
+                let idx = self.references().idx_branch as i32;
                 self.jit_memory().compile_i32(idx);
                 self.jit_memory().compile_i32(begin_part as i32);
                 let here = self.jit_memory().len();
@@ -1640,7 +1659,7 @@ impl Core for VM {
     fn imm_again(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
             Some(begin_part) => {
-                let idx = self.idx_branch as i32;
+                let idx = self.references().idx_branch as i32;
                 self.jit_memory().compile_i32(idx);
                 self.jit_memory().compile_i32(begin_part as i32);
                 None
@@ -1659,7 +1678,7 @@ impl Core for VM {
     ///
     /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
     fn imm_do(&mut self) -> Option<Exception> {
-        let idx = self.idx_do as i32;
+        let idx = self.references().idx_do as i32;
         self.jit_memory().compile_i32(idx);
         self.jit_memory().compile_i32(0);
         self.here()
@@ -1674,7 +1693,7 @@ impl Core for VM {
     fn imm_loop(&mut self) -> Option<Exception>{
         match self.s_stack().pop() {
             Some(do_part) => {
-                let idx = self.idx_loop as i32;
+                let idx = self.references().idx_loop as i32;
                 self.jit_memory().compile_i32(idx);
                 self.jit_memory().compile_i32(do_part as i32);
                 let here = self.jit_memory().len();
@@ -1694,7 +1713,7 @@ impl Core for VM {
     fn imm_plus_loop(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
             Some(do_part) => {
-                let idx = self.idx_plus_loop as i32;
+                let idx = self.references().idx_plus_loop as i32;
                 self.jit_memory().compile_i32(idx);
                 self.jit_memory().compile_i32(do_part as i32);
                 let here = self.jit_memory().len();
@@ -1797,12 +1816,12 @@ impl Core for VM {
             Some(StackOverflow)
         } else {
             unsafe {
-                let ip = self.instruction_pointer;
+                let ip = self.state().instruction_pointer;
                 let v = self.jit_memory().get_i32(ip) as isize;
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize), v);
             }
             self.s_stack().len += 1;
-            self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>();
+            self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>();
             None
         }
     }
@@ -2276,7 +2295,7 @@ impl Core for VM {
         } else {
             self.r_stack().len -= 1;
             unsafe {
-                self.instruction_pointer = ptr::read(self.r_stack().inner.offset(self.r_stack().len as isize)) as usize;
+                self.state().instruction_pointer = ptr::read(self.r_stack().inner.offset(self.r_stack().len as isize)) as usize;
             }
             None
         }
@@ -2534,8 +2553,8 @@ impl Core for VM {
           Some(ref mut buf) => buf.clear(),
           None => {}
         }
-        self.source_index = 0;
-        self.instruction_pointer = 0;
+        self.state().source_index = 0;
+        self.state().instruction_pointer = 0;
         self.interpret();
     }
 
@@ -2547,7 +2566,7 @@ impl Core for VM {
     }
 
     fn halt(&mut self) -> Option<Exception> {
-        self.instruction_pointer = 0;
+        self.state().instruction_pointer = 0;
         Some(Quit)
     }
 
@@ -2620,7 +2639,7 @@ mod tests {
         vm.compile_integer(3);
         vm.compile_integer(2);
         vm.compile_integer(1);
-        vm.instruction_pointer = ip;
+        vm.state().instruction_pointer = ip;
         match vm.run() {
             Some(e) => {
                 match e {
@@ -2647,7 +2666,7 @@ mod tests {
         vm.compile_word(idx);
         vm.compile_word(idx);
         b.iter(|| {
-            vm.instruction_pointer = ip;
+            vm.state().instruction_pointer = ip;
             vm.run();
         });
     }
@@ -3359,10 +3378,10 @@ mod tests {
         vm.set_source("hello world\t\r\n\"");
         assert!(vm.parse_word().is_none());
         assert_eq!(vm.last_token().clone().unwrap(), "hello");
-        assert_eq!(vm.source_index, 6);
+        assert_eq!(vm.state().source_index, 6);
         assert!(vm.parse_word().is_none());
         assert_eq!(vm.last_token().clone().unwrap(), "world");
-        assert_eq!(vm.source_index, 12);
+        assert_eq!(vm.state().source_index, 12);
         assert!(vm.parse_word().is_none());
         assert_eq!(vm.last_token().clone().unwrap(), "\"");
     }
@@ -3496,8 +3515,8 @@ mod tests {
         assert_eq!(vm.jit_memory().get_i32(0), idx_halt as i32);
         assert_eq!(vm.jit_memory().get_i32(here+0), 1);
         assert_eq!(vm.jit_memory().get_i32(here+4), 2);
-        assert_eq!(vm.jit_memory().get_i32(here+8), vm.idx_lit as i32);
-        assert_eq!(vm.jit_memory().get_i32(here+12), vm.idx_exit as i32);
+        assert_eq!(vm.jit_memory().get_i32(here+8), vm.references().idx_lit as i32);
+        assert_eq!(vm.jit_memory().get_i32(here+12), vm.references().idx_exit as i32);
     }
 
     #[test]
@@ -3621,9 +3640,9 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Some(1));
         assert_eq!(vm.r_stack().len, 0);
         assert_eq!(vm.input_buffer().clone().unwrap().len(), 0);
-        assert_eq!(vm.source_index, 0);
-        assert_eq!(vm.instruction_pointer, 0);
-        assert!(!vm.is_compiling);
+        assert_eq!(vm.state().source_index, 0);
+        assert_eq!(vm.state().instruction_pointer, 0);
+        assert!(!vm.state().is_compiling);
     }
 
     #[test]
@@ -3647,7 +3666,7 @@ mod tests {
             Some(Bye) => assert!(true),
             _ => assert!(false)
         }
-        assert!(vm.is_idle());
+        assert!(vm.state().is_idle());
     }
 
     #[test]
@@ -3659,10 +3678,10 @@ mod tests {
             Some(Pause) => assert!(true),
             _ => assert!(false)
         }
-        assert!(!vm.is_idle());
+        assert!(!vm.state().is_idle());
         assert_eq!(vm.s_stack().len(), 3);
         vm.run();
-        assert!(vm.is_idle());
+        assert!(vm.state().is_idle());
         assert_eq!(vm.s_stack().len(), 6);
     }
 

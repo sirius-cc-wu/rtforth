@@ -76,8 +76,8 @@ impl Output for VM {
         self.add_immediate(".(", Output::dot_paren);
         self.add_primitive(".", Output::dot);
         self.add_primitive("f.", Output::fdot);
-        self.idx_s_quote = self.find("_s\"").expect("_s\" undefined");
-        self.idx_type = self.find("type").expect("type undefined");
+        self.references().idx_s_quote = self.find("_s\"").expect("_s\" undefined");
+        self.references().idx_type = self.find("type").expect("type undefined");
     }
 
     fn emit(&mut self) -> Option<Exception> {
@@ -88,7 +88,7 @@ impl Output for VM {
                   Some(ref mut buffer) => buffer.push(ch as u8 as char),
                   None => {}
                 }
-                if self.auto_flush {
+                if self.state().auto_flush {
                     self.flush();
                 }
                 None
@@ -108,7 +108,7 @@ impl Output for VM {
                     }
                     self.set_output_buffer(output_buffer);
                 }
-                if self.auto_flush {
+                if self.state().auto_flush {
                     self.flush();
                 }
                 None
@@ -117,13 +117,13 @@ impl Output for VM {
     }
 
     fn p_s_quote(&mut self) -> Option<Exception> {
-        let ip = self.instruction_pointer;
+        let ip = self.state().instruction_pointer;
         let cnt = self.jit_memory().get_i32(ip);
-        let addr = self.instruction_pointer + mem::size_of::<i32>();
+        let addr = self.state().instruction_pointer + mem::size_of::<i32>();
         match self.s_stack().push2(addr as isize, cnt as isize) {
             Some(_) => { Some(StackOverflow) },
             None => {
-                self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>() + cnt as usize;
+                self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
                 None
             }
         }
@@ -132,17 +132,17 @@ impl Output for VM {
     fn s_quote(&mut self) -> Option<Exception> {
         let input_buffer = self.input_buffer().take().unwrap();
         {
-            let source = &input_buffer[self.source_index..input_buffer.len()];
+            let source = &input_buffer[self.state().source_index..input_buffer.len()];
             let (s, cnt)= match source.find('"') {
-                Some(n) => (&input_buffer[self.source_index..self.source_index + n], n),
+                Some(n) => (&input_buffer[self.state().source_index..self.state().source_index + n], n),
                 None => (source, source.len())
             };
-            let idx = self.idx_s_quote as i32;
+            let idx = self.references().idx_s_quote as i32;
             self.jit_memory().compile_i32(idx);
             self.jit_memory().compile_i32(cnt as i32);
             self.jit_memory().compile_str(s);
             // ignore the space following S"
-            self.source_index = self.source_index + 1 + cnt as usize + 1;
+            self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;
         }
         self.set_input_buffer(input_buffer);
         None
@@ -150,7 +150,7 @@ impl Output for VM {
 
     fn dot_quote(&mut self) -> Option<Exception> {
         self.s_quote();
-        let idx_type = self.idx_type;
+        let idx_type = self.references().idx_type;
         self.compile_word(idx_type);
         None
     }
@@ -210,7 +210,7 @@ mod tests {
     fn test_s_quote_and_type () {
         let vm = &mut VM::new(16);
         vm.add_core();
-        vm.auto_flush = false;
+        vm.state().auto_flush = false;
         vm.add_output();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
         assert!(vm.evaluate().is_none());
@@ -222,7 +222,7 @@ mod tests {
     fn test_emit_and_flush () {
         let vm = &mut VM::new(16);
         vm.add_core();
-        vm.auto_flush = false;
+        vm.state().auto_flush = false;
         vm.add_output();
         vm.set_source("42 emit 43 emit");
         assert!(vm.evaluate().is_none());

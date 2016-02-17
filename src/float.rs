@@ -81,12 +81,12 @@ impl Float for VM {
         self.add_primitive ("f<", Float::f_less_than);
 
         self.extend_evaluator(Float::evaluate_float);
-        self.idx_flit = self.find("flit").expect("flit undefined");
+        self.references().idx_flit = self.find("flit").expect("flit undefined");
     }
 
     /// Compile float 'f'.
     fn compile_float (&mut self, f: f64) {
-        let idx_flit = self.idx_flit;
+        let idx_flit = self.references().idx_flit;
         self.jit_memory().compile_i32(idx_flit as i32);
         self.jit_memory().compile_f64(f);
     }
@@ -95,11 +95,11 @@ impl Float for VM {
     fn evaluate_float(&mut self, token: &str) -> Result<(), Exception> {
         match FromStr::from_str(token) {
             Ok(t) => {
-                if self.idx_flit == 0 {
+                if self.references().idx_flit == 0 {
                     print!("{} ", "Floating point");
                     Err(UnsupportedOperation)
                 } else {
-                    if self.is_compiling {
+                    if self.state().is_compiling {
                         self.compile_float(t);
                     } else {
                         self.f_stack().push (t);
@@ -114,19 +114,19 @@ impl Float for VM {
     }
 
     fn flit(&mut self) -> Option<Exception> {
-        let ip = self.instruction_pointer as usize;
+        let ip = self.state().instruction_pointer as usize;
         let v = self.jit_memory().get_f64(ip);
         match self.f_stack().push (v) {
             Some(_) => Some(FloatingPointStackOverflow),
             None => {
-                self.instruction_pointer = self.instruction_pointer + mem::size_of::<f64>();
+                self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<f64>();
                 None
             }
         }
     }
 
     fn p_fconst(&mut self) -> Option<Exception> {
-        let wp = self.word_pointer();
+        let wp = self.state().word_pointer();
         let dfa = self.jit_memory().word(wp).dfa();
         let v = self.jit_memory().get_f64(dfa);
         match self.f_stack().push(v) {

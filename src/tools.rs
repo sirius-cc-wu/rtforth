@@ -1,4 +1,4 @@
-use core::{VM, Core};
+use core::{VM, Access, Core};
 use exception::Exception::{
     self
 };
@@ -27,17 +27,15 @@ impl Tools for VM {
 
     fn words(&mut self) -> Option<Exception> {
         println!("");
-        let mut w = self.jit_memory.word(self.jit_memory.last());
-        loop {
+        let mut link = self.jit_memory().last();
+        while !(link == 0) {
+            let w = self.jit_memory().word(link);
+            link = w.link;
             if !w.hidden {
                 print!("{} ", w.name );
             }
-            if w.link != 0 {
-                w = self.jit_memory.word(w.link);
-            } else {
-                return None
-            }
         }
+        None
     }
 
     fn dot_s(&mut self) -> Option<Exception> {

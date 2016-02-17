@@ -241,7 +241,7 @@ pub struct VM {
     pub s_stack: Stack<isize>,
     r_stack: Stack<isize>,
     pub f_stack: Stack<f64>,
-    pub jit_memory: JitMemory,
+    jitmem: JitMemory,
     pub instruction_pointer: usize,
     word_pointer: usize,
     pub idx_lit: usize,
@@ -273,7 +273,7 @@ impl VM {
             s_stack: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
             f_stack: Stack::with_capacity(16),
-            jit_memory: JitMemory::new(pages),
+            jitmem: JitMemory::new(pages),
             instruction_pointer: 0,
             word_pointer: 0,
             idx_lit: 0,
@@ -298,7 +298,17 @@ impl VM {
     }
 }
 
-pub trait Core {
+pub trait Access {
+  fn jit_memory(&mut self) -> &mut JitMemory;
+}
+
+impl Access for VM {
+  fn jit_memory(&mut self) -> &mut JitMemory {
+    &mut self.jitmem
+  }
+}
+
+pub trait Core : Access {
   /// Add core primitives to self.
   fn add_core(&mut self);
 
@@ -319,7 +329,7 @@ pub trait Core {
 
   /// Find the word with name 'name'.
   /// If not found returns zero.
-  fn find(&self, name: &str) -> Option<usize>;
+  fn find(&mut self, name: &str) -> Option<usize>;
 
   //------------------
   // Inner interpreter
@@ -877,7 +887,7 @@ impl Core for VM {
     self.idx_loop = self.find("_loop").expect("_loop undefined");
     self.idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
     let idx_halt = self.find("halt").expect("halt undefined");
-    self.jit_memory.put_u32(idx_halt as u32, 0);
+    self.jit_memory().put_u32(idx_halt as u32, 0);
   }
 
     /// Idle is the result of new and reset, means that VM has nothing to do.
@@ -890,49 +900,48 @@ impl Core for VM {
     }
 
     fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-        self.jit_memory.compile_word(name, action);
-        self.last_definition = self.jit_memory.last();
+        self.jit_memory().compile_word(name, action);
+        self.last_definition = self.jit_memory().last();
     }
 
     fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        self.jit_memory.mut_word(self.last_definition).is_immediate = true;
+        let def = self.last_definition;
+        self.jit_memory().mut_word(def).is_immediate = true;
     }
 
     fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        self.jit_memory.mut_word(self.last_definition).is_compile_only = true;
+        let def = self.last_definition;
+        self.jit_memory().mut_word(def).is_compile_only = true;
     }
 
     fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
         self.add_primitive (name, action);
-        let w = self.jit_memory.mut_word(self.last_definition);
+        let def = self.last_definition;
+        let w = self.jit_memory().mut_word(def);
         w.is_immediate = true;
         w.is_compile_only = true;
     }
 
     fn execute_word(&mut self, i: usize) -> Option<Exception> {
         self.word_pointer = i;
-        (self.jit_memory.word(i).action)(self)
+        (self.jit_memory().word(i).action)(self)
     }
 
     /// Find the word with name 'name'.
     /// If not found returns zero.
-    fn find(&self, name: &str) -> Option<usize> {
-        let mut i = self.jit_memory.last();
-        let mut w = self.jit_memory.word(i);
-        loop {
+    fn find(&mut self, name: &str) -> Option<usize> {
+        let mut i = self.jit_memory().last();
+        while !(i==0) {
+            let mut w = self.jit_memory().word(i);
             if !w.hidden && w.name.eq_ignore_ascii_case(name) {
                 return Some(i);
             } else {
-                if w.link != 0 {
-                    i = w.link;
-                    w = self.jit_memory.word(i);
-                } else {
-                    return None
-                }
+                i = w.link;
             }
         }
+        None
     }
 
 // Inner interpreter
@@ -944,8 +953,9 @@ impl Core for VM {
     #[no_mangle]
     #[inline(never)]
     fn run(&mut self) -> Option<Exception> {
-        while 0 < self.instruction_pointer && self.instruction_pointer < self.jit_memory.len() {
-            let w = self.jit_memory.get_i32(self.instruction_pointer) as usize;
+        while 0 < self.instruction_pointer && self.instruction_pointer < self.jit_memory().len() {
+            let ip = self.instruction_pointer;
+            let w = self.jit_memory().get_i32(ip) as usize;
             self.instruction_pointer += mem::size_of::<i32>();
             match self.execute_word (w) {
                 Some(e) => {
@@ -967,13 +977,14 @@ impl Core for VM {
 // Compiler
 
     fn compile_word(&mut self, word_index: usize) {
-        self.jit_memory.compile_i32(word_index as i32);
+        self.jit_memory().compile_i32(word_index as i32);
     }
 
     /// Compile integer 'i'.
     fn compile_integer (&mut self, i: isize) {
-        self.jit_memory.compile_i32(self.idx_lit as i32);
-        self.jit_memory.compile_i32(i as i32);
+        let idx = self.idx_lit as i32;
+        self.jit_memory().compile_i32(idx);
+        self.jit_memory().compile_i32(i as i32);
     }
 
 // Evaluation
@@ -1129,7 +1140,7 @@ impl Core for VM {
                     let is_immediate_word;
                     let is_compile_only_word;
                     {
-                        let word = &self.jit_memory.word(found_index);
+                        let word = &self.jit_memory().word(found_index);
                         is_immediate_word = word.is_immediate;
                         is_compile_only_word = word.is_compile_only;
                     }
@@ -1261,27 +1272,35 @@ impl Core for VM {
                 ptr::write(self.r_stack.inner.offset(self.r_stack.len as isize), self.instruction_pointer as isize);
             }
             self.r_stack.len += 1;
-            self.instruction_pointer = self.jit_memory.word(self.word_pointer).dfa;
+            let wp = self.word_pointer;
+            self.instruction_pointer = self.jit_memory().word(wp).dfa;
             Some(Nest)
         }
     }
 
     fn p_var(&mut self) -> Option<Exception> {
-        match self.s_stack.push(self.jit_memory.word(self.word_pointer).dfa as isize) {
+        let wp = self.word_pointer;
+        let dfa = self.jit_memory().word(wp).dfa as isize;
+        match self.s_stack.push(dfa) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
     fn p_const(&mut self) -> Option<Exception> {
-        match self.s_stack.push(self.jit_memory.get_i32(self.jit_memory.word(self.word_pointer).dfa) as isize) {
+        let wp = self.word_pointer;
+        let dfa = self.jit_memory().word(wp).dfa;
+        let value = self.jit_memory().get_i32(dfa) as isize;
+        match self.s_stack.push(value) {
             Some(_) => Some(StackOverflow),
             None => None
         }
     }
 
     fn p_fvar(&mut self) -> Option<Exception> {
-        match self.s_stack.push(self.jit_memory.word(self.word_pointer).dfa as isize) {
+        let wp = self.word_pointer;
+        let dfa = self.jit_memory().word(wp).dfa as isize;
+        match self.s_stack.push(dfa) {
             Some(_) => Some(StackOverflow),
             None => None
         }
@@ -1295,8 +1314,8 @@ impl Core for VM {
             None => {}
         }
         if !last_token.is_empty() {
-            self.jit_memory.compile_word(&last_token, action);
-            self.last_definition = self.jit_memory.last();
+            self.jit_memory().compile_word(&last_token, action);
+            self.last_definition = self.jit_memory().last();
             self.last_token = Some(last_token);
             None
         } else {
@@ -1310,7 +1329,8 @@ impl Core for VM {
         match self.define(VM::nest) {
             Some(e) => Some(e),
             None => {
-                self.jit_memory.mut_word(self.last_definition).hidden = true;
+                let def = self.last_definition;
+                self.jit_memory().mut_word(def).hidden = true;
                 self.compile()
             }
         }
@@ -1318,8 +1338,10 @@ impl Core for VM {
 
     fn semicolon(&mut self) -> Option<Exception>{
         if self.last_definition != 0 {
-            self.jit_memory.compile_i32(self.idx_exit as i32);
-            self.jit_memory.mut_word(self.last_definition).hidden = false;
+            let idx = self.idx_exit as i32;
+            self.jit_memory().compile_i32(idx);
+            let def = self.last_definition;
+            self.jit_memory().mut_word(def).hidden = false;
         }
         self.interpret()
     }
@@ -1332,7 +1354,7 @@ impl Core for VM {
         match self.define(VM::p_var) {
             Some(e) => Some(e),
             None => {
-                self.jit_memory.compile_i32(0);
+                self.jit_memory().compile_i32(0);
                 None
             }
         }
@@ -1344,7 +1366,7 @@ impl Core for VM {
                 match self.define(VM::p_const) {
                     Some(e) => Some(e),
                     None => {
-                        self.jit_memory.compile_i32(v as i32);
+                        self.jit_memory().compile_i32(v as i32);
                         None
                     }
                 }
@@ -1354,28 +1376,26 @@ impl Core for VM {
     }
 
     fn unmark(&mut self) -> Option<Exception> {
-        let jlen;
-        {
-            let w = self.jit_memory.word(self.word_pointer);
-            let dfa = w.dfa;
-            jlen = self.jit_memory.get_i32(dfa) as usize;
-        }
-        self.jit_memory.truncate(jlen);
-        self.jit_memory.set_last(self.word_pointer);
+        let wp = self.word_pointer;
+        let dfa = self.jit_memory().word(wp).dfa;
+        let jlen = self.jit_memory().get_i32(dfa) as usize;
+        self.jit_memory().truncate(jlen);
+        self.jit_memory().set_last(wp);
         None
     }
 
     fn marker(&mut self) -> Option<Exception> {
         self.define(VM::unmark);
-        let jlen = self.jit_memory.len() as i32;
-        self.jit_memory.compile_i32(jlen+(mem::size_of::<i32>() as i32));
+        let jlen = self.jit_memory().len() as i32;
+        self.jit_memory().compile_i32(jlen+(mem::size_of::<i32>() as i32));
         None
     }
 
 // Control
 
     fn branch(&mut self) -> Option<Exception> {
-        self.instruction_pointer = self.jit_memory.get_i32(self.instruction_pointer) as usize;
+        let ip = self.instruction_pointer;
+        self.instruction_pointer = self.jit_memory().get_i32(ip) as usize;
         None
     }
 
@@ -1485,7 +1505,7 @@ impl Core for VM {
     fn leave(&mut self) -> Option<Exception> {
         match self.r_stack.pop3() {
             Some((third, _, _)) => {
-                self.instruction_pointer = self.jit_memory.get_i32(third as usize) as usize;
+                self.instruction_pointer = self.jit_memory().get_i32(third as usize) as usize;
                 None
             },
             None => Some(ReturnStackUnderflow)
@@ -1518,19 +1538,21 @@ impl Core for VM {
     }
 
     fn imm_if(&mut self) -> Option<Exception> {
-        self.jit_memory.compile_i32(self.idx_zero_branch as i32);
-        self.jit_memory.compile_i32(0);
+        let idx = self.idx_zero_branch as i32;
+        self.jit_memory().compile_i32(idx);
+        self.jit_memory().compile_i32(0);
         self.here()
     }
 
     fn imm_else(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(if_part) => {
-                self.jit_memory.compile_i32(self.idx_branch as i32);
-                self.jit_memory.compile_i32(0);
+                let idx = self.idx_branch as i32;
+                self.jit_memory().compile_i32(idx);
+                self.jit_memory().compile_i32(0);
                 self.here();
-                let here = self.jit_memory.len();
-                self.jit_memory.put_i32(here as i32, (if_part - mem::size_of::<i32>() as isize) as usize);
+                let here = self.jit_memory().len();
+                self.jit_memory().put_i32(here as i32, (if_part - mem::size_of::<i32>() as isize) as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1540,8 +1562,8 @@ impl Core for VM {
     fn imm_then(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(branch_part) => {
-                let here = self.jit_memory.len();
-                self.jit_memory.put_i32(here as i32, (branch_part - mem::size_of::<i32>() as isize) as usize);
+                let here = self.jit_memory().len();
+                self.jit_memory().put_i32(here as i32, (branch_part - mem::size_of::<i32>() as isize) as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1553,18 +1575,20 @@ impl Core for VM {
     }
 
     fn imm_while(&mut self) -> Option<Exception> {
-        self.jit_memory.compile_i32(self.idx_zero_branch as i32);
-        self.jit_memory.compile_i32(0);
+        let idx = self.idx_zero_branch as i32;
+        self.jit_memory().compile_i32(idx);
+        self.jit_memory().compile_i32(0);
         self.here()
     }
 
     fn imm_repeat(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((begin_part, while_part)) => {
-                self.jit_memory.compile_i32(self.idx_branch as i32);
-                self.jit_memory.compile_i32(begin_part as i32);
-                let here = self.jit_memory.len();
-                self.jit_memory.put_i32(here as i32, (while_part - mem::size_of::<i32>() as isize) as usize);
+                let idx = self.idx_branch as i32;
+                self.jit_memory().compile_i32(idx);
+                self.jit_memory().compile_i32(begin_part as i32);
+                let here = self.jit_memory().len();
+                self.jit_memory().put_i32(here as i32, (while_part - mem::size_of::<i32>() as isize) as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1574,8 +1598,9 @@ impl Core for VM {
     fn imm_again(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(begin_part) => {
-                self.jit_memory.compile_i32(self.idx_branch as i32);
-                self.jit_memory.compile_i32(begin_part as i32);
+                let idx = self.idx_branch as i32;
+                self.jit_memory().compile_i32(idx);
+                self.jit_memory().compile_i32(begin_part as i32);
                 None
             },
             None => Some(StackUnderflow)
@@ -1583,8 +1608,8 @@ impl Core for VM {
     }
 
     fn imm_recurse(&mut self) -> Option<Exception> {
-        let last = self.jit_memory.last();
-        self.jit_memory.compile_u32(last as u32);
+        let last = self.jit_memory().last();
+        self.jit_memory().compile_u32(last as u32);
         None
     }
 
@@ -1592,8 +1617,9 @@ impl Core for VM {
     ///
     /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
     fn imm_do(&mut self) -> Option<Exception> {
-        self.jit_memory.compile_i32(self.idx_do as i32);
-        self.jit_memory.compile_i32(0);
+        let idx = self.idx_do as i32;
+        self.jit_memory().compile_i32(idx);
+        self.jit_memory().compile_i32(0);
         self.here()
     }
 
@@ -1606,10 +1632,11 @@ impl Core for VM {
     fn imm_loop(&mut self) -> Option<Exception>{
         match self.s_stack.pop() {
             Some(do_part) => {
-                self.jit_memory.compile_i32(self.idx_loop as i32);
-                self.jit_memory.compile_i32(do_part as i32);
-                let here = self.jit_memory.len();
-                self.jit_memory.put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
+                let idx = self.idx_loop as i32;
+                self.jit_memory().compile_i32(idx);
+                self.jit_memory().compile_i32(do_part as i32);
+                let here = self.jit_memory().len();
+                self.jit_memory().put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1625,10 +1652,11 @@ impl Core for VM {
     fn imm_plus_loop(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(do_part) => {
-                self.jit_memory.compile_i32(self.idx_plus_loop as i32);
-                self.jit_memory.compile_i32(do_part as i32);
-                let here = self.jit_memory.len();
-                self.jit_memory.put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
+                let idx = self.idx_plus_loop as i32;
+                self.jit_memory().compile_i32(idx);
+                self.jit_memory().compile_i32(do_part as i32);
+                let here = self.jit_memory().len();
+                self.jit_memory().put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -1727,7 +1755,8 @@ impl Core for VM {
             Some(StackOverflow)
         } else {
             unsafe {
-                let v = self.jit_memory.get_i32(self.instruction_pointer) as isize;
+                let ip = self.instruction_pointer;
+                let v = self.jit_memory().get_i32(ip) as isize;
                 ptr::write(self.s_stack.inner.offset((self.s_stack.len) as isize), v);
             }
             self.s_stack.len += 1;
@@ -2216,11 +2245,13 @@ impl Core for VM {
     /// x is the value stored at a-addr.
     fn fetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.push(self.jit_memory.get_i32(t as usize) as isize) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
+            Some(t) => {
+              let value = self.jit_memory().get_i32(t as usize) as isize;
+              match self.s_stack.push(value) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              }
+            },
             None => Some(StackUnderflow)
         }
     }
@@ -2231,7 +2262,7 @@ impl Core for VM {
     fn store(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) => {
-                self.jit_memory.put_i32(n as i32, t as usize);
+                self.jit_memory().put_i32(n as i32, t as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -2244,11 +2275,13 @@ impl Core for VM {
     /// character size, the unused high-order bits are all zeroes.
     fn c_fetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
-            Some(t) =>
-                match self.s_stack.push(self.jit_memory.get_u8(t as usize) as isize) {
+            Some(t) => {
+                let value = self.jit_memory().get_u8(t as usize) as isize;
+                match self.s_stack.push(value) {
                     Some(_) => Some(StackOverflow),
                     None => None
-                },
+                }
+            },
             None => Some(StackUnderflow)
         }
     }
@@ -2261,7 +2294,7 @@ impl Core for VM {
     fn c_store(&mut self) -> Option<Exception> {
         match self.s_stack.pop2() {
             Some((n,t)) => {
-                self.jit_memory.put_u8(n as u8, t as usize);
+                self.jit_memory().put_u8(n as u8, t as usize);
                 None
             },
             None => Some(StackUnderflow)
@@ -2310,7 +2343,8 @@ impl Core for VM {
     ///
     /// addr is the data-space pointer.
     fn here(&mut self) -> Option<Exception> {
-        match self.s_stack.push(self.jit_memory.len() as isize) {
+        let len = self.jit_memory().len() as isize;
+        match self.s_stack.push(len) {
             Some(_) => Some(StackOverflow),
             None => None
         }
@@ -2324,7 +2358,7 @@ impl Core for VM {
     fn allot(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
-                self.jit_memory.allot(v);
+                self.jit_memory().allot(v);
                 None
             },
             None => Some(StackUnderflow)
@@ -2340,7 +2374,7 @@ impl Core for VM {
     fn comma(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
-                self.jit_memory.compile_i32(v as i32);
+                self.jit_memory().compile_i32(v as i32);
                 None
             },
             None => Some(StackUnderflow)
@@ -2483,7 +2517,7 @@ impl Core for VM {
 
 #[cfg(test)]
 mod tests {
-    use super::{VM, Core};
+    use super::{VM, Access, Core};
     use core::test::Bencher;
     use std::mem;
     use exception::Exception::{
@@ -2534,7 +2568,7 @@ mod tests {
     fn test_inner_interpreter_without_nest () {
         let vm = &mut VM::new(16);
         vm.add_core();
-        let ip = vm.jit_memory.len();
+        let ip = vm.jit_memory().len();
         vm.compile_integer(3);
         vm.compile_integer(2);
         vm.compile_integer(1);
@@ -2555,7 +2589,7 @@ mod tests {
     fn bench_inner_interpreter_without_nest (b: &mut Bencher) {
         let vm = &mut VM::new(16);
         vm.add_core();
-        let ip = vm.jit_memory.len();
+        let ip = vm.jit_memory().len();
         let idx = vm.find("noop").expect("noop not exists");
         vm.compile_word(idx);
         vm.compile_word(idx);
@@ -3400,7 +3434,7 @@ mod tests {
     fn test_here_comma_compile_interpret () {
         let vm = &mut VM::new(16);
         vm.add_core();
-        let here = vm.jit_memory.len();
+        let here = vm.jit_memory().len();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.len(), 2);
@@ -3411,11 +3445,11 @@ mod tests {
             None => { assert!(false); }
         }
         let idx_halt = vm.find("halt").expect("halt undefined");
-        assert_eq!(vm.jit_memory.get_i32(0), idx_halt as i32);
-        assert_eq!(vm.jit_memory.get_i32(here+0), 1);
-        assert_eq!(vm.jit_memory.get_i32(here+4), 2);
-        assert_eq!(vm.jit_memory.get_i32(here+8), vm.idx_lit as i32);
-        assert_eq!(vm.jit_memory.get_i32(here+12), vm.idx_exit as i32);
+        assert_eq!(vm.jit_memory().get_i32(0), idx_halt as i32);
+        assert_eq!(vm.jit_memory().get_i32(here+0), 1);
+        assert_eq!(vm.jit_memory().get_i32(here+4), 2);
+        assert_eq!(vm.jit_memory().get_i32(here+8), vm.idx_lit as i32);
+        assert_eq!(vm.jit_memory().get_i32(here+12), vm.idx_exit as i32);
     }
 
     #[test]

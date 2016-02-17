@@ -1,5 +1,5 @@
 use std::mem;
-use core::{VM, Core};
+use core::{VM, Access, Core};
 use core::Heap;
 use exception::Exception::{
     self,
@@ -101,11 +101,12 @@ impl Output for VM {
             None => Some(StackUnderflow),
             Some((addr, len)) => {
                 {
-                    let s = &self.jit_memory.get_str(addr as usize, len as usize);
-                    match self.output_buffer {
-                      Some(ref mut buffer) => buffer.push_str(s),
-                      None => {}
+                    let mut output_buffer = self.output_buffer.take().unwrap();
+                    {
+                        let s = &self.jit_memory().get_str(addr as usize, len as usize);
+                        output_buffer.push_str(s);
                     }
+                    self.output_buffer = Some(output_buffer);
                 }
                 if self.auto_flush {
                     self.flush();
@@ -116,7 +117,8 @@ impl Output for VM {
     }
 
     fn p_s_quote(&mut self) -> Option<Exception> {
-        let cnt = self.jit_memory.get_i32(self.instruction_pointer);
+        let ip = self.instruction_pointer;
+        let cnt = self.jit_memory().get_i32(ip);
         let addr = self.instruction_pointer + mem::size_of::<i32>();
         match self.s_stack.push2(addr as isize, cnt as isize) {
             Some(_) => { Some(StackOverflow) },
@@ -135,9 +137,10 @@ impl Output for VM {
                 Some(n) => (&input_buffer[self.source_index..self.source_index + n], n),
                 None => (source, source.len())
             };
-            self.jit_memory.compile_i32(self.idx_s_quote as i32);
-            self.jit_memory.compile_i32(cnt as i32);
-            self.jit_memory.compile_str(s);
+            let idx = self.idx_s_quote as i32;
+            self.jit_memory().compile_i32(idx);
+            self.jit_memory().compile_i32(cnt as i32);
+            self.jit_memory().compile_str(s);
             // ignore the space following S"
             self.source_index = self.source_index + 1 + cnt as usize + 1;
         }

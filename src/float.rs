@@ -1,4 +1,4 @@
-use core::{VM, Core, Heap};
+use core::{VM, Access, Core, Heap};
 use std::str::FromStr;
 
 use std::mem;
@@ -87,8 +87,8 @@ impl Float for VM {
     /// Compile float 'f'.
     fn compile_float (&mut self, f: f64) {
         let idx_flit = self.idx_flit;
-        self.jit_memory.compile_i32(idx_flit as i32);
-        self.jit_memory.compile_f64(f);
+        self.jit_memory().compile_i32(idx_flit as i32);
+        self.jit_memory().compile_f64(f);
     }
 
     /// Evaluate float.
@@ -114,7 +114,8 @@ impl Float for VM {
     }
 
     fn flit(&mut self) -> Option<Exception> {
-        let v = self.jit_memory.get_f64(self.instruction_pointer as usize);
+        let ip = self.instruction_pointer as usize;
+        let v = self.jit_memory().get_f64(ip);
         match self.f_stack.push (v) {
             Some(_) => Some(FloatingPointStackOverflow),
             None => {
@@ -125,8 +126,9 @@ impl Float for VM {
     }
 
     fn p_fconst(&mut self) -> Option<Exception> {
-        let dfa = self.jit_memory.word(self.word_pointer()).dfa();
-        let v = self.jit_memory.get_f64(dfa);
+        let wp = self.word_pointer();
+        let dfa = self.jit_memory().word(wp).dfa();
+        let v = self.jit_memory().get_f64(dfa);
         match self.f_stack.push(v) {
             Some(_) => Some(FloatingPointStackOverflow),
             None => None
@@ -135,7 +137,7 @@ impl Float for VM {
 
     fn fvariable(&mut self) -> Option<Exception> {
         self.define(VM::p_fvar);
-        self.jit_memory.compile_f64(0.0);
+        self.jit_memory().compile_f64(0.0);
         None
     }
 
@@ -143,7 +145,7 @@ impl Float for VM {
         match self.f_stack.pop() {
             Some(v) => {
                 self.define(VM::p_fconst);
-                self.jit_memory.compile_f64(v);
+                self.jit_memory().compile_f64(v);
                 None
             },
             None => Some(FloatingPointStackUnderflow)
@@ -154,11 +156,13 @@ impl Float for VM {
 
     fn ffetch(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
-            Some(t) =>
-                match self.f_stack.push(self.jit_memory.get_f64(t as usize)) {
+            Some(t) => {
+                let value = self.jit_memory().get_f64(t as usize);
+                match self.f_stack.push(value) {
                     Some(_) => Some(FloatingPointStackOverflow),
                     None => None
-                },
+                }
+            },
             None => Some(StackUnderflow)
         }
     }
@@ -168,7 +172,7 @@ impl Float for VM {
             Some(t) =>
                 match self.f_stack.pop() {
                     Some(n) => {
-                        self.jit_memory.put_f64(n, t as usize);
+                        self.jit_memory().put_f64(n, t as usize);
                         None
                     },
                     None => Some(StackUnderflow)

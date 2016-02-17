@@ -1,4 +1,4 @@
-use core::{VM, Core};
+use core::{VM, Access, Core};
 use std::ops::BitAnd;
 use std::ops::Shr;
 use exception::Exception;
@@ -61,7 +61,7 @@ impl Facility for VM {
     fn ntime(&mut self) -> Option<Exception> {
         let t = time::precise_time_ns();
         if t > usize::max_value() as u64 {
-            match self.s_stack.push2(
+            match self.s_stack().push2(
                 t.bitand(usize::max_value() as u64) as isize,
                 t.shr(usize::max_value().count_ones()) as isize
             ) {
@@ -69,7 +69,7 @@ impl Facility for VM {
                 None => None
             }
         } else {
-            match self.s_stack.push2(t as isize, 0) {
+            match self.s_stack().push2(t as isize, 0) {
                 Some(_) => Some(StackOverflow),
                 None => None
             }
@@ -79,7 +79,7 @@ impl Facility for VM {
     fn utime(&mut self) -> Option<Exception> {
         let t = time::precise_time_ns()/1000;
         if t > usize::max_value() as u64 {
-            match self.s_stack.push2(
+            match self.s_stack().push2(
                 t.bitand(usize::max_value() as u64) as isize,
                 t.shr(usize::max_value().count_ones()) as isize
             ) {
@@ -87,7 +87,7 @@ impl Facility for VM {
                 None => None
             }
         } else {
-            match self.s_stack.push2(t as isize, 0) {
+            match self.s_stack().push2(t as isize, 0) {
                 Some(_) => Some(StackOverflow),
                 None => None
             }

@@ -81,7 +81,7 @@ impl Output for VM {
     }
 
     fn emit(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             None => Some(StackUnderflow),
             Some(ch) => {
                 match *self.output_buffer() {
@@ -97,7 +97,7 @@ impl Output for VM {
     }
 
     fn p_type(&mut self) -> Option<Exception> {
-        match self.s_stack.pop2() {
+        match self.s_stack().pop2() {
             None => Some(StackUnderflow),
             Some((addr, len)) => {
                 {
@@ -120,7 +120,7 @@ impl Output for VM {
         let ip = self.instruction_pointer;
         let cnt = self.jit_memory().get_i32(ip);
         let addr = self.instruction_pointer + mem::size_of::<i32>();
-        match self.s_stack.push2(addr as isize, cnt as isize) {
+        match self.s_stack().push2(addr as isize, cnt as isize) {
             Some(_) => { Some(StackOverflow) },
             None => {
                 self.instruction_pointer = self.instruction_pointer + mem::size_of::<i32>() + cnt as usize;
@@ -157,7 +157,7 @@ impl Output for VM {
 
     fn dot_paren(&mut self) -> Option<Exception> {
         let last_token = self.last_token().take().unwrap();
-        self.s_stack.push(')' as isize);
+        self.s_stack().push(')' as isize);
         self.parse();
         match *self.output_buffer() {
           Some(ref mut buffer) => {
@@ -170,7 +170,7 @@ impl Output for VM {
     }
 
     fn dot(&mut self) -> Option<Exception> {
-        match self.s_stack.pop() {
+        match self.s_stack().pop() {
             Some(n) => {
                 print!("{} ", n);
                 None
@@ -226,10 +226,10 @@ mod tests {
         vm.add_output();
         vm.set_source("42 emit 43 emit");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.s_stack.as_slice(), []);
+        assert_eq!(vm.s_stack().as_slice(), []);
         assert_eq!(vm.output_buffer().clone().unwrap(), "*+");
         assert!(vm.flush().is_none());
-        assert_eq!(vm.s_stack.as_slice(), []);
+        assert_eq!(vm.s_stack().as_slice(), []);
         assert_eq!(vm.output_buffer().clone().unwrap(), "");
     }
 

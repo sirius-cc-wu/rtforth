@@ -20,23 +20,29 @@ impl HasLoader for VM {
             }
         };
         loop {
-            self.input_buffer.clear();
-            let result = reader.read_line(&mut self.input_buffer);
+            let mut input_buffer = self.input_buffer.take().unwrap();
+            input_buffer.clear();
+            let result = reader.read_line(&mut input_buffer);
             match result {
                 Ok(_) => {
-                    if self.input_buffer.is_empty() {
+                    if input_buffer.is_empty() {
+                        self.input_buffer = Some(input_buffer);
                         return None;
                     } else {
+                        self.input_buffer = Some(input_buffer);
                         self.source_index = 0;
                         match self.evaluate() {
                             Some(e) => {
-                                return Some(e)
+                                return Some(e);
                             },
                             None => {}
                         };
                     }
                 },
-                Err(_) => return Some(FileIOException)
+                Err(_) => {
+                  self.input_buffer = Some(input_buffer);
+                  return Some(FileIOException);
+                }
             };
         }
     }

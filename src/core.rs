@@ -254,7 +254,7 @@ pub struct VM {
     idx_plus_loop: usize,
     pub idx_s_quote: usize,
     pub idx_type: usize,
-    pub input_buffer: String,
+    pub input_buffer: Option<String>,
     pub source_index: usize,
     pub last_token: String,
     pub output_buffer: Option<String>,
@@ -286,7 +286,7 @@ impl VM {
             idx_plus_loop: 0,
             idx_s_quote: 0,
             idx_type: 0,
-            input_buffer: String::with_capacity(128),
+            input_buffer: Some(String::with_capacity(128)),
             source_index: 0,
             last_token: String::with_capacity(64),
             output_buffer: Some(String::with_capacity(128)),
@@ -989,9 +989,14 @@ impl Core for VM {
     }
 
     fn set_source(&mut self, s: &str) {
-        self.input_buffer.clear();
-        self.input_buffer.push_str(s);
-        self.source_index = 0;
+        match self.input_buffer {
+          Some(ref mut buffer) => {
+            buffer.clear();
+            buffer.push_str(s);
+            self.source_index = 0;
+          },
+          None => {}
+        }
     }
 
     /// Run-time: ( "ccc" -- )
@@ -999,20 +1004,24 @@ impl Core for VM {
     /// Parse word delimited by white space, skipping leading white spaces.
     fn parse_word(&mut self) -> Option<Exception> {
         self.last_token.clear();
-        let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
-        let mut cnt = 0;
-        for ch in source.chars() {
-            cnt = cnt + 1;
-            match ch {
-                '\t' | '\n' | '\r' | ' ' => {
-                    if !self.last_token.is_empty() {
-                        break;
-                    }
-                },
-                _ => self.last_token.push(ch)
-            };
+        let input_buffer = self.input_buffer.take().unwrap();
+        {
+            let source = &input_buffer[self.source_index..input_buffer.len()];
+            let mut cnt = 0;
+            for ch in source.chars() {
+                cnt = cnt + 1;
+                match ch {
+                    '\t' | '\n' | '\r' | ' ' => {
+                        if !self.last_token.is_empty() {
+                            break;
+                        }
+                    },
+                    _ => self.last_token.push(ch)
+                };
+            }
+            self.source_index = self.source_index + cnt;
         }
-        self.source_index = self.source_index + cnt;
+        self.input_buffer = Some(input_buffer);
         None
     }
 
@@ -1053,23 +1062,30 @@ impl Core for VM {
     ///
     /// Parse ccc delimited by the delimiter char.
     fn parse(&mut self) -> Option<Exception> {
+        let input_buffer = self.input_buffer.take().unwrap();
         match self.s_stack.pop() {
             Some(v) => {
                 self.last_token.clear();
-                let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
-                let mut cnt = 0;
-                for ch in source.chars() {
-                    cnt = cnt + 1;
-                    if ch as isize == v {
-                        break;
-                    } else {
-                        self.last_token.push(ch);
+                {
+                    let source = &input_buffer[self.source_index..input_buffer.len()];
+                    let mut cnt = 0;
+                    for ch in source.chars() {
+                        cnt = cnt + 1;
+                        if ch as isize == v {
+                            break;
+                        } else {
+                            self.last_token.push(ch);
+                        }
                     }
+                    self.source_index = self.source_index + cnt;
                 }
-                self.source_index = self.source_index + cnt;
+                self.input_buffer = Some(input_buffer);
                 None
             },
-            None => Some(StackUnderflow)
+            None => {
+              self.input_buffer = Some(input_buffer);
+              Some(StackUnderflow)
+            }
         }
     }
 
@@ -1081,7 +1097,10 @@ impl Core for VM {
     }
 
     fn imm_backslash(&mut self) -> Option<Exception> {
-        self.source_index = self.input_buffer.len();
+        self.source_index = match self.input_buffer {
+          Some(ref buf) => buf.len(),
+          None => 0
+        };
         None
     }
 
@@ -2398,7 +2417,10 @@ impl Core for VM {
     /// Called by VM's client upon Quit.
     fn reset(&mut self) {
         self.r_stack.len = 0;
-        self.input_buffer.clear();
+        match self.input_buffer {
+          Some(ref mut buf) => buf.clear(),
+          None => {}
+        }
         self.source_index = 0;
         self.instruction_pointer = 0;
         self.interpret();
@@ -3485,7 +3507,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.r_stack.len, 0);
-        assert_eq!(vm.input_buffer.len(), 0);
+        assert_eq!(vm.input_buffer.clone().unwrap().len(), 0);
         assert_eq!(vm.source_index, 0);
         assert_eq!(vm.instruction_pointer, 0);
         assert!(!vm.is_compiling);

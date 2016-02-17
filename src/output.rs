@@ -128,16 +128,20 @@ impl Output for VM {
     }
 
     fn s_quote(&mut self) -> Option<Exception> {
-        let source = &self.input_buffer[self.source_index..self.input_buffer.len()];
-        let (s, cnt)= match source.find('"') {
-            Some(n) => (&self.input_buffer[self.source_index..self.source_index + n], n),
-            None => (source, source.len())
-        };
-        self.jit_memory.compile_i32(self.idx_s_quote as i32);
-        self.jit_memory.compile_i32(cnt as i32);
-        self.jit_memory.compile_str(s);
-        // ignore the space following S"
-        self.source_index = self.source_index + 1 + cnt as usize + 1;
+        let input_buffer = self.input_buffer.take().unwrap();
+        {
+            let source = &input_buffer[self.source_index..input_buffer.len()];
+            let (s, cnt)= match source.find('"') {
+                Some(n) => (&input_buffer[self.source_index..self.source_index + n], n),
+                None => (source, source.len())
+            };
+            self.jit_memory.compile_i32(self.idx_s_quote as i32);
+            self.jit_memory.compile_i32(cnt as i32);
+            self.jit_memory.compile_str(s);
+            // ignore the space following S"
+            self.source_index = self.source_index + 1 + cnt as usize + 1;
+        }
+        self.input_buffer = Some(input_buffer);
         None
     }
 

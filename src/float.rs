@@ -50,37 +50,37 @@ pub trait Float {
 
 impl Float for VM {
     fn add_float(&mut self) {
-        self.add_primitive("flit", VM::flit);
-        self.add_primitive ("fconstant", VM::fconstant);
-        self.add_primitive ("fvariable", VM::fvariable);
-        self.add_primitive ("f!", VM::fstore);
-        self.add_primitive ("f@", VM::ffetch);
-        self.add_primitive ("fabs", VM::fabs);
-        self.add_primitive ("fsin", VM::fsin);
-        self.add_primitive ("fcos", VM::fcos);
-        self.add_primitive ("ftan", VM::ftan);
-        self.add_primitive ("fasin", VM::fasin);
-        self.add_primitive ("facos", VM::facos);
-        self.add_primitive ("fatan", VM::fatan);
-        self.add_primitive ("fatan2", VM::fatan2);
-        self.add_primitive ("fsqrt", VM::fsqrt);
-        self.add_primitive ("fdrop", VM::fdrop);
-        self.add_primitive ("fdup", VM::fdup);
-        self.add_primitive ("fswap", VM::fswap);
-        self.add_primitive ("fnip", VM::fnip);
-        self.add_primitive ("frot", VM::frot);
-        self.add_primitive ("fover", VM::fover);
-        self.add_primitive ("n>f", VM::n_to_f);
-        self.add_primitive ("f+", VM::fplus);
-        self.add_primitive ("f-", VM::fminus);
-        self.add_primitive ("f*", VM::fstar);
-        self.add_primitive ("f/", VM::fslash);
-        self.add_primitive ("f~", VM::fproximate);
-        self.add_primitive ("f0<", VM::f_zero_less_than);
-        self.add_primitive ("f0=", VM::f_zero_equals);
-        self.add_primitive ("f<", VM::f_less_than);
+        self.add_primitive("flit", Float::flit);
+        self.add_primitive ("fconstant", Float::fconstant);
+        self.add_primitive ("fvariable", Float::fvariable);
+        self.add_primitive ("f!", Float::fstore);
+        self.add_primitive ("f@", Float::ffetch);
+        self.add_primitive ("fabs", Float::fabs);
+        self.add_primitive ("fsin", Float::fsin);
+        self.add_primitive ("fcos", Float::fcos);
+        self.add_primitive ("ftan", Float::ftan);
+        self.add_primitive ("fasin", Float::fasin);
+        self.add_primitive ("facos", Float::facos);
+        self.add_primitive ("fatan", Float::fatan);
+        self.add_primitive ("fatan2", Float::fatan2);
+        self.add_primitive ("fsqrt", Float::fsqrt);
+        self.add_primitive ("fdrop", Float::fdrop);
+        self.add_primitive ("fdup", Float::fdup);
+        self.add_primitive ("fswap", Float::fswap);
+        self.add_primitive ("fnip", Float::fnip);
+        self.add_primitive ("frot", Float::frot);
+        self.add_primitive ("fover", Float::fover);
+        self.add_primitive ("n>f", Float::n_to_f);
+        self.add_primitive ("f+", Float::fplus);
+        self.add_primitive ("f-", Float::fminus);
+        self.add_primitive ("f*", Float::fstar);
+        self.add_primitive ("f/", Float::fslash);
+        self.add_primitive ("f~", Float::fproximate);
+        self.add_primitive ("f0<", Float::f_zero_less_than);
+        self.add_primitive ("f0=", Float::f_zero_equals);
+        self.add_primitive ("f<", Float::f_less_than);
 
-        self.extend_evaluator(VM::evaluate_float);
+        self.extend_evaluator(Float::evaluate_float);
         self.idx_flit = self.find("flit").expect("flit undefined");
     }
 
@@ -136,7 +136,7 @@ impl Float for VM {
     }
 
     fn fvariable(&mut self) -> Option<Exception> {
-        self.define(VM::p_fvar);
+        self.define(Core::p_fvar);
         self.jit_memory().compile_f64(0.0);
         None
     }
@@ -144,7 +144,7 @@ impl Float for VM {
     fn fconstant(&mut self) -> Option<Exception> {
         match self.f_stack.pop() {
             Some(v) => {
-                self.define(VM::p_fconst);
+                self.define(Float::p_fconst);
                 self.jit_memory().compile_f64(v);
                 None
             },

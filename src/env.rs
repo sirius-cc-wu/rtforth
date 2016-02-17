@@ -22,8 +22,8 @@ pub trait Environment {
 
 impl Environment for VM {
     fn add_environment(&mut self) {
-        self.add_primitive("max-n", VM::max_n);
-        self.add_primitive("max-u", VM::max_u);
+        self.add_primitive("max-n", Environment::max_n);
+        self.add_primitive("max-u", Environment::max_u);
     }
 
     fn max_n(&mut self) -> Option<Exception> {

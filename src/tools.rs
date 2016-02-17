@@ -21,8 +21,8 @@ pub trait Tools {
 
 impl Tools for VM {
     fn add_tools(&mut self) {
-        self.add_primitive("words", VM::words);
-        self.add_primitive(".s", VM::dot_s);
+        self.add_primitive("words", Tools::words);
+        self.add_primitive(".s", Tools::dot_s);
     }
 
     fn words(&mut self) -> Option<Exception> {

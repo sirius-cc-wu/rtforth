@@ -54,8 +54,8 @@ pub trait Facility {
 
 impl Facility for VM {
     fn add_facility(&mut self) {
-        self.add_primitive("ntime", VM::ntime);
-        self.add_primitive("utime", VM::utime);
+        self.add_primitive("ntime", Facility::ntime);
+        self.add_primitive("utime", Facility::utime);
     }
 
     fn ntime(&mut self) -> Option<Exception> {

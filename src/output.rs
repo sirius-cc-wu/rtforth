@@ -68,14 +68,14 @@ pub trait Output {
 impl Output for VM {
 
     fn add_output(&mut self) {
-        self.add_primitive("emit", VM::emit);
-        self.add_primitive("type", VM::p_type);
-        self.add_primitive("_s\"", VM::p_s_quote);
-        self.add_immediate("s\"", VM::s_quote);
-        self.add_immediate(".\"", VM::dot_quote);
-        self.add_immediate(".(", VM::dot_paren);
-        self.add_primitive(".", VM::dot);
-        self.add_primitive("f.", VM::fdot);
+        self.add_primitive("emit", Output::emit);
+        self.add_primitive("type", Output::p_type);
+        self.add_primitive("_s\"", Output::p_s_quote);
+        self.add_immediate("s\"", Output::s_quote);
+        self.add_immediate(".\"", Output::dot_quote);
+        self.add_immediate(".(", Output::dot_paren);
+        self.add_primitive(".", Output::dot);
+        self.add_primitive("f.", Output::fdot);
         self.idx_s_quote = self.find("_s\"").expect("_s\" undefined");
         self.idx_type = self.find("type").expect("type undefined");
     }
@@ -84,7 +84,7 @@ impl Output for VM {
         match self.s_stack.pop() {
             None => Some(StackUnderflow),
             Some(ch) => {
-                match self.output_buffer {
+                match *self.output_buffer() {
                   Some(ref mut buffer) => buffer.push(ch as u8 as char),
                   None => {}
                 }
@@ -101,12 +101,12 @@ impl Output for VM {
             None => Some(StackUnderflow),
             Some((addr, len)) => {
                 {
-                    let mut output_buffer = self.output_buffer.take().unwrap();
+                    let mut output_buffer = self.output_buffer().take().unwrap();
                     {
                         let s = &self.jit_memory().get_str(addr as usize, len as usize);
                         output_buffer.push_str(s);
                     }
-                    self.output_buffer = Some(output_buffer);
+                    self.set_output_buffer(output_buffer);
                 }
                 if self.auto_flush {
                     self.flush();
@@ -130,7 +130,7 @@ impl Output for VM {
     }
 
     fn s_quote(&mut self) -> Option<Exception> {
-        let input_buffer = self.input_buffer.take().unwrap();
+        let input_buffer = self.input_buffer().take().unwrap();
         {
             let source = &input_buffer[self.source_index..input_buffer.len()];
             let (s, cnt)= match source.find('"') {
@@ -144,7 +144,7 @@ impl Output for VM {
             // ignore the space following S"
             self.source_index = self.source_index + 1 + cnt as usize + 1;
         }
-        self.input_buffer = Some(input_buffer);
+        self.set_input_buffer(input_buffer);
         None
     }
 
@@ -156,16 +156,16 @@ impl Output for VM {
     }
 
     fn dot_paren(&mut self) -> Option<Exception> {
-        let last_token = self.last_token.take().unwrap();
+        let last_token = self.last_token().take().unwrap();
         self.s_stack.push(')' as isize);
         self.parse();
-        match self.output_buffer {
+        match *self.output_buffer() {
           Some(ref mut buffer) => {
             buffer.extend(last_token.chars());
           }
           None => {}
         }
-        self.last_token = Some(last_token);
+        self.set_last_token(last_token);
         None
     }
 
@@ -190,7 +190,7 @@ impl Output for VM {
     }
 
     fn flush(&mut self) -> Option<Exception> {
-      match self.output_buffer {
+      match *self.output_buffer() {
         Some(ref mut buffer) => {
           print!("{}", buffer);
           buffer.clear();
@@ -203,7 +203,7 @@ impl Output for VM {
 
 #[cfg(test)]
 mod tests {
-    use core::{VM, Core};
+    use core::{VM, Access, Core};
     use super::*;
 
     #[test]
@@ -215,7 +215,7 @@ mod tests {
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.f_stack.as_slice(), []);
-        assert_eq!(vm.output_buffer.clone().unwrap(), "Hi, how are you");
+        assert_eq!(vm.output_buffer().clone().unwrap(), "Hi, how are you");
     }
 
     #[test]
@@ -227,10 +227,10 @@ mod tests {
         vm.set_source("42 emit 43 emit");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack.as_slice(), []);
-        assert_eq!(vm.output_buffer.clone().unwrap(), "*+");
+        assert_eq!(vm.output_buffer().clone().unwrap(), "*+");
         assert!(vm.flush().is_none());
         assert_eq!(vm.s_stack.as_slice(), []);
-        assert_eq!(vm.output_buffer.clone().unwrap(), "");
+        assert_eq!(vm.output_buffer().clone().unwrap(), "");
     }
 
 }

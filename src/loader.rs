@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
-use ::core::{VM, Core};
+use ::core::{VM, Access, Core};
 use exception::Exception::{
     self,
     FileIOException,
@@ -20,16 +20,16 @@ impl HasLoader for VM {
             }
         };
         loop {
-            let mut input_buffer = self.input_buffer.take().unwrap();
+            let mut input_buffer = self.input_buffer().take().unwrap();
             input_buffer.clear();
             let result = reader.read_line(&mut input_buffer);
             match result {
                 Ok(_) => {
                     if input_buffer.is_empty() {
-                        self.input_buffer = Some(input_buffer);
+                        self.set_input_buffer(input_buffer);
                         return None;
                     } else {
-                        self.input_buffer = Some(input_buffer);
+                        self.set_input_buffer(input_buffer);
                         self.source_index = 0;
                         match self.evaluate() {
                             Some(e) => {
@@ -40,7 +40,7 @@ impl HasLoader for VM {
                     }
                 },
                 Err(_) => {
-                  self.input_buffer = Some(input_buffer);
+                  self.set_input_buffer(input_buffer);
                   return Some(FileIOException);
                 }
             };

@@ -254,10 +254,10 @@ pub struct VM {
     idx_plus_loop: usize,
     pub idx_s_quote: usize,
     pub idx_type: usize,
-    pub input_buffer: Option<String>,
+    inbuf: Option<String>,
     pub source_index: usize,
-    pub last_token: Option<String>,
-    pub output_buffer: Option<String>,
+    tkn: Option<String>,
+    outbuf: Option<String>,
     pub auto_flush: bool,
     // Last definition, 0 if last define fails.
     last_definition: usize,
@@ -286,10 +286,10 @@ impl VM {
             idx_plus_loop: 0,
             idx_s_quote: 0,
             idx_type: 0,
-            input_buffer: Some(String::with_capacity(128)),
+            inbuf: Some(String::with_capacity(128)),
             source_index: 0,
-            last_token: Some(String::with_capacity(64)),
-            output_buffer: Some(String::with_capacity(128)),
+            tkn: Some(String::with_capacity(64)),
+            outbuf: Some(String::with_capacity(128)),
             auto_flush: true,
             last_definition: 0,
             evaluators: Some(vec![VM::evaluate_integer]),
@@ -300,11 +300,35 @@ impl VM {
 
 pub trait Access {
   fn jit_memory(&mut self) -> &mut JitMemory;
+  fn output_buffer(&mut self) -> &mut Option<String>;
+  fn set_output_buffer(&mut self, buffer: String);
+  fn input_buffer(&mut self) -> &mut Option<String>;
+  fn set_input_buffer(&mut self, buffer: String);
+  fn last_token(&mut self) -> &mut Option<String>;
+  fn set_last_token(&mut self, buffer: String);
 }
 
 impl Access for VM {
   fn jit_memory(&mut self) -> &mut JitMemory {
     &mut self.jitmem
+  }
+  fn output_buffer(&mut self) -> &mut Option<String> {
+    &mut self.outbuf
+  }
+  fn set_output_buffer(&mut self, buffer: String) {
+    self.outbuf = Some(buffer);
+  }
+  fn input_buffer(&mut self) -> &mut Option<String> {
+    &mut self.inbuf
+  }
+  fn set_input_buffer(&mut self, buffer: String) {
+    self.inbuf = Some(buffer);
+  }
+  fn last_token(&mut self) -> &mut Option<String> {
+    &mut self.tkn
+  }
+  fn set_last_token(&mut self, buffer: String) {
+    self.tkn = Some(buffer);
   }
 }
 
@@ -762,60 +786,60 @@ pub trait Core : Access {
 impl Core for VM {
   fn add_core(&mut self) {
     // Bytecodes
-    self.add_primitive("noop", VM::noop); // j1, Ngaro, jx
-    self.add_primitive("execute", VM::execute); // jx, eForth
-    self.add_primitive("dup", VM::dup); // j1, Ngaro, jx, eForth
-    self.add_primitive("drop", VM::p_drop); // j1, Ngaro, jx, eForth
-    self.add_primitive("swap", VM::swap); // j1, Ngaro, jx, eForth
-    self.add_primitive("over", VM::over); // j1, jx, eForth
-    self.add_primitive("nip", VM::nip); // j1, jx
-    self.add_primitive("depth", VM::depth); // j1, jx
-    self.add_primitive("0<", VM::zero_less); // eForth
-    self.add_primitive("=", VM::equals); // j1, jx
-    self.add_primitive("<", VM::less_than); // j1, jx
-    self.add_primitive("invert", VM::invert); // j1, jx
-    self.add_primitive("and", VM::and); // j1, Ngaro, jx, eForth
-    self.add_primitive("or", VM::or); // j1, Ngaro, jx, eForth
-    self.add_primitive("xor", VM::xor); // j1, Ngaro, jx, eForth
-    self.add_primitive("lshift", VM::lshift); // jx, Ngaro
-    self.add_primitive("rshift", VM::rshift); // jx
-    self.add_primitive("arshift", VM::arshift); // jx, Ngaro
-    self.add_primitive("1+", VM::one_plus); // Ngaro
-    self.add_primitive("1-", VM::one_minus); // Ngaro, jx
-    self.add_primitive("-", VM::minus); // Ngaro
-    self.add_primitive("+", VM::plus); // j1, Ngaro, jx
-    self.add_primitive("*", VM::star); // Ngaro
-    self.add_primitive("/mod", VM::slash_mod); // Ngaro
-    self.add_primitive("cell+", VM::cell_plus); // eForth
-    self.add_primitive("cells", VM::cells); // eForth
-    self.add_primitive("@", VM::fetch); // j1, jx, eForth
-    self.add_primitive("!", VM::store); // j1, jx, eForth
-    self.add_primitive("char+", VM::char_plus); // eForth
-    self.add_primitive("chars", VM::chars); // eForth
-    self.add_primitive("here", VM::here);
-    self.add_primitive("allot", VM::allot);
-    self.add_primitive("c@", VM::c_fetch);
-    self.add_primitive("c!", VM::c_store);
+    self.add_primitive("noop", Core::noop); // j1, Ngaro, jx
+    self.add_primitive("execute", Core::execute); // jx, eForth
+    self.add_primitive("dup", Core::dup); // j1, Ngaro, jx, eForth
+    self.add_primitive("drop", Core::p_drop); // j1, Ngaro, jx, eForth
+    self.add_primitive("swap", Core::swap); // j1, Ngaro, jx, eForth
+    self.add_primitive("over", Core::over); // j1, jx, eForth
+    self.add_primitive("nip", Core::nip); // j1, jx
+    self.add_primitive("depth", Core::depth); // j1, jx
+    self.add_primitive("0<", Core::zero_less); // eForth
+    self.add_primitive("=", Core::equals); // j1, jx
+    self.add_primitive("<", Core::less_than); // j1, jx
+    self.add_primitive("invert", Core::invert); // j1, jx
+    self.add_primitive("and", Core::and); // j1, Ngaro, jx, eForth
+    self.add_primitive("or", Core::or); // j1, Ngaro, jx, eForth
+    self.add_primitive("xor", Core::xor); // j1, Ngaro, jx, eForth
+    self.add_primitive("lshift", Core::lshift); // jx, Ngaro
+    self.add_primitive("rshift", Core::rshift); // jx
+    self.add_primitive("arshift", Core::arshift); // jx, Ngaro
+    self.add_primitive("1+", Core::one_plus); // Ngaro
+    self.add_primitive("1-", Core::one_minus); // Ngaro, jx
+    self.add_primitive("-", Core::minus); // Ngaro
+    self.add_primitive("+", Core::plus); // j1, Ngaro, jx
+    self.add_primitive("*", Core::star); // Ngaro
+    self.add_primitive("/mod", Core::slash_mod); // Ngaro
+    self.add_primitive("cell+", Core::cell_plus); // eForth
+    self.add_primitive("cells", Core::cells); // eForth
+    self.add_primitive("@", Core::fetch); // j1, jx, eForth
+    self.add_primitive("!", Core::store); // j1, jx, eForth
+    self.add_primitive("char+", Core::char_plus); // eForth
+    self.add_primitive("chars", Core::chars); // eForth
+    self.add_primitive("here", Core::here);
+    self.add_primitive("allot", Core::allot);
+    self.add_primitive("c@", Core::c_fetch);
+    self.add_primitive("c!", Core::c_store);
 
     // Compile-only bytecodes
-    self.add_compile_only("exit", VM::exit); // j1, jx, eForth
-    self.add_compile_only("halt", VM::halt); // rtForth
-    self.add_compile_only("lit", VM::lit); // Ngaro, jx, eForth
-    self.add_compile_only("branch", VM::branch); // j1, eForth
-    self.add_compile_only("0branch", VM::zero_branch); // j1, eForth
-    self.add_compile_only(">r", VM::p_to_r); // j1, Ngaro, jx, eForth
-    self.add_compile_only("r>", VM::r_from); // j1, Ngaro, jx, eForth
-    self.add_compile_only("r@", VM::r_fetch); // j1, jx, eForth
-    self.add_compile_only("2>r", VM::two_to_r); // jx
-    self.add_compile_only("2r>", VM::two_r_from); // jx
-    self.add_compile_only("2r@", VM::two_r_fetch); // jx
-    self.add_compile_only("_do", VM::_do); // jx
-    self.add_compile_only("_loop", VM::p_loop); // jx
-    self.add_compile_only("_+loop", VM::p_plus_loop); // jx
-    self.add_compile_only("unloop", VM::unloop); // jx
-    self.add_compile_only("leave", VM::leave); // jx
-    self.add_compile_only("i", VM::p_i); // jx
-    self.add_compile_only("j", VM::p_j); // jx
+    self.add_compile_only("exit", Core::exit); // j1, jx, eForth
+    self.add_compile_only("halt", Core::halt); // rtForth
+    self.add_compile_only("lit", Core::lit); // Ngaro, jx, eForth
+    self.add_compile_only("branch", Core::branch); // j1, eForth
+    self.add_compile_only("0branch", Core::zero_branch); // j1, eForth
+    self.add_compile_only(">r", Core::p_to_r); // j1, Ngaro, jx, eForth
+    self.add_compile_only("r>", Core::r_from); // j1, Ngaro, jx, eForth
+    self.add_compile_only("r@", Core::r_fetch); // j1, jx, eForth
+    self.add_compile_only("2>r", Core::two_to_r); // jx
+    self.add_compile_only("2r>", Core::two_r_from); // jx
+    self.add_compile_only("2r@", Core::two_r_fetch); // jx
+    self.add_compile_only("_do", Core::_do); // jx
+    self.add_compile_only("_loop", Core::p_loop); // jx
+    self.add_compile_only("_+loop", Core::p_plus_loop); // jx
+    self.add_compile_only("unloop", Core::unloop); // jx
+    self.add_compile_only("leave", Core::leave); // jx
+    self.add_compile_only("i", Core::p_i); // jx
+    self.add_compile_only("j", Core::p_j); // jx
 
     // Candidates for bytecodes
     // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
@@ -824,60 +848,60 @@ impl Core for VM {
     // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, UP!, UP+, PAUSE,
 
     // Immediate words
-    self.add_immediate("(", VM::imm_paren);
-    self.add_immediate("\\", VM::imm_backslash);
-    self.add_immediate("[", VM::interpret);
-    self.add_immediate_and_compile_only("[char]", VM::bracket_char);
-    self.add_immediate_and_compile_only(";", VM::semicolon);
-    self.add_immediate_and_compile_only("if", VM::imm_if);
-    self.add_immediate_and_compile_only("else", VM::imm_else);
-    self.add_immediate_and_compile_only("then", VM::imm_then);
-    self.add_immediate_and_compile_only("begin", VM::imm_begin);
-    self.add_immediate_and_compile_only("while", VM::imm_while);
-    self.add_immediate_and_compile_only("repeat", VM::imm_repeat);
-    self.add_immediate_and_compile_only("again", VM::imm_again);
-    self.add_immediate_and_compile_only("recurse", VM::imm_recurse);
-    self.add_immediate_and_compile_only("do", VM::imm_do);
-    self.add_immediate_and_compile_only("loop", VM::imm_loop);
-    self.add_immediate_and_compile_only("+loop", VM::imm_plus_loop);
+    self.add_immediate("(", Core::imm_paren);
+    self.add_immediate("\\", Core::imm_backslash);
+    self.add_immediate("[", Core::interpret);
+    self.add_immediate_and_compile_only("[char]", Core::bracket_char);
+    self.add_immediate_and_compile_only(";", Core::semicolon);
+    self.add_immediate_and_compile_only("if", Core::imm_if);
+    self.add_immediate_and_compile_only("else", Core::imm_else);
+    self.add_immediate_and_compile_only("then", Core::imm_then);
+    self.add_immediate_and_compile_only("begin", Core::imm_begin);
+    self.add_immediate_and_compile_only("while", Core::imm_while);
+    self.add_immediate_and_compile_only("repeat", Core::imm_repeat);
+    self.add_immediate_and_compile_only("again", Core::imm_again);
+    self.add_immediate_and_compile_only("recurse", Core::imm_recurse);
+    self.add_immediate_and_compile_only("do", Core::imm_do);
+    self.add_immediate_and_compile_only("loop", Core::imm_loop);
+    self.add_immediate_and_compile_only("+loop", Core::imm_plus_loop);
 
     // Compile-only words
 
     // More Primitives
-    self.add_primitive("true", VM::p_true);
-    self.add_primitive("false", VM::p_false);
-    self.add_primitive("not", VM::zero_equals);
-    self.add_primitive("0=", VM::zero_equals);
-    self.add_primitive("0>", VM::zero_greater);
-    self.add_primitive("0<>", VM::zero_not_equals);
-    self.add_primitive(">", VM::greater_than);
-    self.add_primitive("<>", VM::not_equals);
-    self.add_primitive("rot", VM::rot);
-    self.add_primitive("2dup", VM::two_dup);
-    self.add_primitive("2drop", VM::two_drop);
-    self.add_primitive("2swap", VM::two_swap);
-    self.add_primitive("2over", VM::two_over);
-    self.add_primitive("pause", VM::pause);
-    self.add_primitive("/", VM::slash);
-    self.add_primitive("mod", VM::p_mod);
-    self.add_primitive("abs", VM::abs);
-    self.add_primitive("negate", VM::negate);
-    self.add_primitive("between", VM::between);
-    self.add_primitive("parse-word", VM::parse_word);;
-    self.add_primitive("char", VM::char);
-    self.add_primitive("parse", VM::parse);
-    self.add_primitive("evaluate", VM::evaluate);;
-    self.add_primitive(":", VM::colon);
-    self.add_primitive("constant", VM::constant);
-    self.add_primitive("variable", VM::variable);
-    self.add_primitive("create", VM::create);
-    self.add_primitive("'", VM::tick);
-    self.add_primitive("]", VM::compile);
-    self.add_primitive(",", VM::comma);
-    self.add_primitive("marker", VM::marker);
-    self.add_primitive("quit", VM::quit);
-    self.add_primitive("abort", VM::abort);
-    self.add_primitive("bye", VM::bye);
+    self.add_primitive("true", Core::p_true);
+    self.add_primitive("false", Core::p_false);
+    self.add_primitive("not", Core::zero_equals);
+    self.add_primitive("0=", Core::zero_equals);
+    self.add_primitive("0>", Core::zero_greater);
+    self.add_primitive("0<>", Core::zero_not_equals);
+    self.add_primitive(">", Core::greater_than);
+    self.add_primitive("<>", Core::not_equals);
+    self.add_primitive("rot", Core::rot);
+    self.add_primitive("2dup", Core::two_dup);
+    self.add_primitive("2drop", Core::two_drop);
+    self.add_primitive("2swap", Core::two_swap);
+    self.add_primitive("2over", Core::two_over);
+    self.add_primitive("pause", Core::pause);
+    self.add_primitive("/", Core::slash);
+    self.add_primitive("mod", Core::p_mod);
+    self.add_primitive("abs", Core::abs);
+    self.add_primitive("negate", Core::negate);
+    self.add_primitive("between", Core::between);
+    self.add_primitive("parse-word", Core::parse_word);;
+    self.add_primitive("char", Core::char);
+    self.add_primitive("parse", Core::parse);
+    self.add_primitive("evaluate", Core::evaluate);;
+    self.add_primitive(":", Core::colon);
+    self.add_primitive("constant", Core::constant);
+    self.add_primitive("variable", Core::variable);
+    self.add_primitive("create", Core::create);
+    self.add_primitive("'", Core::tick);
+    self.add_primitive("]", Core::compile);
+    self.add_primitive(",", Core::comma);
+    self.add_primitive("marker", Core::marker);
+    self.add_primitive("quit", Core::quit);
+    self.add_primitive("abort", Core::abort);
+    self.add_primitive("bye", Core::bye);
 
     self.idx_lit = self.find("lit").expect("lit undefined");
     self.idx_exit = self.find("exit").expect("exit undefined");
@@ -934,7 +958,7 @@ impl Core for VM {
     fn find(&mut self, name: &str) -> Option<usize> {
         let mut i = self.jit_memory().last();
         while !(i==0) {
-            let mut w = self.jit_memory().word(i);
+            let w = self.jit_memory().word(i);
             if !w.hidden && w.name.eq_ignore_ascii_case(name) {
                 return Some(i);
             } else {
@@ -1000,23 +1024,20 @@ impl Core for VM {
     }
 
     fn set_source(&mut self, s: &str) {
-        match self.input_buffer {
-          Some(ref mut buffer) => {
-            buffer.clear();
-            buffer.push_str(s);
-            self.source_index = 0;
-          },
-          None => {}
-        }
+        let mut buffer = self.input_buffer().take().unwrap();
+        buffer.clear();
+        buffer.push_str(s);
+        self.source_index = 0;
+        self.set_input_buffer(buffer);
     }
 
     /// Run-time: ( "ccc" -- )
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
     fn parse_word(&mut self) -> Option<Exception> {
-        let mut last_token = self.last_token.take().unwrap();
+        let mut last_token = self.last_token().take().unwrap();
         last_token.clear();
-        let input_buffer = self.input_buffer.take().unwrap();
+        let input_buffer = self.input_buffer().take().unwrap();
         {
             let source = &input_buffer[self.source_index..input_buffer.len()];
             let mut cnt = 0;
@@ -1033,8 +1054,8 @@ impl Core for VM {
             }
             self.source_index = self.source_index + cnt;
         }
-        self.last_token = Some(last_token);
-        self.input_buffer = Some(input_buffer);
+        self.set_last_token(last_token);
+        self.set_input_buffer(input_buffer);
         None
     }
 
@@ -1044,7 +1065,7 @@ impl Core for VM {
     fn char(&mut self) -> Option<Exception> {
         let result;
         self.parse_word();
-        let last_token = self.last_token.take().unwrap();
+        let last_token = self.last_token().take().unwrap();
         match last_token.chars().nth(0) {
             Some(c) =>
                 match self.s_stack.push(c as isize) {
@@ -1053,7 +1074,7 @@ impl Core for VM {
                 },
             None => result = Some(UnexpectedEndOfFile)
         }
-        self.last_token = Some(last_token);
+        self.set_last_token(last_token);
         result
     }
 
@@ -1079,10 +1100,10 @@ impl Core for VM {
     ///
     /// Parse ccc delimited by the delimiter char.
     fn parse(&mut self) -> Option<Exception> {
-        let input_buffer = self.input_buffer.take().unwrap();
+        let input_buffer = self.input_buffer().take().unwrap();
         match self.s_stack.pop() {
             Some(v) => {
-                let mut last_token = self.last_token.take().unwrap();
+                let mut last_token = self.last_token().take().unwrap();
                 last_token.clear();
                 {
                     let source = &input_buffer[self.source_index..input_buffer.len()];
@@ -1097,12 +1118,12 @@ impl Core for VM {
                     }
                     self.source_index = self.source_index + cnt;
                 }
-                self.last_token = Some(last_token);
-                self.input_buffer = Some(input_buffer);
+                self.set_last_token(last_token);
+                self.set_input_buffer(input_buffer);
                 None
             },
             None => {
-              self.input_buffer = Some(input_buffer);
+              self.set_input_buffer(input_buffer);
               Some(StackUnderflow)
             }
         }
@@ -1116,7 +1137,7 @@ impl Core for VM {
     }
 
     fn imm_backslash(&mut self) -> Option<Exception> {
-        self.source_index = match self.input_buffer {
+        self.source_index = match *self.input_buffer() {
           Some(ref buf) => buf.len(),
           None => 0
         };
@@ -1130,7 +1151,7 @@ impl Core for VM {
         let mut last_token;
         loop {
             self.parse_word();
-            last_token = self.last_token.take().unwrap();
+            last_token = self.last_token().take().unwrap();
             if last_token.is_empty() {
                 result = None;
                 break;
@@ -1150,10 +1171,10 @@ impl Core for VM {
                         result = Some(InterpretingACompileOnlyWord);
                         break;
                     } else {
-                        self.last_token = Some(last_token);
+                        self.set_last_token(last_token);
                         match self.execute_word(found_index) {
                             Some(e) => {
-                                last_token = self.last_token.take().unwrap();
+                                last_token = self.last_token().take().unwrap();
                                 match e {
                                     Nest => {
                                         match self.run() {
@@ -1175,7 +1196,7 @@ impl Core for VM {
                                 }
                             },
                             None => {
-                              last_token = self.last_token.take().unwrap();
+                              last_token = self.last_token().take().unwrap();
                             }
                         };
                     }
@@ -1206,9 +1227,9 @@ impl Core for VM {
                     }
                 }
             }
-            self.last_token = Some(last_token);
+            self.set_last_token(last_token);
         }
-        self.last_token = Some(last_token);
+        self.set_last_token(last_token);
         result
     }
 
@@ -1308,7 +1329,7 @@ impl Core for VM {
 
     fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception> {
         self.parse_word();
-        let last_token = self.last_token.take().unwrap();
+        let last_token = self.last_token().take().unwrap();
         match self.find(&last_token) {
             Some(_) => print!("Redefining {}", last_token),
             None => {}
@@ -1316,17 +1337,17 @@ impl Core for VM {
         if !last_token.is_empty() {
             self.jit_memory().compile_word(&last_token, action);
             self.last_definition = self.jit_memory().last();
-            self.last_token = Some(last_token);
+            self.set_last_token(last_token);
             None
         } else {
             self.last_definition = 0;
-            self.last_token = Some(last_token);
+            self.set_last_token(last_token);
             Some(UnexpectedEndOfFile)
         }
     }
 
     fn colon(&mut self) -> Option<Exception> {
-        match self.define(VM::nest) {
+        match self.define(Core::nest) {
             Some(e) => Some(e),
             None => {
                 let def = self.last_definition;
@@ -1347,11 +1368,11 @@ impl Core for VM {
     }
 
     fn create(&mut self) -> Option<Exception> {
-        self.define(VM::p_var)
+        self.define(Core::p_var)
     }
 
     fn variable(&mut self) -> Option<Exception> {
-        match self.define(VM::p_var) {
+        match self.define(Core::p_var) {
             Some(e) => Some(e),
             None => {
                 self.jit_memory().compile_i32(0);
@@ -1363,7 +1384,7 @@ impl Core for VM {
     fn constant(&mut self) -> Option<Exception> {
         match self.s_stack.pop() {
             Some(v) => {
-                match self.define(VM::p_const) {
+                match self.define(Core::p_const) {
                     Some(e) => Some(e),
                     None => {
                         self.jit_memory().compile_i32(v as i32);
@@ -1385,7 +1406,7 @@ impl Core for VM {
     }
 
     fn marker(&mut self) -> Option<Exception> {
-        self.define(VM::unmark);
+        self.define(Core::unmark);
         let jlen = self.jit_memory().len() as i32;
         self.jit_memory().compile_i32(jlen+(mem::size_of::<i32>() as i32));
         None
@@ -2309,7 +2330,7 @@ impl Core for VM {
     fn tick(&mut self) -> Option<Exception> {
         let result;
         self.parse_word();
-        let last_token = self.last_token.take().unwrap();
+        let last_token = self.last_token().take().unwrap();
         if !last_token.is_empty() {
             match self.find(&last_token) {
                 Some(found_index) =>
@@ -2322,7 +2343,7 @@ impl Core for VM {
         } else {
             result = Some(UnexpectedEndOfFile);
         }
-        self.last_token = Some(last_token);
+        self.set_last_token(last_token);
         result
     }
 
@@ -2482,7 +2503,7 @@ impl Core for VM {
     /// Called by VM's client upon Quit.
     fn reset(&mut self) {
         self.r_stack.len = 0;
-        match self.input_buffer {
+        match *self.input_buffer() {
           Some(ref mut buf) => buf.clear(),
           None => {}
         }
@@ -3310,13 +3331,13 @@ mod tests {
         vm.add_core();
         vm.set_source("hello world\t\r\n\"");
         assert!(vm.parse_word().is_none());
-        assert_eq!(vm.last_token.clone().unwrap(), "hello");
+        assert_eq!(vm.last_token().clone().unwrap(), "hello");
         assert_eq!(vm.source_index, 6);
         assert!(vm.parse_word().is_none());
-        assert_eq!(vm.last_token.clone().unwrap(), "world");
+        assert_eq!(vm.last_token().clone().unwrap(), "world");
         assert_eq!(vm.source_index, 12);
         assert!(vm.parse_word().is_none());
-        assert_eq!(vm.last_token.clone().unwrap(), "\"");
+        assert_eq!(vm.last_token().clone().unwrap(), "\"");
     }
 
     #[test]
@@ -3572,7 +3593,7 @@ mod tests {
         assert_eq!(vm.s_stack.pop(), Some(2));
         assert_eq!(vm.s_stack.pop(), Some(1));
         assert_eq!(vm.r_stack.len, 0);
-        assert_eq!(vm.input_buffer.clone().unwrap().len(), 0);
+        assert_eq!(vm.input_buffer().clone().unwrap().len(), 0);
         assert_eq!(vm.source_index, 0);
         assert_eq!(vm.instruction_pointer, 0);
         assert!(!vm.is_compiling);

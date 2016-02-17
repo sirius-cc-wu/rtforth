@@ -153,14 +153,16 @@ impl Output for VM {
     }
 
     fn dot_paren(&mut self) -> Option<Exception> {
+        let last_token = self.last_token.take().unwrap();
         self.s_stack.push(')' as isize);
         self.parse();
         match self.output_buffer {
           Some(ref mut buffer) => {
-            buffer.extend(self.last_token.chars());
+            buffer.extend(last_token.chars());
           }
           None => {}
         }
+        self.last_token = Some(last_token);
         None
     }
 

@@ -256,12 +256,12 @@ pub struct VM {
     pub idx_type: usize,
     pub input_buffer: Option<String>,
     pub source_index: usize,
-    pub last_token: String,
+    pub last_token: Option<String>,
     pub output_buffer: Option<String>,
     pub auto_flush: bool,
     // Last definition, 0 if last define fails.
     last_definition: usize,
-    pub evaluators: Option<Vec<fn(&mut VM) -> Result<(), Exception>>>,
+    pub evaluators: Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>>,
     #[deprecated]
     pub extensions: HashMap<&'static str, Box<Extension>>,
 }
@@ -288,7 +288,7 @@ impl VM {
             idx_type: 0,
             input_buffer: Some(String::with_capacity(128)),
             source_index: 0,
-            last_token: String::with_capacity(64),
+            last_token: Some(String::with_capacity(64)),
             output_buffer: Some(String::with_capacity(128)),
             auto_flush: true,
             last_definition: 0,
@@ -382,11 +382,11 @@ pub trait Core {
   /// Never returns Some(Quit).
   fn evaluate(&mut self) -> Option<Exception>;
 
-  fn evaluate_integer(&mut self) -> Result<(), Exception>;
+  fn evaluate_integer(&mut self, token: &str) -> Result<(), Exception>;
 
   /// Extend `f` to evaluators.
   /// Will create a vector for evaluators if there was no evaluator.
-  fn extend_evaluator(&mut self, f: fn(&mut VM) -> Result<(), Exception>);
+  fn extend_evaluator(&mut self, f: fn(&mut VM, token: &str) -> Result<(), Exception>);
 
   /// Extend VM with an `extension`.
   fn extend(&mut self, name: &'static str, extension: Box<Extension>);
@@ -1003,7 +1003,8 @@ impl Core for VM {
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
     fn parse_word(&mut self) -> Option<Exception> {
-        self.last_token.clear();
+        let mut last_token = self.last_token.take().unwrap();
+        last_token.clear();
         let input_buffer = self.input_buffer.take().unwrap();
         {
             let source = &input_buffer[self.source_index..input_buffer.len()];
@@ -1012,15 +1013,16 @@ impl Core for VM {
                 cnt = cnt + 1;
                 match ch {
                     '\t' | '\n' | '\r' | ' ' => {
-                        if !self.last_token.is_empty() {
+                        if !last_token.is_empty() {
                             break;
                         }
                     },
-                    _ => self.last_token.push(ch)
+                    _ => last_token.push(ch)
                 };
             }
             self.source_index = self.source_index + cnt;
         }
+        self.last_token = Some(last_token);
         self.input_buffer = Some(input_buffer);
         None
     }
@@ -1029,15 +1031,19 @@ impl Core for VM {
     ///
     /// Skip leading space delimiters. Parse name delimited by a space. Put the value of its first character onto the stack.
     fn char(&mut self) -> Option<Exception> {
+        let result;
         self.parse_word();
-        match self.last_token.chars().nth(0) {
+        let last_token = self.last_token.take().unwrap();
+        match last_token.chars().nth(0) {
             Some(c) =>
                 match self.s_stack.push(c as isize) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
+                    Some(_) => result = Some(StackOverflow),
+                    None => result = None
                 },
-            None => Some(UnexpectedEndOfFile)
+            None => result = Some(UnexpectedEndOfFile)
         }
+        self.last_token = Some(last_token);
+        result
     }
 
     /// Compilation: ( "&lt;spaces&gt;name" -- )
@@ -1065,7 +1071,8 @@ impl Core for VM {
         let input_buffer = self.input_buffer.take().unwrap();
         match self.s_stack.pop() {
             Some(v) => {
-                self.last_token.clear();
+                let mut last_token = self.last_token.take().unwrap();
+                last_token.clear();
                 {
                     let source = &input_buffer[self.source_index..input_buffer.len()];
                     let mut cnt = 0;
@@ -1074,11 +1081,12 @@ impl Core for VM {
                         if ch as isize == v {
                             break;
                         } else {
-                            self.last_token.push(ch);
+                            last_token.push(ch);
                         }
                     }
                     self.source_index = self.source_index + cnt;
                 }
+                self.last_token = Some(last_token);
                 self.input_buffer = Some(input_buffer);
                 None
             },
@@ -1107,12 +1115,16 @@ impl Core for VM {
     /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
     /// Never returns Some(Quit).
     fn evaluate(&mut self) -> Option<Exception> {
+        let result;
+        let mut last_token;
         loop {
             self.parse_word();
-            if self.last_token.is_empty() {
-                return None;
+            last_token = self.last_token.take().unwrap();
+            if last_token.is_empty() {
+                result = None;
+                break;
             }
-            match self.find(&self.last_token) {
+            match self.find(&last_token) {
                 Some(found_index) => {
                     let is_immediate_word;
                     let is_compile_only_word;
@@ -1124,27 +1136,36 @@ impl Core for VM {
                     if self.is_compiling && !is_immediate_word {
                         self.compile_word(found_index);
                     } else if !self.is_compiling && is_compile_only_word {
-                        return Some(InterpretingACompileOnlyWord);
+                        result = Some(InterpretingACompileOnlyWord);
+                        break;
                     } else {
+                        self.last_token = Some(last_token);
                         match self.execute_word(found_index) {
                             Some(e) => {
+                                last_token = self.last_token.take().unwrap();
                                 match e {
                                     Nest => {
                                         match self.run() {
                                             Some(e2) => match e2 {
                                                 Quit => {},
                                                 _ => {
-                                                    return Some(e2);
+                                                    result = Some(e2);
+                                                    break;
                                                 }
                                             },
                                             None => { /* impossible */ }
                                         }
                                     },
                                     Quit => {},
-                                    _ => return Some(e)
+                                    _ => {
+                                      result = Some(e);
+                                      break;
+                                    }
                                 }
                             },
-                            None => {}
+                            None => {
+                              last_token = self.last_token.take().unwrap();
+                            }
                         };
                     }
                 },
@@ -1155,7 +1176,7 @@ impl Core for VM {
                     match optional_evaluators {
                         Some(ref evaluators) => {
                             for h in evaluators {
-                                match h(self) {
+                                match h(self, &last_token) {
                                     Ok(_) => {
                                         done = true;
                                         break;
@@ -1167,18 +1188,21 @@ impl Core for VM {
                         None => {}
                     }
                     self.evaluators = optional_evaluators;
-                    if done { continue }
-                    else {
-                        print!("{} ", &self.last_token);
-                        return Some(UndefinedWord)
+                    if !done {
+                        print!("{} ", &last_token);
+                        result = Some(UndefinedWord);
+                        break;
                     }
                 }
             }
+            self.last_token = Some(last_token);
         }
+        self.last_token = Some(last_token);
+        result
     }
 
-    fn evaluate_integer(&mut self) -> Result<(), Exception> {
-        match FromStr::from_str(&self.last_token) {
+    fn evaluate_integer(&mut self, token: &str) -> Result<(), Exception> {
+        match FromStr::from_str(token) {
             Ok(t) => {
                 if self.is_compiling {
                     self.compile_integer(t);
@@ -1193,7 +1217,7 @@ impl Core for VM {
 
     /// Extend `f` to evaluators.
     /// Will create a vector for evaluators if there was no evaluator.
-    fn extend_evaluator(&mut self, f: fn(&mut VM) -> Result<(), Exception>) {
+    fn extend_evaluator(&mut self, f: fn(&mut VM, token: &str) -> Result<(), Exception>) {
         let optional_evaluators = self.evaluators.take();
         match optional_evaluators {
             Some(mut evaluators) => {
@@ -1265,16 +1289,19 @@ impl Core for VM {
 
     fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception> {
         self.parse_word();
-        match self.find(&self.last_token) {
-            Some(_) => print!("Redefining {}", self.last_token),
+        let last_token = self.last_token.take().unwrap();
+        match self.find(&last_token) {
+            Some(_) => print!("Redefining {}", last_token),
             None => {}
         }
-        if !self.last_token.is_empty() {
-            self.jit_memory.compile_word(&self.last_token, action);
+        if !last_token.is_empty() {
+            self.jit_memory.compile_word(&last_token, action);
             self.last_definition = self.jit_memory.last();
+            self.last_token = Some(last_token);
             None
         } else {
             self.last_definition = 0;
+            self.last_token = Some(last_token);
             Some(UnexpectedEndOfFile)
         }
     }
@@ -2247,19 +2274,23 @@ impl Core for VM {
     /// name and return xt, the execution token for name. An ambiguous
     /// condition exists if name is not found.
     fn tick(&mut self) -> Option<Exception> {
+        let result;
         self.parse_word();
-        if !self.last_token.is_empty() {
-            match self.find(&self.last_token) {
+        let last_token = self.last_token.take().unwrap();
+        if !last_token.is_empty() {
+            match self.find(&last_token) {
                 Some(found_index) =>
                     match self.s_stack.push(found_index as isize) {
-                        Some(_) => Some(StackOverflow),
-                        None => None
+                        Some(_) => result = Some(StackOverflow),
+                        None => result = None
                     },
-                None => Some(UndefinedWord)
+                None => result = Some(UndefinedWord)
             }
         } else {
-            Some(UnexpectedEndOfFile)
+            result = Some(UnexpectedEndOfFile);
         }
+        self.last_token = Some(last_token);
+        result
     }
 
     /// Run-time: ( i*x xt -- j*x )
@@ -3245,13 +3276,13 @@ mod tests {
         vm.add_core();
         vm.set_source("hello world\t\r\n\"");
         assert!(vm.parse_word().is_none());
-        assert_eq!(vm.last_token, "hello");
+        assert_eq!(vm.last_token.clone().unwrap(), "hello");
         assert_eq!(vm.source_index, 6);
         assert!(vm.parse_word().is_none());
-        assert_eq!(vm.last_token, "world");
+        assert_eq!(vm.last_token.clone().unwrap(), "world");
         assert_eq!(vm.source_index, 12);
         assert!(vm.parse_word().is_none());
-        assert_eq!(vm.last_token, "\"");
+        assert_eq!(vm.last_token.clone().unwrap(), "\"");
     }
 
     #[test]

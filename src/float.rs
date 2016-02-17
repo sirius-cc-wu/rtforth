@@ -15,7 +15,7 @@ use exception::Exception::{
 pub trait Float {
     fn add_float(&mut self);
     fn compile_float (&mut self, f: f64);
-    fn evaluate_float(&mut self) -> Result<(), Exception>;
+    fn evaluate_float(&mut self, token: &str) -> Result<(), Exception>;
     fn flit(&mut self) -> Option<Exception>;
     fn p_fconst(&mut self) -> Option<Exception>;
     fn fvariable(&mut self) -> Option<Exception>;
@@ -92,8 +92,8 @@ impl Float for VM {
     }
 
     /// Evaluate float.
-    fn evaluate_float(&mut self) -> Result<(), Exception> {
-        match FromStr::from_str(&self.last_token) {
+    fn evaluate_float(&mut self, token: &str) -> Result<(), Exception> {
+        match FromStr::from_str(token) {
             Ok(t) => {
                 if self.idx_flit == 0 {
                     print!("{} ", "Floating point");

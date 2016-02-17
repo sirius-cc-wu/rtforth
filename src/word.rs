@@ -1,20 +1,19 @@
-use ::core::VM;
 use ::exception::Exception;
 use std::fmt;
 
 // Word
-pub struct Word<'a> {
+pub struct Word<'a, Target> {
     pub link: usize,
     pub name: &'a str,
     pub is_immediate: bool,
     pub is_compile_only: bool,
     pub hidden: bool,
     pub dfa: usize,
-    pub action: fn(& mut VM) -> Option<Exception>
+    pub action: fn(& mut Target) -> Option<Exception>
 }
 
-impl<'a> Word<'a> {
-    pub fn new(name: &str, dfa: usize, action: fn(& mut VM) -> Option<Exception>) -> Word {
+impl<'a, Target> Word<'a, Target> {
+    pub fn new(name: &str, dfa: usize, action: fn(& mut Target) -> Option<Exception>) -> Word<Target> {
         Word {
             link: 0,
             name: name,
@@ -32,7 +31,7 @@ impl<'a> Word<'a> {
 
 }
 
-impl<'a> fmt::Debug for Word<'a> {
+impl<'a, Target> fmt::Debug for Word<'a, Target> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
              "Word {} imm {}, hidden {}, cmponly {}, dfa {}",

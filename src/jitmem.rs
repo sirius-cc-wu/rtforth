@@ -84,15 +84,15 @@ impl JitMemory {
     }
     // Basic operations
 
-    pub fn word(&self, pos: usize) -> &Word {
+    pub fn word(&self, pos: usize) -> &Word<VM> {
         unsafe {
-            &*(self.inner.offset(pos as isize) as *const Word)
+            &*(self.inner.offset(pos as isize) as *const Word<VM>)
         }
     }
 
-    pub fn mut_word(&mut self, pos: usize) -> &mut Word {
+    pub fn mut_word(&mut self, pos: usize) -> &mut Word<VM> {
         unsafe {
-            &mut *(self.inner.offset(pos as isize) as *mut Word)
+            &mut *(self.inner.offset(pos as isize) as *mut Word<VM>)
         }
     }
 
@@ -107,11 +107,11 @@ impl JitMemory {
             self.align();
             let len = self.len;
             let w = Word::new(s, 0, action);
-            let w1 = self.inner.offset(len as isize) as *mut Word;
+            let w1 = self.inner.offset(len as isize) as *mut Word<VM>;
             *w1 = w;
             (*w1).link = self.last;
             self.last = len;
-            self.len += mem::size_of::<Word>();
+            self.len += mem::size_of::<Word<VM>>();
             // Dfa
             self.align();
             (*w1).dfa = self.len;

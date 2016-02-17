@@ -257,7 +257,7 @@ pub struct VM {
     pub input_buffer: String,
     pub source_index: usize,
     pub last_token: String,
-    pub output_buffer: String,
+    pub output_buffer: Option<String>,
     pub auto_flush: bool,
     // Last definition, 0 if last define fails.
     last_definition: usize,
@@ -289,7 +289,7 @@ impl VM {
             input_buffer: String::with_capacity(128),
             source_index: 0,
             last_token: String::with_capacity(64),
-            output_buffer: String::with_capacity(128),
+            output_buffer: Some(String::with_capacity(128)),
             auto_flush: true,
             last_definition: 0,
             evaluators: Some(vec![VM::evaluate_integer]),

@@ -180,7 +180,7 @@ impl Output for VM {
     }
 
     fn fdot(&mut self) -> Option<Exception> {
-        match self.f_stack.pop() {
+        match self.f_stack().pop() {
             Some(r) => {
                 print!("{} ", r);
                 None
@@ -214,7 +214,7 @@ mod tests {
         vm.add_output();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
         assert!(vm.evaluate().is_none());
-        assert_eq!(vm.f_stack.as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), []);
         assert_eq!(vm.output_buffer().clone().unwrap(), "Hi, how are you");
     }
 

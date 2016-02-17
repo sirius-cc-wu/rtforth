@@ -244,7 +244,7 @@ pub struct VM {
     pub is_compiling: bool,
     pub s_stk: Stack<isize>,
     r_stack: Stack<isize>,
-    pub f_stack: Stack<f64>,
+    f_stk: Stack<f64>,
     jitmem: JitMemory,
     pub instruction_pointer: usize,
     word_pointer: usize,
@@ -276,7 +276,7 @@ impl VM {
             is_compiling: false,
             s_stk: Stack::with_capacity(64),
             r_stack: Stack::with_capacity(64),
-            f_stack: Stack::with_capacity(16),
+            f_stk: Stack::with_capacity(16),
             jitmem: JitMemory::new(pages),
             instruction_pointer: 0,
             word_pointer: 0,
@@ -311,6 +311,7 @@ pub trait Access {
   fn last_token(&mut self) -> &mut Option<String>;
   fn set_last_token(&mut self, buffer: String);
   fn s_stack(&mut self) -> &mut Stack<isize>;
+  fn f_stack(&mut self) -> &mut Stack<f64>;
 }
 
 impl Access for VM {
@@ -337,6 +338,9 @@ impl Access for VM {
   }
   fn s_stack(&mut self) -> &mut Stack<isize> {
     &mut self.s_stk
+  }
+  fn f_stack(&mut self) -> &mut Stack<f64> {
+    &mut self.f_stk
   }
 }
 
@@ -2510,7 +2514,7 @@ impl Core for VM {
     /// Called by VM's client upon Abort.
     fn clear_stacks(&mut self) {
         self.s_stack().clear();
-        self.f_stack.clear();
+        self.f_stack().clear();
     }
 
     /// Reset VM, do not clear data stack and floating point stack.

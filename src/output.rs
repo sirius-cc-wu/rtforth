@@ -1,5 +1,5 @@
 use std::mem;
-use core::{VM, Core};
+use core::Core;
 use core::Heap;
 use exception::Exception::{
     self,
@@ -9,64 +9,8 @@ use exception::Exception::{
 };
 
 /// Types that can output to console.
-pub trait Output {
+pub trait Output : Core {
     /// Add output primitives.
-    fn add_output(&mut self);
-
-    /// Run-time: ( x -- )
-    ///
-    /// Put x into output buffer.
-    fn emit(&mut self) -> Option<Exception>;
-
-    /// Run-time: ( c-addr u -- )
-    ///
-    /// Put the character string specified by c-addr and u into output buffer.
-    fn p_type(&mut self) -> Option<Exception>;
-
-    /// Runtime of S"
-    fn p_s_quote(&mut self) -> Option<Exception>;
-
-    /// Compilation: ( "ccc<quote>" -- )
-    ///
-    /// Parse ccc delimited by " (double-quote). Append the run-time semantics given below to the
-    /// current definition.
-    ///
-    /// Run-time: ( -- c-addr u )
-    ///
-    /// Return c-addr and u describing a string consisting of the characters ccc. A program
-    /// shall not alter the returned string.
-    fn s_quote(&mut self) -> Option<Exception>;
-
-    /// Compilation: ( "ccc<quote>" -- )
-    ///
-    /// Parse ccc delimited by " (double-quote). Append the run-time semantics given below to the
-    /// current definition.
-    ///
-    /// Run-time: ( -- )
-    ///
-    /// Display ccc.
-    fn dot_quote(&mut self) -> Option<Exception>;
-
-    /// Execution: ( "ccc&lt;paren&gt;" -- )
-    ///
-    /// Parse and display ccc delimited by ) (right parenthesis). .( is an immediate word.
-    fn dot_paren(&mut self) -> Option<Exception>;
-
-    /// Run-time: ( n -- )
-    ///
-    /// Display n in free field format.
-    fn dot(&mut self) -> Option<Exception>;
-
-    /// Run-time: ( -- ) ( F: r -- )
-    ///
-    /// Display, with a trailing space, the top number on the floating-point stack using fixed-point notation.
-    fn fdot(&mut self) -> Option<Exception>;
-
-    fn flush(&mut self) -> Option<Exception>;
-}
-
-impl Output for VM {
-
     fn add_output(&mut self) {
         self.add_primitive("emit", Output::emit);
         self.add_primitive("type", Output::p_type);
@@ -80,6 +24,9 @@ impl Output for VM {
         self.references().idx_type = self.find("type").expect("type undefined");
     }
 
+    /// Run-time: ( x -- )
+    ///
+    /// Put x into output buffer.
     fn emit(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
             None => Some(StackUnderflow),
@@ -96,6 +43,9 @@ impl Output for VM {
         }
     }
 
+    /// Run-time: ( c-addr u -- )
+    ///
+    /// Put the character string specified by c-addr and u into output buffer.
     fn p_type(&mut self) -> Option<Exception> {
         match self.s_stack().pop2() {
             None => Some(StackUnderflow),
@@ -116,6 +66,7 @@ impl Output for VM {
         }
     }
 
+    /// Runtime of S"
     fn p_s_quote(&mut self) -> Option<Exception> {
         let ip = self.state().instruction_pointer;
         let cnt = self.jit_memory().get_i32(ip);
@@ -129,6 +80,15 @@ impl Output for VM {
         }
     }
 
+    /// Compilation: ( "ccc<quote>" -- )
+    ///
+    /// Parse ccc delimited by " (double-quote). Append the run-time semantics given below to the
+    /// current definition.
+    ///
+    /// Run-time: ( -- c-addr u )
+    ///
+    /// Return c-addr and u describing a string consisting of the characters ccc. A program
+    /// shall not alter the returned string.
     fn s_quote(&mut self) -> Option<Exception> {
         let input_buffer = self.input_buffer().take().unwrap();
         {
@@ -148,6 +108,14 @@ impl Output for VM {
         None
     }
 
+    /// Compilation: ( "ccc<quote>" -- )
+    ///
+    /// Parse ccc delimited by " (double-quote). Append the run-time semantics given below to the
+    /// current definition.
+    ///
+    /// Run-time: ( -- )
+    ///
+    /// Display ccc.
     fn dot_quote(&mut self) -> Option<Exception> {
         self.s_quote();
         let idx_type = self.references().idx_type;
@@ -155,6 +123,9 @@ impl Output for VM {
         None
     }
 
+    /// Execution: ( "ccc&lt;paren&gt;" -- )
+    ///
+    /// Parse and display ccc delimited by ) (right parenthesis). .( is an immediate word.
     fn dot_paren(&mut self) -> Option<Exception> {
         let last_token = self.last_token().take().unwrap();
         self.s_stack().push(')' as isize);
@@ -169,6 +140,9 @@ impl Output for VM {
         None
     }
 
+    /// Run-time: ( n -- )
+    ///
+    /// Display n in free field format.
     fn dot(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
             Some(n) => {
@@ -179,6 +153,9 @@ impl Output for VM {
         }
     }
 
+    /// Run-time: ( -- ) ( F: r -- )
+    ///
+    /// Display, with a trailing space, the top number on the floating-point stack using fixed-point notation.
     fn fdot(&mut self) -> Option<Exception> {
         match self.f_stack().pop() {
             Some(r) => {
@@ -203,7 +180,8 @@ impl Output for VM {
 
 #[cfg(test)]
 mod tests {
-    use core::{VM, Core};
+    use vm::VM;
+    use core::Core;
     use super::*;
 
     #[test]

@@ -6,6 +6,7 @@
 #![feature(deprecated)]
 
 extern crate byteorder;
+pub mod vm;
 pub mod core;
 pub mod loader;
 pub mod output;

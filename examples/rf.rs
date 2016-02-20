@@ -4,7 +4,8 @@ extern crate rustyline;
 
 use std::env;
 use getopts::Options;
-use rtforth::core::{VM, Core};
+use rtforth::vm::VM;
+use rtforth::core::Core;
 use rtforth::loader::HasLoader;
 use rtforth::output::Output;
 use rtforth::tools::Tools;

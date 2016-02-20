@@ -1,17 +1,13 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
-use ::core::{VM, Core};
+use ::core::Core;
 use exception::Exception::{
     self,
     FileIOException,
 };
 
-pub trait HasLoader {
-    fn load(&mut self, path_name: &str) -> Option<Exception>;
-}
-
-impl HasLoader for VM {
+pub trait HasLoader : Core {
     fn load(&mut self, path_name: &str) -> Option<Exception> {
         let mut reader = match File::open(&path_name) {
             Err(_) => return Some(FileIOException),

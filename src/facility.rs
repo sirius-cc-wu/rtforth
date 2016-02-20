@@ -1,4 +1,4 @@
-use core::{VM, Core};
+use core::Core;
 use std::ops::BitAnd;
 use std::ops::Shr;
 use exception::Exception;
@@ -8,11 +8,14 @@ use exception::Exception::{
 
 extern crate time;
 
-pub trait Facility {
+pub trait Facility : Core {
     /// Run-time: ( --  )
     ///
     /// Add facility primitives.
-    fn add_facility(&mut self);
+    fn add_facility(&mut self) {
+        self.add_primitive("ntime", Facility::ntime);
+        self.add_primitive("utime", Facility::utime);
+    }
 
     /// Run-time: ( -- ud )
     ///
@@ -21,7 +24,8 @@ pub trait Facility {
     /// Examples:
     ///
     /// ```
-    /// use rtforth::core::{VM, Core};
+    /// use rtforth::vm::VM;
+    /// use rtforth::core::Core;
     /// use rtforth::facility::Facility;
     /// use rtforth::tools::Tools;
     /// let vm = &mut VM::new(16);
@@ -31,33 +35,6 @@ pub trait Facility {
     /// vm.set_source("ntime .s");
     /// vm.evaluate();
     /// ```
-    fn ntime(&mut self) -> Option<Exception>;
-
-    /// Run-time: ( -- ud )
-    ///
-    /// Current time in microseconds since some epoch
-    ///
-    /// Examples:
-    ///
-    /// ```
-    /// use rtforth::core::{VM, Core};
-    /// use rtforth::facility::Facility;
-    /// use rtforth::tools::Tools;
-    /// let vm = &mut VM::new(16);
-    /// vm.add_facility();
-    /// vm.add_tools();
-    /// vm.set_source("utime .s");
-    /// vm.evaluate();
-    /// ```
-    fn utime(&mut self) -> Option<Exception>;
-}
-
-impl Facility for VM {
-    fn add_facility(&mut self) {
-        self.add_primitive("ntime", Facility::ntime);
-        self.add_primitive("utime", Facility::utime);
-    }
-
     fn ntime(&mut self) -> Option<Exception> {
         let t = time::precise_time_ns();
         if t > usize::max_value() as u64 {
@@ -76,6 +53,23 @@ impl Facility for VM {
         }
     }
 
+    /// Run-time: ( -- ud )
+    ///
+    /// Current time in microseconds since some epoch
+    ///
+    /// Examples:
+    ///
+    /// ```
+    /// use rtforth::vm::VM;
+    /// use rtforth::core::Core;
+    /// use rtforth::facility::Facility;
+    /// use rtforth::tools::Tools;
+    /// let vm = &mut VM::new(16);
+    /// vm.add_facility();
+    /// vm.add_tools();
+    /// vm.set_source("utime .s");
+    /// vm.evaluate();
+    /// ```
     fn utime(&mut self) -> Option<Exception> {
         let t = time::precise_time_ns()/1000;
         if t > usize::max_value() as u64 {

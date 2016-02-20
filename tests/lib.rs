@@ -1,5 +1,6 @@
 extern crate rtforth;
-use rtforth::core::{VM, Core};
+use rtforth::vm::VM;
+use rtforth::core::Core;
 use rtforth::tools::Tools;
 
 #[test]

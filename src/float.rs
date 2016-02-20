@@ -1,4 +1,4 @@
-use core::{VM, Core, Heap};
+use core::{Core, Heap};
 use std::str::FromStr;
 
 use std::mem;
@@ -12,43 +12,7 @@ use exception::Exception::{
     UnsupportedOperation,
 };
 
-pub trait Float {
-    fn add_float(&mut self);
-    fn compile_float (&mut self, f: f64);
-    fn evaluate_float(&mut self, token: &str) -> Result<(), Exception>;
-    fn flit(&mut self) -> Option<Exception>;
-    fn p_fconst(&mut self) -> Option<Exception>;
-    fn fvariable(&mut self) -> Option<Exception>;
-    fn fconstant(&mut self) -> Option<Exception>;
-    fn ffetch(&mut self) -> Option<Exception>;
-    fn fstore(&mut self) -> Option<Exception>;
-    fn fabs(&mut self) -> Option<Exception>;
-    fn fsin(&mut self) -> Option<Exception>;
-    fn fcos(&mut self) -> Option<Exception>;
-    fn ftan(&mut self) -> Option<Exception>;
-    fn fasin(&mut self) -> Option<Exception>;
-    fn facos(&mut self) -> Option<Exception>;
-    fn fatan(&mut self) -> Option<Exception>;
-    fn fatan2(&mut self) -> Option<Exception>;
-    fn fsqrt(&mut self) -> Option<Exception>;
-    fn fswap(&mut self) -> Option<Exception>;
-    fn fnip(&mut self) -> Option<Exception>;
-    fn fdup(&mut self) -> Option<Exception>;
-    fn fdrop(&mut self) -> Option<Exception>;
-    fn frot(&mut self) -> Option<Exception>;
-    fn fover(&mut self) -> Option<Exception>;
-    fn n_to_f(&mut self) -> Option<Exception>;
-    fn fplus(&mut self) -> Option<Exception>;
-    fn fminus(&mut self) -> Option<Exception>;
-    fn fstar(&mut self) -> Option<Exception>;
-    fn fslash(&mut self) -> Option<Exception>;
-    fn fproximate(&mut self) -> Option<Exception>;
-    fn f_zero_less_than(&mut self) -> Option<Exception>;
-    fn f_zero_equals(&mut self) -> Option<Exception>;
-    fn f_less_than(&mut self) -> Option<Exception>;
-}
-
-impl Float for VM {
+pub trait Float : Core {
     fn add_float(&mut self) {
         self.add_primitive("flit", Float::flit);
         self.add_primitive ("fconstant", Float::fconstant);
@@ -496,7 +460,8 @@ impl Float for VM {
 
 #[cfg(test)]
 mod tests {
-    use core::{VM, Core};
+    use vm::VM;
+    use core::Core;
     use super::Float;
 
     #[test]

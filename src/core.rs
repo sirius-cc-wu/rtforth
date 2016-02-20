@@ -6,12 +6,10 @@ extern {
 }
 
 use std::mem;
-use std::raw;
 use std::ptr::{Unique, self};
 use std::str::FromStr;
 use std::fmt;
 use std::slice;
-use std::collections::HashMap;
 use std::io::Write;
 use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 use ::jitmem::JitMemory;
@@ -78,7 +76,7 @@ pub struct Stack<T> {
 }
 
 impl<T> Stack<T> {
-    fn with_capacity(cap: usize) -> Self {
+    pub fn with_capacity(cap: usize) -> Self {
         assert!(cap > 0 && cap <= 2048, "Invalid stack capacity");
         let align = mem::align_of::<isize>();
         let elem_size = mem::size_of::<isize>();
@@ -255,6 +253,23 @@ pub struct ForwardReferences {
     pub idx_type: usize,
 }
 
+impl ForwardReferences {
+  pub fn new() -> ForwardReferences {
+    ForwardReferences {
+      idx_lit: 0,
+      idx_flit: 0,
+      idx_exit: 0,
+      idx_zero_branch: 0,
+      idx_branch: 0,
+      idx_do: 0,
+      idx_loop: 0,
+      idx_plus_loop: 0,
+      idx_s_quote: 0,
+      idx_type: 0,
+    }
+  }
+}
+
 pub struct State {
     pub is_compiling: bool,
     pub instruction_pointer: usize,
@@ -266,64 +281,23 @@ pub struct State {
 }
 
 impl State {
+    pub fn new() -> State {
+      State {
+        is_compiling: false,
+        instruction_pointer: 0,
+        word_pointer: 0,
+        source_index: 0,
+        auto_flush: true,
+        last_definition: 0,
+      }
+    }
+
     /// Idle is the result of new and reset, means that VM has nothing to do.
     fn is_idle(&self) -> bool {
         self.instruction_pointer == 0
     }
     pub fn word_pointer(&self) -> usize {
         self.word_pointer
-    }
-}
-
-// Virtual machine
-pub struct VM {
-    s_stk: Stack<isize>,
-    r_stk: Stack<isize>,
-    f_stk: Stack<f64>,
-    jitmem: JitMemory<VM>,
-    inbuf: Option<String>,
-    tkn: Option<String>,
-    outbuf: Option<String>,
-    state: State,
-    references: ForwardReferences,
-    evals: Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>>,
-    #[deprecated]
-    pub extensions: HashMap<&'static str, Box<Extension>>,
-}
-
-impl VM {
-    pub fn new(pages: usize) -> VM {
-        VM {
-            s_stk: Stack::with_capacity(64),
-            r_stk: Stack::with_capacity(64),
-            f_stk: Stack::with_capacity(16),
-            jitmem: JitMemory::new(pages),
-            inbuf: Some(String::with_capacity(128)),
-            tkn: Some(String::with_capacity(64)),
-            outbuf: Some(String::with_capacity(128)),
-            state: State {
-                is_compiling: false,
-                instruction_pointer: 0,
-                word_pointer: 0,
-                source_index: 0,
-                auto_flush: true,
-                last_definition: 0,
-            },
-            references: ForwardReferences {
-                idx_lit: 0,
-                idx_flit: 0,
-                idx_exit: 0,
-                idx_zero_branch: 0,
-                idx_branch: 0,
-                idx_do: 0,
-                idx_loop: 0,
-                idx_plus_loop: 0,
-                idx_s_quote: 0,
-                idx_type: 0,
-            },
-            evals: None,
-            extensions: HashMap::new(),
-        }
     }
 }
 
@@ -2088,59 +2062,10 @@ pub trait Core : Sized {
 
 }
 
-impl Core for VM {
-  fn jit_memory(&mut self) -> &mut JitMemory<Self> { &mut self.jitmem }
-  fn jit_memory_const(&self) -> &JitMemory<Self> { &self.jitmem }
-  fn output_buffer(&mut self) -> &mut Option<String> { &mut self.outbuf }
-  fn set_output_buffer(&mut self, buffer: String) {
-    self.outbuf = Some(buffer);
-  }
-  fn input_buffer(&mut self) -> &mut Option<String> {
-    &mut self.inbuf
-  }
-  fn set_input_buffer(&mut self, buffer: String) {
-    self.inbuf = Some(buffer);
-  }
-  fn last_token(&mut self) -> &mut Option<String> { &mut self.tkn }
-  fn set_last_token(&mut self, buffer: String) { self.tkn = Some(buffer); }
-  fn s_stack(&mut self) -> &mut Stack<isize> { &mut self.s_stk }
-  fn r_stack(&mut self) -> &mut Stack<isize> { &mut self.r_stk }
-  fn f_stack(&mut self) -> &mut Stack<f64> { &mut self.f_stk }
-  fn state(&mut self) -> &mut State { &mut self.state }
-  fn references(&mut self) -> &mut ForwardReferences { &mut self.references }
-  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<(), Exception>>> {
-    &mut self.evals
-  }
-  fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str) -> Result<(), Exception>>) {
-    self.evals = Some(evaluators)
-  }
-
-  /// Extend VM with an `extension`.
-  fn extend(&mut self, name: &'static str, extension: Box<Extension>) {
-      self.extensions.insert(name, extension);
-  }
-
-  /// Get extension of type T with name.
-  /// Note: Behavior is undefined when extension corresponding to name is not of type T.
-  /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
-  unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T> {
-          let option = self.extensions.get(name);
-          match option {
-                  Some(v) => {
-                          let tobj: raw::TraitObject = mem::transmute(&**v);
-                          Some(mem::transmute(tobj.data))
-                  },
-                  None => {
-                          None
-                  }
-          }
-  }
-
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{VM, Core};
+    use super::Core;
+    use vm::VM;
     use core::test::Bencher;
     use std::mem;
     use exception::Exception::{

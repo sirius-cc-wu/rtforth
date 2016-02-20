@@ -1,31 +1,19 @@
-use core::{VM, Core};
+use core::Core;
 use exception::Exception::{
     self,
     StackOverflow,
 };
 
-
-pub trait Environment {
+pub trait Environment : Core {
     /// Add environment queries.
-    fn add_environment(&mut self);
-
-    /// Run-time: ( -- n )
-    ///
-    /// Largest usable signed integer
-    fn max_n(&mut self) -> Option<Exception>;
-
-    /// Run-time: ( -- u )
-    ///
-    /// Largest usable unsigned integer
-    fn max_u(&mut self) -> Option<Exception>;
-}
-
-impl Environment for VM {
     fn add_environment(&mut self) {
         self.add_primitive("max-n", Environment::max_n);
         self.add_primitive("max-u", Environment::max_u);
     }
 
+    /// Run-time: ( -- n )
+    ///
+    /// Largest usable signed integer
     fn max_n(&mut self) -> Option<Exception> {
         match self.s_stack().push(isize::max_value()) {
             Some(_) => Some(StackOverflow),
@@ -33,6 +21,9 @@ impl Environment for VM {
         }
     }
 
+    /// Run-time: ( -- u )
+    ///
+    /// Largest usable unsigned integer
     fn max_u(&mut self) -> Option<Exception> {
         match self.s_stack().push(usize::max_value() as isize) {
             Some(_) => Some(StackOverflow),
@@ -44,7 +35,8 @@ impl Environment for VM {
 
 #[cfg(test)]
 mod tests {
-    use core::{VM, Core};
+    use vm::VM;
+    use core::Core;
     use super::*;
 
     #[test]

@@ -1,4 +1,4 @@
-use core::{VM, Access, Core};
+use core::{VM, Core};
 use exception::Exception::{
     self,
     StackOverflow,
@@ -44,7 +44,7 @@ impl Environment for VM {
 
 #[cfg(test)]
 mod tests {
-    use core::{VM, Access, Core};
+    use core::{VM, Core};
     use super::*;
 
     #[test]

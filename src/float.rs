@@ -1,4 +1,4 @@
-use core::{VM, Access, Core, Heap};
+use core::{VM, Core, Heap};
 use std::str::FromStr;
 
 use std::mem;
@@ -496,7 +496,7 @@ impl Float for VM {
 
 #[cfg(test)]
 mod tests {
-    use core::{VM, Access, Core};
+    use core::{VM, Core};
     use super::Float;
 
     #[test]

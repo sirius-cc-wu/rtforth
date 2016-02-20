@@ -1,4 +1,4 @@
-use core::{VM, Access, Core};
+use core::{VM, Core};
 use std::ops::BitAnd;
 use std::ops::Shr;
 use exception::Exception;

@@ -1,5 +1,5 @@
 use std::mem;
-use core::{VM, Access, Core};
+use core::{VM, Core};
 use core::Heap;
 use exception::Exception::{
     self,
@@ -203,7 +203,7 @@ impl Output for VM {
 
 #[cfg(test)]
 mod tests {
-    use core::{VM, Access, Core};
+    use core::{VM, Core};
     use super::*;
 
     #[test]

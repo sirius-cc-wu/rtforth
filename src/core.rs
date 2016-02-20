@@ -328,7 +328,10 @@ impl VM {
     }
 }
 
-pub trait Access {
+pub trait Core {
+
+  // Functions to access VM.
+
   fn jit_memory(&mut self) -> &mut JitMemory;
   fn output_buffer(&mut self) -> &mut Option<String>;
   fn set_output_buffer(&mut self, buffer: String);
@@ -343,54 +346,7 @@ pub trait Access {
   fn references(&mut self) -> &mut ForwardReferences;
   fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>>;
   fn set_evaluators(&mut self, Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>);
-}
 
-impl Access for VM {
-  fn jit_memory(&mut self) -> &mut JitMemory {
-    &mut self.jitmem
-  }
-  fn output_buffer(&mut self) -> &mut Option<String> {
-    &mut self.outbuf
-  }
-  fn set_output_buffer(&mut self, buffer: String) {
-    self.outbuf = Some(buffer);
-  }
-  fn input_buffer(&mut self) -> &mut Option<String> {
-    &mut self.inbuf
-  }
-  fn set_input_buffer(&mut self, buffer: String) {
-    self.inbuf = Some(buffer);
-  }
-  fn last_token(&mut self) -> &mut Option<String> {
-    &mut self.tkn
-  }
-  fn set_last_token(&mut self, buffer: String) {
-    self.tkn = Some(buffer);
-  }
-  fn s_stack(&mut self) -> &mut Stack<isize> {
-    &mut self.s_stk
-  }
-  fn r_stack(&mut self) -> &mut Stack<isize> {
-    &mut self.r_stk
-  }
-  fn f_stack(&mut self) -> &mut Stack<f64> {
-    &mut self.f_stk
-  }
-  fn state(&mut self) -> &mut State {
-    &mut self.state
-  }
-  fn references(&mut self) -> &mut ForwardReferences {
-    &mut self.references
-  }
-  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>> {
-    &mut self.evals
-  }
-  fn set_evaluators(&mut self, evaluators: Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>) {
-    self.evals = Some(evaluators)
-  }
-}
-
-pub trait Core : Access {
   /// Add core primitives to self.
   fn add_core(&mut self);
 
@@ -837,6 +793,31 @@ pub trait Core : Access {
 }
 
 impl Core for VM {
+  fn jit_memory(&mut self) -> &mut JitMemory { &mut self.jitmem }
+  fn output_buffer(&mut self) -> &mut Option<String> { &mut self.outbuf }
+  fn set_output_buffer(&mut self, buffer: String) {
+    self.outbuf = Some(buffer);
+  }
+  fn input_buffer(&mut self) -> &mut Option<String> {
+    &mut self.inbuf
+  }
+  fn set_input_buffer(&mut self, buffer: String) {
+    self.inbuf = Some(buffer);
+  }
+  fn last_token(&mut self) -> &mut Option<String> { &mut self.tkn }
+  fn set_last_token(&mut self, buffer: String) { self.tkn = Some(buffer); }
+  fn s_stack(&mut self) -> &mut Stack<isize> { &mut self.s_stk }
+  fn r_stack(&mut self) -> &mut Stack<isize> { &mut self.r_stk }
+  fn f_stack(&mut self) -> &mut Stack<f64> { &mut self.f_stk }
+  fn state(&mut self) -> &mut State { &mut self.state }
+  fn references(&mut self) -> &mut ForwardReferences { &mut self.references }
+  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>> {
+    &mut self.evals
+  }
+  fn set_evaluators(&mut self, evaluators: Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>) {
+    self.evals = Some(evaluators)
+  }
+
   fn add_core(&mut self) {
     // Bytecodes
     self.add_primitive("noop", Core::noop); // j1, Ngaro, jx
@@ -2584,7 +2565,7 @@ impl Core for VM {
 
 #[cfg(test)]
 mod tests {
-    use super::{VM, Access, Core};
+    use super::{VM, Core};
     use core::test::Bencher;
     use std::mem;
     use exception::Exception::{

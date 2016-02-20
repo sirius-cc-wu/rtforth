@@ -3,12 +3,44 @@ extern crate libc;
 use std::mem;
 use std::ptr::Unique;
 use std::slice;
-use ::word::Word;
+use std::ascii::AsciiExt;
 use ::core::VM;
 use ::exception::Exception;
 
 extern {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
+}
+
+// Word
+pub struct Word<Target> {
+    pub link: usize,
+    nfa: usize,
+    nlen: usize,
+    pub is_immediate: bool,
+    pub is_compile_only: bool,
+    pub hidden: bool,
+    dfa: usize,
+    pub action: fn(& mut Target) -> Option<Exception>
+}
+
+impl<Target> Word<Target> {
+    pub fn new(nfa: usize, nlen: usize, action: fn(& mut Target) -> Option<Exception>) -> Word<Target> {
+        Word {
+            link: 0,
+            nfa: nfa,
+            nlen: nlen,
+            is_immediate: false,
+            is_compile_only: false,
+            hidden: false,
+            dfa: 0,
+            action: action
+        }
+    }
+
+    pub fn dfa(&self) -> usize {
+        self.dfa
+    }
+
 }
 
 const PAGE_SIZE: usize = 4096;
@@ -100,13 +132,13 @@ impl JitMemory {
         unsafe {
             // name
             self.align();
-            let ptr = self.inner.offset(self.len as isize);
+            let nfa = self.len;
+            let nlen = name.len();
             self.compile_str(name);
-            let s = mem::transmute(slice::from_raw_parts::<u8>(ptr, name.len()));
             // Word
             self.align();
             let len = self.len;
-            let w = Word::new(s, 0, action);
+            let w = Word::new(nfa, nlen, action);
             let w1 = self.inner.offset(len as isize) as *mut Word<VM>;
             *w1 = w;
             (*w1).link = self.last;
@@ -116,6 +148,25 @@ impl JitMemory {
             self.align();
             (*w1).dfa = self.len;
         }
+    }
+
+    pub fn name(&self, w: &Word<VM>) -> &str {
+        let ptr = unsafe{ self.inner.offset(w.nfa as isize) };
+        unsafe{ mem::transmute(slice::from_raw_parts::<u8>(ptr, w.nlen)) }
+    }
+
+    pub fn find(&mut self, name: &str) -> Option<usize>{
+        let mut i = self.last();
+        while !(i==0) {
+            let w = self.word(i);
+            let s = self.name(w);
+            if !w.hidden && s.eq_ignore_ascii_case(name) {
+                return Some(i);
+            } else {
+              i = w.link;
+            }
+        }
+        None
     }
 
     pub fn put_u8(&mut self, v: u8, pos: usize) {

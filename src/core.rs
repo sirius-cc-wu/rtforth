@@ -9,7 +9,6 @@ use std::mem;
 use std::raw;
 use std::ptr::{Unique, self};
 use std::str::FromStr;
-use std::ascii::AsciiExt;
 use std::fmt;
 use std::slice;
 use std::collections::HashMap;
@@ -333,6 +332,7 @@ pub trait Core {
   // Functions to access VM.
 
   fn jit_memory(&mut self) -> &mut JitMemory;
+  fn jit_memory_const(&self) -> &JitMemory;
   fn output_buffer(&mut self) -> &mut Option<String>;
   fn set_output_buffer(&mut self, buffer: String);
   fn input_buffer(&mut self) -> &mut Option<String>;
@@ -506,16 +506,7 @@ pub trait Core {
   /// Find the word with name 'name'.
   /// If not found returns zero.
   fn find(&mut self, name: &str) -> Option<usize> {
-      let mut i = self.jit_memory().last();
-      while !(i==0) {
-          let w = self.jit_memory().word(i);
-          if !w.hidden && w.name.eq_ignore_ascii_case(name) {
-              return Some(i);
-          } else {
-              i = w.link;
-          }
-      }
-      None
+      self.jit_memory().find(name)
   }
 
   //------------------
@@ -756,14 +747,14 @@ pub trait Core {
           }
           self.r_stack().len += 1;
           let wp = self.state().word_pointer;
-          self.state().instruction_pointer = self.jit_memory().word(wp).dfa;
+          self.state().instruction_pointer = self.jit_memory().word(wp).dfa();
           Some(Nest)
       }
   }
 
   fn p_var(&mut self) -> Option<Exception> {
       let wp = self.state().word_pointer;
-      let dfa = self.jit_memory().word(wp).dfa as isize;
+      let dfa = self.jit_memory().word(wp).dfa() as isize;
       match self.s_stack().push(dfa) {
           Some(_) => Some(StackOverflow),
           None => None
@@ -772,7 +763,7 @@ pub trait Core {
 
   fn p_const(&mut self) -> Option<Exception> {
       let wp = self.state().word_pointer;
-      let dfa = self.jit_memory().word(wp).dfa;
+      let dfa = self.jit_memory().word(wp).dfa();
       let value = self.jit_memory().get_i32(dfa) as isize;
       match self.s_stack().push(value) {
           Some(_) => Some(StackOverflow),
@@ -782,7 +773,7 @@ pub trait Core {
 
   fn p_fvar(&mut self) -> Option<Exception> {
       let wp = self.state().word_pointer;
-      let dfa = self.jit_memory().word(wp).dfa as isize;
+      let dfa = self.jit_memory().word(wp).dfa() as isize;
       match self.s_stack().push(dfa) {
           Some(_) => Some(StackOverflow),
           None => None
@@ -843,7 +834,7 @@ pub trait Core {
 
   fn unmark(&mut self) -> Option<Exception> {
       let wp = self.state().word_pointer;
-      let dfa = self.jit_memory().word(wp).dfa;
+      let dfa = self.jit_memory().word(wp).dfa();
       let jlen = self.jit_memory().get_i32(dfa) as usize;
       self.jit_memory().truncate(jlen);
       self.jit_memory().set_last(wp);
@@ -1997,6 +1988,7 @@ pub trait Core {
 
 impl Core for VM {
   fn jit_memory(&mut self) -> &mut JitMemory { &mut self.jitmem }
+  fn jit_memory_const(&self) -> &JitMemory { &self.jitmem }
   fn output_buffer(&mut self) -> &mut Option<String> { &mut self.outbuf }
   fn set_output_buffer(&mut self, buffer: String) {
     self.outbuf = Some(buffer);

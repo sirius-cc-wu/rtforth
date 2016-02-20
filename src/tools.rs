@@ -27,12 +27,12 @@ impl Tools for VM {
 
     fn words(&mut self) -> Option<Exception> {
         println!("");
-        let mut link = self.jit_memory().last();
+        let mut link = self.jit_memory_const().last();
         while !(link == 0) {
-            let w = self.jit_memory().word(link);
+            let w = self.jit_memory_const().word(link);
             link = w.link;
             if !w.hidden {
-                print!("{} ", w.name );
+                print!("{} ", self.jit_memory_const().name(w) );
             }
         }
         None

@@ -348,476 +348,6 @@ pub trait Core {
   fn set_evaluators(&mut self, Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>);
 
   /// Add core primitives to self.
-  fn add_core(&mut self);
-
-  fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
-
-  fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
-
-  fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
-
-  fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
-
-  fn execute_word(&mut self, i: usize) -> Option<Exception>;
-
-  /// Find the word with name 'name'.
-  /// If not found returns zero.
-  fn find(&mut self, name: &str) -> Option<usize>;
-
-  //------------------
-  // Inner interpreter
-  //------------------
-
-  /// Evaluate a compiled program following self.state().instruction_pointer.
-  /// Any exception other than Nest causes termination of inner loop.
-  /// Quit is aspecially used for this purpose.
-  /// Never return None and Some(Nest).
-  fn run(&mut self) -> Option<Exception>;
-
-  //---------
-  // Compiler
-  //---------
-
-  fn compile_word(&mut self, word_index: usize);
-
-  /// Compile integer 'i'.
-  fn compile_integer (&mut self, i: isize);
-
-  //-----------
-  // Evaluation
-  //-----------
-
-  fn interpret(& mut self) -> Option<Exception>;
-
-  fn compile(& mut self) -> Option<Exception>;
-
-  fn set_source(&mut self, s: &str);
-
-  /// Run-time: ( "ccc" -- )
-  ///
-  /// Parse word delimited by white space, skipping leading white spaces.
-  fn parse_word(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( "&lt;spaces&gt;name" -- char)
-  ///
-  /// Skip leading space delimiters. Parse name delimited by a space. Put the value of its first character onto the stack.
-  fn char(&mut self) -> Option<Exception>;
-
-  /// Compilation: ( "&lt;spaces&gt;name" -- )
-  ///
-  /// Skip leading space delimiters. Parse name delimited by a space. Append the run-time semantics given below to the current definition.
-  ///
-  /// Run-time: ( -- char )
-  ///
-  /// Place char, the value of the first character of name, on the stack.
-  fn bracket_char(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( char "ccc&lt;char&gt;" -- )
-  ///
-  /// Parse ccc delimited by the delimiter char.
-  fn parse(&mut self) -> Option<Exception>;
-
-  fn imm_paren(&mut self) -> Option<Exception>;
-
-  fn imm_backslash(&mut self) -> Option<Exception>;
-
-  /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
-  /// Never returns Some(Quit).
-  fn evaluate(&mut self) -> Option<Exception>;
-
-  fn evaluate_integer(&mut self, token: &str) -> Result<(), Exception>;
-
-  /// Extend `f` to evaluators.
-  /// Will create a vector for evaluators if there was no evaluator.
-  fn extend_evaluator(&mut self, f: fn(&mut VM, token: &str) -> Result<(), Exception>);
-
-  /// Extend VM with an `extension`.
-  fn extend(&mut self, name: &'static str, extension: Box<Extension>);
-
-  /// Get extension of type T with name.
-  /// Note: Behavior is undefined when extension corresponding to name is not of type T.
-  /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
-  #[deprecated]
-  unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T>;
-
-  //-----------------------
-  // High level definitions
-  //-----------------------
-
-  fn nest(&mut self) -> Option<Exception>;
-
-  fn p_var(&mut self) -> Option<Exception>;
-
-  fn p_const(&mut self) -> Option<Exception>;
-
-  fn p_fvar(&mut self) -> Option<Exception>;
-
-  fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception>;
-
-  fn colon(&mut self) -> Option<Exception>;
-
-  fn semicolon(&mut self) -> Option<Exception>;
-
-  fn create(&mut self) -> Option<Exception>;
-
-  fn variable(&mut self) -> Option<Exception>;
-
-  fn constant(&mut self) -> Option<Exception>;
-
-  fn unmark(&mut self) -> Option<Exception>;
-
-  fn marker(&mut self) -> Option<Exception>;
-
-  //--------
-  // Control
-  //--------
-
-  fn branch(&mut self) -> Option<Exception>;
-
-  fn zero_branch(&mut self) -> Option<Exception>;
-
-  /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
-  ///
-  /// Set up loop control parameters with index n2|u2 and limit n1|u1. An
-  /// ambiguous condition exists if n1|u1 and n2|u2 are not both the same
-  /// type.  Anything already on the return stack becomes unavailable until
-  /// the loop-control parameters are discarded.
-  fn _do(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
-  ///
-  /// An ambiguous condition exists if the loop control parameters are
-  /// unavailable. Add one to the loop index. If the loop index is then equal
-  /// to the loop limit, discard the loop parameters and continue execution
-  /// immediately following the loop. Otherwise continue execution at the
-  /// beginning of the loop.
-  fn p_loop(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
-  ///
-  /// An ambiguous condition exists if the loop control parameters are
-  /// unavailable. Add n to the loop index. If the loop index did not cross
-  /// the boundary between the loop limit minus one and the loop limit,
-  /// continue execution at the beginning of the loop. Otherwise, discard the
-  /// current loop control parameters and continue execution immediately
-  /// following the loop.
-  fn p_plus_loop(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( -- ) ( R: loop-sys -- )
-  ///
-  /// Discard the loop-control parameters for the current nesting level. An
-  /// UNLOOP is required for each nesting level before the definition may be
-  /// EXITed. An ambiguous condition exists if the loop-control parameters
-  /// are unavailable.
-  fn unloop(&mut self) -> Option<Exception>;
-
-  fn leave(&mut self) -> Option<Exception>;
-
-  fn p_i(&mut self) -> Option<Exception>;
-
-  fn p_j(&mut self) -> Option<Exception>;
-
-  fn imm_if(&mut self) -> Option<Exception>;
-
-  fn imm_else(&mut self) -> Option<Exception>;
-
-  fn imm_then(&mut self) -> Option<Exception>;
-
-  fn imm_begin(&mut self) -> Option<Exception>;
-
-  fn imm_while(&mut self) -> Option<Exception>;
-
-  fn imm_repeat(&mut self) -> Option<Exception>;
-
-  fn imm_again(&mut self) -> Option<Exception>;
-
-  fn imm_recurse(&mut self) -> Option<Exception>;
-
-  /// Execution: ( -- a-ddr )
-  ///
-  /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
-  fn imm_do(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( a-addr -- )
-  ///
-  /// Append the run-time semantics of _LOOP to the current definition.
-  /// Resolve the destination of all unresolved occurrences of LEAVE between
-  /// the location given by do-sys and the next location for a transfer of
-  /// control, to execute the words following the LOOP.
-  fn imm_loop(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( a-addr -- )
-  ///
-  /// Append the run-time semantics of _+LOOP to the current definition.
-  /// Resolve the destination of all unresolved occurrences of LEAVE between
-  /// the location given by do-sys and the next location for a transfer of
-  /// control, to execute the words following +LOOP.
-  fn imm_plus_loop(&mut self) -> Option<Exception>;
-
-  //-----------
-  // Primitives
-  //-----------
-
-  /// Run-time: ( -- )
-  ///
-  /// No operation
-  fn noop(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( -- true )
-  ///
-  /// Return a true flag, a single-cell value with all bits set.
-  fn p_true(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( -- false )
-  ///
-  /// Return a false flag.
-  fn p_false(&mut self) -> Option<Exception>;
-
-  /// Run-time: (c-addr1 -- c-addr2 )
-  ///
-  ///Add the size in address units of a character to c-addr1, giving c-addr2.
-  fn char_plus(&mut self) -> Option<Exception>;
-
-  /// Run-time: (n1 -- n2 )
-  ///
-  /// n2 is the size in address units of n1 characters.
-  fn chars(&mut self) -> Option<Exception>;
-
-  /// Run-time: (a-addr1 -- a-addr2 )
-  ///
-  /// Add the size in address units of a cell to a-addr1, giving a-addr2.
-  fn cell_plus(&mut self) -> Option<Exception>;
-
-  /// Run-time: (n1 -- n2 )
-  ///
-  /// n2 is the size in address units of n1 cells.
-  fn cells(&mut self) -> Option<Exception>;
-
-  fn lit(&mut self) -> Option<Exception>;
-
-  fn swap(&mut self) -> Option<Exception>;
-
-  fn dup(&mut self) -> Option<Exception>;
-
-  fn p_drop(&mut self) -> Option<Exception>;
-
-  fn nip(&mut self) -> Option<Exception>;
-
-  fn over(&mut self) -> Option<Exception>;
-
-  fn rot(&mut self) -> Option<Exception>;
-
-  fn two_drop(&mut self) -> Option<Exception>;
-
-  fn two_dup(&mut self) -> Option<Exception>;
-
-  fn two_swap(&mut self) -> Option<Exception>;
-
-  fn two_over(&mut self) -> Option<Exception>;
-
-  fn depth(&mut self) -> Option<Exception>;
-
-  fn one_plus(&mut self) -> Option<Exception>;
-
-  fn one_minus(&mut self) -> Option<Exception>;
-
-  fn plus(&mut self) -> Option<Exception>;
-
-  fn minus(&mut self) -> Option<Exception>;
-
-  fn star(&mut self) -> Option<Exception>;
-
-  fn slash(&mut self) -> Option<Exception>;
-
-  fn p_mod(&mut self) -> Option<Exception>;
-
-  fn slash_mod(&mut self) -> Option<Exception>;
-
-  fn abs(&mut self) -> Option<Exception>;
-
-  fn negate(&mut self) -> Option<Exception>;
-
-  fn zero_less(&mut self) -> Option<Exception>;
-
-  fn zero_equals(&mut self) -> Option<Exception>;
-
-  fn zero_greater(&mut self) -> Option<Exception>;
-
-  fn zero_not_equals(&mut self) -> Option<Exception>;
-
-  fn equals(&mut self) -> Option<Exception>;
-
-  fn less_than(&mut self) -> Option<Exception>;
-
-  fn greater_than(&mut self) -> Option<Exception>;
-
-  fn not_equals(&mut self) -> Option<Exception>;
-
-  fn between(&mut self) -> Option<Exception>;
-
-  fn invert(&mut self) -> Option<Exception>;
-
-  fn and(&mut self) -> Option<Exception>;
-
-  fn or(&mut self) -> Option<Exception>;
-
-  fn xor(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( x1 u -- x2 )
-  ///
-  /// Perform a logical left shift of u bit-places on x1, giving x2. Put
-  /// zeroes into the least significant bits vacated by the shift. An
-  /// ambiguous condition exists if u is greater than or equal to the number
-  /// of bits in a cell.
-  fn lshift(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( x1 u -- x2 )
-  ///
-  /// Perform a logical right shift of u bit-places on x1, giving x2. Put
-  /// zeroes into the most significant bits vacated by the shift. An
-  /// ambiguous condition exists if u is greater than or equal to the number
-  /// of bits in a cell.
-  fn rshift(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( x1 u -- x2 )
-  ///
-  /// Perform a arithmetic right shift of u bit-places on x1, giving x2. Put
-  /// zeroes into the most significant bits vacated by the shift. An
-  /// ambiguous condition exists if u is greater than or equal to the number
-  /// of bits in a cell.
-  fn arshift(&mut self) -> Option<Exception>;
-
-  /// Interpretation: Interpretation semantics for this word are undefined.
-  ///
-  /// Execution: ( -- ) ( R: nest-sys -- )
-  /// Return control to the calling definition specified by nest-sys. Before executing EXIT within a
-  /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP.
-  /// TODO: UNLOOP
-  fn exit(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( a-addr -- x )
-  ///
-  /// x is the value stored at a-addr.
-  fn fetch(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( x a-addr -- )
-  ///
-  /// Store x at a-addr.
-  fn store(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( c-addr -- char )
-  ///
-  /// Fetch the character stored at c-addr. When the cell size is greater than
-  /// character size, the unused high-order bits are all zeroes.
-  fn c_fetch(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( char c-addr -- )
-  ///
-  /// Store char at c-addr. When character size is smaller than cell size,
-  /// only the number of low-order bits corresponding to character size are
-  /// transferred.
-  fn c_store(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( "<spaces>name" -- xt )
-  ///
-  /// Skip leading space delimiters. Parse name delimited by a space. Find
-  /// name and return xt, the execution token for name. An ambiguous
-  /// condition exists if name is not found.
-  fn tick(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( i*x xt -- j*x )
-  ///
-  /// Remove xt from the stack and perform the semantics identified by it.
-  /// Other stack effects are due to the word EXECUTEd.
-  fn execute(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( -- addr )
-  ///
-  /// addr is the data-space pointer.
-  fn here(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( n -- )
-  ///
-  /// If n is greater than zero, reserve n address units of data space. If n
-  /// is less than zero, release |n| address units of data space. If n is
-  /// zero, leave the data-space pointer unchanged.
-  fn allot(&mut self) -> Option<Exception>;
-
-  /// Run-time: ( x -- )
-  ///
-  /// Reserve one cell of data space and store x in the cell. If the
-  /// data-space pointer is aligned when , begins execution, it will remain
-  /// aligned when , finishes execution. An ambiguous condition exists if the
-  /// data-space pointer is not aligned prior to execution of ,.
-  fn comma(&mut self) -> Option<Exception>;
-
-  fn p_to_r(&mut self) -> Option<Exception>;
-
-  fn r_from(&mut self) -> Option<Exception>;
-
-  fn r_fetch(&mut self) -> Option<Exception>;
-
-  fn two_to_r(&mut self) -> Option<Exception>;
-
-  fn two_r_from(&mut self) -> Option<Exception>;
-
-  fn two_r_fetch(&mut self) -> Option<Exception>;
-
-  /// Leave VM's inner loop, keep VM's all state.
-  /// Call inner to resume inner loop.
-  fn pause(&mut self) -> Option<Exception>;
-
-  //----------------
-  // Error handlling
-  //----------------
-
-  /// Clear data and floating point stacks.
-  /// Called by VM's client upon Abort.
-  fn clear_stacks(&mut self);
-
-  /// Reset VM, do not clear data stack and floating point stack.
-  /// Called by VM's client upon Quit.
-  fn reset(&mut self);
-
-  /// Abort the inner loop with an exception, reset VM and clears stacks.
-  fn abort(&mut self) -> Option<Exception>;
-
-  fn halt(&mut self) -> Option<Exception>;
-
-  /// Quit the inner loop and reset VM, without clearing stacks .
-  fn quit(&mut self) -> Option<Exception>;
-
-  /// Emit Bye exception.
-  fn bye(&mut self) -> Option<Exception>;
-
-}
-
-impl Core for VM {
-  fn jit_memory(&mut self) -> &mut JitMemory { &mut self.jitmem }
-  fn output_buffer(&mut self) -> &mut Option<String> { &mut self.outbuf }
-  fn set_output_buffer(&mut self, buffer: String) {
-    self.outbuf = Some(buffer);
-  }
-  fn input_buffer(&mut self) -> &mut Option<String> {
-    &mut self.inbuf
-  }
-  fn set_input_buffer(&mut self, buffer: String) {
-    self.inbuf = Some(buffer);
-  }
-  fn last_token(&mut self) -> &mut Option<String> { &mut self.tkn }
-  fn set_last_token(&mut self, buffer: String) { self.tkn = Some(buffer); }
-  fn s_stack(&mut self) -> &mut Stack<isize> { &mut self.s_stk }
-  fn r_stack(&mut self) -> &mut Stack<isize> { &mut self.r_stk }
-  fn f_stack(&mut self) -> &mut Stack<f64> { &mut self.f_stk }
-  fn state(&mut self) -> &mut State { &mut self.state }
-  fn references(&mut self) -> &mut ForwardReferences { &mut self.references }
-  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>> {
-    &mut self.evals
-  }
-  fn set_evaluators(&mut self, evaluators: Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>) {
-    self.evals = Some(evaluators)
-  }
-
   fn add_core(&mut self) {
     // Bytecodes
     self.add_primitive("noop", Core::noop); // j1, Ngaro, jx
@@ -949,1619 +479,1683 @@ impl Core for VM {
     self.extend_evaluator(Core::evaluate_integer);
   }
 
-    fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-        self.jit_memory().compile_word(name, action);
-        self.state().last_definition = self.jit_memory().last();
-    }
+  fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
 
-    fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-        self.add_primitive (name, action);
-        let def = self.state().last_definition;
-        self.jit_memory().mut_word(def).is_immediate = true;
-    }
+  fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+      self.add_primitive (name, action);
+      let def = self.state().last_definition;
+      self.jit_memory().mut_word(def).is_immediate = true;
+  }
 
-    fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-        self.add_primitive (name, action);
-        let def = self.state().last_definition;
-        self.jit_memory().mut_word(def).is_compile_only = true;
-    }
+  fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+      self.add_primitive (name, action);
+      let def = self.state().last_definition;
+      self.jit_memory().mut_word(def).is_compile_only = true;
+  }
 
-    fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-        self.add_primitive (name, action);
-        let def = self.state().last_definition;
-        let w = self.jit_memory().mut_word(def);
-        w.is_immediate = true;
-        w.is_compile_only = true;
-    }
+  fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+      self.add_primitive (name, action);
+      let def = self.state().last_definition;
+      let w = self.jit_memory().mut_word(def);
+      w.is_immediate = true;
+      w.is_compile_only = true;
+  }
 
-    fn execute_word(&mut self, i: usize) -> Option<Exception> {
-        self.state().word_pointer = i;
-        (self.jit_memory().word(i).action)(self)
-    }
+  fn execute_word(&mut self, i: usize) -> Option<Exception>;
 
-    /// Find the word with name 'name'.
-    /// If not found returns zero.
-    fn find(&mut self, name: &str) -> Option<usize> {
-        let mut i = self.jit_memory().last();
-        while !(i==0) {
-            let w = self.jit_memory().word(i);
-            if !w.hidden && w.name.eq_ignore_ascii_case(name) {
-                return Some(i);
-            } else {
-                i = w.link;
-            }
-        }
-        None
-    }
+  /// Find the word with name 'name'.
+  /// If not found returns zero.
+  fn find(&mut self, name: &str) -> Option<usize> {
+      let mut i = self.jit_memory().last();
+      while !(i==0) {
+          let w = self.jit_memory().word(i);
+          if !w.hidden && w.name.eq_ignore_ascii_case(name) {
+              return Some(i);
+          } else {
+              i = w.link;
+          }
+      }
+      None
+  }
 
-// Inner interpreter
+  //------------------
+  // Inner interpreter
+  //------------------
 
-    /// Evaluate a compiled program following self.state().instruction_pointer.
-    /// Any exception other than Nest causes termination of inner loop.
-    /// Quit is aspecially used for this purpose.
-    /// Never return None and Some(Nest).
-    #[no_mangle]
-    #[inline(never)]
-    fn run(&mut self) -> Option<Exception> {
-        let mut ip = self.state().instruction_pointer;
-        while 0 < ip && ip < self.jit_memory().len() {
-            let w = self.jit_memory().get_i32(ip) as usize;
-            self.state().instruction_pointer += mem::size_of::<i32>();
-            match self.execute_word (w) {
-                Some(e) => {
-                    match e {
-                        Nest => {},
-                        _ => return Some(e)
-                    }
-                },
-                None => {}
-            }
-            ip = self.state().instruction_pointer;
-        }
-        if ip == 0 {
-            None
-        } else {
-            Some(InvalidMemoryAddress)
-        }
-    }
+  /// Evaluate a compiled program following self.state().instruction_pointer.
+  /// Any exception other than Nest causes termination of inner loop.
+  /// Quit is aspecially used for this purpose.
+  /// Never return None and Some(Nest).
+  #[no_mangle]
+  #[inline(never)]
+  fn run(&mut self) -> Option<Exception> {
+      let mut ip = self.state().instruction_pointer;
+      while 0 < ip && ip < self.jit_memory().len() {
+          let w = self.jit_memory().get_i32(ip) as usize;
+          self.state().instruction_pointer += mem::size_of::<i32>();
+          match self.execute_word (w) {
+              Some(e) => {
+                  match e {
+                      Nest => {},
+                      _ => return Some(e)
+                  }
+              },
+              None => {}
+          }
+          ip = self.state().instruction_pointer;
+      }
+      if ip == 0 {
+          None
+      } else {
+          Some(InvalidMemoryAddress)
+      }
+  }
 
-// Compiler
+  //---------
+  // Compiler
+  //---------
 
-    fn compile_word(&mut self, word_index: usize) {
-        self.jit_memory().compile_i32(word_index as i32);
-    }
+  fn compile_word(&mut self, word_index: usize) {
+      self.jit_memory().compile_i32(word_index as i32);
+  }
 
-    /// Compile integer 'i'.
-    fn compile_integer (&mut self, i: isize) {
-        let idx = self.references().idx_lit as i32;
-        self.jit_memory().compile_i32(idx);
-        self.jit_memory().compile_i32(i as i32);
-    }
+  /// Compile integer 'i'.
+  fn compile_integer (&mut self, i: isize) {
+      let idx = self.references().idx_lit as i32;
+      self.jit_memory().compile_i32(idx);
+      self.jit_memory().compile_i32(i as i32);
+  }
 
-// Evaluation
+  //-----------
+  // Evaluation
+  //-----------
 
-    fn interpret(& mut self) -> Option<Exception> {
-        self.state().is_compiling = false;
-        None
-    }
+  fn interpret(& mut self) -> Option<Exception> {
+      self.state().is_compiling = false;
+      None
+  }
 
-    fn compile(& mut self) -> Option<Exception> {
-        self.state().is_compiling = true;
-        None
-    }
+  fn compile(& mut self) -> Option<Exception> {
+      self.state().is_compiling = true;
+      None
+  }
 
-    fn set_source(&mut self, s: &str) {
-        let mut buffer = self.input_buffer().take().unwrap();
-        buffer.clear();
-        buffer.push_str(s);
-        self.state().source_index = 0;
-        self.set_input_buffer(buffer);
-    }
+  fn set_source(&mut self, s: &str) {
+      let mut buffer = self.input_buffer().take().unwrap();
+      buffer.clear();
+      buffer.push_str(s);
+      self.state().source_index = 0;
+      self.set_input_buffer(buffer);
+  }
 
-    /// Run-time: ( "ccc" -- )
-    ///
-    /// Parse word delimited by white space, skipping leading white spaces.
-    fn parse_word(&mut self) -> Option<Exception> {
-        let mut last_token = self.last_token().take().unwrap();
-        last_token.clear();
-        let input_buffer = self.input_buffer().take().unwrap();
-        {
-            let source = &input_buffer[self.state().source_index..input_buffer.len()];
-            let mut cnt = 0;
-            for ch in source.chars() {
-                cnt = cnt + 1;
-                match ch {
-                    '\t' | '\n' | '\r' | ' ' => {
-                        if !last_token.is_empty() {
-                            break;
-                        }
-                    },
-                    _ => last_token.push(ch)
-                };
-            }
-            self.state().source_index = self.state().source_index + cnt;
-        }
-        self.set_last_token(last_token);
-        self.set_input_buffer(input_buffer);
-        None
-    }
+  /// Run-time: ( "ccc" -- )
+  ///
+  /// Parse word delimited by white space, skipping leading white spaces.
+  fn parse_word(&mut self) -> Option<Exception> {
+      let mut last_token = self.last_token().take().unwrap();
+      last_token.clear();
+      let input_buffer = self.input_buffer().take().unwrap();
+      {
+          let source = &input_buffer[self.state().source_index..input_buffer.len()];
+          let mut cnt = 0;
+          for ch in source.chars() {
+              cnt = cnt + 1;
+              match ch {
+                  '\t' | '\n' | '\r' | ' ' => {
+                      if !last_token.is_empty() {
+                          break;
+                      }
+                  },
+                  _ => last_token.push(ch)
+              };
+          }
+          self.state().source_index = self.state().source_index + cnt;
+      }
+      self.set_last_token(last_token);
+      self.set_input_buffer(input_buffer);
+      None
+  }
 
-    /// Run-time: ( "&lt;spaces&gt;name" -- char)
-    ///
-    /// Skip leading space delimiters. Parse name delimited by a space. Put the value of its first character onto the stack.
-    fn char(&mut self) -> Option<Exception> {
-        let result;
-        self.parse_word();
-        let last_token = self.last_token().take().unwrap();
-        match last_token.chars().nth(0) {
-            Some(c) =>
-                match self.s_stack().push(c as isize) {
-                    Some(_) => result = Some(StackOverflow),
-                    None => result = None
-                },
-            None => result = Some(UnexpectedEndOfFile)
-        }
-        self.set_last_token(last_token);
-        result
-    }
+  /// Run-time: ( "&lt;spaces&gt;name" -- char)
+  ///
+  /// Skip leading space delimiters. Parse name delimited by a space. Put the value of its first character onto the stack.
+  fn char(&mut self) -> Option<Exception> {
+      let result;
+      self.parse_word();
+      let last_token = self.last_token().take().unwrap();
+      match last_token.chars().nth(0) {
+          Some(c) =>
+              match self.s_stack().push(c as isize) {
+                  Some(_) => result = Some(StackOverflow),
+                  None => result = None
+              },
+          None => result = Some(UnexpectedEndOfFile)
+      }
+      self.set_last_token(last_token);
+      result
+  }
 
-    /// Compilation: ( "&lt;spaces&gt;name" -- )
-    ///
-    /// Skip leading space delimiters. Parse name delimited by a space. Append the run-time semantics given below to the current definition.
-    ///
-    /// Run-time: ( -- char )
-    ///
-    /// Place char, the value of the first character of name, on the stack.
-    fn bracket_char(&mut self) -> Option<Exception> {
-        self.char();
-        match self.s_stack().pop() {
-            Some(ch) => {
-                self.compile_integer(ch);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
+  /// Compilation: ( "&lt;spaces&gt;name" -- )
+  ///
+  /// Skip leading space delimiters. Parse name delimited by a space. Append the run-time semantics given below to the current definition.
+  ///
+  /// Run-time: ( -- char )
+  ///
+  /// Place char, the value of the first character of name, on the stack.
+  fn bracket_char(&mut self) -> Option<Exception> {
+      self.char();
+      match self.s_stack().pop() {
+          Some(ch) => {
+              self.compile_integer(ch);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
 
-    /// Run-time: ( char "ccc&lt;char&gt;" -- )
-    ///
-    /// Parse ccc delimited by the delimiter char.
-    fn parse(&mut self) -> Option<Exception> {
-        let input_buffer = self.input_buffer().take().unwrap();
-        match self.s_stack().pop() {
-            Some(v) => {
-                let mut last_token = self.last_token().take().unwrap();
-                last_token.clear();
-                {
-                    let source = &input_buffer[self.state().source_index..input_buffer.len()];
-                    let mut cnt = 0;
-                    for ch in source.chars() {
-                        cnt = cnt + 1;
-                        if ch as isize == v {
-                            break;
-                        } else {
-                            last_token.push(ch);
-                        }
-                    }
-                    self.state().source_index = self.state().source_index + cnt;
-                }
-                self.set_last_token(last_token);
-                self.set_input_buffer(input_buffer);
-                None
-            },
-            None => {
+  /// Run-time: ( char "ccc&lt;char&gt;" -- )
+  ///
+  /// Parse ccc delimited by the delimiter char.
+  fn parse(&mut self) -> Option<Exception> {
+      let input_buffer = self.input_buffer().take().unwrap();
+      match self.s_stack().pop() {
+          Some(v) => {
+              let mut last_token = self.last_token().take().unwrap();
+              last_token.clear();
+              {
+                  let source = &input_buffer[self.state().source_index..input_buffer.len()];
+                  let mut cnt = 0;
+                  for ch in source.chars() {
+                      cnt = cnt + 1;
+                      if ch as isize == v {
+                          break;
+                      } else {
+                          last_token.push(ch);
+                      }
+                  }
+                  self.state().source_index = self.state().source_index + cnt;
+              }
+              self.set_last_token(last_token);
               self.set_input_buffer(input_buffer);
-              Some(StackUnderflow)
-            }
-        }
-    }
-
-    fn imm_paren(&mut self) -> Option<Exception> {
-        match self.s_stack().push(')' as isize) {
-            Some(_) => Some(StackOverflow),
-            None => self.parse()
-        }
-    }
-
-    fn imm_backslash(&mut self) -> Option<Exception> {
-        self.state().source_index = match *self.input_buffer() {
-          Some(ref buf) => buf.len(),
-          None => 0
-        };
-        None
-    }
-
-    /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
-    /// Never returns Some(Quit).
-    fn evaluate(&mut self) -> Option<Exception> {
-        let result;
-        let mut last_token;
-        loop {
-            self.parse_word();
-            last_token = self.last_token().take().unwrap();
-            if last_token.is_empty() {
-                result = None;
-                break;
-            }
-            match self.find(&last_token) {
-                Some(found_index) => {
-                    let is_immediate_word;
-                    let is_compile_only_word;
-                    {
-                        let word = &self.jit_memory().word(found_index);
-                        is_immediate_word = word.is_immediate;
-                        is_compile_only_word = word.is_compile_only;
-                    }
-                    if self.state().is_compiling && !is_immediate_word {
-                        self.compile_word(found_index);
-                    } else if !self.state().is_compiling && is_compile_only_word {
-                        result = Some(InterpretingACompileOnlyWord);
-                        break;
-                    } else {
-                        self.set_last_token(last_token);
-                        match self.execute_word(found_index) {
-                            Some(e) => {
-                                last_token = self.last_token().take().unwrap();
-                                match e {
-                                    Nest => {
-                                        match self.run() {
-                                            Some(e2) => match e2 {
-                                                Quit => {},
-                                                _ => {
-                                                    result = Some(e2);
-                                                    break;
-                                                }
-                                            },
-                                            None => { /* impossible */ }
-                                        }
-                                    },
-                                    Quit => {},
-                                    _ => {
-                                      result = Some(e);
-                                      break;
-                                    }
-                                }
-                            },
-                            None => {
-                              last_token = self.last_token().take().unwrap();
-                            }
-                        };
-                    }
-                },
-                None => {
-                    let mut done = false;
-                    let evaluators = self.evaluators().take().unwrap();
-                    for h in &evaluators {
-                        match h(self, &last_token) {
-                            Ok(_) => {
-                                done = true;
-                                break;
-                            },
-                            Err(_) => { continue }
-                        }
-                    }
-                    self.set_evaluators(evaluators);
-                    if !done {
-                        print!("{} ", &last_token);
-                        result = Some(UndefinedWord);
-                        break;
-                    }
-                }
-            }
-            self.set_last_token(last_token);
-        }
-        self.set_last_token(last_token);
-        result
-    }
-
-    fn evaluate_integer(&mut self, token: &str) -> Result<(), Exception> {
-        match FromStr::from_str(token) {
-            Ok(t) => {
-                if self.state().is_compiling {
-                    self.compile_integer(t);
-                } else {
-                    self.s_stack().push (t);
-                }
-                Ok(())
-            },
-            Err(_) => Err(UnsupportedOperation)
-        }
-    }
-
-    /// Extend `f` to evaluators.
-    /// Will create a vector for evaluators if there was no evaluator.
-    fn extend_evaluator(&mut self, f: fn(&mut VM, token: &str) -> Result<(), Exception>) {
-        let optional_evaluators = self.evaluators().take();
-        match optional_evaluators {
-            Some(mut evaluators) => {
-                evaluators.push(f);
-                self.set_evaluators(evaluators);
-            },
-            None => {
-                self.set_evaluators(vec![f]);
-            }
-        }
-    }
-
-    /// Extend VM with an `extension`.
-    fn extend(&mut self, name: &'static str, extension: Box<Extension>) {
-        self.extensions.insert(name, extension);
-    }
-
-    /// Get extension of type T with name.
-    /// Note: Behavior is undefined when extension corresponding to name is not of type T.
-    /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
-    unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T> {
-            let option = self.extensions.get(name);
-            match option {
-                    Some(v) => {
-                            let tobj: raw::TraitObject = mem::transmute(&**v);
-                            Some(mem::transmute(tobj.data))
-                    },
-                    None => {
-                            None
-                    }
-            }
-    }
-
-// High level definitions
-
-    fn nest(&mut self) -> Option<Exception> {
-        if self.r_stack().is_full() {
-            Some(ReturnStackOverflow)
-        } else {
-            unsafe {
-                ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), self.state().instruction_pointer as isize);
-            }
-            self.r_stack().len += 1;
-            let wp = self.state().word_pointer;
-            self.state().instruction_pointer = self.jit_memory().word(wp).dfa;
-            Some(Nest)
-        }
-    }
-
-    fn p_var(&mut self) -> Option<Exception> {
-        let wp = self.state().word_pointer;
-        let dfa = self.jit_memory().word(wp).dfa as isize;
-        match self.s_stack().push(dfa) {
-            Some(_) => Some(StackOverflow),
-            None => None
-        }
-    }
-
-    fn p_const(&mut self) -> Option<Exception> {
-        let wp = self.state().word_pointer;
-        let dfa = self.jit_memory().word(wp).dfa;
-        let value = self.jit_memory().get_i32(dfa) as isize;
-        match self.s_stack().push(value) {
-            Some(_) => Some(StackOverflow),
-            None => None
-        }
-    }
-
-    fn p_fvar(&mut self) -> Option<Exception> {
-        let wp = self.state().word_pointer;
-        let dfa = self.jit_memory().word(wp).dfa as isize;
-        match self.s_stack().push(dfa) {
-            Some(_) => Some(StackOverflow),
-            None => None
-        }
-    }
-
-    fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception> {
-        self.parse_word();
-        let last_token = self.last_token().take().unwrap();
-        match self.find(&last_token) {
-            Some(_) => print!("Redefining {}", last_token),
-            None => {}
-        }
-        if !last_token.is_empty() {
-            self.jit_memory().compile_word(&last_token, action);
-            self.state().last_definition = self.jit_memory().last();
-            self.set_last_token(last_token);
-            None
-        } else {
-            self.state().last_definition = 0;
-            self.set_last_token(last_token);
-            Some(UnexpectedEndOfFile)
-        }
-    }
-
-    fn colon(&mut self) -> Option<Exception> {
-        match self.define(Core::nest) {
-            Some(e) => Some(e),
-            None => {
-                let def = self.state().last_definition;
-                self.jit_memory().mut_word(def).hidden = true;
-                self.compile()
-            }
-        }
-    }
-
-    fn semicolon(&mut self) -> Option<Exception>{
-        if self.state().last_definition != 0 {
-            let idx = self.references().idx_exit as i32;
-            self.jit_memory().compile_i32(idx);
-            let def = self.state().last_definition;
-            self.jit_memory().mut_word(def).hidden = false;
-        }
-        self.interpret()
-    }
-
-    fn create(&mut self) -> Option<Exception> {
-        self.define(Core::p_var)
-    }
-
-    fn variable(&mut self) -> Option<Exception> {
-        match self.define(Core::p_var) {
-            Some(e) => Some(e),
-            None => {
-                self.jit_memory().compile_i32(0);
-                None
-            }
-        }
-    }
-
-    fn constant(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(v) => {
-                match self.define(Core::p_const) {
-                    Some(e) => Some(e),
-                    None => {
-                        self.jit_memory().compile_i32(v as i32);
-                        None
-                    }
-                }
-            },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn unmark(&mut self) -> Option<Exception> {
-        let wp = self.state().word_pointer;
-        let dfa = self.jit_memory().word(wp).dfa;
-        let jlen = self.jit_memory().get_i32(dfa) as usize;
-        self.jit_memory().truncate(jlen);
-        self.jit_memory().set_last(wp);
-        None
-    }
-
-    fn marker(&mut self) -> Option<Exception> {
-        self.define(Core::unmark);
-        let jlen = self.jit_memory().len() as i32;
-        self.jit_memory().compile_i32(jlen+(mem::size_of::<i32>() as i32));
-        None
-    }
-
-// Control
-
-    fn branch(&mut self) -> Option<Exception> {
-        let ip = self.state().instruction_pointer;
-        self.state().instruction_pointer = self.jit_memory().get_i32(ip) as usize;
-        None
-    }
-
-    fn zero_branch(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(v) => {
-                if v == 0 {
-                    self.branch()
-                } else {
-                    self.state().instruction_pointer += mem::size_of::<i32>();
-                    None
-                }
-            },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
-    ///
-    /// Set up loop control parameters with index n2|u2 and limit n1|u1. An
-    /// ambiguous condition exists if n1|u1 and n2|u2 are not both the same
-    /// type.  Anything already on the return stack becomes unavailable until
-    /// the loop-control parameters are discarded.
-    fn _do(&mut self) -> Option<Exception> {
-        let ip = self.state().instruction_pointer as isize;
-        match self.r_stack().push(ip) {
-            Some(_) => Some(ReturnStackOverflow),
-            None => {
-                self.state().instruction_pointer += mem::size_of::<i32>();
-                self.two_to_r()
-            }
-        }
-    }
-
-    /// Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
-    ///
-    /// An ambiguous condition exists if the loop control parameters are
-    /// unavailable. Add one to the loop index. If the loop index is then equal
-    /// to the loop limit, discard the loop parameters and continue execution
-    /// immediately following the loop. Otherwise continue execution at the
-    /// beginning of the loop.
-    fn p_loop(&mut self) -> Option<Exception> {
-        match self.r_stack().pop2() {
-            Some((rn, rt)) => {
-                if rt+1 < rn {
-                    self.r_stack().push2(rn, rt+1);
-                    self.branch()
-                } else {
-                    match self.r_stack().pop() {
-                        Some(_) => {
-                            self.state().instruction_pointer += mem::size_of::<i32>();
-                            None
-                        },
-                        None => Some(ReturnStackUnderflow)
-                    }
-                }
-            },
-            None => Some(ReturnStackUnderflow)
-        }
-    }
-
-    /// Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
-    ///
-    /// An ambiguous condition exists if the loop control parameters are
-    /// unavailable. Add n to the loop index. If the loop index did not cross
-    /// the boundary between the loop limit minus one and the loop limit,
-    /// continue execution at the beginning of the loop. Otherwise, discard the
-    /// current loop control parameters and continue execution immediately
-    /// following the loop.
-    fn p_plus_loop(&mut self) -> Option<Exception> {
-        match self.r_stack().pop2() {
-            Some((rn, rt)) => {
-                match self.s_stack().pop() {
-                    Some(t) => {
-                        if rt+t < rn {
-                            self.r_stack().push2(rn, rt+t);
-                            self.branch()
-                        } else {
-                            match self.r_stack().pop() {
-                                Some(_) => {
-                                    self.state().instruction_pointer += mem::size_of::<i32>();
-                                    None
-                                },
-                                None => Some(ReturnStackUnderflow)
-                            }
-                        }
-                    },
-                    None => Some(StackUnderflow)
-                }
-            },
-            None => Some(ReturnStackUnderflow)
-        }
-    }
-
-    /// Run-time: ( -- ) ( R: loop-sys -- )
-    ///
-    /// Discard the loop-control parameters for the current nesting level. An
-    /// UNLOOP is required for each nesting level before the definition may be
-    /// EXITed. An ambiguous condition exists if the loop-control parameters
-    /// are unavailable.
-    fn unloop(&mut self) -> Option<Exception> {
-        match self.r_stack().pop3() {
-            Some(_) => None,
-            None => Some(ReturnStackUnderflow)
-        }
-    }
-
-    fn leave(&mut self) -> Option<Exception> {
-        match self.r_stack().pop3() {
-            Some((third, _, _)) => {
-                self.state().instruction_pointer = self.jit_memory().get_i32(third as usize) as usize;
-                None
-            },
-            None => Some(ReturnStackUnderflow)
-        }
-    }
-
-    fn p_i(&mut self) -> Option<Exception> {
-        match self.r_stack().last() {
-            Some(i) => {
-                match self.s_stack().push(i) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                }
-            },
-            None => Some(ReturnStackUnderflow)
-        }
-    }
-
-    fn p_j(&mut self) -> Option<Exception> {
-        let pos = self.r_stack().len() - 4;
-        match self.r_stack().get(pos) {
-            Some(j) => {
-                match self.s_stack().push(j) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                }
-            },
-            None => Some(ReturnStackUnderflow)
-        }
-    }
-
-    fn imm_if(&mut self) -> Option<Exception> {
-        let idx = self.references().idx_zero_branch as i32;
-        self.jit_memory().compile_i32(idx);
-        self.jit_memory().compile_i32(0);
-        self.here()
-    }
-
-    fn imm_else(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(if_part) => {
-                let idx = self.references().idx_branch as i32;
-                self.jit_memory().compile_i32(idx);
-                self.jit_memory().compile_i32(0);
-                self.here();
-                let here = self.jit_memory().len();
-                self.jit_memory().put_i32(here as i32, (if_part - mem::size_of::<i32>() as isize) as usize);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn imm_then(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(branch_part) => {
-                let here = self.jit_memory().len();
-                self.jit_memory().put_i32(here as i32, (branch_part - mem::size_of::<i32>() as isize) as usize);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn imm_begin(&mut self) -> Option<Exception> {
-        self.here()
-    }
-
-    fn imm_while(&mut self) -> Option<Exception> {
-        let idx = self.references().idx_zero_branch as i32;
-        self.jit_memory().compile_i32(idx);
-        self.jit_memory().compile_i32(0);
-        self.here()
-    }
-
-    fn imm_repeat(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((begin_part, while_part)) => {
-                let idx = self.references().idx_branch as i32;
-                self.jit_memory().compile_i32(idx);
-                self.jit_memory().compile_i32(begin_part as i32);
-                let here = self.jit_memory().len();
-                self.jit_memory().put_i32(here as i32, (while_part - mem::size_of::<i32>() as isize) as usize);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn imm_again(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(begin_part) => {
-                let idx = self.references().idx_branch as i32;
-                self.jit_memory().compile_i32(idx);
-                self.jit_memory().compile_i32(begin_part as i32);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn imm_recurse(&mut self) -> Option<Exception> {
-        let last = self.jit_memory().last();
-        self.jit_memory().compile_u32(last as u32);
-        None
-    }
-
-    /// Execution: ( -- a-ddr )
-    ///
-    /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
-    fn imm_do(&mut self) -> Option<Exception> {
-        let idx = self.references().idx_do as i32;
-        self.jit_memory().compile_i32(idx);
-        self.jit_memory().compile_i32(0);
-        self.here()
-    }
-
-    /// Run-time: ( a-addr -- )
-    ///
-    /// Append the run-time semantics of _LOOP to the current definition.
-    /// Resolve the destination of all unresolved occurrences of LEAVE between
-    /// the location given by do-sys and the next location for a transfer of
-    /// control, to execute the words following the LOOP.
-    fn imm_loop(&mut self) -> Option<Exception>{
-        match self.s_stack().pop() {
-            Some(do_part) => {
-                let idx = self.references().idx_loop as i32;
-                self.jit_memory().compile_i32(idx);
-                self.jit_memory().compile_i32(do_part as i32);
-                let here = self.jit_memory().len();
-                self.jit_memory().put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    /// Run-time: ( a-addr -- )
-    ///
-    /// Append the run-time semantics of _+LOOP to the current definition.
-    /// Resolve the destination of all unresolved occurrences of LEAVE between
-    /// the location given by do-sys and the next location for a transfer of
-    /// control, to execute the words following +LOOP.
-    fn imm_plus_loop(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(do_part) => {
-                let idx = self.references().idx_plus_loop as i32;
-                self.jit_memory().compile_i32(idx);
-                self.jit_memory().compile_i32(do_part as i32);
-                let here = self.jit_memory().len();
-                self.jit_memory().put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
-
-// Primitives
-
-    /// Run-time: ( -- )
-    ///
-    /// No operation
-    fn noop(&mut self) -> Option<Exception> {
-        // Do nothing
-        None
-    }
-
-    /// Run-time: ( -- true )
-    ///
-    /// Return a true flag, a single-cell value with all bits set.
-    fn p_true(&mut self) -> Option<Exception> {
-        match self.s_stack().push (-1) {
-            Some(_) => Some(StackOverflow),
-            None => None
-        }
-    }
-
-    /// Run-time: ( -- false )
-    ///
-    /// Return a false flag.
-    fn p_false(&mut self) -> Option<Exception> {
-        match self.s_stack().push (0) {
-            Some(_) => Some(StackOverflow),
-            None => None
-        }
-    }
-
-    /// Run-time: (c-addr1 -- c-addr2 )
-    ///
-    ///Add the size in address units of a character to c-addr1, giving c-addr2.
-    fn char_plus(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(v) =>
-                match self.s_stack().push(v + mem::size_of::<u8>() as isize) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    /// Run-time: (n1 -- n2 )
-    ///
-    /// n2 is the size in address units of n1 characters.
-    fn chars(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(v) =>
-                match self.s_stack().push(v*mem::size_of::<u8>() as isize) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-
-    /// Run-time: (a-addr1 -- a-addr2 )
-    ///
-    /// Add the size in address units of a cell to a-addr1, giving a-addr2.
-    fn cell_plus(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(v) =>
-                match self.s_stack().push(v + mem::size_of::<i32>() as isize) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    /// Run-time: (n1 -- n2 )
-    ///
-    /// n2 is the size in address units of n1 cells.
-    fn cells(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(v) =>
-                match self.s_stack().push(v*mem::size_of::<i32>() as isize) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn lit(&mut self) -> Option<Exception> {
-        if self.s_stack().is_full() {
-            Some(StackOverflow)
-        } else {
-            unsafe {
-                let ip = self.state().instruction_pointer;
-                let v = self.jit_memory().get_i32(ip) as isize;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize), v);
-            }
-            self.s_stack().len += 1;
-            self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>();
-            None
-        }
-    }
-
-    fn swap(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
+              None
+          },
+          None => {
+            self.set_input_buffer(input_buffer);
             Some(StackUnderflow)
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), t);
+          }
+      }
+  }
+
+  fn imm_paren(&mut self) -> Option<Exception> {
+      match self.s_stack().push(')' as isize) {
+          Some(_) => Some(StackOverflow),
+          None => self.parse()
+      }
+  }
+
+  fn imm_backslash(&mut self) -> Option<Exception> {
+      self.state().source_index = match *self.input_buffer() {
+        Some(ref buf) => buf.len(),
+        None => 0
+      };
+      None
+  }
+
+  /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
+  /// Never returns Some(Quit).
+  fn evaluate(&mut self) -> Option<Exception>;
+
+  fn evaluate_integer(&mut self, token: &str) -> Result<(), Exception> {
+      match FromStr::from_str(token) {
+          Ok(t) => {
+              if self.state().is_compiling {
+                  self.compile_integer(t);
+              } else {
+                  self.s_stack().push (t);
+              }
+              Ok(())
+          },
+          Err(_) => Err(UnsupportedOperation)
+      }
+  }
+
+  /// Extend `f` to evaluators.
+  /// Will create a vector for evaluators if there was no evaluator.
+  fn extend_evaluator(&mut self, f: fn(&mut VM, token: &str) -> Result<(), Exception>) {
+      let optional_evaluators = self.evaluators().take();
+      match optional_evaluators {
+          Some(mut evaluators) => {
+              evaluators.push(f);
+              self.set_evaluators(evaluators);
+          },
+          None => {
+              self.set_evaluators(vec![f]);
+          }
+      }
+  }
+
+  /// Extend VM with an `extension`.
+  fn extend(&mut self, name: &'static str, extension: Box<Extension>);
+
+  /// Get extension of type T with name.
+  /// Note: Behavior is undefined when extension corresponding to name is not of type T.
+  /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
+  #[deprecated]
+  unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T>;
+
+  //-----------------------
+  // High level definitions
+  //-----------------------
+
+  fn nest(&mut self) -> Option<Exception> {
+      if self.r_stack().is_full() {
+          Some(ReturnStackOverflow)
+      } else {
+          unsafe {
+              ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), self.state().instruction_pointer as isize);
+          }
+          self.r_stack().len += 1;
+          let wp = self.state().word_pointer;
+          self.state().instruction_pointer = self.jit_memory().word(wp).dfa;
+          Some(Nest)
+      }
+  }
+
+  fn p_var(&mut self) -> Option<Exception> {
+      let wp = self.state().word_pointer;
+      let dfa = self.jit_memory().word(wp).dfa as isize;
+      match self.s_stack().push(dfa) {
+          Some(_) => Some(StackOverflow),
+          None => None
+      }
+  }
+
+  fn p_const(&mut self) -> Option<Exception> {
+      let wp = self.state().word_pointer;
+      let dfa = self.jit_memory().word(wp).dfa;
+      let value = self.jit_memory().get_i32(dfa) as isize;
+      match self.s_stack().push(value) {
+          Some(_) => Some(StackOverflow),
+          None => None
+      }
+  }
+
+  fn p_fvar(&mut self) -> Option<Exception> {
+      let wp = self.state().word_pointer;
+      let dfa = self.jit_memory().word(wp).dfa as isize;
+      match self.s_stack().push(dfa) {
+          Some(_) => Some(StackOverflow),
+          None => None
+      }
+  }
+
+  fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception>;
+
+  fn colon(&mut self) -> Option<Exception> {
+      match self.define(Core::nest) {
+          Some(e) => Some(e),
+          None => {
+              let def = self.state().last_definition;
+              self.jit_memory().mut_word(def).hidden = true;
+              self.compile()
+          }
+      }
+  }
+
+  fn semicolon(&mut self) -> Option<Exception>{
+      if self.state().last_definition != 0 {
+          let idx = self.references().idx_exit as i32;
+          self.jit_memory().compile_i32(idx);
+          let def = self.state().last_definition;
+          self.jit_memory().mut_word(def).hidden = false;
+      }
+      self.interpret()
+  }
+
+  fn create(&mut self) -> Option<Exception> {
+      self.define(Core::p_var)
+  }
+
+  fn variable(&mut self) -> Option<Exception> {
+      match self.define(Core::p_var) {
+          Some(e) => Some(e),
+          None => {
+              self.jit_memory().compile_i32(0);
+              None
+          }
+      }
+  }
+
+  fn constant(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(v) => {
+              match self.define(Core::p_const) {
+                  Some(e) => Some(e),
+                  None => {
+                      self.jit_memory().compile_i32(v as i32);
+                      None
+                  }
+              }
+          },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn unmark(&mut self) -> Option<Exception> {
+      let wp = self.state().word_pointer;
+      let dfa = self.jit_memory().word(wp).dfa;
+      let jlen = self.jit_memory().get_i32(dfa) as usize;
+      self.jit_memory().truncate(jlen);
+      self.jit_memory().set_last(wp);
+      None
+  }
+
+  fn marker(&mut self) -> Option<Exception> {
+      self.define(Core::unmark);
+      let jlen = self.jit_memory().len() as i32;
+      self.jit_memory().compile_i32(jlen+(mem::size_of::<i32>() as i32));
+      None
+  }
+
+  //--------
+  // Control
+  //--------
+
+  fn branch(&mut self) -> Option<Exception> {
+      let ip = self.state().instruction_pointer;
+      self.state().instruction_pointer = self.jit_memory().get_i32(ip) as usize;
+      None
+  }
+
+  fn zero_branch(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(v) => {
+              if v == 0 {
+                  self.branch()
+              } else {
+                  self.state().instruction_pointer += mem::size_of::<i32>();
+                  None
+              }
+          },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
+  ///
+  /// Set up loop control parameters with index n2|u2 and limit n1|u1. An
+  /// ambiguous condition exists if n1|u1 and n2|u2 are not both the same
+  /// type.  Anything already on the return stack becomes unavailable until
+  /// the loop-control parameters are discarded.
+  fn _do(&mut self) -> Option<Exception> {
+      let ip = self.state().instruction_pointer as isize;
+      match self.r_stack().push(ip) {
+          Some(_) => Some(ReturnStackOverflow),
+          None => {
+              self.state().instruction_pointer += mem::size_of::<i32>();
+              self.two_to_r()
+          }
+      }
+  }
+
+  /// Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
+  ///
+  /// An ambiguous condition exists if the loop control parameters are
+  /// unavailable. Add one to the loop index. If the loop index is then equal
+  /// to the loop limit, discard the loop parameters and continue execution
+  /// immediately following the loop. Otherwise continue execution at the
+  /// beginning of the loop.
+  fn p_loop(&mut self) -> Option<Exception> {
+      match self.r_stack().pop2() {
+          Some((rn, rt)) => {
+              if rt+1 < rn {
+                  self.r_stack().push2(rn, rt+1);
+                  self.branch()
+              } else {
+                  match self.r_stack().pop() {
+                      Some(_) => {
+                          self.state().instruction_pointer += mem::size_of::<i32>();
+                          None
+                      },
+                      None => Some(ReturnStackUnderflow)
+                  }
+              }
+          },
+          None => Some(ReturnStackUnderflow)
+      }
+  }
+
+  /// Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
+  ///
+  /// An ambiguous condition exists if the loop control parameters are
+  /// unavailable. Add n to the loop index. If the loop index did not cross
+  /// the boundary between the loop limit minus one and the loop limit,
+  /// continue execution at the beginning of the loop. Otherwise, discard the
+  /// current loop control parameters and continue execution immediately
+  /// following the loop.
+  fn p_plus_loop(&mut self) -> Option<Exception> {
+      match self.r_stack().pop2() {
+          Some((rn, rt)) => {
+              match self.s_stack().pop() {
+                  Some(t) => {
+                      if rt+t < rn {
+                          self.r_stack().push2(rn, rt+t);
+                          self.branch()
+                      } else {
+                          match self.r_stack().pop() {
+                              Some(_) => {
+                                  self.state().instruction_pointer += mem::size_of::<i32>();
+                                  None
+                              },
+                              None => Some(ReturnStackUnderflow)
+                          }
+                      }
+                  },
+                  None => Some(StackUnderflow)
+              }
+          },
+          None => Some(ReturnStackUnderflow)
+      }
+  }
+
+  /// Run-time: ( -- ) ( R: loop-sys -- )
+  ///
+  /// Discard the loop-control parameters for the current nesting level. An
+  /// UNLOOP is required for each nesting level before the definition may be
+  /// EXITed. An ambiguous condition exists if the loop-control parameters
+  /// are unavailable.
+  fn unloop(&mut self) -> Option<Exception> {
+      match self.r_stack().pop3() {
+          Some(_) => None,
+          None => Some(ReturnStackUnderflow)
+      }
+  }
+
+  fn leave(&mut self) -> Option<Exception> {
+      match self.r_stack().pop3() {
+          Some((third, _, _)) => {
+              self.state().instruction_pointer = self.jit_memory().get_i32(third as usize) as usize;
+              None
+          },
+          None => Some(ReturnStackUnderflow)
+      }
+  }
+
+  fn p_i(&mut self) -> Option<Exception> {
+      match self.r_stack().last() {
+          Some(i) => {
+              match self.s_stack().push(i) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              }
+          },
+          None => Some(ReturnStackUnderflow)
+      }
+  }
+
+  fn p_j(&mut self) -> Option<Exception> {
+      let pos = self.r_stack().len() - 4;
+      match self.r_stack().get(pos) {
+          Some(j) => {
+              match self.s_stack().push(j) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              }
+          },
+          None => Some(ReturnStackUnderflow)
+      }
+  }
+
+  fn imm_if(&mut self) -> Option<Exception> {
+      let idx = self.references().idx_zero_branch as i32;
+      self.jit_memory().compile_i32(idx);
+      self.jit_memory().compile_i32(0);
+      self.here()
+  }
+
+  fn imm_else(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(if_part) => {
+              let idx = self.references().idx_branch as i32;
+              self.jit_memory().compile_i32(idx);
+              self.jit_memory().compile_i32(0);
+              self.here();
+              let here = self.jit_memory().len();
+              self.jit_memory().put_i32(here as i32, (if_part - mem::size_of::<i32>() as isize) as usize);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn imm_then(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(branch_part) => {
+              let here = self.jit_memory().len();
+              self.jit_memory().put_i32(here as i32, (branch_part - mem::size_of::<i32>() as isize) as usize);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn imm_begin(&mut self) -> Option<Exception> {
+      self.here()
+  }
+
+  fn imm_while(&mut self) -> Option<Exception> {
+      let idx = self.references().idx_zero_branch as i32;
+      self.jit_memory().compile_i32(idx);
+      self.jit_memory().compile_i32(0);
+      self.here()
+  }
+
+  fn imm_repeat(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((begin_part, while_part)) => {
+              let idx = self.references().idx_branch as i32;
+              self.jit_memory().compile_i32(idx);
+              self.jit_memory().compile_i32(begin_part as i32);
+              let here = self.jit_memory().len();
+              self.jit_memory().put_i32(here as i32, (while_part - mem::size_of::<i32>() as isize) as usize);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn imm_again(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(begin_part) => {
+              let idx = self.references().idx_branch as i32;
+              self.jit_memory().compile_i32(idx);
+              self.jit_memory().compile_i32(begin_part as i32);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn imm_recurse(&mut self) -> Option<Exception> {
+      let last = self.jit_memory().last();
+      self.jit_memory().compile_u32(last as u32);
+      None
+  }
+
+  /// Execution: ( -- a-ddr )
+  ///
+  /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
+  fn imm_do(&mut self) -> Option<Exception> {
+      let idx = self.references().idx_do as i32;
+      self.jit_memory().compile_i32(idx);
+      self.jit_memory().compile_i32(0);
+      self.here()
+  }
+
+  /// Run-time: ( a-addr -- )
+  ///
+  /// Append the run-time semantics of _LOOP to the current definition.
+  /// Resolve the destination of all unresolved occurrences of LEAVE between
+  /// the location given by do-sys and the next location for a transfer of
+  /// control, to execute the words following the LOOP.
+  fn imm_loop(&mut self) -> Option<Exception>{
+      match self.s_stack().pop() {
+          Some(do_part) => {
+              let idx = self.references().idx_loop as i32;
+              self.jit_memory().compile_i32(idx);
+              self.jit_memory().compile_i32(do_part as i32);
+              let here = self.jit_memory().len();
+              self.jit_memory().put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  /// Run-time: ( a-addr -- )
+  ///
+  /// Append the run-time semantics of _+LOOP to the current definition.
+  /// Resolve the destination of all unresolved occurrences of LEAVE between
+  /// the location given by do-sys and the next location for a transfer of
+  /// control, to execute the words following +LOOP.
+  fn imm_plus_loop(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(do_part) => {
+              let idx = self.references().idx_plus_loop as i32;
+              self.jit_memory().compile_i32(idx);
+              self.jit_memory().compile_i32(do_part as i32);
+              let here = self.jit_memory().len();
+              self.jit_memory().put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  //-----------
+  // Primitives
+  //-----------
+
+  /// Run-time: ( -- )
+  ///
+  /// No operation
+  fn noop(&mut self) -> Option<Exception> {
+      // Do nothing
+      None
+  }
+
+  /// Run-time: ( -- true )
+  ///
+  /// Return a true flag, a single-cell value with all bits set.
+  fn p_true(&mut self) -> Option<Exception> {
+      match self.s_stack().push (-1) {
+          Some(_) => Some(StackOverflow),
+          None => None
+      }
+  }
+
+  /// Run-time: ( -- false )
+  ///
+  /// Return a false flag.
+  fn p_false(&mut self) -> Option<Exception> {
+      match self.s_stack().push (0) {
+          Some(_) => Some(StackOverflow),
+          None => None
+      }
+  }
+
+  /// Run-time: (c-addr1 -- c-addr2 )
+  ///
+  ///Add the size in address units of a character to c-addr1, giving c-addr2.
+  fn char_plus(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(v) =>
+              match self.s_stack().push(v + mem::size_of::<u8>() as isize) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  /// Run-time: (n1 -- n2 )
+  ///
+  /// n2 is the size in address units of n1 characters.
+  fn chars(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(v) =>
+              match self.s_stack().push(v*mem::size_of::<u8>() as isize) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+
+  /// Run-time: (a-addr1 -- a-addr2 )
+  ///
+  /// Add the size in address units of a cell to a-addr1, giving a-addr2.
+  fn cell_plus(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(v) =>
+              match self.s_stack().push(v + mem::size_of::<i32>() as isize) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  /// Run-time: (n1 -- n2 )
+  ///
+  /// n2 is the size in address units of n1 cells.
+  fn cells(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(v) =>
+              match self.s_stack().push(v*mem::size_of::<i32>() as isize) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn lit(&mut self) -> Option<Exception> {
+      if self.s_stack().is_full() {
+          Some(StackOverflow)
+      } else {
+          unsafe {
+              let ip = self.state().instruction_pointer;
+              let v = self.jit_memory().get_i32(ip) as isize;
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize), v);
+          }
+          self.s_stack().len += 1;
+          self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>();
+          None
+      }
+  }
+
+  fn swap(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize)));
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), t);
+          }
+          None
+      }
+  }
+
+  fn dup(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 1 {
+          Some(StackUnderflow)
+      } else if self.s_stack().is_full() {
+          Some(StackOverflow)
+      } else {
+          unsafe {
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)));
+              self.s_stack().len += 1;
+          }
+          None
+      }
+  }
+
+  fn p_drop(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 1 {
+          Some(StackUnderflow)
+      } else {
+          self.s_stack().len -= 1;
+          None
+      }
+  }
+
+  fn nip(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              self.s_stack().len -= 1;
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+          }
+          None
+      }
+  }
+
+  fn over(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else if self.s_stack().is_full() {
+          Some(StackOverflow)
+      } else {
+          unsafe {
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize)));
+              self.s_stack().len += 1;
+          }
+          None
+      }
+  }
+
+  fn rot(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 3 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
+              let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize));
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-3) as isize)));
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), t);
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-3) as isize), n);
+          }
+          None
+      }
+  }
+
+  fn two_drop(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else {
+          self.s_stack().len -= 2;
+          None
+      }
+  }
+
+  fn two_dup(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else if self.s_stack().len + 2 > self.s_stack().cap {
+          Some(StackOverflow)
+      } else {
+          unsafe {
+              self.s_stack().len += 2;
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-3) as isize)));
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-4) as isize)));
+          }
+          None
+      }
+  }
+
+  fn two_swap(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 4 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
+              let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize));
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-3) as isize)));
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-4) as isize)));
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-3) as isize), t);
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-4) as isize), n);
+          }
+          None
+      }
+  }
+
+  fn two_over(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 4 {
+          Some(StackUnderflow)
+      } else if self.s_stack().len + 2 > self.s_stack().cap {
+          Some(StackOverflow)
+      } else {
+          unsafe {
+              self.s_stack().len += 2;
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-5) as isize)));
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-6) as isize)));
+          }
+          None
+      }
+  }
+
+  fn depth(&mut self) -> Option<Exception> {
+      let len = self.s_stack().len;
+      match self.s_stack().push(len as isize) {
+          Some(_) => Some(StackOverflow),
+          None => None
+      }
+  }
+
+  fn one_plus(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 1 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)).wrapping_add(1));
+          }
+          None
+      }
+  }
+
+  fn one_minus(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 1 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize))-1);
+          }
+          None
+      }
+  }
+
+  fn plus(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              self.s_stack().len -= 1;
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
+                  ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) + ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+          }
+          None
+      }
+  }
+
+  fn minus(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              self.s_stack().len -= 1;
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
+                  ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) - ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+          }
+          None
+      }
+  }
+
+  fn star(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              self.s_stack().len -= 1;
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
+                  ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) * ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+          }
+          None
+      }
+  }
+
+  fn slash(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              self.s_stack().len -= 1;
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
+                  ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) / ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+          }
+          None
+      }
+  }
+
+  fn p_mod(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              self.s_stack().len -= 1;
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
+                  ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) % ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+          }
+          None
+      }
+  }
+
+  fn slash_mod(&mut self) -> Option<Exception> {
+      if self.s_stack().len < 2 {
+          Some(StackUnderflow)
+      } else {
+          unsafe {
+              let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
+              let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize));
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), n%t);
+              ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), n/t);
+          }
+          None
+      }
+  }
+
+  fn abs(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(t) =>
+              match self.s_stack().push(t.abs()) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn negate(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(t) =>
+              match self.s_stack().push(-t) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn zero_less(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(t) =>
+              match self.s_stack().push(if t<0 {-1} else {0}) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn zero_equals(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(t) =>
+              match self.s_stack().push(if t==0 {-1} else {0}) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn zero_greater(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(t) =>
+              match self.s_stack().push(if t>0 {-1} else {0}) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn zero_not_equals(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(t) =>
+              match self.s_stack().push(if t!=0 {-1} else {0}) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn equals(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              match self.s_stack().push(if t==n {-1} else {0}) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn less_than(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              match self.s_stack().push(if n<t {-1} else {0}) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn greater_than(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              match self.s_stack().push(if n>t {-1} else {0}) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn not_equals(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              match self.s_stack().push(if n!=t {-1} else {0}) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn between(&mut self) -> Option<Exception> {
+      match self.s_stack().pop3() {
+          Some((x1, x2, x3)) =>
+              match self.s_stack().push(if x2<=x1 && x1<=x3 {-1} else {0}) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn invert(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(t) =>
+              match self.s_stack().push(!t) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn and(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              match self.s_stack().push(t & n) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn or(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              match self.s_stack().push(t | n) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  fn xor(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              match self.s_stack().push(t ^ n) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  /// Run-time: ( x1 u -- x2 )
+  ///
+  /// Perform a logical left shift of u bit-places on x1, giving x2. Put
+  /// zeroes into the least significant bits vacated by the shift. An
+  /// ambiguous condition exists if u is greater than or equal to the number
+  /// of bits in a cell.
+  fn lshift(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              match self.s_stack().push(n << t) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  /// Run-time: ( x1 u -- x2 )
+  ///
+  /// Perform a logical right shift of u bit-places on x1, giving x2. Put
+  /// zeroes into the most significant bits vacated by the shift. An
+  /// ambiguous condition exists if u is greater than or equal to the number
+  /// of bits in a cell.
+  fn rshift(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              match self.s_stack().push((n as usize >> t) as isize) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  /// Run-time: ( x1 u -- x2 )
+  ///
+  /// Perform a arithmetic right shift of u bit-places on x1, giving x2. Put
+  /// zeroes into the most significant bits vacated by the shift. An
+  /// ambiguous condition exists if u is greater than or equal to the number
+  /// of bits in a cell.
+  fn arshift(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              match self.s_stack().push(n >> t) {
+                  Some(_) => Some(StackOverflow),
+                  None => None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
+
+  /// Interpretation: Interpretation semantics for this word are undefined.
+  ///
+  /// Execution: ( -- ) ( R: nest-sys -- )
+  /// Return control to the calling definition specified by nest-sys. Before executing EXIT within a
+  /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP.
+  /// TODO: UNLOOP
+  fn exit(&mut self) -> Option<Exception> {
+      if self.r_stack().len == 0 {
+          Some(ReturnStackUnderflow)
+      } else {
+          self.r_stack().len -= 1;
+          unsafe {
+              self.state().instruction_pointer = ptr::read(self.r_stack().inner.offset(self.r_stack().len as isize)) as usize;
+          }
+          None
+      }
+  }
+
+  /// Run-time: ( a-addr -- x )
+  ///
+  /// x is the value stored at a-addr.
+  fn fetch(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(t) => {
+            let value = self.jit_memory().get_i32(t as usize) as isize;
+            match self.s_stack().push(value) {
+                Some(_) => Some(StackOverflow),
+                None => None
             }
-            None
-        }
-    }
+          },
+          None => Some(StackUnderflow)
+      }
+  }
 
-    fn dup(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 1 {
-            Some(StackUnderflow)
-        } else if self.s_stack().is_full() {
-            Some(StackOverflow)
-        } else {
-            unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)));
-                self.s_stack().len += 1;
-            }
-            None
-        }
-    }
+  /// Run-time: ( x a-addr -- )
+  ///
+  /// Store x at a-addr.
+  fn store(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) => {
+              self.jit_memory().put_i32(n as i32, t as usize);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
 
-    fn p_drop(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 1 {
-            Some(StackUnderflow)
-        } else {
-            self.s_stack().len -= 1;
-            None
-        }
-    }
-
-    fn nip(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-            None
-        }
-    }
-
-    fn over(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
-            Some(StackUnderflow)
-        } else if self.s_stack().is_full() {
-            Some(StackOverflow)
-        } else {
-            unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize)));
-                self.s_stack().len += 1;
-            }
-            None
-        }
-    }
-
-    fn rot(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 3 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
-                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-3) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), t);
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-3) as isize), n);
-            }
-            None
-        }
-    }
-
-    fn two_drop(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
-            Some(StackUnderflow)
-        } else {
-            self.s_stack().len -= 2;
-            None
-        }
-    }
-
-    fn two_dup(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
-            Some(StackUnderflow)
-        } else if self.s_stack().len + 2 > self.s_stack().cap {
-            Some(StackOverflow)
-        } else {
-            unsafe {
-                self.s_stack().len += 2;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-3) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-4) as isize)));
-            }
-            None
-        }
-    }
-
-    fn two_swap(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 4 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
-                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-3) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-4) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-3) as isize), t);
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-4) as isize), n);
-            }
-            None
-        }
-    }
-
-    fn two_over(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 4 {
-            Some(StackUnderflow)
-        } else if self.s_stack().len + 2 > self.s_stack().cap {
-            Some(StackOverflow)
-        } else {
-            unsafe {
-                self.s_stack().len += 2;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-5) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-6) as isize)));
-            }
-            None
-        }
-    }
-
-    fn depth(&mut self) -> Option<Exception> {
-        let len = self.s_stack().len;
-        match self.s_stack().push(len as isize) {
-            Some(_) => Some(StackOverflow),
-            None => None
-        }
-    }
-
-    fn one_plus(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 1 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)).wrapping_add(1));
-            }
-            None
-        }
-    }
-
-    fn one_minus(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 1 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize))-1);
-            }
-            None
-        }
-    }
-
-    fn plus(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
-                    ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) + ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-            None
-        }
-    }
-
-    fn minus(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
-                    ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) - ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-            None
-        }
-    }
-
-    fn star(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
-                    ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) * ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-            None
-        }
-    }
-
-    fn slash(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
-                    ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) / ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-            None
-        }
-    }
-
-    fn p_mod(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
-                    ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) % ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-            None
-        }
-    }
-
-    fn slash_mod(&mut self) -> Option<Exception> {
-        if self.s_stack().len < 2 {
-            Some(StackUnderflow)
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
-                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), n%t);
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), n/t);
-            }
-            None
-        }
-    }
-
-    fn abs(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(t) =>
-                match self.s_stack().push(t.abs()) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn negate(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(t) =>
-                match self.s_stack().push(-t) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn zero_less(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(t) =>
-                match self.s_stack().push(if t<0 {-1} else {0}) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn zero_equals(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(t) =>
-                match self.s_stack().push(if t==0 {-1} else {0}) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn zero_greater(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(t) =>
-                match self.s_stack().push(if t>0 {-1} else {0}) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn zero_not_equals(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(t) =>
-                match self.s_stack().push(if t!=0 {-1} else {0}) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn equals(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                match self.s_stack().push(if t==n {-1} else {0}) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn less_than(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                match self.s_stack().push(if n<t {-1} else {0}) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn greater_than(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                match self.s_stack().push(if n>t {-1} else {0}) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn not_equals(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                match self.s_stack().push(if n!=t {-1} else {0}) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn between(&mut self) -> Option<Exception> {
-        match self.s_stack().pop3() {
-            Some((x1, x2, x3)) =>
-                match self.s_stack().push(if x2<=x1 && x1<=x3 {-1} else {0}) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn invert(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(t) =>
-                match self.s_stack().push(!t) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn and(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                match self.s_stack().push(t & n) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn or(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                match self.s_stack().push(t | n) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    fn xor(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                match self.s_stack().push(t ^ n) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    /// Run-time: ( x1 u -- x2 )
-    ///
-    /// Perform a logical left shift of u bit-places on x1, giving x2. Put
-    /// zeroes into the least significant bits vacated by the shift. An
-    /// ambiguous condition exists if u is greater than or equal to the number
-    /// of bits in a cell.
-    fn lshift(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                match self.s_stack().push(n << t) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    /// Run-time: ( x1 u -- x2 )
-    ///
-    /// Perform a logical right shift of u bit-places on x1, giving x2. Put
-    /// zeroes into the most significant bits vacated by the shift. An
-    /// ambiguous condition exists if u is greater than or equal to the number
-    /// of bits in a cell.
-    fn rshift(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                match self.s_stack().push((n as usize >> t) as isize) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    /// Run-time: ( x1 u -- x2 )
-    ///
-    /// Perform a arithmetic right shift of u bit-places on x1, giving x2. Put
-    /// zeroes into the most significant bits vacated by the shift. An
-    /// ambiguous condition exists if u is greater than or equal to the number
-    /// of bits in a cell.
-    fn arshift(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                match self.s_stack().push(n >> t) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
-
-    /// Interpretation: Interpretation semantics for this word are undefined.
-    ///
-    /// Execution: ( -- ) ( R: nest-sys -- )
-    /// Return control to the calling definition specified by nest-sys. Before executing EXIT within a
-    /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP.
-    /// TODO: UNLOOP
-    fn exit(&mut self) -> Option<Exception> {
-        if self.r_stack().len == 0 {
-            Some(ReturnStackUnderflow)
-        } else {
-            self.r_stack().len -= 1;
-            unsafe {
-                self.state().instruction_pointer = ptr::read(self.r_stack().inner.offset(self.r_stack().len as isize)) as usize;
-            }
-            None
-        }
-    }
-
-    /// Run-time: ( a-addr -- x )
-    ///
-    /// x is the value stored at a-addr.
-    fn fetch(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(t) => {
-              let value = self.jit_memory().get_i32(t as usize) as isize;
+  /// Run-time: ( c-addr -- char )
+  ///
+  /// Fetch the character stored at c-addr. When the cell size is greater than
+  /// character size, the unused high-order bits are all zeroes.
+  fn c_fetch(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(t) => {
+              let value = self.jit_memory().get_u8(t as usize) as isize;
               match self.s_stack().push(value) {
                   Some(_) => Some(StackOverflow),
                   None => None
               }
-            },
-            None => Some(StackUnderflow)
-        }
-    }
+          },
+          None => Some(StackUnderflow)
+      }
+  }
 
-    /// Run-time: ( x a-addr -- )
-    ///
-    /// Store x at a-addr.
-    fn store(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) => {
-                self.jit_memory().put_i32(n as i32, t as usize);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
+  /// Run-time: ( char c-addr -- )
+  ///
+  /// Store char at c-addr. When character size is smaller than cell size,
+  /// only the number of low-order bits corresponding to character size are
+  /// transferred.
+  fn c_store(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) => {
+              self.jit_memory().put_u8(n as u8, t as usize);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
 
-    /// Run-time: ( c-addr -- char )
-    ///
-    /// Fetch the character stored at c-addr. When the cell size is greater than
-    /// character size, the unused high-order bits are all zeroes.
-    fn c_fetch(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(t) => {
-                let value = self.jit_memory().get_u8(t as usize) as isize;
-                match self.s_stack().push(value) {
-                    Some(_) => Some(StackOverflow),
-                    None => None
-                }
-            },
-            None => Some(StackUnderflow)
-        }
-    }
+  /// Run-time: ( "<spaces>name" -- xt )
+  ///
+  /// Skip leading space delimiters. Parse name delimited by a space. Find
+  /// name and return xt, the execution token for name. An ambiguous
+  /// condition exists if name is not found.
+  fn tick(&mut self) -> Option<Exception> {
+      let result;
+      self.parse_word();
+      let last_token = self.last_token().take().unwrap();
+      if !last_token.is_empty() {
+          match self.find(&last_token) {
+              Some(found_index) =>
+                  match self.s_stack().push(found_index as isize) {
+                      Some(_) => result = Some(StackOverflow),
+                      None => result = None
+                  },
+              None => result = Some(UndefinedWord)
+          }
+      } else {
+          result = Some(UnexpectedEndOfFile);
+      }
+      self.set_last_token(last_token);
+      result
+  }
 
-    /// Run-time: ( char c-addr -- )
-    ///
-    /// Store char at c-addr. When character size is smaller than cell size,
-    /// only the number of low-order bits corresponding to character size are
-    /// transferred.
-    fn c_store(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) => {
-                self.jit_memory().put_u8(n as u8, t as usize);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
+  /// Run-time: ( i*x xt -- j*x )
+  ///
+  /// Remove xt from the stack and perform the semantics identified by it.
+  /// Other stack effects are due to the word EXECUTEd.
+  fn execute(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(t) => {
+              self.execute_word(t as usize)
+          },
+          None => Some(StackUnderflow)
+      }
+  }
 
-    /// Run-time: ( "<spaces>name" -- xt )
-    ///
-    /// Skip leading space delimiters. Parse name delimited by a space. Find
-    /// name and return xt, the execution token for name. An ambiguous
-    /// condition exists if name is not found.
-    fn tick(&mut self) -> Option<Exception> {
-        let result;
-        self.parse_word();
-        let last_token = self.last_token().take().unwrap();
-        if !last_token.is_empty() {
-            match self.find(&last_token) {
-                Some(found_index) =>
-                    match self.s_stack().push(found_index as isize) {
-                        Some(_) => result = Some(StackOverflow),
-                        None => result = None
-                    },
-                None => result = Some(UndefinedWord)
-            }
-        } else {
-            result = Some(UnexpectedEndOfFile);
-        }
-        self.set_last_token(last_token);
-        result
-    }
+  /// Run-time: ( -- addr )
+  ///
+  /// addr is the data-space pointer.
+  fn here(&mut self) -> Option<Exception> {
+      let len = self.jit_memory().len() as isize;
+      match self.s_stack().push(len) {
+          Some(_) => Some(StackOverflow),
+          None => None
+      }
+  }
 
-    /// Run-time: ( i*x xt -- j*x )
-    ///
-    /// Remove xt from the stack and perform the semantics identified by it.
-    /// Other stack effects are due to the word EXECUTEd.
-    fn execute(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(t) => {
-                self.execute_word(t as usize)
-            },
-            None => Some(StackUnderflow)
-        }
-    }
+  /// Run-time: ( n -- )
+  ///
+  /// If n is greater than zero, reserve n address units of data space. If n
+  /// is less than zero, release |n| address units of data space. If n is
+  /// zero, leave the data-space pointer unchanged.
+  fn allot(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(v) => {
+              self.jit_memory().allot(v);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
 
-    /// Run-time: ( -- addr )
-    ///
-    /// addr is the data-space pointer.
-    fn here(&mut self) -> Option<Exception> {
-        let len = self.jit_memory().len() as isize;
-        match self.s_stack().push(len) {
-            Some(_) => Some(StackOverflow),
-            None => None
-        }
-    }
+  /// Run-time: ( x -- )
+  ///
+  /// Reserve one cell of data space and store x in the cell. If the
+  /// data-space pointer is aligned when , begins execution, it will remain
+  /// aligned when , finishes execution. An ambiguous condition exists if the
+  /// data-space pointer is not aligned prior to execution of ,.
+  fn comma(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(v) => {
+              self.jit_memory().compile_i32(v as i32);
+              None
+          },
+          None => Some(StackUnderflow)
+      }
+  }
 
-    /// Run-time: ( n -- )
-    ///
-    /// If n is greater than zero, reserve n address units of data space. If n
-    /// is less than zero, release |n| address units of data space. If n is
-    /// zero, leave the data-space pointer unchanged.
-    fn allot(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(v) => {
-                self.jit_memory().allot(v);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
+  fn p_to_r(&mut self) -> Option<Exception> {
+      match self.s_stack().pop() {
+          Some(v) => {
+              if self.r_stack().is_full() {
+                  Some(ReturnStackOverflow)
+              } else {
+                  unsafe {
+                      ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), v);
+                  }
+                  self.r_stack().len += 1;
+                  None
+              }
+          },
+          None => Some(StackUnderflow)
+      }
+  }
 
-    /// Run-time: ( x -- )
-    ///
-    /// Reserve one cell of data space and store x in the cell. If the
-    /// data-space pointer is aligned when , begins execution, it will remain
-    /// aligned when , finishes execution. An ambiguous condition exists if the
-    /// data-space pointer is not aligned prior to execution of ,.
-    fn comma(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(v) => {
-                self.jit_memory().compile_i32(v as i32);
-                None
-            },
-            None => Some(StackUnderflow)
-        }
-    }
+  fn r_from(&mut self) -> Option<Exception> {
+      if self.r_stack().len == 0 {
+          Some(ReturnStackUnderflow)
+      } else {
+          self.r_stack().len -= 1;
+          unsafe {
+              let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
+              self.s_stack().push(ptr::read(r0));
+          }
+          None
+      }
+  }
 
-    fn p_to_r(&mut self) -> Option<Exception> {
-        match self.s_stack().pop() {
-            Some(v) => {
-                if self.r_stack().is_full() {
-                    Some(ReturnStackOverflow)
-                } else {
-                    unsafe {
-                        ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), v);
-                    }
-                    self.r_stack().len += 1;
-                    None
-                }
-            },
-            None => Some(StackUnderflow)
-        }
-    }
+  fn r_fetch(&mut self) -> Option<Exception> {
+      if self.r_stack().len == 0 {
+          Some(ReturnStackUnderflow)
+      } else {
+          unsafe {
+              let r1 = self.r_stack().inner.offset((self.r_stack().len-1) as isize);
+              self.s_stack().push(ptr::read(r1));
+          }
+          None
+      }
+  }
 
-    fn r_from(&mut self) -> Option<Exception> {
-        if self.r_stack().len == 0 {
-            Some(ReturnStackUnderflow)
-        } else {
-            self.r_stack().len -= 1;
-            unsafe {
-                let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-                self.s_stack().push(ptr::read(r0));
-            }
-            None
-        }
-    }
+  fn two_to_r(&mut self) -> Option<Exception> {
+      match self.s_stack().pop2() {
+          Some((n,t)) =>
+              if self.r_stack().space_left() < 2 {
+                  Some(ReturnStackOverflow)
+              } else {
+                  unsafe {
+                      ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), n);
+                      ptr::write(self.r_stack().inner.offset((self.r_stack().len+1) as isize), t);
+                  }
+                  self.r_stack().len += 2;
+                  None
+              },
+          None => Some(StackUnderflow)
+      }
+  }
 
-    fn r_fetch(&mut self) -> Option<Exception> {
-        if self.r_stack().len == 0 {
-            Some(ReturnStackUnderflow)
-        } else {
-            unsafe {
-                let r1 = self.r_stack().inner.offset((self.r_stack().len-1) as isize);
-                self.s_stack().push(ptr::read(r1));
-            }
-            None
-        }
-    }
+  fn two_r_from(&mut self) -> Option<Exception> {
+      if self.r_stack().len < 2 {
+          Some(ReturnStackUnderflow)
+      } else {
+          self.r_stack().len -= 2;
+          unsafe {
+              let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
+              self.s_stack().push(ptr::read(r0));
+              let r1 = self.r_stack().inner.offset((self.r_stack().len+1) as isize);
+              self.s_stack().push(ptr::read(r1));
+          }
+          None
+      }
+  }
 
-    fn two_to_r(&mut self) -> Option<Exception> {
-        match self.s_stack().pop2() {
-            Some((n,t)) =>
-                if self.r_stack().space_left() < 2 {
-                    Some(ReturnStackOverflow)
-                } else {
-                    unsafe {
-                        ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), n);
-                        ptr::write(self.r_stack().inner.offset((self.r_stack().len+1) as isize), t);
-                    }
-                    self.r_stack().len += 2;
-                    None
-                },
-            None => Some(StackUnderflow)
-        }
-    }
+  fn two_r_fetch(&mut self) -> Option<Exception> {
+      if self.r_stack().len < 2 {
+          Some(ReturnStackUnderflow)
+      } else {
+          unsafe {
+              let r2 = self.r_stack().inner.offset((self.r_stack().len-2) as isize);
+              self.s_stack().push(ptr::read(r2));
+              let r1 = self.r_stack().inner.offset((self.r_stack().len-1) as isize);
+              self.s_stack().push(ptr::read(r1));
+          }
+          None
+      }
+  }
 
-    fn two_r_from(&mut self) -> Option<Exception> {
-        if self.r_stack().len < 2 {
-            Some(ReturnStackUnderflow)
-        } else {
-            self.r_stack().len -= 2;
-            unsafe {
-                let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-                self.s_stack().push(ptr::read(r0));
-                let r1 = self.r_stack().inner.offset((self.r_stack().len+1) as isize);
-                self.s_stack().push(ptr::read(r1));
-            }
-            None
-        }
-    }
+  /// Leave VM's inner loop, keep VM's all state.
+  /// Call inner to resume inner loop.
+  fn pause(&mut self) -> Option<Exception> {
+      Some(Pause)
+  }
 
-    fn two_r_fetch(&mut self) -> Option<Exception> {
-        if self.r_stack().len < 2 {
-            Some(ReturnStackUnderflow)
-        } else {
-            unsafe {
-                let r2 = self.r_stack().inner.offset((self.r_stack().len-2) as isize);
-                self.s_stack().push(ptr::read(r2));
-                let r1 = self.r_stack().inner.offset((self.r_stack().len-1) as isize);
-                self.s_stack().push(ptr::read(r1));
-            }
-            None
-        }
-    }
+  //----------------
+  // Error handlling
+  //----------------
 
-    /// Leave VM's inner loop, keep VM's all state.
-    /// Call inner to resume inner loop.
-    fn pause(&mut self) -> Option<Exception> {
-        Some(Pause)
-    }
+  /// Clear data and floating point stacks.
+  /// Called by VM's client upon Abort.
+  fn clear_stacks(&mut self) {
+      self.s_stack().clear();
+      self.f_stack().clear();
+  }
 
-// Error handlling
+  /// Reset VM, do not clear data stack and floating point stack.
+  /// Called by VM's client upon Quit.
+  fn reset(&mut self) {
+      self.r_stack().len = 0;
+      match *self.input_buffer() {
+        Some(ref mut buf) => buf.clear(),
+        None => {}
+      }
+      self.state().source_index = 0;
+      self.state().instruction_pointer = 0;
+      self.interpret();
+  }
 
-    /// Clear data and floating point stacks.
-    /// Called by VM's client upon Abort.
-    fn clear_stacks(&mut self) {
-        self.s_stack().clear();
-        self.f_stack().clear();
-    }
+  /// Abort the inner loop with an exception, reset VM and clears stacks.
+  fn abort(&mut self) -> Option<Exception> {
+      self.clear_stacks();
+      self.reset();
+      Some(Abort)
+  }
 
-    /// Reset VM, do not clear data stack and floating point stack.
-    /// Called by VM's client upon Quit.
-    fn reset(&mut self) {
-        self.r_stack().len = 0;
-        match *self.input_buffer() {
-          Some(ref mut buf) => buf.clear(),
+  fn halt(&mut self) -> Option<Exception> {
+      self.state().instruction_pointer = 0;
+      Some(Quit)
+  }
+
+  /// Quit the inner loop and reset VM, without clearing stacks .
+  fn quit(&mut self) -> Option<Exception> {
+      self.reset();
+      Some(Quit)
+  }
+
+  /// Emit Bye exception.
+  fn bye(&mut self) -> Option<Exception> {
+      Some(Bye)
+  }
+
+}
+
+impl Core for VM {
+  fn jit_memory(&mut self) -> &mut JitMemory { &mut self.jitmem }
+  fn output_buffer(&mut self) -> &mut Option<String> { &mut self.outbuf }
+  fn set_output_buffer(&mut self, buffer: String) {
+    self.outbuf = Some(buffer);
+  }
+  fn input_buffer(&mut self) -> &mut Option<String> {
+    &mut self.inbuf
+  }
+  fn set_input_buffer(&mut self, buffer: String) {
+    self.inbuf = Some(buffer);
+  }
+  fn last_token(&mut self) -> &mut Option<String> { &mut self.tkn }
+  fn set_last_token(&mut self, buffer: String) { self.tkn = Some(buffer); }
+  fn s_stack(&mut self) -> &mut Stack<isize> { &mut self.s_stk }
+  fn r_stack(&mut self) -> &mut Stack<isize> { &mut self.r_stk }
+  fn f_stack(&mut self) -> &mut Stack<f64> { &mut self.f_stk }
+  fn state(&mut self) -> &mut State { &mut self.state }
+  fn references(&mut self) -> &mut ForwardReferences { &mut self.references }
+  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>> {
+    &mut self.evals
+  }
+  fn set_evaluators(&mut self, evaluators: Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>) {
+    self.evals = Some(evaluators)
+  }
+
+  fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+      self.jit_memory().compile_word(name, action);
+      self.state().last_definition = self.jit_memory().last();
+  }
+
+  fn execute_word(&mut self, i: usize) -> Option<Exception> {
+      self.state().word_pointer = i;
+      (self.jit_memory().word(i).action)(self)
+  }
+
+  /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
+  /// Never returns Some(Quit).
+  fn evaluate(&mut self) -> Option<Exception> {
+      let result;
+      let mut last_token;
+      loop {
+          self.parse_word();
+          last_token = self.last_token().take().unwrap();
+          if last_token.is_empty() {
+              result = None;
+              break;
+          }
+          match self.find(&last_token) {
+              Some(found_index) => {
+                  let is_immediate_word;
+                  let is_compile_only_word;
+                  {
+                      let word = &self.jit_memory().word(found_index);
+                      is_immediate_word = word.is_immediate;
+                      is_compile_only_word = word.is_compile_only;
+                  }
+                  if self.state().is_compiling && !is_immediate_word {
+                      self.compile_word(found_index);
+                  } else if !self.state().is_compiling && is_compile_only_word {
+                      result = Some(InterpretingACompileOnlyWord);
+                      break;
+                  } else {
+                      self.set_last_token(last_token);
+                      match self.execute_word(found_index) {
+                          Some(e) => {
+                              last_token = self.last_token().take().unwrap();
+                              match e {
+                                  Nest => {
+                                      match self.run() {
+                                          Some(e2) => match e2 {
+                                              Quit => {},
+                                              _ => {
+                                                  result = Some(e2);
+                                                  break;
+                                              }
+                                          },
+                                          None => { /* impossible */ }
+                                      }
+                                  },
+                                  Quit => {},
+                                  _ => {
+                                    result = Some(e);
+                                    break;
+                                  }
+                              }
+                          },
+                          None => {
+                            last_token = self.last_token().take().unwrap();
+                          }
+                      };
+                  }
+              },
+              None => {
+                  let mut done = false;
+                  let evaluators = self.evaluators().take().unwrap();
+                  for h in &evaluators {
+                      match h(self, &last_token) {
+                          Ok(_) => {
+                              done = true;
+                              break;
+                          },
+                          Err(_) => { continue }
+                      }
+                  }
+                  self.set_evaluators(evaluators);
+                  if !done {
+                      print!("{} ", &last_token);
+                      result = Some(UndefinedWord);
+                      break;
+                  }
+              }
+          }
+          self.set_last_token(last_token);
+      }
+      self.set_last_token(last_token);
+      result
+  }
+
+  /// Extend VM with an `extension`.
+  fn extend(&mut self, name: &'static str, extension: Box<Extension>) {
+      self.extensions.insert(name, extension);
+  }
+
+  /// Get extension of type T with name.
+  /// Note: Behavior is undefined when extension corresponding to name is not of type T.
+  /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
+  unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T> {
+          let option = self.extensions.get(name);
+          match option {
+                  Some(v) => {
+                          let tobj: raw::TraitObject = mem::transmute(&**v);
+                          Some(mem::transmute(tobj.data))
+                  },
+                  None => {
+                          None
+                  }
+          }
+  }
+
+// High level definitions
+
+  fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception> {
+      self.parse_word();
+      let last_token = self.last_token().take().unwrap();
+      match self.find(&last_token) {
+          Some(_) => print!("Redefining {}", last_token),
           None => {}
-        }
-        self.state().source_index = 0;
-        self.state().instruction_pointer = 0;
-        self.interpret();
-    }
+      }
+      if !last_token.is_empty() {
+          self.jit_memory().compile_word(&last_token, action);
+          self.state().last_definition = self.jit_memory().last();
+          self.set_last_token(last_token);
+          None
+      } else {
+          self.state().last_definition = 0;
+          self.set_last_token(last_token);
+          Some(UnexpectedEndOfFile)
+      }
+  }
 
-    /// Abort the inner loop with an exception, reset VM and clears stacks.
-    fn abort(&mut self) -> Option<Exception> {
-        self.clear_stacks();
-        self.reset();
-        Some(Abort)
-    }
-
-    fn halt(&mut self) -> Option<Exception> {
-        self.state().instruction_pointer = 0;
-        Some(Quit)
-    }
-
-    /// Quit the inner loop and reset VM, without clearing stacks .
-    fn quit(&mut self) -> Option<Exception> {
-        self.reset();
-        Some(Quit)
-    }
-
-    /// Emit Bye exception.
-    fn bye(&mut self) -> Option<Exception> {
-        Some(Bye)
-    }
 }
 
 #[cfg(test)]

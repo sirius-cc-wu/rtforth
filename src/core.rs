@@ -322,7 +322,7 @@ impl VM {
                 idx_s_quote: 0,
                 idx_type: 0,
             },
-            evals: Some(vec![Core::evaluate_integer]),
+            evals: None,
             extensions: HashMap::new(),
         }
     }
@@ -946,6 +946,7 @@ impl Core for VM {
     self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
     let idx_halt = self.find("halt").expect("halt undefined");
     self.jit_memory().put_u32(idx_halt as u32, 0);
+    self.extend_evaluator(Core::evaluate_integer);
   }
 
     fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {

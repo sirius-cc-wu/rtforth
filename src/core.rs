@@ -280,7 +280,7 @@ pub struct VM {
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
     f_stk: Stack<f64>,
-    jitmem: JitMemory,
+    jitmem: JitMemory<VM>,
     inbuf: Option<String>,
     tkn: Option<String>,
     outbuf: Option<String>,
@@ -327,12 +327,12 @@ impl VM {
     }
 }
 
-pub trait Core {
+pub trait Core : Sized {
 
   // Functions to access VM.
 
-  fn jit_memory(&mut self) -> &mut JitMemory;
-  fn jit_memory_const(&self) -> &JitMemory;
+  fn jit_memory(&mut self) -> &mut JitMemory<Self>;
+  fn jit_memory_const(&self) -> &JitMemory<Self>;
   fn output_buffer(&mut self) -> &mut Option<String>;
   fn set_output_buffer(&mut self, buffer: String);
   fn input_buffer(&mut self) -> &mut Option<String>;
@@ -1987,8 +1987,8 @@ pub trait Core {
 }
 
 impl Core for VM {
-  fn jit_memory(&mut self) -> &mut JitMemory { &mut self.jitmem }
-  fn jit_memory_const(&self) -> &JitMemory { &self.jitmem }
+  fn jit_memory(&mut self) -> &mut JitMemory<Self> { &mut self.jitmem }
+  fn jit_memory_const(&self) -> &JitMemory<Self> { &self.jitmem }
   fn output_buffer(&mut self) -> &mut Option<String> { &mut self.outbuf }
   fn set_output_buffer(&mut self, buffer: String) {
     self.outbuf = Some(buffer);

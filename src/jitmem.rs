@@ -4,7 +4,6 @@ use std::mem;
 use std::ptr::Unique;
 use std::slice;
 use std::ascii::AsciiExt;
-use ::core::VM;
 use ::exception::Exception;
 
 extern {
@@ -46,16 +45,18 @@ impl<Target> Word<Target> {
 const PAGE_SIZE: usize = 4096;
 
 #[allow(dead_code)]
-pub struct JitMemory {
+pub struct JitMemory<Target> {
     pub inner: Unique<u8>,
     cap: usize,
     len: usize,
     // last word in current word list
     last: usize,
+    // A dummy field not used but needed for type check.
+    word: Option<Word<Target>>,
 }
 
-impl JitMemory {
-    pub fn new(num_pages: usize) -> JitMemory {
+impl<Target> JitMemory<Target> {
+    pub fn new(num_pages: usize) -> JitMemory<Target> {
         let mut ptr : *mut libc::c_void;
         let size = num_pages * PAGE_SIZE;
         unsafe {
@@ -71,6 +72,7 @@ impl JitMemory {
             // Space at 0 is reserved for halt.
             len: mem::align_of::<usize>(),
             last: 0,
+            word: None,
         }
     }
 
@@ -116,19 +118,19 @@ impl JitMemory {
     }
     // Basic operations
 
-    pub fn word(&self, pos: usize) -> &Word<VM> {
+    pub fn word(&self, pos: usize) -> &Word<Target> {
         unsafe {
-            &*(self.inner.offset(pos as isize) as *const Word<VM>)
+            &*(self.inner.offset(pos as isize) as *const Word<Target>)
         }
     }
 
-    pub fn mut_word(&mut self, pos: usize) -> &mut Word<VM> {
+    pub fn mut_word(&mut self, pos: usize) -> &mut Word<Target> {
         unsafe {
-            &mut *(self.inner.offset(pos as isize) as *mut Word<VM>)
+            &mut *(self.inner.offset(pos as isize) as *mut Word<Target>)
         }
     }
 
-    pub fn compile_word(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+    pub fn compile_word(&mut self, name: &str, action: fn(& mut Target) -> Option<Exception>) {
         unsafe {
             // name
             self.align();
@@ -139,18 +141,18 @@ impl JitMemory {
             self.align();
             let len = self.len;
             let w = Word::new(nfa, nlen, action);
-            let w1 = self.inner.offset(len as isize) as *mut Word<VM>;
+            let w1 = self.inner.offset(len as isize) as *mut Word<Target>;
             *w1 = w;
             (*w1).link = self.last;
             self.last = len;
-            self.len += mem::size_of::<Word<VM>>();
+            self.len += mem::size_of::<Word<Target>>();
             // Dfa
             self.align();
             (*w1).dfa = self.len;
         }
     }
 
-    pub fn name(&self, w: &Word<VM>) -> &str {
+    pub fn name(&self, w: &Word<Target>) -> &str {
         let ptr = unsafe{ self.inner.offset(w.nfa as isize) };
         unsafe{ mem::transmute(slice::from_raw_parts::<u8>(ptr, w.nlen)) }
     }

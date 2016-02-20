@@ -344,8 +344,8 @@ pub trait Core : Sized {
   fn f_stack(&mut self) -> &mut Stack<f64>;
   fn state(&mut self) -> &mut State;
   fn references(&mut self) -> &mut ForwardReferences;
-  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>>;
-  fn set_evaluators(&mut self, Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>);
+  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<(), Exception>>>;
+  fn set_evaluators(&mut self, Vec<fn(&mut Self, token: &str) -> Result<(), Exception>>);
 
   /// Add core primitives to self.
   fn add_core(&mut self) {
@@ -479,21 +479,24 @@ pub trait Core : Sized {
     self.extend_evaluator(Core::evaluate_integer);
   }
 
-  fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>);
+  fn add_primitive(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
+      self.jit_memory().compile_word(name, action);
+      self.state().last_definition = self.jit_memory().last();
+  }
 
-  fn add_immediate(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+  fn add_immediate(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
       self.jit_memory().mut_word(def).is_immediate = true;
   }
 
-  fn add_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+  fn add_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
       self.jit_memory().mut_word(def).is_compile_only = true;
   }
 
-  fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
+  fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
       let w = self.jit_memory().mut_word(def);
@@ -501,7 +504,10 @@ pub trait Core : Sized {
       w.is_compile_only = true;
   }
 
-  fn execute_word(&mut self, i: usize) -> Option<Exception>;
+  fn execute_word(&mut self, i: usize) -> Option<Exception> {
+      self.state().word_pointer = i;
+      (self.jit_memory().word(i).action)(self)
+  }
 
   /// Find the word with name 'name'.
   /// If not found returns zero.
@@ -694,7 +700,86 @@ pub trait Core : Sized {
 
   /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
   /// Never returns Some(Quit).
-  fn evaluate(&mut self) -> Option<Exception>;
+  fn evaluate(&mut self) -> Option<Exception> {
+      let result;
+      let mut last_token;
+      loop {
+          self.parse_word();
+          last_token = self.last_token().take().unwrap();
+          if last_token.is_empty() {
+              result = None;
+              break;
+          }
+          match self.find(&last_token) {
+              Some(found_index) => {
+                  let is_immediate_word;
+                  let is_compile_only_word;
+                  {
+                      let word = &self.jit_memory().word(found_index);
+                      is_immediate_word = word.is_immediate;
+                      is_compile_only_word = word.is_compile_only;
+                  }
+                  if self.state().is_compiling && !is_immediate_word {
+                      self.compile_word(found_index);
+                  } else if !self.state().is_compiling && is_compile_only_word {
+                      result = Some(InterpretingACompileOnlyWord);
+                      break;
+                  } else {
+                      self.set_last_token(last_token);
+                      match self.execute_word(found_index) {
+                          Some(e) => {
+                              last_token = self.last_token().take().unwrap();
+                              match e {
+                                  Nest => {
+                                      match self.run() {
+                                          Some(e2) => match e2 {
+                                              Quit => {},
+                                              _ => {
+                                                  result = Some(e2);
+                                                  break;
+                                              }
+                                          },
+                                          None => { /* impossible */ }
+                                      }
+                                  },
+                                  Quit => {},
+                                  _ => {
+                                    result = Some(e);
+                                    break;
+                                  }
+                              }
+                          },
+                          None => {
+                            last_token = self.last_token().take().unwrap();
+                          }
+                      };
+                  }
+              },
+              None => {
+                  let mut done = false;
+                  let evaluators = self.evaluators().take().unwrap();
+                  for h in &evaluators {
+                      match h(self, &last_token) {
+                          Ok(_) => {
+                              done = true;
+                              break;
+                          },
+                          Err(_) => { continue }
+                      }
+                  }
+                  self.set_evaluators(evaluators);
+                  if !done {
+                      print!("{} ", &last_token);
+                      result = Some(UndefinedWord);
+                      break;
+                  }
+              }
+          }
+          self.set_last_token(last_token);
+      }
+      self.set_last_token(last_token);
+      result
+  }
 
   fn evaluate_integer(&mut self, token: &str) -> Result<(), Exception> {
       match FromStr::from_str(token) {
@@ -712,7 +797,7 @@ pub trait Core : Sized {
 
   /// Extend `f` to evaluators.
   /// Will create a vector for evaluators if there was no evaluator.
-  fn extend_evaluator(&mut self, f: fn(&mut VM, token: &str) -> Result<(), Exception>) {
+  fn extend_evaluator(&mut self, f: fn(&mut Self, token: &str) -> Result<(), Exception>) {
       let optional_evaluators = self.evaluators().take();
       match optional_evaluators {
           Some(mut evaluators) => {
@@ -780,7 +865,24 @@ pub trait Core : Sized {
       }
   }
 
-  fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception>;
+  fn define(&mut self, action: fn(& mut Self) -> Option<Exception>) -> Option<Exception> {
+      self.parse_word();
+      let last_token = self.last_token().take().unwrap();
+      match self.find(&last_token) {
+          Some(_) => print!("Redefining {}", last_token),
+          None => {}
+      }
+      if !last_token.is_empty() {
+          self.jit_memory().compile_word(&last_token, action);
+          self.state().last_definition = self.jit_memory().last();
+          self.set_last_token(last_token);
+          None
+      } else {
+          self.state().last_definition = 0;
+          self.set_last_token(last_token);
+          Some(UnexpectedEndOfFile)
+      }
+  }
 
   fn colon(&mut self) -> Option<Exception> {
       match self.define(Core::nest) {
@@ -2006,104 +2108,11 @@ impl Core for VM {
   fn f_stack(&mut self) -> &mut Stack<f64> { &mut self.f_stk }
   fn state(&mut self) -> &mut State { &mut self.state }
   fn references(&mut self) -> &mut ForwardReferences { &mut self.references }
-  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>> {
+  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<(), Exception>>> {
     &mut self.evals
   }
-  fn set_evaluators(&mut self, evaluators: Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>) {
+  fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str) -> Result<(), Exception>>) {
     self.evals = Some(evaluators)
-  }
-
-  fn add_primitive(&mut self, name: &str, action: fn(& mut VM) -> Option<Exception>) {
-      self.jit_memory().compile_word(name, action);
-      self.state().last_definition = self.jit_memory().last();
-  }
-
-  fn execute_word(&mut self, i: usize) -> Option<Exception> {
-      self.state().word_pointer = i;
-      (self.jit_memory().word(i).action)(self)
-  }
-
-  /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
-  /// Never returns Some(Quit).
-  fn evaluate(&mut self) -> Option<Exception> {
-      let result;
-      let mut last_token;
-      loop {
-          self.parse_word();
-          last_token = self.last_token().take().unwrap();
-          if last_token.is_empty() {
-              result = None;
-              break;
-          }
-          match self.find(&last_token) {
-              Some(found_index) => {
-                  let is_immediate_word;
-                  let is_compile_only_word;
-                  {
-                      let word = &self.jit_memory().word(found_index);
-                      is_immediate_word = word.is_immediate;
-                      is_compile_only_word = word.is_compile_only;
-                  }
-                  if self.state().is_compiling && !is_immediate_word {
-                      self.compile_word(found_index);
-                  } else if !self.state().is_compiling && is_compile_only_word {
-                      result = Some(InterpretingACompileOnlyWord);
-                      break;
-                  } else {
-                      self.set_last_token(last_token);
-                      match self.execute_word(found_index) {
-                          Some(e) => {
-                              last_token = self.last_token().take().unwrap();
-                              match e {
-                                  Nest => {
-                                      match self.run() {
-                                          Some(e2) => match e2 {
-                                              Quit => {},
-                                              _ => {
-                                                  result = Some(e2);
-                                                  break;
-                                              }
-                                          },
-                                          None => { /* impossible */ }
-                                      }
-                                  },
-                                  Quit => {},
-                                  _ => {
-                                    result = Some(e);
-                                    break;
-                                  }
-                              }
-                          },
-                          None => {
-                            last_token = self.last_token().take().unwrap();
-                          }
-                      };
-                  }
-              },
-              None => {
-                  let mut done = false;
-                  let evaluators = self.evaluators().take().unwrap();
-                  for h in &evaluators {
-                      match h(self, &last_token) {
-                          Ok(_) => {
-                              done = true;
-                              break;
-                          },
-                          Err(_) => { continue }
-                      }
-                  }
-                  self.set_evaluators(evaluators);
-                  if !done {
-                      print!("{} ", &last_token);
-                      result = Some(UndefinedWord);
-                      break;
-                  }
-              }
-          }
-          self.set_last_token(last_token);
-      }
-      self.set_last_token(last_token);
-      result
   }
 
   /// Extend VM with an `extension`.
@@ -2125,27 +2134,6 @@ impl Core for VM {
                           None
                   }
           }
-  }
-
-// High level definitions
-
-  fn define(&mut self, action: fn(& mut VM) -> Option<Exception>) -> Option<Exception> {
-      self.parse_word();
-      let last_token = self.last_token().take().unwrap();
-      match self.find(&last_token) {
-          Some(_) => print!("Redefining {}", last_token),
-          None => {}
-      }
-      if !last_token.is_empty() {
-          self.jit_memory().compile_word(&last_token, action);
-          self.state().last_definition = self.jit_memory().last();
-          self.set_last_token(last_token);
-          None
-      } else {
-          self.state().last_definition = 0;
-          self.set_last_token(last_token);
-          Some(UnexpectedEndOfFile)
-      }
   }
 
 }

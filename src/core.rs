@@ -237,9 +237,6 @@ impl<T: fmt::Display> fmt::Debug for Stack<T> {
     }
 }
 
-#[deprecated]
-pub trait Extension {}
-
 pub struct ForwardReferences {
     pub idx_lit: usize,
     pub idx_flit: usize,
@@ -783,15 +780,6 @@ pub trait Core : Sized {
           }
       }
   }
-
-  /// Extend VM with an `extension`.
-  fn extend(&mut self, name: &'static str, extension: Box<Extension>);
-
-  /// Get extension of type T with name.
-  /// Note: Behavior is undefined when extension corresponding to name is not of type T.
-  /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
-  #[deprecated]
-  unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T>;
 
   //-----------------------
   // High level definitions

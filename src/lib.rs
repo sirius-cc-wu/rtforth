@@ -1,9 +1,6 @@
 #![feature(libc)]
 #![feature(unique)]
 #![feature(test)]
-#![feature(plugin)]
-#![feature(raw)]
-#![feature(deprecated)]
 
 extern crate byteorder;
 pub mod vm;

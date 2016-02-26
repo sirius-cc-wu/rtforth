@@ -1,8 +1,5 @@
-use std::mem;
-use std::raw;
-use std::collections::HashMap;
 use ::output::Output;
-use ::core::{Core, Extension, ForwardReferences, Stack, State};
+use ::core::{Core, ForwardReferences, Stack, State};
 use ::jitmem::JitMemory;
 use ::loader::HasLoader;
 use ::tools::Tools;
@@ -23,8 +20,6 @@ pub struct VM {
     state: State,
     references: ForwardReferences,
     evals: Option<Vec<fn(&mut VM, token: &str) -> Result<(), Exception>>>,
-    #[deprecated]
-    pub extensions: HashMap<&'static str, Box<Extension>>,
 }
 
 impl VM {
@@ -40,7 +35,6 @@ impl VM {
             state: State::new(),
             references: ForwardReferences::new(),
             evals: None,
-            extensions: HashMap::new(),
         }
     }
 }
@@ -70,27 +64,6 @@ impl Core for VM {
   }
   fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str) -> Result<(), Exception>>) {
     self.evals = Some(evaluators)
-  }
-
-  /// Extend VM with an `extension`.
-  fn extend(&mut self, name: &'static str, extension: Box<Extension>) {
-      self.extensions.insert(name, extension);
-  }
-
-  /// Get extension of type T with name.
-  /// Note: Behavior is undefined when extension corresponding to name is not of type T.
-  /// 注意: 當 name 對應的 Extension 的型別不是 T 時可能會造成當機問題。
-  unsafe fn get_extension<T>(&self, name: &str) -> Option<&mut T> {
-          let option = self.extensions.get(name);
-          match option {
-                  Some(v) => {
-                          let tobj: raw::TraitObject = mem::transmute(&**v);
-                          Some(mem::transmute(tobj.data))
-                  },
-                  None => {
-                          None
-                  }
-          }
   }
 }
 

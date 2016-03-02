@@ -1,4 +1,5 @@
 use std::mem;
+use std::fmt::Write;
 use core::Core;
 use core::Heap;
 use exception::Exception::{
@@ -146,7 +147,11 @@ pub trait Output : Core {
     fn dot(&mut self) -> Option<Exception> {
         match self.s_stack().pop() {
             Some(n) => {
-                print!("{} ", n);
+                if let Some(mut buf) = self.output_buffer().take() {
+                  write!(buf, "{} ", n);
+                  self.set_output_buffer(buf);
+                  if self.state().auto_flush { self.flush(); }
+                }
                 None
             },
             None => Some(StackUnderflow)
@@ -159,8 +164,12 @@ pub trait Output : Core {
     fn fdot(&mut self) -> Option<Exception> {
         match self.f_stack().pop() {
             Some(r) => {
-                print!("{} ", r);
-                None
+              if let Some(mut buf) = self.output_buffer().take() {
+                write!(buf, "{} ", r);
+                self.set_output_buffer(buf);
+                if self.state().auto_flush { self.flush(); }
+              }
+              None
             },
             None => Some(FloatingPointStackUnderflow)
         }

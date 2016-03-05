@@ -454,23 +454,27 @@ pub trait Core : Sized {
     self.extend_evaluator(Core::evaluate_integer);
   }
 
+  /// Add a primitive word to word list.
   fn add_primitive(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.jit_memory().compile_word(name, action);
       self.state().last_definition = self.jit_memory().last();
   }
 
+  /// Add an immediate word to word list.
   fn add_immediate(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
       self.jit_memory().mut_word(def).is_immediate = true;
   }
 
+  /// Add a compile-only word to word list.
   fn add_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
       self.jit_memory().mut_word(def).is_compile_only = true;
   }
 
+  /// Add an immediate and compile-only word to word list.
   fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
@@ -479,12 +483,13 @@ pub trait Core : Sized {
       w.is_compile_only = true;
   }
 
+  /// Execute word at position `i`.
   fn execute_word(&mut self, i: usize) -> Option<Exception> {
       self.state().word_pointer = i;
       (self.jit_memory().word(i).action)(self)
   }
 
-  /// Find the word with name 'name'.
+  /// Find the word with name `name`.
   /// If not found returns zero.
   fn find(&mut self, name: &str) -> Option<usize> {
       self.jit_memory().find(name)
@@ -531,7 +536,7 @@ pub trait Core : Sized {
       self.jit_memory().compile_i32(word_index as i32);
   }
 
-  /// Compile integer 'i'.
+  /// Compile integer `i`.
   fn compile_integer (&mut self, i: isize) {
       let idx = self.references().idx_lit as i32;
       self.jit_memory().compile_i32(idx);
@@ -614,7 +619,7 @@ pub trait Core : Sized {
   ///
   /// Run-time: ( -- char )
   ///
-  /// Place char, the value of the first character of name, on the stack.
+  /// Place `char`, the value of the first character of name, on the stack.
   fn bracket_char(&mut self) -> Option<Exception> {
       self.char();
       match self.s_stack().pop() {
@@ -943,8 +948,8 @@ pub trait Core : Sized {
 
   /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
   ///
-  /// Set up loop control parameters with index n2|u2 and limit n1|u1. An
-  /// ambiguous condition exists if n1|u1 and n2|u2 are not both the same
+  /// Set up loop control parameters with index `n2`|`u2` and limit `n1`|`u1`. An
+  /// ambiguous condition exists if `n1`|`u1` and `n2`|`u2` are not both the same
   /// type.  Anything already on the return stack becomes unavailable until
   /// the loop-control parameters are discarded.
   fn _do(&mut self) -> Option<Exception> {
@@ -988,7 +993,7 @@ pub trait Core : Sized {
   /// Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
   ///
   /// An ambiguous condition exists if the loop control parameters are
-  /// unavailable. Add n to the loop index. If the loop index did not cross
+  /// unavailable. Add `n` to the loop index. If the loop index did not cross
   /// the boundary between the loop limit minus one and the loop limit,
   /// continue execution at the beginning of the loop. Otherwise, discard the
   /// current loop control parameters and continue execution immediately
@@ -1021,8 +1026,8 @@ pub trait Core : Sized {
   /// Run-time: ( -- ) ( R: loop-sys -- )
   ///
   /// Discard the loop-control parameters for the current nesting level. An
-  /// UNLOOP is required for each nesting level before the definition may be
-  /// EXITed. An ambiguous condition exists if the loop-control parameters
+  /// `UNLOOP` is required for each nesting level before the definition may be
+  /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
   /// are unavailable.
   fn unloop(&mut self) -> Option<Exception> {
       match self.r_stack().pop3() {
@@ -1144,7 +1149,7 @@ pub trait Core : Sized {
 
   /// Execution: ( -- a-ddr )
   ///
-  /// Append the run-time semantics of _do to the current definition. The semantics are incomplete until resolved by LOOP or +LOOP.
+  /// Append the run-time semantics of `_do` to the current definition. The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
   fn imm_do(&mut self) -> Option<Exception> {
       let idx = self.references().idx_do as i32;
       self.jit_memory().compile_i32(idx);
@@ -1154,10 +1159,10 @@ pub trait Core : Sized {
 
   /// Run-time: ( a-addr -- )
   ///
-  /// Append the run-time semantics of _LOOP to the current definition.
-  /// Resolve the destination of all unresolved occurrences of LEAVE between
+  /// Append the run-time semantics of `_LOOP` to the current definition.
+  /// Resolve the destination of all unresolved occurrences of `LEAVE` between
   /// the location given by do-sys and the next location for a transfer of
-  /// control, to execute the words following the LOOP.
+  /// control, to execute the words following the `LOOP`.
   fn imm_loop(&mut self) -> Option<Exception>{
       match self.s_stack().pop() {
           Some(do_part) => {
@@ -1174,10 +1179,10 @@ pub trait Core : Sized {
 
   /// Run-time: ( a-addr -- )
   ///
-  /// Append the run-time semantics of _+LOOP to the current definition.
-  /// Resolve the destination of all unresolved occurrences of LEAVE between
+  /// Append the run-time semantics of `_+LOOP` to the current definition.
+  /// Resolve the destination of all unresolved occurrences of `LEAVE` between
   /// the location given by do-sys and the next location for a transfer of
-  /// control, to execute the words following +LOOP.
+  /// control, to execute the words following `+LOOP`.
   fn imm_plus_loop(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(do_part) => {
@@ -1226,7 +1231,7 @@ pub trait Core : Sized {
 
   /// Run-time: (c-addr1 -- c-addr2 )
   ///
-  ///Add the size in address units of a character to c-addr1, giving c-addr2.
+  ///Add the size in address units of a character to `c-addr1`, giving `c-addr2`.
   fn char_plus(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(v) =>
@@ -1240,7 +1245,7 @@ pub trait Core : Sized {
 
   /// Run-time: (n1 -- n2 )
   ///
-  /// n2 is the size in address units of n1 characters.
+  /// `n2` is the size in address units of `n1` characters.
   fn chars(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(v) =>
@@ -1255,7 +1260,7 @@ pub trait Core : Sized {
 
   /// Run-time: (a-addr1 -- a-addr2 )
   ///
-  /// Add the size in address units of a cell to a-addr1, giving a-addr2.
+  /// Add the size in address units of a cell to `a-addr1`, giving `a-addr2`.
   fn cell_plus(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(v) =>
@@ -1269,7 +1274,7 @@ pub trait Core : Sized {
 
   /// Run-time: (n1 -- n2 )
   ///
-  /// n2 is the size in address units of n1 cells.
+  /// `n2` is the size in address units of `n1` cells.
   fn cells(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(v) =>
@@ -1704,9 +1709,9 @@ pub trait Core : Sized {
 
   /// Run-time: ( x1 u -- x2 )
   ///
-  /// Perform a logical left shift of u bit-places on x1, giving x2. Put
+  /// Perform a logical left shift of `u` bit-places on `x1`, giving `x2`. Put
   /// zeroes into the least significant bits vacated by the shift. An
-  /// ambiguous condition exists if u is greater than or equal to the number
+  /// ambiguous condition exists if `u` is greater than or equal to the number
   /// of bits in a cell.
   fn lshift(&mut self) -> Option<Exception> {
       match self.s_stack().pop2() {
@@ -1721,9 +1726,9 @@ pub trait Core : Sized {
 
   /// Run-time: ( x1 u -- x2 )
   ///
-  /// Perform a logical right shift of u bit-places on x1, giving x2. Put
+  /// Perform a logical right shift of `u` bit-places on `x1`, giving `x2`. Put
   /// zeroes into the most significant bits vacated by the shift. An
-  /// ambiguous condition exists if u is greater than or equal to the number
+  /// ambiguous condition exists if `u` is greater than or equal to the number
   /// of bits in a cell.
   fn rshift(&mut self) -> Option<Exception> {
       match self.s_stack().pop2() {
@@ -1738,9 +1743,9 @@ pub trait Core : Sized {
 
   /// Run-time: ( x1 u -- x2 )
   ///
-  /// Perform a arithmetic right shift of u bit-places on x1, giving x2. Put
+  /// Perform a arithmetic right shift of `u` bit-places on `x1`, giving `x2`. Put
   /// zeroes into the most significant bits vacated by the shift. An
-  /// ambiguous condition exists if u is greater than or equal to the number
+  /// ambiguous condition exists if `u` is greater than or equal to the number
   /// of bits in a cell.
   fn arshift(&mut self) -> Option<Exception> {
       match self.s_stack().pop2() {
@@ -1756,9 +1761,9 @@ pub trait Core : Sized {
   /// Interpretation: Interpretation semantics for this word are undefined.
   ///
   /// Execution: ( -- ) ( R: nest-sys -- )
-  /// Return control to the calling definition specified by nest-sys. Before executing EXIT within a
-  /// do-loop, a program shall discard the loop-control parameters by executing UNLOOP.
-  /// TODO: UNLOOP
+  /// Return control to the calling definition specified by `nest-sys`. Before executing `EXIT` within a
+  /// do-loop, a program shall discard the loop-control parameters by executing `UNLOOP`.
+  /// TODO: `UNLOOP`
   fn exit(&mut self) -> Option<Exception> {
       if self.r_stack().len == 0 {
           Some(ReturnStackUnderflow)
@@ -1773,7 +1778,7 @@ pub trait Core : Sized {
 
   /// Run-time: ( a-addr -- x )
   ///
-  /// x is the value stored at a-addr.
+  /// `x` is the value stored at `a-addr`.
   fn fetch(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(t) => {
@@ -1789,7 +1794,7 @@ pub trait Core : Sized {
 
   /// Run-time: ( x a-addr -- )
   ///
-  /// Store x at a-addr.
+  /// Store `x` at `a-addr`.
   fn store(&mut self) -> Option<Exception> {
       match self.s_stack().pop2() {
           Some((n,t)) => {
@@ -1802,7 +1807,7 @@ pub trait Core : Sized {
 
   /// Run-time: ( c-addr -- char )
   ///
-  /// Fetch the character stored at c-addr. When the cell size is greater than
+  /// Fetch the character stored at `c-addr`. When the cell size is greater than
   /// character size, the unused high-order bits are all zeroes.
   fn c_fetch(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
@@ -1819,7 +1824,7 @@ pub trait Core : Sized {
 
   /// Run-time: ( char c-addr -- )
   ///
-  /// Store char at c-addr. When character size is smaller than cell size,
+  /// Store `char` at `c-addr`. When character size is smaller than cell size,
   /// only the number of low-order bits corresponding to character size are
   /// transferred.
   fn c_store(&mut self) -> Option<Exception> {
@@ -1835,7 +1840,7 @@ pub trait Core : Sized {
   /// Run-time: ( "<spaces>name" -- xt )
   ///
   /// Skip leading space delimiters. Parse name delimited by a space. Find
-  /// name and return xt, the execution token for name. An ambiguous
+  /// `name` and return `xt`, the execution token for name. An ambiguous
   /// condition exists if name is not found.
   fn tick(&mut self) -> Option<Exception> {
       let result;
@@ -1859,8 +1864,8 @@ pub trait Core : Sized {
 
   /// Run-time: ( i*x xt -- j*x )
   ///
-  /// Remove xt from the stack and perform the semantics identified by it.
-  /// Other stack effects are due to the word EXECUTEd.
+  /// Remove `xt` from the stack and perform the semantics identified by it.
+  /// Other stack effects are due to the word `EXECUTE`d.
   fn execute(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(t) => {
@@ -1872,7 +1877,7 @@ pub trait Core : Sized {
 
   /// Run-time: ( -- addr )
   ///
-  /// addr is the data-space pointer.
+  /// `addr` is the data-space pointer.
   fn here(&mut self) -> Option<Exception> {
       let len = self.jit_memory().len() as isize;
       match self.s_stack().push(len) {
@@ -1883,8 +1888,8 @@ pub trait Core : Sized {
 
   /// Run-time: ( n -- )
   ///
-  /// If n is greater than zero, reserve n address units of data space. If n
-  /// is less than zero, release |n| address units of data space. If n is
+  /// If `n` is greater than zero, reserve n address units of data space. If `n`
+  /// is less than zero, release `|n|` address units of data space. If `n` is
   /// zero, leave the data-space pointer unchanged.
   fn allot(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
@@ -1898,10 +1903,10 @@ pub trait Core : Sized {
 
   /// Run-time: ( x -- )
   ///
-  /// Reserve one cell of data space and store x in the cell. If the
-  /// data-space pointer is aligned when , begins execution, it will remain
-  /// aligned when , finishes execution. An ambiguous condition exists if the
-  /// data-space pointer is not aligned prior to execution of ,.
+  /// Reserve one cell of data space and store `x` in the cell. If the
+  /// data-space pointer is aligned when `,` begins execution, it will remain
+  /// aligned when `,` finishes execution. An ambiguous condition exists if the
+  /// data-space pointer is not aligned prior to execution of `,`.
   fn comma(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(v) => {

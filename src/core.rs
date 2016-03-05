@@ -307,6 +307,7 @@ pub trait Core : Sized {
   fn output_buffer(&mut self) -> &mut Option<String>;
   fn set_output_buffer(&mut self, buffer: String);
   fn input_buffer(&mut self) -> &mut Option<String>;
+  /// Set `input_buffer` to `buffer`.
   fn set_input_buffer(&mut self, buffer: String);
   fn last_token(&mut self) -> &mut Option<String>;
   fn set_last_token(&mut self, buffer: String);
@@ -548,6 +549,7 @@ pub trait Core : Sized {
       None
   }
 
+  /// copy content of `s` to `input_buffer` and set `source_index` to 0.
   fn set_source(&mut self, s: &str) {
       let mut buffer = self.input_buffer().take().unwrap();
       buffer.clear();

@@ -304,10 +304,13 @@ pub trait Core : Sized {
 
   fn jit_memory(&mut self) -> &mut JitMemory<Self>;
   fn jit_memory_const(&self) -> &JitMemory<Self>;
+  /// Get `output_buffer`.
   fn output_buffer(&mut self) -> &mut Option<String>;
+  /// Set `output_buffer` to `Some(buffer)`.
   fn set_output_buffer(&mut self, buffer: String);
+  /// Get `input_buffer`.
   fn input_buffer(&mut self) -> &mut Option<String>;
-  /// Set `input_buffer` to `buffer`.
+  /// Set `input_buffer` to `Some(buffer)`.
   fn set_input_buffer(&mut self, buffer: String);
   fn last_token(&mut self) -> &mut Option<String>;
   fn set_last_token(&mut self, buffer: String);

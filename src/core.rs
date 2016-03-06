@@ -510,14 +510,11 @@ pub trait Core : Sized {
       while 0 < ip && ip < self.jit_memory().len() {
           let w = self.jit_memory().get_i32(ip) as usize;
           self.state().instruction_pointer += mem::size_of::<i32>();
-          match self.execute_word (w) {
-              Some(e) => {
-                  match e {
-                      Nest => {},
-                      _ => return Some(e)
-                  }
-              },
-              None => {}
+          if let Some(e) = self.execute_word (w) {
+              match e {
+                  Nest => {},
+                  _ => return Some(e)
+              }
           }
           ip = self.state().instruction_pointer;
       }
@@ -844,15 +841,15 @@ pub trait Core : Sized {
           Some(_) => print!("Redefining {}", last_token),
           None => {}
       }
-      if !last_token.is_empty() {
+      if last_token.is_empty() {
+          self.state().last_definition = 0;
+          self.set_last_token(last_token);
+          Some(UnexpectedEndOfFile)
+      } else {
           self.jit_memory().compile_word(&last_token, action);
           self.state().last_definition = self.jit_memory().last();
           self.set_last_token(last_token);
           None
-      } else {
-          self.state().last_definition = 0;
-          self.set_last_token(last_token);
-          Some(UnexpectedEndOfFile)
       }
   }
 
@@ -1600,7 +1597,7 @@ pub trait Core : Sized {
   fn zero_not_equals(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(t) =>
-              match self.s_stack().push(if t!=0 {-1} else {0}) {
+              match self.s_stack().push(if t==0 {0} else {-1}) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },
@@ -1644,7 +1641,7 @@ pub trait Core : Sized {
   fn not_equals(&mut self) -> Option<Exception> {
       match self.s_stack().pop2() {
           Some((n,t)) =>
-              match self.s_stack().push(if n!=t {-1} else {0}) {
+              match self.s_stack().push(if n==t {0} else {-1}) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },
@@ -1846,7 +1843,9 @@ pub trait Core : Sized {
       let result;
       self.parse_word();
       let last_token = self.last_token().take().unwrap();
-      if !last_token.is_empty() {
+      if last_token.is_empty() {
+          result = Some(UnexpectedEndOfFile);
+      } else {
           match self.find(&last_token) {
               Some(found_index) =>
                   match self.s_stack().push(found_index as isize) {
@@ -1855,8 +1854,6 @@ pub trait Core : Sized {
                   },
               None => result = Some(UndefinedWord)
           }
-      } else {
-          result = Some(UnexpectedEndOfFile);
       }
       self.set_last_token(last_token);
       result

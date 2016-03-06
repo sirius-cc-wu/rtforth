@@ -32,9 +32,8 @@ pub trait Output : Core {
         match self.s_stack().pop() {
             None => Some(StackUnderflow),
             Some(ch) => {
-                match *self.output_buffer() {
-                  Some(ref mut buffer) => buffer.push(ch as u8 as char),
-                  None => {}
+                if let Some(ref mut buffer) = *self.output_buffer() {
+                    buffer.push(ch as u8 as char)
                 }
                 if self.state().auto_flush {
                     self.flush();
@@ -131,11 +130,8 @@ pub trait Output : Core {
         let last_token = self.last_token().take().unwrap();
         self.s_stack().push(')' as isize);
         self.parse();
-        match *self.output_buffer() {
-          Some(ref mut buffer) => {
+        if let Some(ref mut buffer) = *self.output_buffer() {
             buffer.extend(last_token.chars());
-          }
-          None => {}
         }
         self.set_last_token(last_token);
         None
@@ -176,12 +172,9 @@ pub trait Output : Core {
     }
 
     fn flush(&mut self) -> Option<Exception> {
-      match *self.output_buffer() {
-        Some(ref mut buffer) => {
-          print!("{}", buffer);
-          buffer.clear();
-        },
-        None => {}
+      if let Some(ref mut buffer) = *self.output_buffer() {
+        print!("{}", buffer);
+        buffer.clear();
       }
       None
     }

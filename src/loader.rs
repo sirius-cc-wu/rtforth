@@ -27,12 +27,9 @@ pub trait HasLoader : Core {
                     } else {
                         self.set_input_buffer(input_buffer);
                         self.state().source_index = 0;
-                        match self.evaluate() {
-                            Some(e) => {
-                                return Some(e);
-                            },
-                            None => {}
-                        };
+                        if let Some(e) = self.evaluate() {
+                            return Some(e);
+                        }
                     }
                 },
                 Err(_) => {

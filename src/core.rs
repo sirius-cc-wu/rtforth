@@ -709,15 +709,14 @@ pub trait Core : Sized {
                               last_token = self.last_token().take().unwrap();
                               match e {
                                   Nest => {
-                                      match self.run() {
-                                          Some(e2) => match e2 {
+                                      if let Some(e2) = self.run() {
+                                          match e2 {
                                               Quit => {},
                                               _ => {
                                                   result = Some(e2);
                                                   break;
                                               }
-                                          },
-                                          None => { /* impossible */ }
+                                          }
                                       }
                                   },
                                   Quit => {},
@@ -837,9 +836,8 @@ pub trait Core : Sized {
   fn define(&mut self, action: fn(& mut Self) -> Option<Exception>) -> Option<Exception> {
       self.parse_word();
       let last_token = self.last_token().take().unwrap();
-      match self.find(&last_token) {
-          Some(_) => print!("Redefining {}", last_token),
-          None => {}
+      if let Some(_) = self.find(&last_token) {
+          print!("Redefining {}", last_token);
       }
       if last_token.is_empty() {
           self.state().last_definition = 0;
@@ -2023,9 +2021,8 @@ pub trait Core : Sized {
   /// Called by VM's client upon Quit.
   fn reset(&mut self) {
       self.r_stack().len = 0;
-      match *self.input_buffer() {
-        Some(ref mut buf) => buf.clear(),
-        None => {}
+      if let Some(ref mut buf) = *self.input_buffer() {
+          buf.clear()
       }
       self.state().source_index = 0;
       self.state().instruction_pointer = 0;

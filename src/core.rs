@@ -11,6 +11,7 @@ use std::str::FromStr;
 use std::fmt;
 use std::slice;
 use std::io::Write;
+use std::result;
 use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 use ::jitmem::JitMemory;
 use exception::Exception::{
@@ -30,6 +31,8 @@ use exception::Exception::{
     Pause,
     Bye,
 };
+
+pub type Result<T> = result::Result<T, Exception>;
 
 pub trait Heap {
     fn push_f64(&mut self, v: f64);
@@ -319,8 +322,8 @@ pub trait Core : Sized {
   fn f_stack(&mut self) -> &mut Stack<f64>;
   fn state(&mut self) -> &mut State;
   fn references(&mut self) -> &mut ForwardReferences;
-  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<(), Exception>>>;
-  fn set_evaluators(&mut self, Vec<fn(&mut Self, token: &str) -> Result<(), Exception>>);
+  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<()>>>;
+  fn set_evaluators(&mut self, Vec<fn(&mut Self, token: &str) -> Result<()>>);
 
   /// Add core primitives to self.
   fn add_core(&mut self) {
@@ -758,7 +761,7 @@ pub trait Core : Sized {
       result
   }
 
-  fn evaluate_integer(&mut self, token: &str) -> Result<(), Exception> {
+  fn evaluate_integer(&mut self, token: &str) -> Result<()> {
       match FromStr::from_str(token) {
           Ok(t) => {
               if self.state().is_compiling {
@@ -774,7 +777,7 @@ pub trait Core : Sized {
 
   /// Extend `f` to evaluators.
   /// Will create a vector for evaluators if there was no evaluator.
-  fn extend_evaluator(&mut self, f: fn(&mut Self, token: &str) -> Result<(), Exception>) {
+  fn extend_evaluator(&mut self, f: fn(&mut Self, token: &str) -> Result<()>) {
       let optional_evaluators = self.evaluators().take();
       match optional_evaluators {
           Some(mut evaluators) => {

@@ -1,4 +1,4 @@
-use core::{Core, Heap};
+use core::{Result, Core, Heap};
 use std::str::FromStr;
 
 use std::mem;
@@ -56,7 +56,7 @@ pub trait Float : Core {
     }
 
     /// Evaluate float.
-    fn evaluate_float(&mut self, token: &str) -> Result<(), Exception> {
+    fn evaluate_float(&mut self, token: &str) -> Result<()> {
         match FromStr::from_str(token) {
             Ok(t) => {
                 if self.references().idx_flit == 0 {

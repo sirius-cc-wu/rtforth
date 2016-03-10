@@ -1,9 +1,10 @@
-use core::Core;
+use std::fmt::Write;
+use output::Output;
 use exception::Exception::{
     self
 };
 
-pub trait Tools : Core {
+pub trait Tools : Output {
     /// Add programming-tools primitives.
     fn add_tools(&mut self) {
         self.add_primitive("words", Tools::words);
@@ -14,12 +15,16 @@ pub trait Tools : Core {
     ///
     /// Display values on the data stack.
     fn dot_s(&mut self) -> Option<Exception> {
-        println!("TODO: .s");
-//        print!("<{}> ", self.s_stack.len());
-//        for s in self.s_stack.iter() {
-//            print!("{} ", s);
+        let mut buf = self.output_buffer().take().unwrap();
+        write!(buf, "TODO: .s");
+//        write!(buf, "<{}> ", self.s_stack().len());
+//        for s in self.s_stack().iter() {
+//            write!(buf, "{} ", s);
 //        }
-//        println!("");
+        self.set_output_buffer(buf);
+        if self.state().auto_flush {
+          self.flush();
+        }
         None
     }
 
@@ -27,14 +32,19 @@ pub trait Tools : Core {
     ///
     /// List definition names in word list.
     fn words(&mut self) -> Option<Exception> {
-        println!("");
+        let mut buf = self.output_buffer().take().unwrap();
+        writeln!(buf, "");
         let mut link = self.jit_memory_const().last();
         while !(link == 0) {
             let w = self.jit_memory_const().word(link);
             link = w.link;
             if !w.hidden {
-                print!("{} ", self.jit_memory_const().name(w) );
+                write!(buf, "{} ", self.jit_memory_const().name(w) );
             }
+        }
+        self.set_output_buffer(buf);
+        if self.state().auto_flush {
+          self.flush();
         }
         None
     }

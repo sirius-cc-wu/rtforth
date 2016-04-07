@@ -16,6 +16,8 @@ After optimization, corresponding slots in word list points to the jitted defini
 
 ## Usage
 
+Tested with multirust override nightly-2016-03-24.
+
 Install Rust: 
 
 [Installing Rust](https://doc.rust-lang.org/book/installing-rust.html)

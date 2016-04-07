@@ -1,5 +1,4 @@
 extern crate libc;
-extern crate test;
 
 extern {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
@@ -2058,10 +2057,12 @@ pub trait Core : Sized {
 }
 
 #[cfg(test)]
+
 mod tests {
+    extern crate test;
     use super::Core;
     use vm::VM;
-    use core::test::Bencher;
+    use self::test::Bencher;
     use std::mem;
     use exception::Exception::{
         InvalidMemoryAddress,

@@ -6,7 +6,6 @@ use ::tools::Tools;
 use ::env::Environment;
 use ::facility::Facility;
 use ::float::Float;
-use exception::Exception;
 
 // Virtual machine
 pub struct VM {

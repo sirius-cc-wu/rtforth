@@ -466,14 +466,14 @@ pub trait Core : Sized {
   fn add_immediate(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
-      self.jit_memory().mut_word(def).is_immediate = true;
+      self.jit_memory().mut_word(def).set_immediate(true);
   }
 
   /// Add a compile-only word to word list.
   fn add_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
-      self.jit_memory().mut_word(def).is_compile_only = true;
+      self.jit_memory().mut_word(def).set_compile_only(true);
   }
 
   /// Add an immediate and compile-only word to word list.
@@ -481,14 +481,14 @@ pub trait Core : Sized {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
       let w = self.jit_memory().mut_word(def);
-      w.is_immediate = true;
-      w.is_compile_only = true;
+      w.set_immediate(true);
+      w.set_compile_only(true);
   }
 
   /// Execute word at position `i`.
   fn execute_word(&mut self, i: usize) -> Option<Exception> {
       self.state().word_pointer = i;
-      (self.jit_memory().word(i).action)(self)
+      (self.jit_memory().word(i).action())(self)
   }
 
   /// Find the word with name `name`.
@@ -696,8 +696,8 @@ pub trait Core : Sized {
                   let is_compile_only_word;
                   {
                       let word = &self.jit_memory().word(found_index);
-                      is_immediate_word = word.is_immediate;
-                      is_compile_only_word = word.is_compile_only;
+                      is_immediate_word = word.is_immediate();
+                      is_compile_only_word = word.is_compile_only();
                   }
                   if self.state().is_compiling && !is_immediate_word {
                       self.compile_word(found_index);
@@ -858,7 +858,7 @@ pub trait Core : Sized {
           Some(e) => Some(e),
           None => {
               let def = self.state().last_definition;
-              self.jit_memory().mut_word(def).hidden = true;
+              self.jit_memory().mut_word(def).set_hidden(true);
               self.compile()
           }
       }
@@ -869,7 +869,7 @@ pub trait Core : Sized {
           let idx = self.references().idx_exit as i32;
           self.jit_memory().compile_i32(idx);
           let def = self.state().last_definition;
-          self.jit_memory().mut_word(def).hidden = false;
+          self.jit_memory().mut_word(def).set_hidden(false);
       }
       self.interpret()
   }

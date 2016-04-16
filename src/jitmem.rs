@@ -10,21 +10,21 @@ extern {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
 }
 
-// Word
-pub struct Word<Target> {
-    pub link: usize,
+// JitWord
+pub struct JitWord<Target> {
+    link: usize,
     nfa: usize,
     nlen: usize,
-    pub is_immediate: bool,
-    pub is_compile_only: bool,
-    pub hidden: bool,
+    is_immediate: bool,
+    is_compile_only: bool,
+    hidden: bool,
     dfa: usize,
-    pub action: fn(& mut Target) -> Option<Exception>
+    action: fn(& mut Target) -> Option<Exception>
 }
 
-impl<Target> Word<Target> {
-    pub fn new(nfa: usize, nlen: usize, action: fn(& mut Target) -> Option<Exception>) -> Word<Target> {
-        Word {
+impl<Target> JitWord<Target> {
+    pub fn new(nfa: usize, nlen: usize, action: fn(& mut Target) -> Option<Exception>) -> JitWord<Target> {
+        JitWord {
             link: 0,
             nfa: nfa,
             nlen: nlen,
@@ -36,8 +36,40 @@ impl<Target> Word<Target> {
         }
     }
 
+    pub fn link(&self) -> usize {
+        self.link
+    }
+
+    pub fn is_immediate(&self) -> bool {
+        self.is_immediate
+    }
+
+    pub fn set_immediate(&mut self, flag: bool) {
+        self.is_immediate = flag;
+    }
+
+    pub fn is_compile_only(&self) -> bool {
+        self.is_compile_only
+    }
+
+    pub fn set_compile_only(&mut self, flag: bool) {
+        self.is_compile_only = flag;
+    }
+
+    pub fn is_hidden(&self) -> bool {
+        self.hidden
+    }
+
+    pub fn set_hidden(&mut self, flag: bool) {
+        self.hidden = flag;
+    }
+
     pub fn dfa(&self) -> usize {
         self.dfa
+    }
+
+    pub fn action(&self) -> (fn(& mut Target) -> Option<Exception>) {
+        self.action
     }
 
 }
@@ -52,7 +84,7 @@ pub struct JitMemory<Target> {
     // last word in current word list
     last: usize,
     // A dummy field not used but needed for type check.
-    word: Option<Word<Target>>,
+    word: Option<JitWord<Target>>,
 }
 
 impl<Target> JitMemory<Target> {
@@ -118,15 +150,15 @@ impl<Target> JitMemory<Target> {
     }
     // Basic operations
 
-    pub fn word(&self, pos: usize) -> &Word<Target> {
+    pub fn word(&self, pos: usize) -> &JitWord<Target> {
         unsafe {
-            &*(self.inner.offset(pos as isize) as *const Word<Target>)
+            &*(self.inner.offset(pos as isize) as *const JitWord<Target>)
         }
     }
 
-    pub fn mut_word(&mut self, pos: usize) -> &mut Word<Target> {
+    pub fn mut_word(&mut self, pos: usize) -> &mut JitWord<Target> {
         unsafe {
-            &mut *(self.inner.offset(pos as isize) as *mut Word<Target>)
+            &mut *(self.inner.offset(pos as isize) as *mut JitWord<Target>)
         }
     }
 
@@ -140,19 +172,19 @@ impl<Target> JitMemory<Target> {
             // Word
             self.align();
             let len = self.len;
-            let w = Word::new(nfa, nlen, action);
-            let w1 = self.inner.offset(len as isize) as *mut Word<Target>;
+            let w = JitWord::new(nfa, nlen, action);
+            let w1 = self.inner.offset(len as isize) as *mut JitWord<Target>;
             *w1 = w;
             (*w1).link = self.last;
             self.last = len;
-            self.len += mem::size_of::<Word<Target>>();
+            self.len += mem::size_of::<JitWord<Target>>();
             // Dfa
             self.align();
             (*w1).dfa = self.len;
         }
     }
 
-    pub fn name(&self, w: &Word<Target>) -> &str {
+    pub fn name(&self, w: &JitWord<Target>) -> &str {
         let ptr = unsafe{ self.inner.offset(w.nfa as isize) };
         unsafe{ mem::transmute(slice::from_raw_parts::<u8>(ptr, w.nlen)) }
     }

@@ -37,8 +37,8 @@ pub trait Tools : Output {
         let mut link = self.jit_memory_const().last();
         while !(link == 0) {
             let w = self.jit_memory_const().word(link);
-            link = w.link;
-            if !w.hidden {
+            link = w.link();
+            if !w.is_hidden() {
                 write!(buf, "{} ", self.jit_memory_const().name(w) );
             }
         }

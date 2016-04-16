@@ -4,6 +4,7 @@ use std::mem;
 use std::ptr::Unique;
 use std::slice;
 use std::ascii::AsciiExt;
+use std::marker;
 use ::exception::Exception;
 
 extern {
@@ -83,8 +84,7 @@ pub struct JitMemory<Target> {
     len: usize,
     // last word in current word list
     last: usize,
-    // A dummy field not used but needed for type check.
-    word: Option<JitWord<Target>>,
+    marker: marker::PhantomData<Target>,
 }
 
 impl<Target> JitMemory<Target> {
@@ -104,7 +104,7 @@ impl<Target> JitMemory<Target> {
             // Space at 0 is reserved for halt.
             len: mem::align_of::<usize>(),
             last: 0,
-            word: None,
+            marker: marker::PhantomData,
         }
     }
 

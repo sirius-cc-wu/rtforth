@@ -14,8 +14,7 @@ extern {
 // JitWord
 pub struct JitWord<Target> {
     link: usize,
-    nfa: usize,
-    nlen: usize,
+    symbol: usize,
     is_immediate: bool,
     is_compile_only: bool,
     hidden: bool,
@@ -24,11 +23,10 @@ pub struct JitWord<Target> {
 }
 
 impl<Target> JitWord<Target> {
-    pub fn new(nfa: usize, nlen: usize, action: fn(& mut Target) -> Option<Exception>) -> JitWord<Target> {
+    pub fn new(symbol: usize, action: fn(& mut Target) -> Option<Exception>) -> JitWord<Target> {
         JitWord {
             link: 0,
-            nfa: nfa,
-            nlen: nlen,
+            symbol: symbol,
             is_immediate: false,
             is_compile_only: false,
             hidden: false,
@@ -39,6 +37,10 @@ impl<Target> JitWord<Target> {
 
     pub fn link(&self) -> usize {
         self.link
+    }
+
+    pub fn symbol(&self) -> usize {
+        self.symbol
     }
 
     pub fn is_immediate(&self) -> bool {
@@ -162,17 +164,11 @@ impl<Target> JitMemory<Target> {
         }
     }
 
-    pub fn compile_word(&mut self, name: &str, action: fn(& mut Target) -> Option<Exception>) {
+    pub fn compile_word(&mut self, symbol: usize, action: fn(& mut Target) -> Option<Exception>) {
         unsafe {
-            // name
-            self.align();
-            let nfa = self.len;
-            let nlen = name.len();
-            self.compile_str(name);
-            // Word
             self.align();
             let len = self.len;
-            let w = JitWord::new(nfa, nlen, action);
+            let w = JitWord::new(symbol, action);
             let w1 = self.inner.offset(len as isize) as *mut JitWord<Target>;
             *w1 = w;
             (*w1).link = self.last;
@@ -184,17 +180,11 @@ impl<Target> JitMemory<Target> {
         }
     }
 
-    pub fn name(&self, w: &JitWord<Target>) -> &str {
-        let ptr = unsafe{ self.inner.offset(w.nfa as isize) };
-        unsafe{ mem::transmute(slice::from_raw_parts::<u8>(ptr, w.nlen)) }
-    }
-
-    pub fn find(&mut self, name: &str) -> Option<usize>{
+    pub fn find(&mut self, symbol: usize) -> Option<usize>{
         let mut i = self.last();
         while !(i==0) {
             let w = self.word(i);
-            let s = self.name(w);
-            if !w.hidden && s.eq_ignore_ascii_case(name) {
+            if !w.hidden && w.symbol == symbol {
                 return Some(i);
             } else {
               i = w.link;

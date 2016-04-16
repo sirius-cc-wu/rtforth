@@ -319,6 +319,7 @@ pub trait Core : Sized {
   fn s_stack(&mut self) -> &mut Stack<isize>;
   fn r_stack(&mut self) -> &mut Stack<isize>;
   fn f_stack(&mut self) -> &mut Stack<f64>;
+  fn symbols(&mut self) -> &mut Vec<String>;
   fn state(&mut self) -> &mut State;
   fn references(&mut self) -> &mut ForwardReferences;
   fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<()>>>;
@@ -458,7 +459,8 @@ pub trait Core : Sized {
 
   /// Add a primitive word to word list.
   fn add_primitive(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
-      self.jit_memory().compile_word(name, action);
+      let symbol = self.new_symbol(name);
+      self.jit_memory().compile_word(symbol, action);
       self.state().last_definition = self.jit_memory().last();
   }
 
@@ -494,7 +496,26 @@ pub trait Core : Sized {
   /// Find the word with name `name`.
   /// If not found returns zero.
   fn find(&mut self, name: &str) -> Option<usize> {
-      self.jit_memory().find(name)
+      match self.find_symbol(name) {
+          Some(symbol) => {
+              self.jit_memory().find(symbol)
+          },
+          None => None
+      }
+  }
+
+  fn find_symbol(&mut self, s: &str) -> Option<usize> {
+      for (i, sym) in self.symbols().iter().enumerate().rev() {
+          if sym == s {
+              return Some(i);
+          }
+      }
+      None
+  }
+
+  fn new_symbol(&mut self, s: &str) -> usize {
+      self.symbols().push(s.to_string());
+      self.symbols().len() - 1
   }
 
   //------------------
@@ -846,7 +867,8 @@ pub trait Core : Sized {
           self.set_last_token(last_token);
           Some(UnexpectedEndOfFile)
       } else {
-          self.jit_memory().compile_word(&last_token, action);
+          let symbol = self.new_symbol(&last_token);
+          self.jit_memory().compile_word(symbol, action);
           self.state().last_definition = self.jit_memory().last();
           self.set_last_token(last_token);
           None
@@ -905,10 +927,17 @@ pub trait Core : Sized {
 
   fn unmark(&mut self) -> Option<Exception> {
       let wp = self.state().word_pointer;
-      let dfa = self.jit_memory().word(wp).dfa();
+      let dfa;
+      let symbol;
+      {
+          let w = self.jit_memory().word(wp);
+          dfa = w.dfa();
+          symbol = w.symbol();
+      }
       let jlen = self.jit_memory().get_i32(dfa) as usize;
       self.jit_memory().truncate(jlen);
       self.jit_memory().set_last(wp);
+      self.symbols().truncate(symbol);
       None
   }
 
@@ -3096,10 +3125,12 @@ mod tests {
     fn test_marker_unmark () {
         let vm = &mut VM::new(16);
         vm.add_core();
+        let symbols_len = vm.symbols().len();
         vm.set_source("marker empty here empty here =");
         assert!(vm.evaluate().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
+        assert_eq!(vm.symbols().len(), symbols_len);
     }
 
     #[test]

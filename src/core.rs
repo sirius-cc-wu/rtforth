@@ -300,6 +300,15 @@ impl State {
     }
 }
 
+#[derive(PartialEq, Clone, Copy)]
+pub struct Symbol {
+    id: usize
+}
+
+impl Symbol {
+    pub fn id(&self) -> usize { self.id }
+}
+
 pub trait Core : Sized {
 
   // Functions to access VM.
@@ -504,18 +513,18 @@ pub trait Core : Sized {
       }
   }
 
-  fn find_symbol(&mut self, s: &str) -> Option<usize> {
+  fn find_symbol(&mut self, s: &str) -> Option<Symbol> {
       for (i, sym) in self.symbols().iter().enumerate().rev() {
           if sym == s {
-              return Some(i);
+              return Some(Symbol {id: i });
           }
       }
       None
   }
 
-  fn new_symbol(&mut self, s: &str) -> usize {
+  fn new_symbol(&mut self, s: &str) -> Symbol {
       self.symbols().push(s.to_string());
-      self.symbols().len() - 1
+      Symbol{ id: self.symbols().len() - 1 }
   }
 
   //------------------
@@ -937,7 +946,7 @@ pub trait Core : Sized {
       let jlen = self.jit_memory().get_i32(dfa) as usize;
       self.jit_memory().truncate(jlen);
       self.jit_memory().set_last(wp);
-      self.symbols().truncate(symbol);
+      self.symbols().truncate(symbol.id);
       None
   }
 

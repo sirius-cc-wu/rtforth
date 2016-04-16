@@ -6,6 +6,7 @@ use std::slice;
 use std::ascii::AsciiExt;
 use std::marker;
 use ::exception::Exception;
+use ::core::Symbol;
 
 extern {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
@@ -14,7 +15,7 @@ extern {
 // JitWord
 pub struct JitWord<Target> {
     link: usize,
-    symbol: usize,
+    symbol: Symbol,
     is_immediate: bool,
     is_compile_only: bool,
     hidden: bool,
@@ -23,7 +24,7 @@ pub struct JitWord<Target> {
 }
 
 impl<Target> JitWord<Target> {
-    pub fn new(symbol: usize, action: fn(& mut Target) -> Option<Exception>) -> JitWord<Target> {
+    pub fn new(symbol: Symbol, action: fn(& mut Target) -> Option<Exception>) -> JitWord<Target> {
         JitWord {
             link: 0,
             symbol: symbol,
@@ -39,7 +40,7 @@ impl<Target> JitWord<Target> {
         self.link
     }
 
-    pub fn symbol(&self) -> usize {
+    pub fn symbol(&self) -> Symbol {
         self.symbol
     }
 
@@ -164,7 +165,7 @@ impl<Target> JitMemory<Target> {
         }
     }
 
-    pub fn compile_word(&mut self, symbol: usize, action: fn(& mut Target) -> Option<Exception>) {
+    pub fn compile_word(&mut self, symbol: Symbol, action: fn(& mut Target) -> Option<Exception>) {
         unsafe {
             self.align();
             let len = self.len;
@@ -180,7 +181,7 @@ impl<Target> JitMemory<Target> {
         }
     }
 
-    pub fn find(&mut self, symbol: usize) -> Option<usize>{
+    pub fn find(&mut self, symbol: Symbol) -> Option<usize>{
         let mut i = self.last();
         while !(i==0) {
             let w = self.word(i);

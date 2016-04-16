@@ -45,7 +45,7 @@ pub trait Tools : Output {
                 hidden = w.is_hidden();
             }
             if !hidden {
-                write!(buf, "{} ", self.symbols()[symbol]);
+                write!(buf, "{} ", self.symbols()[symbol.id()]);
             }
         }
         self.set_output_buffer(buf);

@@ -91,7 +91,7 @@ pub trait Float : Core {
 
     fn p_fconst(&mut self) -> Option<Exception> {
         let wp = self.state().word_pointer();
-        let dfa = self.jit_memory().word(wp).dfa();
+        let dfa = self.wordlist()[wp].dfa();
         let v = self.jit_memory().get_f64(dfa);
         match self.f_stack().push(v) {
             Some(_) => Some(FloatingPointStackOverflow),

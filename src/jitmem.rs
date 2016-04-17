@@ -3,43 +3,10 @@ extern crate libc;
 use std::mem;
 use std::ptr::Unique;
 use std::slice;
-use std::ascii::AsciiExt;
-use ::exception::Exception;
+use std::marker;
 
 extern {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
-}
-
-// Word
-pub struct Word<Target> {
-    pub link: usize,
-    nfa: usize,
-    nlen: usize,
-    pub is_immediate: bool,
-    pub is_compile_only: bool,
-    pub hidden: bool,
-    dfa: usize,
-    pub action: fn(& mut Target) -> Option<Exception>
-}
-
-impl<Target> Word<Target> {
-    pub fn new(nfa: usize, nlen: usize, action: fn(& mut Target) -> Option<Exception>) -> Word<Target> {
-        Word {
-            link: 0,
-            nfa: nfa,
-            nlen: nlen,
-            is_immediate: false,
-            is_compile_only: false,
-            hidden: false,
-            dfa: 0,
-            action: action
-        }
-    }
-
-    pub fn dfa(&self) -> usize {
-        self.dfa
-    }
-
 }
 
 const PAGE_SIZE: usize = 4096;
@@ -49,10 +16,7 @@ pub struct JitMemory<Target> {
     pub inner: Unique<u8>,
     cap: usize,
     len: usize,
-    // last word in current word list
-    last: usize,
-    // A dummy field not used but needed for type check.
-    word: Option<Word<Target>>,
+    marker: marker::PhantomData<Target>,
 }
 
 impl<Target> JitMemory<Target> {
@@ -71,8 +35,7 @@ impl<Target> JitMemory<Target> {
             cap: size,
             // Space at 0 is reserved for halt.
             len: mem::align_of::<usize>(),
-            last: 0,
-            word: None,
+            marker: marker::PhantomData,
         }
     }
 
@@ -84,10 +47,6 @@ impl<Target> JitMemory<Target> {
     #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.len == mem::align_of::<usize>()
-    }
-
-    pub fn last(&self) -> usize {
-        self.last
     }
 
     pub fn get_u8(&self, addr: usize) -> u8 {
@@ -111,65 +70,7 @@ impl<Target> JitMemory<Target> {
         unsafe { mem::transmute(slice::from_raw_parts::<u8>(self.inner.offset(addr as isize), len)) }
     }
 
-    // Setter
-
-    pub fn set_last(&mut self, addr: usize) {
-        self.last = addr;
-    }
     // Basic operations
-
-    pub fn word(&self, pos: usize) -> &Word<Target> {
-        unsafe {
-            &*(self.inner.offset(pos as isize) as *const Word<Target>)
-        }
-    }
-
-    pub fn mut_word(&mut self, pos: usize) -> &mut Word<Target> {
-        unsafe {
-            &mut *(self.inner.offset(pos as isize) as *mut Word<Target>)
-        }
-    }
-
-    pub fn compile_word(&mut self, name: &str, action: fn(& mut Target) -> Option<Exception>) {
-        unsafe {
-            // name
-            self.align();
-            let nfa = self.len;
-            let nlen = name.len();
-            self.compile_str(name);
-            // Word
-            self.align();
-            let len = self.len;
-            let w = Word::new(nfa, nlen, action);
-            let w1 = self.inner.offset(len as isize) as *mut Word<Target>;
-            *w1 = w;
-            (*w1).link = self.last;
-            self.last = len;
-            self.len += mem::size_of::<Word<Target>>();
-            // Dfa
-            self.align();
-            (*w1).dfa = self.len;
-        }
-    }
-
-    pub fn name(&self, w: &Word<Target>) -> &str {
-        let ptr = unsafe{ self.inner.offset(w.nfa as isize) };
-        unsafe{ mem::transmute(slice::from_raw_parts::<u8>(ptr, w.nlen)) }
-    }
-
-    pub fn find(&mut self, name: &str) -> Option<usize>{
-        let mut i = self.last();
-        while !(i==0) {
-            let w = self.word(i);
-            let s = self.name(w);
-            if !w.hidden && s.eq_ignore_ascii_case(name) {
-                return Some(i);
-            } else {
-              i = w.link;
-            }
-        }
-        None
-    }
 
     pub fn put_u8(&mut self, v: u8, pos: usize) {
         unsafe {

@@ -1,18 +1,19 @@
 use ::output::Output;
-use ::core::{Result, Core, ForwardReferences, Stack, State};
+use ::core::{Result, Core, Word, ForwardReferences, Stack, State};
 use ::jitmem::JitMemory;
 use ::loader::HasLoader;
 use ::tools::Tools;
 use ::env::Environment;
 use ::facility::Facility;
 use ::float::Float;
-use exception::Exception;
 
 // Virtual machine
 pub struct VM {
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
     f_stk: Stack<f64>,
+    symbols: Vec<String>,
+    wordlist: Vec<Word<VM>>,
     jitmem: JitMemory<VM>,
     inbuf: Option<String>,
     tkn: Option<String>,
@@ -28,6 +29,8 @@ impl VM {
             s_stk: Stack::with_capacity(64),
             r_stk: Stack::with_capacity(64),
             f_stk: Stack::with_capacity(16),
+            symbols: vec![],
+            wordlist: vec![],
             jitmem: JitMemory::new(pages),
             inbuf: Some(String::with_capacity(128)),
             tkn: Some(String::with_capacity(64)),
@@ -57,6 +60,10 @@ impl Core for VM {
   fn s_stack(&mut self) -> &mut Stack<isize> { &mut self.s_stk }
   fn r_stack(&mut self) -> &mut Stack<isize> { &mut self.r_stk }
   fn f_stack(&mut self) -> &mut Stack<f64> { &mut self.f_stk }
+  fn symbols(&mut self) -> &mut Vec<String> { &mut self.symbols }
+  fn symbols_const(&self) -> &Vec<String> { &self.symbols }
+  fn wordlist(&mut self) -> &mut Vec<Word<Self>> { &mut self.wordlist }
+  fn wordlist_const(&self) -> &Vec<Word<Self>> { &self.wordlist }
   fn state(&mut self) -> &mut State { &mut self.state }
   fn references(&mut self) -> &mut ForwardReferences { &mut self.references }
   fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<()>>> {

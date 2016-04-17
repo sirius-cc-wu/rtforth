@@ -33,6 +33,65 @@ use exception::Exception::{
 
 pub type Result<T> = result::Result<T, Exception>;
 
+// Word
+pub struct Word<Target> {
+    symbol: Symbol,
+    is_immediate: bool,
+    is_compile_only: bool,
+    hidden: bool,
+    dfa: usize,
+    action: fn(& mut Target) -> Option<Exception>
+}
+
+impl<Target> Word<Target> {
+    pub fn new(symbol: Symbol, action: fn(& mut Target) -> Option<Exception>, dfa: usize) -> Word<Target> {
+        Word {
+            symbol: symbol,
+            is_immediate: false,
+            is_compile_only: false,
+            hidden: false,
+            dfa: dfa,
+            action: action
+        }
+    }
+
+    pub fn symbol(&self) -> Symbol {
+        self.symbol
+    }
+
+    pub fn is_immediate(&self) -> bool {
+        self.is_immediate
+    }
+
+    pub fn set_immediate(&mut self, flag: bool) {
+        self.is_immediate = flag;
+    }
+
+    pub fn is_compile_only(&self) -> bool {
+        self.is_compile_only
+    }
+
+    pub fn set_compile_only(&mut self, flag: bool) {
+        self.is_compile_only = flag;
+    }
+
+    pub fn is_hidden(&self) -> bool {
+        self.hidden
+    }
+
+    pub fn set_hidden(&mut self, flag: bool) {
+        self.hidden = flag;
+    }
+
+    pub fn dfa(&self) -> usize {
+        self.dfa
+    }
+
+    pub fn action(&self) -> (fn(& mut Target) -> Option<Exception>) {
+        self.action
+    }
+}
+
 pub trait Heap {
     fn push_f64(&mut self, v: f64);
     fn get_f64(&self, pos: usize) -> f64;
@@ -329,6 +388,9 @@ pub trait Core : Sized {
   fn r_stack(&mut self) -> &mut Stack<isize>;
   fn f_stack(&mut self) -> &mut Stack<f64>;
   fn symbols(&mut self) -> &mut Vec<String>;
+  fn symbols_const(&self) -> &Vec<String>;
+  fn wordlist(&mut self) -> &mut Vec<Word<Self>>;
+  fn wordlist_const(&self) -> &Vec<Word<Self>>;
   fn state(&mut self) -> &mut State;
   fn references(&mut self) -> &mut ForwardReferences;
   fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<()>>>;
@@ -469,29 +531,30 @@ pub trait Core : Sized {
   /// Add a primitive word to word list.
   fn add_primitive(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       let symbol = self.new_symbol(name);
-      self.jit_memory().compile_word(symbol, action);
-      self.state().last_definition = self.jit_memory().last();
+      let word = Word::new(symbol, action, self.jit_memory().len());
+      self.state().last_definition = self.wordlist().len();
+      self.wordlist().push(word);
   }
 
   /// Add an immediate word to word list.
   fn add_immediate(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
-      self.jit_memory().mut_word(def).set_immediate(true);
+      self.wordlist()[def].set_immediate(true);
   }
 
   /// Add a compile-only word to word list.
   fn add_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
-      self.jit_memory().mut_word(def).set_compile_only(true);
+      self.wordlist()[def].set_compile_only(true);
   }
 
   /// Add an immediate and compile-only word to word list.
   fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
-      let w = self.jit_memory().mut_word(def);
+      let w = &mut self.wordlist()[def];
       w.set_immediate(true);
       w.set_compile_only(true);
   }
@@ -499,7 +562,7 @@ pub trait Core : Sized {
   /// Execute word at position `i`.
   fn execute_word(&mut self, i: usize) -> Option<Exception> {
       self.state().word_pointer = i;
-      (self.jit_memory().word(i).action())(self)
+      (self.wordlist()[i].action())(self)
   }
 
   /// Find the word with name `name`.
@@ -507,7 +570,12 @@ pub trait Core : Sized {
   fn find(&mut self, name: &str) -> Option<usize> {
       match self.find_symbol(name) {
           Some(symbol) => {
-              self.jit_memory().find(symbol)
+              for (i, word) in self.wordlist().iter().enumerate() {
+                  if !word.is_hidden() && word.symbol() == symbol {
+                      return Some(i);
+                  }
+              }
+              None
           },
           None => None
       }
@@ -725,7 +793,7 @@ pub trait Core : Sized {
                   let is_immediate_word;
                   let is_compile_only_word;
                   {
-                      let word = &self.jit_memory().word(found_index);
+                      let word = &self.wordlist()[found_index];
                       is_immediate_word = word.is_immediate();
                       is_compile_only_word = word.is_compile_only();
                   }
@@ -832,14 +900,14 @@ pub trait Core : Sized {
           }
           self.r_stack().len += 1;
           let wp = self.state().word_pointer;
-          self.state().instruction_pointer = self.jit_memory().word(wp).dfa();
+          self.state().instruction_pointer = self.wordlist()[wp].dfa();
           Some(Nest)
       }
   }
 
   fn p_var(&mut self) -> Option<Exception> {
       let wp = self.state().word_pointer;
-      let dfa = self.jit_memory().word(wp).dfa() as isize;
+      let dfa = self.wordlist()[wp].dfa() as isize;
       match self.s_stack().push(dfa) {
           Some(_) => Some(StackOverflow),
           None => None
@@ -848,7 +916,7 @@ pub trait Core : Sized {
 
   fn p_const(&mut self) -> Option<Exception> {
       let wp = self.state().word_pointer;
-      let dfa = self.jit_memory().word(wp).dfa();
+      let dfa = self.wordlist()[wp].dfa();
       let value = self.jit_memory().get_i32(dfa) as isize;
       match self.s_stack().push(value) {
           Some(_) => Some(StackOverflow),
@@ -858,7 +926,7 @@ pub trait Core : Sized {
 
   fn p_fvar(&mut self) -> Option<Exception> {
       let wp = self.state().word_pointer;
-      let dfa = self.jit_memory().word(wp).dfa() as isize;
+      let dfa = self.wordlist()[wp].dfa() as isize;
       match self.s_stack().push(dfa) {
           Some(_) => Some(StackOverflow),
           None => None
@@ -877,8 +945,9 @@ pub trait Core : Sized {
           Some(UnexpectedEndOfFile)
       } else {
           let symbol = self.new_symbol(&last_token);
-          self.jit_memory().compile_word(symbol, action);
-          self.state().last_definition = self.jit_memory().last();
+          let word = Word::new(symbol, action, self.jit_memory().len());
+          self.state().last_definition = self.wordlist().len();
+          self.wordlist().push(word);
           self.set_last_token(last_token);
           None
       }
@@ -889,7 +958,7 @@ pub trait Core : Sized {
           Some(e) => Some(e),
           None => {
               let def = self.state().last_definition;
-              self.jit_memory().mut_word(def).set_hidden(true);
+              self.wordlist()[def].set_hidden(true);
               self.compile()
           }
       }
@@ -900,7 +969,7 @@ pub trait Core : Sized {
           let idx = self.references().idx_exit as i32;
           self.jit_memory().compile_i32(idx);
           let def = self.state().last_definition;
-          self.jit_memory().mut_word(def).set_hidden(false);
+          self.wordlist()[def].set_hidden(false);
       }
       self.interpret()
   }
@@ -939,14 +1008,14 @@ pub trait Core : Sized {
       let dfa;
       let symbol;
       {
-          let w = self.jit_memory().word(wp);
+          let w = &self.wordlist()[wp];
           dfa = w.dfa();
           symbol = w.symbol();
       }
       let jlen = self.jit_memory().get_i32(dfa) as usize;
       self.jit_memory().truncate(jlen);
-      self.jit_memory().set_last(wp);
-      self.symbols().truncate(symbol.id);
+      self.wordlist().truncate(wp+1);
+      self.symbols().truncate(symbol.id+1);
       None
   }
 
@@ -1177,7 +1246,7 @@ pub trait Core : Sized {
   }
 
   fn imm_recurse(&mut self) -> Option<Exception> {
-      let last = self.jit_memory().last();
+      let last = self.wordlist().len() - 1;
       self.jit_memory().compile_u32(last as u32);
       None
   }
@@ -3134,9 +3203,9 @@ mod tests {
     fn test_marker_unmark () {
         let vm = &mut VM::new(16);
         vm.add_core();
-        let symbols_len = vm.symbols().len();
         vm.set_source("marker empty here empty here =");
         assert!(vm.evaluate().is_none());
+        let symbols_len = vm.symbols().len();
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         assert_eq!(vm.symbols().len(), symbols_len);

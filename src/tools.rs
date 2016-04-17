@@ -34,18 +34,11 @@ pub trait Tools : Output {
     fn words(&mut self) -> Option<Exception> {
         let mut buf = self.output_buffer().take().unwrap();
         writeln!(buf, "");
-        let mut link = self.jit_memory_const().last();
-        while !(link == 0) {
-            let symbol;
-            let hidden;
-            {
-                let w = self.jit_memory_const().word(link);
-                link = w.link();
-                symbol = w.symbol();
-                hidden = w.is_hidden();
-            }
+        for w in self.wordlist_const().iter().rev() {
+            let symbol = w.symbol();
+            let hidden = w.is_hidden();
             if !hidden {
-                write!(buf, "{} ", self.symbols()[symbol.id()]);
+                write!(buf, "{} ", self.symbols_const()[symbol.id()]);
             }
         }
         self.set_output_buffer(buf);

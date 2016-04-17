@@ -3,79 +3,10 @@ extern crate libc;
 use std::mem;
 use std::ptr::Unique;
 use std::slice;
-use std::ascii::AsciiExt;
 use std::marker;
-use ::exception::Exception;
-use ::core::Symbol;
 
 extern {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
-}
-
-// JitWord
-pub struct JitWord<Target> {
-    link: usize,
-    symbol: Symbol,
-    is_immediate: bool,
-    is_compile_only: bool,
-    hidden: bool,
-    dfa: usize,
-    action: fn(& mut Target) -> Option<Exception>
-}
-
-impl<Target> JitWord<Target> {
-    pub fn new(symbol: Symbol, action: fn(& mut Target) -> Option<Exception>) -> JitWord<Target> {
-        JitWord {
-            link: 0,
-            symbol: symbol,
-            is_immediate: false,
-            is_compile_only: false,
-            hidden: false,
-            dfa: 0,
-            action: action
-        }
-    }
-
-    pub fn link(&self) -> usize {
-        self.link
-    }
-
-    pub fn symbol(&self) -> Symbol {
-        self.symbol
-    }
-
-    pub fn is_immediate(&self) -> bool {
-        self.is_immediate
-    }
-
-    pub fn set_immediate(&mut self, flag: bool) {
-        self.is_immediate = flag;
-    }
-
-    pub fn is_compile_only(&self) -> bool {
-        self.is_compile_only
-    }
-
-    pub fn set_compile_only(&mut self, flag: bool) {
-        self.is_compile_only = flag;
-    }
-
-    pub fn is_hidden(&self) -> bool {
-        self.hidden
-    }
-
-    pub fn set_hidden(&mut self, flag: bool) {
-        self.hidden = flag;
-    }
-
-    pub fn dfa(&self) -> usize {
-        self.dfa
-    }
-
-    pub fn action(&self) -> (fn(& mut Target) -> Option<Exception>) {
-        self.action
-    }
-
 }
 
 const PAGE_SIZE: usize = 4096;
@@ -85,8 +16,6 @@ pub struct JitMemory<Target> {
     pub inner: Unique<u8>,
     cap: usize,
     len: usize,
-    // last word in current word list
-    last: usize,
     marker: marker::PhantomData<Target>,
 }
 
@@ -106,7 +35,6 @@ impl<Target> JitMemory<Target> {
             cap: size,
             // Space at 0 is reserved for halt.
             len: mem::align_of::<usize>(),
-            last: 0,
             marker: marker::PhantomData,
         }
     }
@@ -119,10 +47,6 @@ impl<Target> JitMemory<Target> {
     #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.len == mem::align_of::<usize>()
-    }
-
-    pub fn last(&self) -> usize {
-        self.last
     }
 
     pub fn get_u8(&self, addr: usize) -> u8 {
@@ -146,53 +70,7 @@ impl<Target> JitMemory<Target> {
         unsafe { mem::transmute(slice::from_raw_parts::<u8>(self.inner.offset(addr as isize), len)) }
     }
 
-    // Setter
-
-    pub fn set_last(&mut self, addr: usize) {
-        self.last = addr;
-    }
     // Basic operations
-
-    pub fn word(&self, pos: usize) -> &JitWord<Target> {
-        unsafe {
-            &*(self.inner.offset(pos as isize) as *const JitWord<Target>)
-        }
-    }
-
-    pub fn mut_word(&mut self, pos: usize) -> &mut JitWord<Target> {
-        unsafe {
-            &mut *(self.inner.offset(pos as isize) as *mut JitWord<Target>)
-        }
-    }
-
-    pub fn compile_word(&mut self, symbol: Symbol, action: fn(& mut Target) -> Option<Exception>) {
-        unsafe {
-            self.align();
-            let len = self.len;
-            let w = JitWord::new(symbol, action);
-            let w1 = self.inner.offset(len as isize) as *mut JitWord<Target>;
-            *w1 = w;
-            (*w1).link = self.last;
-            self.last = len;
-            self.len += mem::size_of::<JitWord<Target>>();
-            // Dfa
-            self.align();
-            (*w1).dfa = self.len;
-        }
-    }
-
-    pub fn find(&mut self, symbol: Symbol) -> Option<usize>{
-        let mut i = self.last();
-        while !(i==0) {
-            let w = self.word(i);
-            if !w.hidden && w.symbol == symbol {
-                return Some(i);
-            } else {
-              i = w.link;
-            }
-        }
-        None
-    }
 
     pub fn put_u8(&mut self, v: u8, pos: usize) {
         unsafe {

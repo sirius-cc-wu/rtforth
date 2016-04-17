@@ -1,7 +1,7 @@
 [package]
 
 name = "rtforth"
-version = "0.1.16"
+version = "0.1.17"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 
 [dependencies]

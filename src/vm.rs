@@ -60,10 +60,10 @@ impl Core for VM {
   fn s_stack(&mut self) -> &mut Stack<isize> { &mut self.s_stk }
   fn r_stack(&mut self) -> &mut Stack<isize> { &mut self.r_stk }
   fn f_stack(&mut self) -> &mut Stack<f64> { &mut self.f_stk }
-  fn symbols(&mut self) -> &mut Vec<String> { &mut self.symbols }
-  fn symbols_const(&self) -> &Vec<String> { &self.symbols }
-  fn wordlist(&mut self) -> &mut Vec<Word<Self>> { &mut self.wordlist }
-  fn wordlist_const(&self) -> &Vec<Word<Self>> { &self.wordlist }
+  fn symbols_mut(&mut self) -> &mut Vec<String> { &mut self.symbols }
+  fn symbols(&self) -> &Vec<String> { &self.symbols }
+  fn wordlist_mut(&mut self) -> &mut Vec<Word<Self>> { &mut self.wordlist }
+  fn wordlist(&self) -> &Vec<Word<Self>> { &self.wordlist }
   fn state(&mut self) -> &mut State { &mut self.state }
   fn references(&mut self) -> &mut ForwardReferences { &mut self.references }
   fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<()>>> {

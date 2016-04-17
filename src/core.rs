@@ -348,10 +348,10 @@ pub trait Core : Sized {
   fn s_stack(&mut self) -> &mut Stack<isize>;
   fn r_stack(&mut self) -> &mut Stack<isize>;
   fn f_stack(&mut self) -> &mut Stack<f64>;
-  fn symbols(&mut self) -> &mut Vec<String>;
-  fn symbols_const(&self) -> &Vec<String>;
-  fn wordlist(&mut self) -> &mut Vec<Word<Self>>;
-  fn wordlist_const(&self) -> &Vec<Word<Self>>;
+  fn symbols_mut(&mut self) -> &mut Vec<String>;
+  fn symbols(&self) -> &Vec<String>;
+  fn wordlist_mut(&mut self) -> &mut Vec<Word<Self>>;
+  fn wordlist(&self) -> &Vec<Word<Self>>;
   fn state(&mut self) -> &mut State;
   fn references(&mut self) -> &mut ForwardReferences;
   fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<()>>>;
@@ -494,28 +494,28 @@ pub trait Core : Sized {
       let symbol = self.new_symbol(name);
       let word = Word::new(symbol, action, self.jit_memory().len());
       self.state().last_definition = self.wordlist().len();
-      self.wordlist().push(word);
+      self.wordlist_mut().push(word);
   }
 
   /// Add an immediate word to word list.
   fn add_immediate(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
-      self.wordlist()[def].set_immediate(true);
+      self.wordlist_mut()[def].set_immediate(true);
   }
 
   /// Add a compile-only word to word list.
   fn add_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
-      self.wordlist()[def].set_compile_only(true);
+      self.wordlist_mut()[def].set_compile_only(true);
   }
 
   /// Add an immediate and compile-only word to word list.
   fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
-      let w = &mut self.wordlist()[def];
+      let w = &mut self.wordlist_mut()[def];
       w.set_immediate(true);
       w.set_compile_only(true);
   }
@@ -552,7 +552,7 @@ pub trait Core : Sized {
   }
 
   fn new_symbol(&mut self, s: &str) -> Symbol {
-      self.symbols().push(s.to_string());
+      self.symbols_mut().push(s.to_string());
       Symbol{ id: self.symbols().len() - 1 }
   }
 
@@ -908,7 +908,7 @@ pub trait Core : Sized {
           let symbol = self.new_symbol(&last_token);
           let word = Word::new(symbol, action, self.jit_memory().len());
           self.state().last_definition = self.wordlist().len();
-          self.wordlist().push(word);
+          self.wordlist_mut().push(word);
           self.set_last_token(last_token);
           None
       }
@@ -919,7 +919,7 @@ pub trait Core : Sized {
           Some(e) => Some(e),
           None => {
               let def = self.state().last_definition;
-              self.wordlist()[def].set_hidden(true);
+              self.wordlist_mut()[def].set_hidden(true);
               self.compile()
           }
       }
@@ -930,7 +930,7 @@ pub trait Core : Sized {
           let idx = self.references().idx_exit as i32;
           self.jit_memory().compile_i32(idx);
           let def = self.state().last_definition;
-          self.wordlist()[def].set_hidden(false);
+          self.wordlist_mut()[def].set_hidden(false);
       }
       self.interpret()
   }
@@ -975,8 +975,8 @@ pub trait Core : Sized {
       }
       let jlen = self.jit_memory().get_i32(dfa) as usize;
       self.jit_memory().truncate(jlen);
-      self.wordlist().truncate(wp+1);
-      self.symbols().truncate(symbol.id+1);
+      self.wordlist_mut().truncate(wp+1);
+      self.symbols_mut().truncate(symbol.id+1);
       None
   }
 

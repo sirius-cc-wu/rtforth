@@ -1,4 +1,4 @@
-use core::{Result, Core, Heap};
+use core::{Result, Core};
 use std::str::FromStr;
 
 use std::mem;

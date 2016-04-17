@@ -11,7 +11,6 @@ use std::fmt;
 use std::slice;
 use std::io::Write;
 use std::result;
-use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 use ::jitmem::JitMemory;
 use exception::Exception::{
     self,
@@ -89,44 +88,6 @@ impl<Target> Word<Target> {
 
     pub fn action(&self) -> (fn(& mut Target) -> Option<Exception>) {
         self.action
-    }
-}
-
-pub trait Heap {
-    fn push_f64(&mut self, v: f64);
-    fn get_f64(&self, pos: usize) -> f64;
-    fn put_f64(&mut self, pos: usize, v: f64);
-    fn push_i32(&mut self, v: i32);
-    fn get_i32(&self, pos: usize) -> i32;
-    fn put_i32(&mut self, pos: usize, v: i32);
-    fn get_u8(&self, pos: usize) -> u8;
-    fn put_u8(&mut self, pos: usize, v: u8);
-}
-
-impl Heap for Vec<u8> {
-    fn push_f64(&mut self, v: f64) {
-        self.write_f64::<NativeEndian>(v).unwrap();
-    }
-    fn get_f64(&self, pos: usize) -> f64 {
-        NativeEndian::read_f64(&self[pos..])
-    }
-    fn put_f64(&mut self, pos: usize, v: f64) {
-        NativeEndian::write_f64(&mut self[pos..], v);
-    }
-    fn push_i32(&mut self, v: i32) {
-        self.write_i32::<NativeEndian>(v).unwrap();
-    }
-    fn get_i32(&self, pos: usize) -> i32 {
-        NativeEndian::read_i32(&self[pos..])
-    }
-    fn put_i32(&mut self, pos: usize, v: i32) {
-        NativeEndian::write_i32(&mut self[pos..], v);
-    }
-    fn get_u8(&self, pos: usize) -> u8 {
-        self[pos]
-    }
-    fn put_u8(&mut self, pos: usize, v: u8) {
-        self[pos] = v;
     }
 }
 
@@ -372,8 +333,8 @@ pub trait Core : Sized {
 
   // Functions to access VM.
 
-  fn jit_memory(&mut self) -> &mut JitMemory<Self>;
-  fn jit_memory_const(&self) -> &JitMemory<Self>;
+  fn jit_memory(&mut self) -> &mut JitMemory;
+  fn jit_memory_const(&self) -> &JitMemory;
   /// Get `output_buffer`.
   fn output_buffer(&mut self) -> &mut Option<String>;
   /// Set `output_buffer` to `Some(buffer)`.

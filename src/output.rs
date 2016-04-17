@@ -1,7 +1,6 @@
 use std::mem;
 use std::fmt::Write;
 use core::Core;
-use core::Heap;
 use exception::Exception::{
     self,
     StackUnderflow,

@@ -14,7 +14,7 @@ pub struct VM {
     f_stk: Stack<f64>,
     symbols: Vec<String>,
     wordlist: Vec<Word<VM>>,
-    jitmem: JitMemory<VM>,
+    jitmem: JitMemory,
     inbuf: Option<String>,
     tkn: Option<String>,
     outbuf: Option<String>,
@@ -43,8 +43,8 @@ impl VM {
 }
 
 impl Core for VM {
-  fn jit_memory(&mut self) -> &mut JitMemory<Self> { &mut self.jitmem }
-  fn jit_memory_const(&self) -> &JitMemory<Self> { &self.jitmem }
+  fn jit_memory(&mut self) -> &mut JitMemory { &mut self.jitmem }
+  fn jit_memory_const(&self) -> &JitMemory { &self.jitmem }
   fn output_buffer(&mut self) -> &mut Option<String> { &mut self.outbuf }
   fn set_output_buffer(&mut self, buffer: String) {
     self.outbuf = Some(buffer);

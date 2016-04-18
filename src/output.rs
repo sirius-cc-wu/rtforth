@@ -5,7 +5,8 @@ use exception::Exception::{
     self,
     StackUnderflow,
     StackOverflow,
-    FloatingPointStackUnderflow
+    FloatingPointStackUnderflow,
+    InvalidBase,
 };
 
 /// Types that can output to console.
@@ -140,14 +141,27 @@ pub trait Output : Core {
     ///
     /// Display n in free field format.
     fn dot(&mut self) -> Option<Exception> {
+        let base_addr = self.jit_memory().system_variables().base_addr();
+        let base = self.jit_memory().get_isize(base_addr);
+        let mut invalid_base = false;
         match self.s_stack().pop() {
             Some(n) => {
                 if let Some(mut buf) = self.output_buffer().take() {
-                  write!(buf, "{} ", n);
-                  self.set_output_buffer(buf);
-                  if self.state().auto_flush { self.flush(); }
+                    match base {
+                        2 => { write!(buf, "{:b}", n); },
+                        8 => { write!(buf, "{:o}", n); },
+                        10 => { write!(buf, "{} ", n); },
+                        16 => { write!(buf, "{:X}", n); },
+                        _ => { invalid_base = true; },
+                    }
+                    self.set_output_buffer(buf);
+                    if self.state().auto_flush { self.flush(); }
                 }
-                None
+                if invalid_base {
+                    Some(InvalidBase)
+                } else {
+                    None                    
+                }
             },
             None => Some(StackUnderflow)
         }

@@ -116,6 +116,8 @@ pub enum Exception {
     ExceptionInSendingOrReceivingACharacter = -57,
     /// = -58, ANS Forth
     BracketIfElseOrThenException = -58,
+    /// Invalid base for integer conversion. rtForth supports only binary, octal, decimal and hex.
+    InvalidBase = -9996,
     /// Request to run rtForth's inner loop, used in rtForth's core
     /// only. rtForth
     Nest = -9997,
@@ -187,6 +189,7 @@ impl Exception {
             Exception::Quit => "QUIT",
             Exception::ExceptionInSendingOrReceivingACharacter => "Exception in sending or receiving a character",
             Exception::BracketIfElseOrThenException => "[IF],[ELSE],[THEN] exception",
+            Exception::InvalidBase => "Invalid base for integer conversion",
             Exception::Nest => "Nest",
             Exception::Pause => "Pause",
             Exception::Bye => "Bye",

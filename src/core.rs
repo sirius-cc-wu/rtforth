@@ -6,7 +6,6 @@ extern {
 
 use std::mem;
 use std::ptr::{Unique, self};
-use std::str::FromStr;
 use std::fmt;
 use std::slice;
 use std::io::Write;
@@ -394,6 +393,7 @@ pub trait Core : Sized {
     self.add_primitive("allot", Core::allot);
     self.add_primitive("c@", Core::c_fetch);
     self.add_primitive("c!", Core::c_store);
+    self.add_primitive("base", Core::base);
 
     // Compile-only bytecodes
     self.add_compile_only("exit", Core::exit); // j1, jx, eForth
@@ -819,8 +819,18 @@ pub trait Core : Sized {
       result
   }
 
+  fn base(&mut self) -> Option<Exception> {
+      let base_addr = self.jit_memory().system_variables().base_addr();
+      match self.s_stack().push(base_addr as isize) {
+          Some(_) => Some(StackOverflow),
+          None => None
+      }
+  }
+  
   fn evaluate_integer(&mut self, token: &str) -> Result<()> {
-      match FromStr::from_str(token) {
+      let base_addr = self.jit_memory().system_variables().base_addr();
+      let base = self.jit_memory().get_isize(base_addr);
+      match isize::from_str_radix(token, base as u32) {
           Ok(t) => {
               if self.state().is_compiling {
                   self.compile_integer(t);

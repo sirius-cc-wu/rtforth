@@ -9,6 +9,7 @@ use std::ptr::{Unique, self};
 use std::fmt;
 use std::slice;
 use std::io::Write;
+use std::ascii::AsciiExt;
 use std::result;
 use ::jitmem::JitMemory;
 use exception::Exception::{
@@ -544,7 +545,7 @@ pub trait Core : Sized {
 
   fn find_symbol(&mut self, s: &str) -> Option<Symbol> {
       for (i, sym) in self.symbols().iter().enumerate().rev() {
-          if sym == s {
+          if sym.eq_ignore_ascii_case(s) {
               return Some(Symbol {id: i });
           }
       }
@@ -826,7 +827,7 @@ pub trait Core : Sized {
           None => None
       }
   }
-  
+
   fn evaluate_integer(&mut self, token: &str) -> Result<()> {
       let base_addr = self.jit_memory().system_variables().base_addr();
       let base = self.jit_memory().get_isize(base_addr);

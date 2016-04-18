@@ -3,6 +3,7 @@ extern crate libc;
 use std::mem;
 use std::ptr::Unique;
 use std::slice;
+use std::marker;
 
 extern {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
@@ -10,11 +11,17 @@ extern {
 
 const PAGE_SIZE: usize = 4096;
 
+struct SystemVariables {
+    null: u32,
+    base: u32,
+}
+
 #[allow(dead_code)]
 pub struct JitMemory {
     pub inner: Unique<u8>,
     cap: usize,
     len: usize,
+    marker: marker::PhantomData<SystemVariables>,
 }
 
 impl JitMemory {
@@ -28,12 +35,13 @@ impl JitMemory {
 
             memset(ptr, 0xcc, size);  // prepopulate with 'int3'
         }
-        JitMemory {
+        let result = JitMemory {
             inner: unsafe { Unique::new(ptr as *mut u8) },
             cap: size,
-            // Space at 0 is reserved for halt.
-            len: mem::align_of::<usize>(),
-        }
+            len: mem::size_of::<SystemVariables>(),
+            marker: marker::PhantomData,
+        };
+        result
     }
 
     // Getter

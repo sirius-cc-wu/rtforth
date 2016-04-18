@@ -6,7 +6,6 @@ extern {
 
 use std::mem;
 use std::ptr::{Unique, self};
-use std::str::FromStr;
 use std::fmt;
 use std::slice;
 use std::io::Write;
@@ -820,7 +819,7 @@ pub trait Core : Sized {
   }
 
   fn evaluate_integer(&mut self, token: &str) -> Result<()> {
-      match FromStr::from_str(token) {
+      match isize::from_str_radix(token, 10) {
           Ok(t) => {
               if self.state().is_compiling {
                   self.compile_integer(t);

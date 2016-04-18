@@ -11,9 +11,15 @@ extern {
 
 const PAGE_SIZE: usize = 4096;
 
-struct SystemVariables {
-    null: u32,
-    base: u32,
+pub struct SystemVariables {
+    null: isize,
+    base: isize,
+}
+
+impl SystemVariables {
+    pub fn base_addr(&self) -> usize {
+        (&self.base as *const _ as usize) - (&self.null as *const _ as usize)
+    }
 }
 
 #[allow(dead_code)]
@@ -35,16 +41,31 @@ impl JitMemory {
 
             memset(ptr, 0xcc, size);  // prepopulate with 'int3'
         }
-        let result = JitMemory {
+        let mut result = JitMemory {
             inner: unsafe { Unique::new(ptr as *mut u8) },
             cap: size,
             len: mem::size_of::<SystemVariables>(),
             marker: marker::PhantomData,
         };
+        result.system_variables_mut().null = 0;
+        result.system_variables_mut().base = 10;
         result
     }
 
     // Getter
+    
+    pub fn system_variables(&self) -> &SystemVariables {
+        unsafe {
+            &*(self.inner.offset(0) as *const SystemVariables)            
+        }
+    }
+    
+    pub fn system_variables_mut(&mut self) -> &mut SystemVariables {
+        unsafe {
+            &mut *(self.inner.offset(0) as *mut SystemVariables)            
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }
@@ -65,6 +86,10 @@ impl JitMemory {
 
     pub fn get_i32(&self, addr: usize) -> i32 {
         unsafe { *(self.inner.offset(addr as isize) as *mut i32) }
+    }
+
+    pub fn get_isize(&self, addr: usize) -> isize {
+        unsafe { *(self.inner.offset(addr as isize) as *mut isize) }
     }
 
     pub fn get_f64(&self, addr: usize) -> f64 {

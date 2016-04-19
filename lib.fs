@@ -18,5 +18,9 @@
 : fill ( c-addr u char -- )
     swap dup 0> if >r swap r>  0 do 2dup i + c! loop
     else drop then 2drop ;
+variable #tib  0 #tib !
+variable tib 256 allot
+: source ( -- c-addr u ) tib #tib @ ;
+variable >in  0 >in !
 
 marker empty

@@ -16,10 +16,10 @@ pub trait Tools : Output {
     /// Display values on the data stack.
     fn dot_s(&mut self) -> Option<Exception> {
         let mut buf = self.output_buffer().take().unwrap();
-        write!(buf, "TODO: .s");
-//        write!(buf, "<{}> ", self.s_stack().len());
+        write!(buf, "TODO: .s").unwrap();
+//        write!(buf, "<{}> ", self.s_stack().len()).unwrap();
 //        for s in self.s_stack().iter() {
-//            write!(buf, "{} ", s);
+//            write!(buf, "{} ", s).unwrap();
 //        }
         self.set_output_buffer(buf);
         if self.state().auto_flush {
@@ -33,12 +33,12 @@ pub trait Tools : Output {
     /// List definition names in word list.
     fn words(&mut self) -> Option<Exception> {
         let mut buf = self.output_buffer().take().unwrap();
-        writeln!(buf, "");
+        writeln!(buf, "").unwrap();
         for w in self.wordlist().iter().rev() {
             let symbol = w.symbol();
             let hidden = w.is_hidden();
             if !hidden {
-                write!(buf, "{} ", self.symbols()[symbol.id()]);
+                write!(buf, "{} ", self.symbols()[symbol.id()]).unwrap();
             }
         }
         self.set_output_buffer(buf);

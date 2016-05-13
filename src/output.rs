@@ -148,10 +148,10 @@ pub trait Output : Core {
             Some(n) => {
                 if let Some(mut buf) = self.output_buffer().take() {
                     match base {
-                        2 => { write!(buf, "{:b}", n); },
-                        8 => { write!(buf, "{:o}", n); },
-                        10 => { write!(buf, "{} ", n); },
-                        16 => { write!(buf, "{:X}", n); },
+                        2 => { write!(buf, "{:b}", n).unwrap(); },
+                        8 => { write!(buf, "{:o}", n).unwrap(); },
+                        10 => { write!(buf, "{} ", n).unwrap(); },
+                        16 => { write!(buf, "{:X}", n).unwrap(); },
                         _ => { invalid_base = true; },
                     }
                     self.set_output_buffer(buf);
@@ -174,7 +174,7 @@ pub trait Output : Core {
         match self.f_stack().pop() {
             Some(r) => {
               if let Some(mut buf) = self.output_buffer().take() {
-                write!(buf, "{} ", r);
+                write!(buf, "{} ", r).unwrap();
                 self.set_output_buffer(buf);
                 if self.state().auto_flush { self.flush(); }
               }

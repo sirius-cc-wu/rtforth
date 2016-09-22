@@ -30,6 +30,9 @@ use exception::Exception::{
     Bye,
 };
 
+pub const TRUE: isize = -1;
+pub const FALSE: isize = 0;
+
 pub type Result<T> = result::Result<T, Exception>;
 
 // Word
@@ -1289,7 +1292,7 @@ pub trait Core : Sized {
   ///
   /// Return a true flag, a single-cell value with all bits set.
   fn p_true(&mut self) -> Option<Exception> {
-      match self.s_stack().push (-1) {
+      match self.s_stack().push (TRUE) {
           Some(_) => Some(StackOverflow),
           None => None
       }
@@ -1299,7 +1302,7 @@ pub trait Core : Sized {
   ///
   /// Return a false flag.
   fn p_false(&mut self) -> Option<Exception> {
-      match self.s_stack().push (0) {
+      match self.s_stack().push (FALSE) {
           Some(_) => Some(StackOverflow),
           None => None
       }
@@ -1643,7 +1646,7 @@ pub trait Core : Sized {
   fn zero_less(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(t) =>
-              match self.s_stack().push(if t<0 {-1} else {0}) {
+              match self.s_stack().push(if t<0 { TRUE } else { FALSE }) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },
@@ -1654,7 +1657,7 @@ pub trait Core : Sized {
   fn zero_equals(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(t) =>
-              match self.s_stack().push(if t==0 {-1} else {0}) {
+              match self.s_stack().push(if t==0 { TRUE } else { FALSE }) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },
@@ -1665,7 +1668,7 @@ pub trait Core : Sized {
   fn zero_greater(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(t) =>
-              match self.s_stack().push(if t>0 {-1} else {0}) {
+              match self.s_stack().push(if t>0 { TRUE } else { FALSE }) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },
@@ -1676,7 +1679,7 @@ pub trait Core : Sized {
   fn zero_not_equals(&mut self) -> Option<Exception> {
       match self.s_stack().pop() {
           Some(t) =>
-              match self.s_stack().push(if t==0 {0} else {-1}) {
+              match self.s_stack().push(if t==0 { FALSE } else { TRUE }) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },
@@ -1687,7 +1690,7 @@ pub trait Core : Sized {
   fn equals(&mut self) -> Option<Exception> {
       match self.s_stack().pop2() {
           Some((n,t)) =>
-              match self.s_stack().push(if t==n {-1} else {0}) {
+              match self.s_stack().push(if t==n { TRUE } else { FALSE }) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },
@@ -1698,7 +1701,7 @@ pub trait Core : Sized {
   fn less_than(&mut self) -> Option<Exception> {
       match self.s_stack().pop2() {
           Some((n,t)) =>
-              match self.s_stack().push(if n<t {-1} else {0}) {
+              match self.s_stack().push(if n<t { TRUE } else { FALSE }) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },
@@ -1709,7 +1712,7 @@ pub trait Core : Sized {
   fn greater_than(&mut self) -> Option<Exception> {
       match self.s_stack().pop2() {
           Some((n,t)) =>
-              match self.s_stack().push(if n>t {-1} else {0}) {
+              match self.s_stack().push(if n>t { TRUE } else { FALSE }) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },
@@ -1720,7 +1723,7 @@ pub trait Core : Sized {
   fn not_equals(&mut self) -> Option<Exception> {
       match self.s_stack().pop2() {
           Some((n,t)) =>
-              match self.s_stack().push(if n==t {0} else {-1}) {
+              match self.s_stack().push(if n==t { FALSE } else { TRUE }) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },
@@ -1731,7 +1734,7 @@ pub trait Core : Sized {
   fn between(&mut self) -> Option<Exception> {
       match self.s_stack().pop3() {
           Some((x1, x2, x3)) =>
-              match self.s_stack().push(if x2<=x1 && x1<=x3 {-1} else {0}) {
+              match self.s_stack().push(if x2<=x1 && x1<=x3 { TRUE } else { FALSE }) {
                   Some(_) => Some(StackOverflow),
                   None => None
               },

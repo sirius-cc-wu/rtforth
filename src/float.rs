@@ -1,4 +1,4 @@
-use core::{Result, Core};
+use core::{Result, Core, TRUE, FALSE};
 use std::str::FromStr;
 
 use std::mem;
@@ -407,11 +407,11 @@ pub trait Float : Core {
         match self.f_stack().pop3() {
             Some((x1, x2, x3)) => {
                 if x3 > 0.0 {
-                    self.s_stack().push(if (x1-x2).abs() < x3 {-1} else {0});
+                    self.s_stack().push(if (x1-x2).abs() < x3 { TRUE } else { FALSE });
                 } else if x3 == 0.0 {
-                    self.s_stack().push(if x1==x2 {-1} else {0});
+                    self.s_stack().push(if x1==x2 { TRUE } else { FALSE });
                 } else {
-                    self.s_stack().push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) {-1} else {0});
+                    self.s_stack().push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) { TRUE } else { FALSE });
                 }
                 None
             },
@@ -422,7 +422,7 @@ pub trait Float : Core {
     fn f_zero_less_than(&mut self) -> Option<Exception> {
         match self.f_stack().pop() {
             Some(t) =>
-                match self.s_stack().push(if t<0.0 {-1} else {0}) {
+                match self.s_stack().push(if t<0.0 { TRUE } else { FALSE }) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -433,7 +433,7 @@ pub trait Float : Core {
     fn f_zero_equals(&mut self) -> Option<Exception> {
         match self.f_stack().pop() {
             Some(t) =>
-                match self.s_stack().push(if t==0.0 {-1} else {0}) {
+                match self.s_stack().push(if t==0.0 { TRUE } else { FALSE }) {
                     Some(_) => Some(StackOverflow),
                     None => None
                 },
@@ -446,7 +446,7 @@ pub trait Float : Core {
             Some(t) =>
                 match self.f_stack().pop() {
                     Some(n) =>
-                        match self.s_stack().push(if n<t {-1} else {0}) {
+                        match self.s_stack().push(if n<t { TRUE } else { FALSE }) {
                             Some(_) => Some(StackOverflow),
                             None => None
                         },

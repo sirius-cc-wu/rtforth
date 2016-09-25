@@ -1,8 +1,6 @@
 use std::fmt::Write;
+use core::Result;
 use output::Output;
-use exception::Exception::{
-    self
-};
 
 pub trait Tools : Output {
     /// Add programming-tools primitives.
@@ -14,7 +12,7 @@ pub trait Tools : Output {
     /// Run-time: ( -- )
     ///
     /// Display values on the data stack.
-    fn dot_s(&mut self) -> Option<Exception> {
+    fn dot_s(&mut self) -> Result {
         let mut buf = self.output_buffer().take().unwrap();
         write!(buf, "TODO: .s").unwrap();
 //        write!(buf, "<{}> ", self.s_stack().len()).unwrap();
@@ -23,15 +21,15 @@ pub trait Tools : Output {
 //        }
         self.set_output_buffer(buf);
         if self.state().auto_flush {
-          self.flush();
+          try!(self.flush());
         }
-        None
+        Ok(())
     }
 
     /// Run-time: ( -- )
     ///
     /// List definition names in word list.
-    fn words(&mut self) -> Option<Exception> {
+    fn words(&mut self) -> Result {
         let mut buf = self.output_buffer().take().unwrap();
         writeln!(buf, "").unwrap();
         for w in self.wordlist().iter().rev() {
@@ -43,8 +41,8 @@ pub trait Tools : Output {
         }
         self.set_output_buffer(buf);
         if self.state().auto_flush {
-          self.flush();
+          try!(self.flush());
         }
-        None
+        Ok(())
     }
 }

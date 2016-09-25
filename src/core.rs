@@ -8,7 +8,6 @@ use std::mem;
 use std::ptr::{Unique, self};
 use std::fmt;
 use std::slice;
-use std::io::Write;
 use std::ascii::AsciiExt;
 use std::result;
 use ::jitmem::JitMemory;
@@ -33,7 +32,7 @@ use exception::Exception::{
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;
 
-pub type Result<T> = result::Result<T, Exception>;
+pub type Result = result::Result<(), Exception>;
 
 // Word
 pub struct Word<Target> {
@@ -42,11 +41,11 @@ pub struct Word<Target> {
     is_compile_only: bool,
     hidden: bool,
     dfa: usize,
-    action: fn(& mut Target) -> Option<Exception>
+    action: fn(& mut Target) -> Result
 }
 
 impl<Target> Word<Target> {
-    pub fn new(symbol: Symbol, action: fn(& mut Target) -> Option<Exception>, dfa: usize) -> Word<Target> {
+    pub fn new(symbol: Symbol, action: fn(& mut Target) -> Result, dfa: usize) -> Word<Target> {
         Word {
             symbol: symbol,
             is_immediate: false,
@@ -89,7 +88,7 @@ impl<Target> Word<Target> {
         self.dfa
     }
 
-    pub fn action(&self) -> (fn(& mut Target) -> Option<Exception>) {
+    pub fn action(&self) -> (fn(& mut Target) -> Result) {
         self.action
     }
 }
@@ -357,8 +356,8 @@ pub trait Core : Sized {
   fn wordlist(&self) -> &Vec<Word<Self>>;
   fn state(&mut self) -> &mut State;
   fn references(&mut self) -> &mut ForwardReferences;
-  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<()>>>;
-  fn set_evaluators(&mut self, Vec<fn(&mut Self, token: &str) -> Result<()>>);
+  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result>>;
+  fn set_evaluators(&mut self, Vec<fn(&mut Self, token: &str) -> Result>);
 
   /// Add core primitives to self.
   fn add_core(&mut self) {
@@ -494,7 +493,7 @@ pub trait Core : Sized {
   }
 
   /// Add a primitive word to word list.
-  fn add_primitive(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
+  fn add_primitive(&mut self, name: &str, action: fn(& mut Self) -> Result) {
       let symbol = self.new_symbol(name);
       let word = Word::new(symbol, action, self.jit_memory().len());
       self.state().last_definition = self.wordlist().len();
@@ -502,21 +501,21 @@ pub trait Core : Sized {
   }
 
   /// Add an immediate word to word list.
-  fn add_immediate(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
+  fn add_immediate(&mut self, name: &str, action: fn(& mut Self) -> Result) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
       self.wordlist_mut()[def].set_immediate(true);
   }
 
   /// Add a compile-only word to word list.
-  fn add_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
+  fn add_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Result) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
       self.wordlist_mut()[def].set_compile_only(true);
   }
 
   /// Add an immediate and compile-only word to word list.
-  fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Option<Exception>) {
+  fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Result) {
       self.add_primitive (name, action);
       let def = self.state().last_definition;
       let w = &mut self.wordlist_mut()[def];
@@ -525,7 +524,7 @@ pub trait Core : Sized {
   }
 
   /// Execute word at position `i`.
-  fn execute_word(&mut self, i: usize) -> Option<Exception> {
+  fn execute_word(&mut self, i: usize) -> Result {
       self.state().word_pointer = i;
       (self.wordlist()[i].action())(self)
   }
@@ -570,23 +569,23 @@ pub trait Core : Sized {
   /// Never return None and Some(Nest).
   #[no_mangle]
   #[inline(never)]
-  fn run(&mut self) -> Option<Exception> {
+  fn run(&mut self) -> Result {
       let mut ip = self.state().instruction_pointer;
       while 0 < ip && ip < self.jit_memory().len() {
           let w = self.jit_memory().get_i32(ip) as usize;
           self.state().instruction_pointer += mem::size_of::<i32>();
-          if let Some(e) = self.execute_word (w) {
+          if let Err(e) = self.execute_word (w) {
               match e {
                   Nest => {},
-                  _ => return Some(e)
+                  _ => return Err(e)
               }
           }
           ip = self.state().instruction_pointer;
       }
       if ip == 0 {
-          None
+          Ok(())
       } else {
-          Some(InvalidMemoryAddress)
+          Err(InvalidMemoryAddress)
       }
   }
 
@@ -609,14 +608,14 @@ pub trait Core : Sized {
   // Evaluation
   //-----------
 
-  fn interpret(& mut self) -> Option<Exception> {
+  fn interpret(& mut self) -> Result {
       self.state().is_compiling = false;
-      None
+      Ok(())
   }
 
-  fn compile(& mut self) -> Option<Exception> {
+  fn compile(& mut self) -> Result {
       self.state().is_compiling = true;
-      None
+      Ok(())
   }
 
   /// copy content of `s` to `input_buffer` and set `source_index` to 0.
@@ -631,7 +630,7 @@ pub trait Core : Sized {
   /// Run-time: ( "ccc" -- )
   ///
   /// Parse word delimited by white space, skipping leading white spaces.
-  fn parse_word(&mut self) -> Option<Exception> {
+  fn parse_word(&mut self) -> Result {
       let mut last_token = self.last_token().take().unwrap();
       last_token.clear();
       let input_buffer = self.input_buffer().take().unwrap();
@@ -653,23 +652,23 @@ pub trait Core : Sized {
       }
       self.set_last_token(last_token);
       self.set_input_buffer(input_buffer);
-      None
+      Ok(())
   }
 
   /// Run-time: ( "&lt;spaces&gt;name" -- char)
   ///
   /// Skip leading space delimiters. Parse name delimited by a space. Put the value of its first character onto the stack.
-  fn char(&mut self) -> Option<Exception> {
+  fn char(&mut self) -> Result {
       let result;
-      self.parse_word();
+      try!(self.parse_word());
       let last_token = self.last_token().take().unwrap();
       match last_token.chars().nth(0) {
           Some(c) =>
               match self.s_stack().push(c as isize) {
-                  Some(_) => result = Some(StackOverflow),
-                  None => result = None
+                  Some(_) => result = Err(StackOverflow),
+                  None => result = Ok(())
               },
-          None => result = Some(UnexpectedEndOfFile)
+          None => result = Err(UnexpectedEndOfFile)
       }
       self.set_last_token(last_token);
       result
@@ -682,21 +681,21 @@ pub trait Core : Sized {
   /// Run-time: ( -- char )
   ///
   /// Place `char`, the value of the first character of name, on the stack.
-  fn bracket_char(&mut self) -> Option<Exception> {
-      self.char();
+  fn bracket_char(&mut self) -> Result {
+      try!(self.char());
       match self.s_stack().pop() {
           Some(ch) => {
               self.compile_integer(ch);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
   /// Run-time: ( char "ccc&lt;char&gt;" -- )
   ///
   /// Parse ccc delimited by the delimiter char.
-  fn parse(&mut self) -> Option<Exception> {
+  fn parse(&mut self) -> Result {
       let input_buffer = self.input_buffer().take().unwrap();
       match self.s_stack().pop() {
           Some(v) => {
@@ -717,40 +716,40 @@ pub trait Core : Sized {
               }
               self.set_last_token(last_token);
               self.set_input_buffer(input_buffer);
-              None
+              Ok(())
           },
           None => {
             self.set_input_buffer(input_buffer);
-            Some(StackUnderflow)
+            Err(StackUnderflow)
           }
       }
   }
 
-  fn imm_paren(&mut self) -> Option<Exception> {
+  fn imm_paren(&mut self) -> Result {
       match self.s_stack().push(')' as isize) {
-          Some(_) => Some(StackOverflow),
+          Some(_) => Err(StackOverflow),
           None => self.parse()
       }
   }
 
-  fn imm_backslash(&mut self) -> Option<Exception> {
+  fn imm_backslash(&mut self) -> Result {
       self.state().source_index = match *self.input_buffer() {
         Some(ref buf) => buf.len(),
         None => 0
       };
-      None
+      Ok(())
   }
 
   /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
   /// Never returns Some(Quit).
-  fn evaluate(&mut self) -> Option<Exception> {
+  fn evaluate(&mut self) -> Result {
       let result;
       let mut last_token;
       loop {
-          self.parse_word();
+          try!(self.parse_word());
           last_token = self.last_token().take().unwrap();
           if last_token.is_empty() {
-              result = None;
+              result = Ok(());
               break;
           }
           match self.find(&last_token) {
@@ -765,20 +764,20 @@ pub trait Core : Sized {
                   if self.state().is_compiling && !is_immediate_word {
                       self.compile_word(found_index);
                   } else if !self.state().is_compiling && is_compile_only_word {
-                      result = Some(InterpretingACompileOnlyWord);
+                      result = Err(InterpretingACompileOnlyWord);
                       break;
                   } else {
                       self.set_last_token(last_token);
                       match self.execute_word(found_index) {
-                          Some(e) => {
+                          Err(e) => {
                               last_token = self.last_token().take().unwrap();
                               match e {
                                   Nest => {
-                                      if let Some(e2) = self.run() {
+                                      if let Err(e2) = self.run() {
                                           match e2 {
                                               Quit => {},
                                               _ => {
-                                                  result = Some(e2);
+                                                  result = Err(e2);
                                                   break;
                                               }
                                           }
@@ -786,12 +785,12 @@ pub trait Core : Sized {
                                   },
                                   Quit => {},
                                   _ => {
-                                    result = Some(e);
+                                    result = Err(e);
                                     break;
                                   }
                               }
                           },
-                          None => {
+                          Ok(()) => {
                             last_token = self.last_token().take().unwrap();
                           }
                       };
@@ -812,7 +811,7 @@ pub trait Core : Sized {
                   self.set_evaluators(evaluators);
                   if !done {
                       print!("{} ", &last_token);
-                      result = Some(UndefinedWord);
+                      result = Err(UndefinedWord);
                       break;
                   }
               }
@@ -823,15 +822,15 @@ pub trait Core : Sized {
       result
   }
 
-  fn base(&mut self) -> Option<Exception> {
+  fn base(&mut self) -> Result {
       let base_addr = self.jit_memory().system_variables().base_addr();
       match self.s_stack().push(base_addr as isize) {
-          Some(_) => Some(StackOverflow),
-          None => None
+          Some(_) => Err(StackOverflow),
+          None => Ok(())
       }
   }
 
-  fn evaluate_integer(&mut self, token: &str) -> Result<()> {
+  fn evaluate_integer(&mut self, token: &str) -> Result {
       let base_addr = self.jit_memory().system_variables().base_addr();
       let base = self.jit_memory().get_isize(base_addr);
       match isize::from_str_radix(token, base as u32) {
@@ -849,7 +848,7 @@ pub trait Core : Sized {
 
   /// Extend `f` to evaluators.
   /// Will create a vector for evaluators if there was no evaluator.
-  fn extend_evaluator(&mut self, f: fn(&mut Self, token: &str) -> Result<()>) {
+  fn extend_evaluator(&mut self, f: fn(&mut Self, token: &str) -> Result) {
       let optional_evaluators = self.evaluators().take();
       match optional_evaluators {
           Some(mut evaluators) => {
@@ -866,9 +865,9 @@ pub trait Core : Sized {
   // High level definitions
   //-----------------------
 
-  fn nest(&mut self) -> Option<Exception> {
+  fn nest(&mut self) -> Result {
       if self.r_stack().is_full() {
-          Some(ReturnStackOverflow)
+          Err(ReturnStackOverflow)
       } else {
           unsafe {
               ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), self.state().instruction_pointer as isize);
@@ -876,40 +875,40 @@ pub trait Core : Sized {
           self.r_stack().len += 1;
           let wp = self.state().word_pointer;
           self.state().instruction_pointer = self.wordlist()[wp].dfa();
-          Some(Nest)
+          Err(Nest)
       }
   }
 
-  fn p_var(&mut self) -> Option<Exception> {
+  fn p_var(&mut self) -> Result {
       let wp = self.state().word_pointer;
       let dfa = self.wordlist()[wp].dfa() as isize;
       match self.s_stack().push(dfa) {
-          Some(_) => Some(StackOverflow),
-          None => None
+          Some(_) => Err(StackOverflow),
+          None => Ok(())
       }
   }
 
-  fn p_const(&mut self) -> Option<Exception> {
+  fn p_const(&mut self) -> Result {
       let wp = self.state().word_pointer;
       let dfa = self.wordlist()[wp].dfa();
       let value = self.jit_memory().get_i32(dfa) as isize;
       match self.s_stack().push(value) {
-          Some(_) => Some(StackOverflow),
-          None => None
+          Some(_) => Err(StackOverflow),
+          None => Ok(())
       }
   }
 
-  fn p_fvar(&mut self) -> Option<Exception> {
+  fn p_fvar(&mut self) -> Result {
       let wp = self.state().word_pointer;
       let dfa = self.wordlist()[wp].dfa() as isize;
       match self.s_stack().push(dfa) {
-          Some(_) => Some(StackOverflow),
-          None => None
+          Some(_) => Err(StackOverflow),
+          None => Ok(())
       }
   }
 
-  fn define(&mut self, action: fn(& mut Self) -> Option<Exception>) -> Option<Exception> {
-      self.parse_word();
+  fn define(&mut self, action: fn(& mut Self) -> Result) -> Result {
+      try!(self.parse_word());
       let last_token = self.last_token().take().unwrap();
       if let Some(_) = self.find(&last_token) {
           print!("Redefining {}", last_token);
@@ -917,21 +916,21 @@ pub trait Core : Sized {
       if last_token.is_empty() {
           self.state().last_definition = 0;
           self.set_last_token(last_token);
-          Some(UnexpectedEndOfFile)
+          Err(UnexpectedEndOfFile)
       } else {
           let symbol = self.new_symbol(&last_token);
           let word = Word::new(symbol, action, self.jit_memory().len());
           self.state().last_definition = self.wordlist().len();
           self.wordlist_mut().push(word);
           self.set_last_token(last_token);
-          None
+          Ok(())
       }
   }
 
-  fn colon(&mut self) -> Option<Exception> {
+  fn colon(&mut self) -> Result {
       match self.define(Core::nest) {
-          Some(e) => Some(e),
-          None => {
+          Err(e) => Err(e),
+          Ok(()) => {
               let def = self.state().last_definition;
               self.wordlist_mut()[def].set_hidden(true);
               self.compile()
@@ -939,7 +938,7 @@ pub trait Core : Sized {
       }
   }
 
-  fn semicolon(&mut self) -> Option<Exception>{
+  fn semicolon(&mut self) -> Result{
       if self.state().last_definition != 0 {
           let idx = self.references().idx_exit as i32;
           self.jit_memory().compile_i32(idx);
@@ -949,36 +948,36 @@ pub trait Core : Sized {
       self.interpret()
   }
 
-  fn create(&mut self) -> Option<Exception> {
+  fn create(&mut self) -> Result {
       self.define(Core::p_var)
   }
 
-  fn variable(&mut self) -> Option<Exception> {
+  fn variable(&mut self) -> Result {
       match self.define(Core::p_var) {
-          Some(e) => Some(e),
-          None => {
+          Err(e) => Err(e),
+          Ok(()) => {
               self.jit_memory().compile_i32(0);
-              None
+              Ok(())
           }
       }
   }
 
-  fn constant(&mut self) -> Option<Exception> {
+  fn constant(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(v) => {
               match self.define(Core::p_const) {
-                  Some(e) => Some(e),
-                  None => {
+                  Err(e) => Err(e),
+                  Ok(()) => {
                       self.jit_memory().compile_i32(v as i32);
-                      None
+                      Ok(())
                   }
               }
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn unmark(&mut self) -> Option<Exception> {
+  fn unmark(&mut self) -> Result {
       let wp = self.state().word_pointer;
       let dfa;
       let symbol;
@@ -991,37 +990,37 @@ pub trait Core : Sized {
       self.jit_memory().truncate(jlen);
       self.wordlist_mut().truncate(wp+1);
       self.symbols_mut().truncate(symbol.id+1);
-      None
+      Ok(())
   }
 
-  fn marker(&mut self) -> Option<Exception> {
-      self.define(Core::unmark);
+  fn marker(&mut self) -> Result {
+      try!(self.define(Core::unmark));
       let jlen = self.jit_memory().len() as i32;
       self.jit_memory().compile_i32(jlen+(mem::size_of::<i32>() as i32));
-      None
+      Ok(())
   }
 
   //--------
   // Control
   //--------
 
-  fn branch(&mut self) -> Option<Exception> {
+  fn branch(&mut self) -> Result {
       let ip = self.state().instruction_pointer;
       self.state().instruction_pointer = self.jit_memory().get_i32(ip) as usize;
-      None
+      Ok(())
   }
 
-  fn zero_branch(&mut self) -> Option<Exception> {
+  fn zero_branch(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(v) => {
               if v == 0 {
                   self.branch()
               } else {
                   self.state().instruction_pointer += mem::size_of::<i32>();
-                  None
+                  Ok(())
               }
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1031,10 +1030,10 @@ pub trait Core : Sized {
   /// ambiguous condition exists if `n1`|`u1` and `n2`|`u2` are not both the same
   /// type.  Anything already on the return stack becomes unavailable until
   /// the loop-control parameters are discarded.
-  fn _do(&mut self) -> Option<Exception> {
+  fn _do(&mut self) -> Result {
       let ip = self.state().instruction_pointer as isize;
       match self.r_stack().push(ip) {
-          Some(_) => Some(ReturnStackOverflow),
+          Some(_) => Err(ReturnStackOverflow),
           None => {
               self.state().instruction_pointer += mem::size_of::<i32>();
               self.two_to_r()
@@ -1049,7 +1048,7 @@ pub trait Core : Sized {
   /// to the loop limit, discard the loop parameters and continue execution
   /// immediately following the loop. Otherwise continue execution at the
   /// beginning of the loop.
-  fn p_loop(&mut self) -> Option<Exception> {
+  fn p_loop(&mut self) -> Result {
       match self.r_stack().pop2() {
           Some((rn, rt)) => {
               if rt+1 < rn {
@@ -1059,13 +1058,13 @@ pub trait Core : Sized {
                   match self.r_stack().pop() {
                       Some(_) => {
                           self.state().instruction_pointer += mem::size_of::<i32>();
-                          None
+                          Ok(())
                       },
-                      None => Some(ReturnStackUnderflow)
+                      None => Err(ReturnStackUnderflow)
                   }
               }
           },
-          None => Some(ReturnStackUnderflow)
+          None => Err(ReturnStackUnderflow)
       }
   }
 
@@ -1077,7 +1076,7 @@ pub trait Core : Sized {
   /// continue execution at the beginning of the loop. Otherwise, discard the
   /// current loop control parameters and continue execution immediately
   /// following the loop.
-  fn p_plus_loop(&mut self) -> Option<Exception> {
+  fn p_plus_loop(&mut self) -> Result {
       match self.r_stack().pop2() {
           Some((rn, rt)) => {
               match self.s_stack().pop() {
@@ -1089,16 +1088,16 @@ pub trait Core : Sized {
                           match self.r_stack().pop() {
                               Some(_) => {
                                   self.state().instruction_pointer += mem::size_of::<i32>();
-                                  None
+                                  Ok(())
                               },
-                              None => Some(ReturnStackUnderflow)
+                              None => Err(ReturnStackUnderflow)
                           }
                       }
                   },
-                  None => Some(StackUnderflow)
+                  None => Err(StackUnderflow)
               }
           },
-          None => Some(ReturnStackUnderflow)
+          None => Err(ReturnStackUnderflow)
       }
   }
 
@@ -1108,93 +1107,93 @@ pub trait Core : Sized {
   /// `UNLOOP` is required for each nesting level before the definition may be
   /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
   /// are unavailable.
-  fn unloop(&mut self) -> Option<Exception> {
+  fn unloop(&mut self) -> Result {
       match self.r_stack().pop3() {
-          Some(_) => None,
-          None => Some(ReturnStackUnderflow)
+          Some(_) => Ok(()),
+          None => Err(ReturnStackUnderflow)
       }
   }
 
-  fn leave(&mut self) -> Option<Exception> {
+  fn leave(&mut self) -> Result {
       match self.r_stack().pop3() {
           Some((third, _, _)) => {
               self.state().instruction_pointer = self.jit_memory().get_i32(third as usize) as usize;
-              None
+              Ok(())
           },
-          None => Some(ReturnStackUnderflow)
+          None => Err(ReturnStackUnderflow)
       }
   }
 
-  fn p_i(&mut self) -> Option<Exception> {
+  fn p_i(&mut self) -> Result {
       match self.r_stack().last() {
           Some(i) => {
               match self.s_stack().push(i) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               }
           },
-          None => Some(ReturnStackUnderflow)
+          None => Err(ReturnStackUnderflow)
       }
   }
 
-  fn p_j(&mut self) -> Option<Exception> {
+  fn p_j(&mut self) -> Result {
       let pos = self.r_stack().len() - 4;
       match self.r_stack().get(pos) {
           Some(j) => {
               match self.s_stack().push(j) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               }
           },
-          None => Some(ReturnStackUnderflow)
+          None => Err(ReturnStackUnderflow)
       }
   }
 
-  fn imm_if(&mut self) -> Option<Exception> {
+  fn imm_if(&mut self) -> Result {
       let idx = self.references().idx_zero_branch as i32;
       self.jit_memory().compile_i32(idx);
       self.jit_memory().compile_i32(0);
       self.here()
   }
 
-  fn imm_else(&mut self) -> Option<Exception> {
+  fn imm_else(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(if_part) => {
               let idx = self.references().idx_branch as i32;
               self.jit_memory().compile_i32(idx);
               self.jit_memory().compile_i32(0);
-              self.here();
+              try!(self.here());
               let here = self.jit_memory().len();
               self.jit_memory().put_i32(here as i32, (if_part - mem::size_of::<i32>() as isize) as usize);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn imm_then(&mut self) -> Option<Exception> {
+  fn imm_then(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(branch_part) => {
               let here = self.jit_memory().len();
               self.jit_memory().put_i32(here as i32, (branch_part - mem::size_of::<i32>() as isize) as usize);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn imm_begin(&mut self) -> Option<Exception> {
+  fn imm_begin(&mut self) -> Result {
       self.here()
   }
 
-  fn imm_while(&mut self) -> Option<Exception> {
+  fn imm_while(&mut self) -> Result {
       let idx = self.references().idx_zero_branch as i32;
       self.jit_memory().compile_i32(idx);
       self.jit_memory().compile_i32(0);
       self.here()
   }
 
-  fn imm_repeat(&mut self) -> Option<Exception> {
+  fn imm_repeat(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((begin_part, while_part)) => {
               let idx = self.references().idx_branch as i32;
@@ -1202,34 +1201,34 @@ pub trait Core : Sized {
               self.jit_memory().compile_i32(begin_part as i32);
               let here = self.jit_memory().len();
               self.jit_memory().put_i32(here as i32, (while_part - mem::size_of::<i32>() as isize) as usize);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn imm_again(&mut self) -> Option<Exception> {
+  fn imm_again(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(begin_part) => {
               let idx = self.references().idx_branch as i32;
               self.jit_memory().compile_i32(idx);
               self.jit_memory().compile_i32(begin_part as i32);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn imm_recurse(&mut self) -> Option<Exception> {
+  fn imm_recurse(&mut self) -> Result {
       let last = self.wordlist().len() - 1;
       self.jit_memory().compile_u32(last as u32);
-      None
+      Ok(())
   }
 
   /// Execution: ( -- a-ddr )
   ///
   /// Append the run-time semantics of `_do` to the current definition. The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
-  fn imm_do(&mut self) -> Option<Exception> {
+  fn imm_do(&mut self) -> Result {
       let idx = self.references().idx_do as i32;
       self.jit_memory().compile_i32(idx);
       self.jit_memory().compile_i32(0);
@@ -1242,7 +1241,7 @@ pub trait Core : Sized {
   /// Resolve the destination of all unresolved occurrences of `LEAVE` between
   /// the location given by do-sys and the next location for a transfer of
   /// control, to execute the words following the `LOOP`.
-  fn imm_loop(&mut self) -> Option<Exception>{
+  fn imm_loop(&mut self) -> Result{
       match self.s_stack().pop() {
           Some(do_part) => {
               let idx = self.references().idx_loop as i32;
@@ -1250,9 +1249,9 @@ pub trait Core : Sized {
               self.jit_memory().compile_i32(do_part as i32);
               let here = self.jit_memory().len();
               self.jit_memory().put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1262,7 +1261,7 @@ pub trait Core : Sized {
   /// Resolve the destination of all unresolved occurrences of `LEAVE` between
   /// the location given by do-sys and the next location for a transfer of
   /// control, to execute the words following `+LOOP`.
-  fn imm_plus_loop(&mut self) -> Option<Exception> {
+  fn imm_plus_loop(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(do_part) => {
               let idx = self.references().idx_plus_loop as i32;
@@ -1270,9 +1269,9 @@ pub trait Core : Sized {
               self.jit_memory().compile_i32(do_part as i32);
               let here = self.jit_memory().len();
               self.jit_memory().put_i32(here as i32, (do_part - mem::size_of::<i32>() as isize) as usize);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1283,56 +1282,56 @@ pub trait Core : Sized {
   /// Run-time: ( -- )
   ///
   /// No operation
-  fn noop(&mut self) -> Option<Exception> {
+  fn noop(&mut self) -> Result {
       // Do nothing
-      None
+      Ok(())
   }
 
   /// Run-time: ( -- true )
   ///
   /// Return a true flag, a single-cell value with all bits set.
-  fn p_true(&mut self) -> Option<Exception> {
+  fn p_true(&mut self) -> Result {
       match self.s_stack().push (TRUE) {
-          Some(_) => Some(StackOverflow),
-          None => None
+          Some(_) => Err(StackOverflow),
+          None => Ok(())
       }
   }
 
   /// Run-time: ( -- false )
   ///
   /// Return a false flag.
-  fn p_false(&mut self) -> Option<Exception> {
+  fn p_false(&mut self) -> Result {
       match self.s_stack().push (FALSE) {
-          Some(_) => Some(StackOverflow),
-          None => None
+          Some(_) => Err(StackOverflow),
+          None => Ok(())
       }
   }
 
   /// Run-time: (c-addr1 -- c-addr2 )
   ///
   ///Add the size in address units of a character to `c-addr1`, giving `c-addr2`.
-  fn char_plus(&mut self) -> Option<Exception> {
+  fn char_plus(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(v) =>
               match self.s_stack().push(v + mem::size_of::<u8>() as isize) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
   /// Run-time: (n1 -- n2 )
   ///
   /// `n2` is the size in address units of `n1` characters.
-  fn chars(&mut self) -> Option<Exception> {
+  fn chars(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(v) =>
               match self.s_stack().push(v*mem::size_of::<u8>() as isize) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1340,34 +1339,34 @@ pub trait Core : Sized {
   /// Run-time: (a-addr1 -- a-addr2 )
   ///
   /// Add the size in address units of a cell to `a-addr1`, giving `a-addr2`.
-  fn cell_plus(&mut self) -> Option<Exception> {
+  fn cell_plus(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(v) =>
               match self.s_stack().push(v + mem::size_of::<i32>() as isize) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
   /// Run-time: (n1 -- n2 )
   ///
   /// `n2` is the size in address units of `n1` cells.
-  fn cells(&mut self) -> Option<Exception> {
+  fn cells(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(v) =>
               match self.s_stack().push(v*mem::size_of::<i32>() as isize) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn lit(&mut self) -> Option<Exception> {
+  fn lit(&mut self) -> Result {
       if self.s_stack().is_full() {
-          Some(StackOverflow)
+          Err(StackOverflow)
       } else {
           unsafe {
               let ip = self.state().instruction_pointer;
@@ -1376,75 +1375,75 @@ pub trait Core : Sized {
           }
           self.s_stack().len += 1;
           self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>();
-          None
+          Ok(())
       }
   }
 
-  fn swap(&mut self) -> Option<Exception> {
+  fn swap(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize)));
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), t);
           }
-          None
+          Ok(())
       }
   }
 
-  fn dup(&mut self) -> Option<Exception> {
+  fn dup(&mut self) -> Result {
       if self.s_stack().len < 1 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else if self.s_stack().is_full() {
-          Some(StackOverflow)
+          Err(StackOverflow)
       } else {
           unsafe {
               ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)));
               self.s_stack().len += 1;
           }
-          None
+          Ok(())
       }
   }
 
-  fn p_drop(&mut self) -> Option<Exception> {
+  fn p_drop(&mut self) -> Result {
       if self.s_stack().len < 1 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           self.s_stack().len -= 1;
-          None
+          Ok(())
       }
   }
 
-  fn nip(&mut self) -> Option<Exception> {
+  fn nip(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               self.s_stack().len -= 1;
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
           }
-          None
+          Ok(())
       }
   }
 
-  fn over(&mut self) -> Option<Exception> {
+  fn over(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else if self.s_stack().is_full() {
-          Some(StackOverflow)
+          Err(StackOverflow)
       } else {
           unsafe {
               ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-2) as isize)));
               self.s_stack().len += 1;
           }
-          None
+          Ok(())
       }
   }
 
-  fn rot(&mut self) -> Option<Exception> {
+  fn rot(&mut self) -> Result {
       if self.s_stack().len < 3 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
@@ -1453,37 +1452,37 @@ pub trait Core : Sized {
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), t);
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-3) as isize), n);
           }
-          None
+          Ok(())
       }
   }
 
-  fn two_drop(&mut self) -> Option<Exception> {
+  fn two_drop(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           self.s_stack().len -= 2;
-          None
+          Ok(())
       }
   }
 
-  fn two_dup(&mut self) -> Option<Exception> {
+  fn two_dup(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else if self.s_stack().len + 2 > self.s_stack().cap {
-          Some(StackOverflow)
+          Err(StackOverflow)
       } else {
           unsafe {
               self.s_stack().len += 2;
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-3) as isize)));
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-4) as isize)));
           }
-          None
+          Ok(())
       }
   }
 
-  fn two_swap(&mut self) -> Option<Exception> {
+  fn two_swap(&mut self) -> Result {
       if self.s_stack().len < 4 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
@@ -1493,123 +1492,123 @@ pub trait Core : Sized {
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-3) as isize), t);
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-4) as isize), n);
           }
-          None
+          Ok(())
       }
   }
 
-  fn two_over(&mut self) -> Option<Exception> {
+  fn two_over(&mut self) -> Result {
       if self.s_stack().len < 4 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else if self.s_stack().len + 2 > self.s_stack().cap {
-          Some(StackOverflow)
+          Err(StackOverflow)
       } else {
           unsafe {
               self.s_stack().len += 2;
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-5) as isize)));
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-6) as isize)));
           }
-          None
+          Ok(())
       }
   }
 
-  fn depth(&mut self) -> Option<Exception> {
+  fn depth(&mut self) -> Result {
       let len = self.s_stack().len;
       match self.s_stack().push(len as isize) {
-          Some(_) => Some(StackOverflow),
-          None => None
+          Some(_) => Err(StackOverflow),
+          None => Ok(())
       }
   }
 
-  fn one_plus(&mut self) -> Option<Exception> {
+  fn one_plus(&mut self) -> Result {
       if self.s_stack().len < 1 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)).wrapping_add(1));
           }
-          None
+          Ok(())
       }
   }
 
-  fn one_minus(&mut self) -> Option<Exception> {
+  fn one_minus(&mut self) -> Result {
       if self.s_stack().len < 1 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize))-1);
           }
-          None
+          Ok(())
       }
   }
 
-  fn plus(&mut self) -> Option<Exception> {
+  fn plus(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               self.s_stack().len -= 1;
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
                   ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) + ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
           }
-          None
+          Ok(())
       }
   }
 
-  fn minus(&mut self) -> Option<Exception> {
+  fn minus(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               self.s_stack().len -= 1;
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
                   ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) - ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
           }
-          None
+          Ok(())
       }
   }
 
-  fn star(&mut self) -> Option<Exception> {
+  fn star(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               self.s_stack().len -= 1;
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
                   ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) * ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
           }
-          None
+          Ok(())
       }
   }
 
-  fn slash(&mut self) -> Option<Exception> {
+  fn slash(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               self.s_stack().len -= 1;
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
                   ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) / ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
           }
-          None
+          Ok(())
       }
   }
 
-  fn p_mod(&mut self) -> Option<Exception> {
+  fn p_mod(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               self.s_stack().len -= 1;
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize),
                   ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize)) % ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
           }
-          None
+          Ok(())
       }
   }
 
-  fn slash_mod(&mut self) -> Option<Exception> {
+  fn slash_mod(&mut self) -> Result {
       if self.s_stack().len < 2 {
-          Some(StackUnderflow)
+          Err(StackUnderflow)
       } else {
           unsafe {
               let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len-1) as isize));
@@ -1617,172 +1616,172 @@ pub trait Core : Sized {
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-2) as isize), n%t);
               ptr::write(self.s_stack().inner.offset((self.s_stack().len-1) as isize), n/t);
           }
-          None
+          Ok(())
       }
   }
 
-  fn abs(&mut self) -> Option<Exception> {
+  fn abs(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(t) =>
               match self.s_stack().push(t.abs()) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn negate(&mut self) -> Option<Exception> {
+  fn negate(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(t) =>
               match self.s_stack().push(-t) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn zero_less(&mut self) -> Option<Exception> {
+  fn zero_less(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(t) =>
               match self.s_stack().push(if t<0 { TRUE } else { FALSE }) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn zero_equals(&mut self) -> Option<Exception> {
+  fn zero_equals(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(t) =>
               match self.s_stack().push(if t==0 { TRUE } else { FALSE }) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn zero_greater(&mut self) -> Option<Exception> {
+  fn zero_greater(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(t) =>
               match self.s_stack().push(if t>0 { TRUE } else { FALSE }) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn zero_not_equals(&mut self) -> Option<Exception> {
+  fn zero_not_equals(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(t) =>
               match self.s_stack().push(if t==0 { FALSE } else { TRUE }) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn equals(&mut self) -> Option<Exception> {
+  fn equals(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               match self.s_stack().push(if t==n { TRUE } else { FALSE }) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn less_than(&mut self) -> Option<Exception> {
+  fn less_than(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               match self.s_stack().push(if n<t { TRUE } else { FALSE }) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn greater_than(&mut self) -> Option<Exception> {
+  fn greater_than(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               match self.s_stack().push(if n>t { TRUE } else { FALSE }) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn not_equals(&mut self) -> Option<Exception> {
+  fn not_equals(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               match self.s_stack().push(if n==t { FALSE } else { TRUE }) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn between(&mut self) -> Option<Exception> {
+  fn between(&mut self) -> Result {
       match self.s_stack().pop3() {
           Some((x1, x2, x3)) =>
               match self.s_stack().push(if x2<=x1 && x1<=x3 { TRUE } else { FALSE }) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn invert(&mut self) -> Option<Exception> {
+  fn invert(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(t) =>
               match self.s_stack().push(!t) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn and(&mut self) -> Option<Exception> {
+  fn and(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               match self.s_stack().push(t & n) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn or(&mut self) -> Option<Exception> {
+  fn or(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               match self.s_stack().push(t | n) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn xor(&mut self) -> Option<Exception> {
+  fn xor(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               match self.s_stack().push(t ^ n) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1792,14 +1791,14 @@ pub trait Core : Sized {
   /// zeroes into the least significant bits vacated by the shift. An
   /// ambiguous condition exists if `u` is greater than or equal to the number
   /// of bits in a cell.
-  fn lshift(&mut self) -> Option<Exception> {
+  fn lshift(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               match self.s_stack().push(n << t) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1809,14 +1808,14 @@ pub trait Core : Sized {
   /// zeroes into the most significant bits vacated by the shift. An
   /// ambiguous condition exists if `u` is greater than or equal to the number
   /// of bits in a cell.
-  fn rshift(&mut self) -> Option<Exception> {
+  fn rshift(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               match self.s_stack().push((n as usize >> t) as isize) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1826,14 +1825,14 @@ pub trait Core : Sized {
   /// zeroes into the most significant bits vacated by the shift. An
   /// ambiguous condition exists if `u` is greater than or equal to the number
   /// of bits in a cell.
-  fn arshift(&mut self) -> Option<Exception> {
+  fn arshift(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               match self.s_stack().push(n >> t) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1843,44 +1842,44 @@ pub trait Core : Sized {
   /// Return control to the calling definition specified by `nest-sys`. Before executing `EXIT` within a
   /// do-loop, a program shall discard the loop-control parameters by executing `UNLOOP`.
   /// TODO: `UNLOOP`
-  fn exit(&mut self) -> Option<Exception> {
+  fn exit(&mut self) -> Result {
       if self.r_stack().len == 0 {
-          Some(ReturnStackUnderflow)
+          Err(ReturnStackUnderflow)
       } else {
           self.r_stack().len -= 1;
           unsafe {
               self.state().instruction_pointer = ptr::read(self.r_stack().inner.offset(self.r_stack().len as isize)) as usize;
           }
-          None
+          Ok(())
       }
   }
 
   /// Run-time: ( a-addr -- x )
   ///
   /// `x` is the value stored at `a-addr`.
-  fn fetch(&mut self) -> Option<Exception> {
+  fn fetch(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(t) => {
             let value = self.jit_memory().get_i32(t as usize) as isize;
             match self.s_stack().push(value) {
-                Some(_) => Some(StackOverflow),
-                None => None
+                Some(_) => Err(StackOverflow),
+                None => Ok(())
             }
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
   /// Run-time: ( x a-addr -- )
   ///
   /// Store `x` at `a-addr`.
-  fn store(&mut self) -> Option<Exception> {
+  fn store(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) => {
               self.jit_memory().put_i32(n as i32, t as usize);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1888,16 +1887,16 @@ pub trait Core : Sized {
   ///
   /// Fetch the character stored at `c-addr`. When the cell size is greater than
   /// character size, the unused high-order bits are all zeroes.
-  fn c_fetch(&mut self) -> Option<Exception> {
+  fn c_fetch(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(t) => {
               let value = self.jit_memory().get_u8(t as usize) as isize;
               match self.s_stack().push(value) {
-                  Some(_) => Some(StackOverflow),
-                  None => None
+                  Some(_) => Err(StackOverflow),
+                  None => Ok(())
               }
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1906,13 +1905,13 @@ pub trait Core : Sized {
   /// Store `char` at `c-addr`. When character size is smaller than cell size,
   /// only the number of low-order bits corresponding to character size are
   /// transferred.
-  fn c_store(&mut self) -> Option<Exception> {
+  fn c_store(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) => {
               self.jit_memory().put_u8(n as u8, t as usize);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1921,20 +1920,20 @@ pub trait Core : Sized {
   /// Skip leading space delimiters. Parse name delimited by a space. Find
   /// `name` and return `xt`, the execution token for name. An ambiguous
   /// condition exists if name is not found.
-  fn tick(&mut self) -> Option<Exception> {
+  fn tick(&mut self) -> Result {
       let result;
-      self.parse_word();
+      try!(self.parse_word());
       let last_token = self.last_token().take().unwrap();
       if last_token.is_empty() {
-          result = Some(UnexpectedEndOfFile);
+          result = Err(UnexpectedEndOfFile);
       } else {
           match self.find(&last_token) {
               Some(found_index) =>
                   match self.s_stack().push(found_index as isize) {
-                      Some(_) => result = Some(StackOverflow),
-                      None => result = None
+                      Some(_) => result = Err(StackOverflow),
+                      None => result = Ok(())
                   },
-              None => result = Some(UndefinedWord)
+              None => result = Err(UndefinedWord)
           }
       }
       self.set_last_token(last_token);
@@ -1945,23 +1944,23 @@ pub trait Core : Sized {
   ///
   /// Remove `xt` from the stack and perform the semantics identified by it.
   /// Other stack effects are due to the word `EXECUTE`d.
-  fn execute(&mut self) -> Option<Exception> {
+  fn execute(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(t) => {
               self.execute_word(t as usize)
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
   /// Run-time: ( -- addr )
   ///
   /// `addr` is the data-space pointer.
-  fn here(&mut self) -> Option<Exception> {
+  fn here(&mut self) -> Result {
       let len = self.jit_memory().len() as isize;
       match self.s_stack().push(len) {
-          Some(_) => Some(StackOverflow),
-          None => None
+          Some(_) => Err(StackOverflow),
+          None => Ok(())
       }
   }
 
@@ -1970,13 +1969,13 @@ pub trait Core : Sized {
   /// If `n` is greater than zero, reserve n address units of data space. If `n`
   /// is less than zero, release `|n|` address units of data space. If `n` is
   /// zero, leave the data-space pointer unchanged.
-  fn allot(&mut self) -> Option<Exception> {
+  fn allot(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(v) => {
               self.jit_memory().allot(v);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
@@ -1986,78 +1985,78 @@ pub trait Core : Sized {
   /// data-space pointer is aligned when `,` begins execution, it will remain
   /// aligned when `,` finishes execution. An ambiguous condition exists if the
   /// data-space pointer is not aligned prior to execution of `,`.
-  fn comma(&mut self) -> Option<Exception> {
+  fn comma(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(v) => {
               self.jit_memory().compile_i32(v as i32);
-              None
+              Ok(())
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn p_to_r(&mut self) -> Option<Exception> {
+  fn p_to_r(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(v) => {
               if self.r_stack().is_full() {
-                  Some(ReturnStackOverflow)
+                  Err(ReturnStackOverflow)
               } else {
                   unsafe {
                       ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), v);
                   }
                   self.r_stack().len += 1;
-                  None
+                  Ok(())
               }
           },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn r_from(&mut self) -> Option<Exception> {
+  fn r_from(&mut self) -> Result {
       if self.r_stack().len == 0 {
-          Some(ReturnStackUnderflow)
+          Err(ReturnStackUnderflow)
       } else {
           self.r_stack().len -= 1;
           unsafe {
               let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
               self.s_stack().push(ptr::read(r0));
           }
-          None
+          Ok(())
       }
   }
 
-  fn r_fetch(&mut self) -> Option<Exception> {
+  fn r_fetch(&mut self) -> Result {
       if self.r_stack().len == 0 {
-          Some(ReturnStackUnderflow)
+          Err(ReturnStackUnderflow)
       } else {
           unsafe {
               let r1 = self.r_stack().inner.offset((self.r_stack().len-1) as isize);
               self.s_stack().push(ptr::read(r1));
           }
-          None
+          Ok(())
       }
   }
 
-  fn two_to_r(&mut self) -> Option<Exception> {
+  fn two_to_r(&mut self) -> Result {
       match self.s_stack().pop2() {
           Some((n,t)) =>
               if self.r_stack().space_left() < 2 {
-                  Some(ReturnStackOverflow)
+                  Err(ReturnStackOverflow)
               } else {
                   unsafe {
                       ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), n);
                       ptr::write(self.r_stack().inner.offset((self.r_stack().len+1) as isize), t);
                   }
                   self.r_stack().len += 2;
-                  None
+                  Ok(())
               },
-          None => Some(StackUnderflow)
+          None => Err(StackUnderflow)
       }
   }
 
-  fn two_r_from(&mut self) -> Option<Exception> {
+  fn two_r_from(&mut self) -> Result {
       if self.r_stack().len < 2 {
-          Some(ReturnStackUnderflow)
+          Err(ReturnStackUnderflow)
       } else {
           self.r_stack().len -= 2;
           unsafe {
@@ -2066,13 +2065,13 @@ pub trait Core : Sized {
               let r1 = self.r_stack().inner.offset((self.r_stack().len+1) as isize);
               self.s_stack().push(ptr::read(r1));
           }
-          None
+          Ok(())
       }
   }
 
-  fn two_r_fetch(&mut self) -> Option<Exception> {
+  fn two_r_fetch(&mut self) -> Result {
       if self.r_stack().len < 2 {
-          Some(ReturnStackUnderflow)
+          Err(ReturnStackUnderflow)
       } else {
           unsafe {
               let r2 = self.r_stack().inner.offset((self.r_stack().len-2) as isize);
@@ -2080,14 +2079,14 @@ pub trait Core : Sized {
               let r1 = self.r_stack().inner.offset((self.r_stack().len-1) as isize);
               self.s_stack().push(ptr::read(r1));
           }
-          None
+          Ok(())
       }
   }
 
   /// Leave VM's inner loop, keep VM's all state.
   /// Call inner to resume inner loop.
-  fn pause(&mut self) -> Option<Exception> {
-      Some(Pause)
+  fn pause(&mut self) -> Result {
+      Err(Pause)
   }
 
   //----------------
@@ -2114,26 +2113,26 @@ pub trait Core : Sized {
   }
 
   /// Abort the inner loop with an exception, reset VM and clears stacks.
-  fn abort(&mut self) -> Option<Exception> {
+  fn abort(&mut self) -> Result {
       self.clear_stacks();
       self.reset();
-      Some(Abort)
+      Err(Abort)
   }
 
-  fn halt(&mut self) -> Option<Exception> {
+  fn halt(&mut self) -> Result {
       self.state().instruction_pointer = 0;
-      Some(Quit)
+      Err(Quit)
   }
 
   /// Quit the inner loop and reset VM, without clearing stacks .
-  fn quit(&mut self) -> Option<Exception> {
+  fn quit(&mut self) -> Result {
       self.reset();
-      Some(Quit)
+      Err(Quit)
   }
 
   /// Emit Bye exception.
-  fn bye(&mut self) -> Option<Exception> {
-      Some(Bye)
+  fn bye(&mut self) -> Result {
+      Err(Bye)
   }
 
 }
@@ -2200,13 +2199,13 @@ mod tests {
         vm.compile_integer(1);
         vm.state().instruction_pointer = ip;
         match vm.run() {
-            Some(e) => {
+            Err(e) => {
                 match e {
                     InvalidMemoryAddress => assert!(true),
                     _ => assert!(false)
                 }
             },
-            None => assert!(false)
+            Ok(()) => assert!(false)
         }
         assert_eq!(3usize, vm.s_stack().len());
     }
@@ -2235,7 +2234,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(1);
-        assert!(vm.p_drop().is_none());
+        assert!(vm.p_drop().is_ok());
         assert!(vm.s_stack().is_empty());
     }
 
@@ -2256,7 +2255,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.nip().is_none());
+        assert!(vm.nip().is_ok());
         assert!(vm.s_stack().len()==1);
         assert!(vm.s_stack().last() == Some(2));
     }
@@ -2279,7 +2278,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.swap().is_none());
+        assert!(vm.swap().is_ok());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Some(1));
         assert_eq!(vm.s_stack().pop(), Some(2));
@@ -2299,7 +2298,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(1);
-        assert!(vm.dup().is_none());
+        assert!(vm.dup().is_ok());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Some(1));
         assert_eq!(vm.s_stack().pop(), Some(1));
@@ -2322,7 +2321,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.over().is_none());
+        assert!(vm.over().is_ok());
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), Some(1));
         assert_eq!(vm.s_stack().pop(), Some(2));
@@ -2348,7 +2347,7 @@ mod tests {
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.s_stack().push(3);
-        assert!(vm.rot().is_none());
+        assert!(vm.rot().is_ok());
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), Some(1));
         assert_eq!(vm.s_stack().pop(), Some(3));
@@ -2371,7 +2370,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.two_drop().is_none());
+        assert!(vm.two_drop().is_ok());
         assert!(vm.s_stack().is_empty());
     }
 
@@ -2392,7 +2391,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.two_dup().is_none());
+        assert!(vm.two_dup().is_ok());
         assert_eq!(vm.s_stack().len(), 4);
         assert_eq!(vm.s_stack().pop(), Some(2));
         assert_eq!(vm.s_stack().pop(), Some(1));
@@ -2420,7 +2419,7 @@ mod tests {
         vm.s_stack().push(2);
         vm.s_stack().push(3);
         vm.s_stack().push(4);
-        assert!(vm.two_swap().is_none());
+        assert!(vm.two_swap().is_ok());
         assert_eq!(vm.s_stack().len(), 4);
         assert_eq!(vm.s_stack().pop(), Some(2));
         assert_eq!(vm.s_stack().pop(), Some(1));
@@ -2447,7 +2446,7 @@ mod tests {
         vm.s_stack().push(2);
         vm.s_stack().push(3);
         vm.s_stack().push(4);
-        assert!(vm.two_over().is_none());
+        assert!(vm.two_over().is_ok());
         assert_eq!(vm.s_stack().len(), 6);
         assert_eq!(vm.s_stack().as_slice(), [1, 2, 3, 4, 1, 2]);
     }
@@ -2481,7 +2480,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(1);
-        assert!(vm.one_plus().is_none());
+        assert!(vm.one_plus().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(2));
     }
@@ -2501,7 +2500,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(2);
-        assert!(vm.one_minus().is_none());
+        assert!(vm.one_minus().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(1));
     }
@@ -2522,7 +2521,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(5);
         vm.s_stack().push(7);
-        assert!(vm.minus().is_none());
+        assert!(vm.minus().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-2));
     }
@@ -2544,7 +2543,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(5);
         vm.s_stack().push(7);
-        assert!(vm.plus().is_none());
+        assert!(vm.plus().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(12));
     }
@@ -2566,7 +2565,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(5);
         vm.s_stack().push(7);
-        assert!(vm.star().is_none());
+        assert!(vm.star().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(35));
     }
@@ -2588,7 +2587,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(30);
         vm.s_stack().push(7);
-        assert!(vm.slash().is_none());
+        assert!(vm.slash().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(4));
     }
@@ -2610,7 +2609,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(30);
         vm.s_stack().push(7);
-        assert!(vm.p_mod().is_none());
+        assert!(vm.p_mod().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(2));
     }
@@ -2633,7 +2632,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(30);
         vm.s_stack().push(7);
-        assert!(vm.slash_mod().is_none());
+        assert!(vm.slash_mod().is_ok());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Some(4));
         assert_eq!(vm.s_stack().pop(), Some(2));
@@ -2656,7 +2655,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(-30);
-        assert!(vm.abs().is_none());
+        assert!(vm.abs().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(30));
     }
@@ -2666,7 +2665,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(30);
-        assert!(vm.negate().is_none());
+        assert!(vm.negate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-30));
     }
@@ -2676,11 +2675,11 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(-1);
-        assert!(vm.zero_less().is_none());
+        assert!(vm.zero_less().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         vm.s_stack().push(0);
-        assert!(vm.zero_less().is_none());
+        assert!(vm.zero_less().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
     }
@@ -2690,15 +2689,15 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(0);
-        assert!(vm.zero_equals().is_none());
+        assert!(vm.zero_equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         vm.s_stack().push(-1);
-        assert!(vm.zero_equals().is_none());
+        assert!(vm.zero_equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
         vm.s_stack().push(1);
-        assert!(vm.zero_equals().is_none());
+        assert!(vm.zero_equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
     }
@@ -2708,11 +2707,11 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(1);
-        assert!(vm.zero_greater().is_none());
+        assert!(vm.zero_greater().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         vm.s_stack().push(0);
-        assert!(vm.zero_greater().is_none());
+        assert!(vm.zero_greater().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
     }
@@ -2722,15 +2721,15 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(0);
-        assert!(vm.zero_not_equals().is_none());
+        assert!(vm.zero_not_equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
         vm.s_stack().push(-1);
-        assert!(vm.zero_not_equals().is_none());
+        assert!(vm.zero_not_equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         vm.s_stack().push(1);
-        assert!(vm.zero_not_equals().is_none());
+        assert!(vm.zero_not_equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
     }
@@ -2741,12 +2740,12 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(-1);
         vm.s_stack().push(0);
-        assert!(vm.less_than().is_none());
+        assert!(vm.less_than().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         vm.s_stack().push(0);
         vm.s_stack().push(0);
-        assert!(vm.less_than().is_none());
+        assert!(vm.less_than().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
     }
@@ -2757,17 +2756,17 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(0);
         vm.s_stack().push(0);
-        assert!(vm.equals().is_none());
+        assert!(vm.equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         vm.s_stack().push(-1);
         vm.s_stack().push(0);
-        assert!(vm.equals().is_none());
+        assert!(vm.equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
         vm.s_stack().push(1);
         vm.s_stack().push(0);
-        assert!(vm.equals().is_none());
+        assert!(vm.equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
     }
@@ -2778,12 +2777,12 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(1);
         vm.s_stack().push(0);
-        assert!(vm.greater_than().is_none());
+        assert!(vm.greater_than().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         vm.s_stack().push(0);
         vm.s_stack().push(0);
-        assert!(vm.greater_than().is_none());
+        assert!(vm.greater_than().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
     }
@@ -2794,17 +2793,17 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(0);
         vm.s_stack().push(0);
-        assert!(vm.not_equals().is_none());
+        assert!(vm.not_equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
         vm.s_stack().push(-1);
         vm.s_stack().push(0);
-        assert!(vm.not_equals().is_none());
+        assert!(vm.not_equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         vm.s_stack().push(1);
         vm.s_stack().push(0);
-        assert!(vm.not_equals().is_none());
+        assert!(vm.not_equals().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
     }
@@ -2816,25 +2815,25 @@ mod tests {
         vm.s_stack().push(1);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.between().is_none());
+        assert!(vm.between().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         vm.s_stack().push(1);
         vm.s_stack().push(0);
         vm.s_stack().push(1);
-        assert!(vm.between().is_none());
+        assert!(vm.between().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
         vm.s_stack().push(0);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.between().is_none());
+        assert!(vm.between().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
         vm.s_stack().push(3);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.between().is_none());
+        assert!(vm.between().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
     }
@@ -2844,7 +2843,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(707);
-        assert!(vm.invert().is_none());
+        assert!(vm.invert().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-708));
     }
@@ -2855,7 +2854,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(707);
         vm.s_stack().push(007);
-        assert!(vm.and().is_none());
+        assert!(vm.and().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(3));
     }
@@ -2866,7 +2865,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(707);
         vm.s_stack().push(07);
-        assert!(vm.or().is_none());
+        assert!(vm.or().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(711));
     }
@@ -2877,7 +2876,7 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(707);
         vm.s_stack().push(07);
-        assert!(vm.xor().is_none());
+        assert!(vm.xor().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(708));
     }
@@ -2888,12 +2887,12 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(1);
         vm.s_stack().push(1);
-        assert!(vm.lshift().is_none());
+        assert!(vm.lshift().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(2));
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.lshift().is_none());
+        assert!(vm.lshift().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(4));
     }
@@ -2904,12 +2903,12 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(8);
         vm.s_stack().push(1);
-        assert!(vm.rshift().is_none());
+        assert!(vm.rshift().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(4));
         vm.s_stack().push(-1);
         vm.s_stack().push(1);
-        assert!(vm.rshift().is_none());
+        assert!(vm.rshift().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert!(vm.s_stack().pop().unwrap() > 0);
     }
@@ -2920,12 +2919,12 @@ mod tests {
         vm.add_core();
         vm.s_stack().push(8);
         vm.s_stack().push(1);
-        assert!(vm.arshift().is_none());
+        assert!(vm.arshift().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(4));
         vm.s_stack().push(-8);
         vm.s_stack().push(1);
-        assert!(vm.arshift().is_none());
+        assert!(vm.arshift().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-4));
     }
@@ -2935,13 +2934,13 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("hello world\t\r\n\"");
-        assert!(vm.parse_word().is_none());
+        assert!(vm.parse_word().is_ok());
         assert_eq!(vm.last_token().clone().unwrap(), "hello");
         assert_eq!(vm.state().source_index, 6);
-        assert!(vm.parse_word().is_none());
+        assert!(vm.parse_word().is_ok());
         assert_eq!(vm.last_token().clone().unwrap(), "world");
         assert_eq!(vm.state().source_index, 12);
-        assert!(vm.parse_word().is_none());
+        assert!(vm.parse_word().is_ok());
         assert_eq!(vm.last_token().clone().unwrap(), "\"");
     }
 
@@ -2950,7 +2949,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("false true dup 1+ 2 -3");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 5);
         assert_eq!(vm.s_stack().pop(), Some(-3));
         assert_eq!(vm.s_stack().pop(), Some(2));
@@ -2964,7 +2963,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("marker empty");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         b.iter(|| {
             vm.set_source(": main noop noop noop noop noop noop noop noop ; empty");
             vm.evaluate();
@@ -2990,7 +2989,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": 2+3 2 3 + ; 2+3");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(5));
     }
@@ -3000,7 +2999,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("5 constant x x x");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Some(5));
         assert_eq!(vm.s_stack().pop(), Some(5));
@@ -3011,7 +3010,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("variable x  x @  3 x !  x @");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Some(3));
         assert_eq!(vm.s_stack().pop(), Some(0));
@@ -3022,7 +3021,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("2 char+  9 chars");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().as_slice(), [3, 9]);
     }
 
@@ -3031,7 +3030,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("2 cell+  9 cells");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().as_slice(), [6, 36]);
     }
 
@@ -3040,7 +3039,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("1 2  ' swap execute");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Some(1));
         assert_eq!(vm.s_stack().pop(), Some(2));
@@ -3051,7 +3050,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("here 2 cells allot here -");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-((mem::size_of::<i32>()*2) as isize)));
     }
@@ -3062,7 +3061,7 @@ mod tests {
         vm.add_core();
         let here = vm.jit_memory().len();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 2);
         match vm.s_stack().pop2() {
             Some((n, t)) => {
@@ -3083,7 +3082,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(8));
     }
@@ -3108,7 +3107,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-3));
     }
@@ -3133,11 +3132,11 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": t1 0 if true else false then ; t1");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(0));
         vm.set_source(": t2 1 if true else false then ; t2");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
     }
@@ -3147,7 +3146,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(3));
     }
@@ -3157,7 +3156,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": t1 0 begin 1+ dup 3 <> while repeat ; t1");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(3));
     }
@@ -3167,7 +3166,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("1 2 3 \\ 5 6 7");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), Some(3));
         assert_eq!(vm.s_stack().pop(), Some(2));
@@ -3179,7 +3178,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("marker empty here empty here =");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         let symbols_len = vm.symbols().len();
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(-1));
@@ -3192,8 +3191,8 @@ mod tests {
         vm.add_core();
         vm.set_source(": main 1 2 ; main 3 quit 5 6 7");
         match vm.evaluate() {
-            Some(_) => assert!(false),
-            None => assert!(true),
+            Err(_) => assert!(false),
+            Ok(()) => assert!(true),
         };
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), Some(3));
@@ -3212,7 +3211,7 @@ mod tests {
         vm.add_core();
         vm.set_source("1 2 3 abort 5 6 7");
         match vm.evaluate() {
-            Some(Abort) => assert!(true),
+            Err(Abort) => assert!(true),
             _ => assert!(false)
         }
         assert_eq!(vm.s_stack().len(), 0);
@@ -3224,7 +3223,7 @@ mod tests {
         vm.add_core();
         vm.set_source("1 2 3 bye 5 6 7");
         match vm.evaluate() {
-            Some(Bye) => assert!(true),
+            Err(Bye) => assert!(true),
             _ => assert!(false)
         }
         assert!(vm.state().is_idle());
@@ -3236,7 +3235,7 @@ mod tests {
         vm.add_core();
         vm.set_source(": test 1 2 3 pause 5 6 7 ; test");
         match vm.evaluate() {
-            Some(Pause) => assert!(true),
+            Err(Pause) => assert!(true),
             _ => assert!(false)
         }
         assert!(!vm.state().is_idle());
@@ -3251,7 +3250,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": fib dup 2 < if drop 1 else dup 1- recurse swap 2 - recurse + then ;");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         vm.set_source(": main 7 fib drop ;");
         vm.evaluate();
         vm.set_source("' main");
@@ -3260,7 +3259,7 @@ mod tests {
             vm.dup();
             vm.execute();
             match vm.run() {
-                Some(e) => {
+                Err(e) => {
                     match e {
                         Quit => {},
                         _ => {
@@ -3268,7 +3267,7 @@ mod tests {
                         }
                     }
                 },
-                None => assert!(true)
+                Ok(()) => assert!(true)
             };
         });
     }
@@ -3278,7 +3277,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": main 1 5 0 do 1+ loop ;  main");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(6));
     }
@@ -3288,7 +3287,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(3));
     }
@@ -3298,11 +3297,11 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": main 1 5 0 do 1+ 2 +loop ;  main");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(4));
         vm.set_source(": main 1 6 0 do 1+ 2 +loop ;  main");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Some(4));
     }
@@ -3312,7 +3311,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop2(), Some((88, 9)));
     }
@@ -3322,7 +3321,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": main 3 0 do i loop ;  main");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop3(), Some((0, 1, 2)));
     }
@@ -3332,7 +3331,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 4);
         assert_eq!(vm.s_stack().as_slice(), [4, 8, 5, 10]);
     }

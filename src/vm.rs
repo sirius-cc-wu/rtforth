@@ -20,7 +20,7 @@ pub struct VM {
     outbuf: Option<String>,
     state: State,
     references: ForwardReferences,
-    evals: Option<Vec<fn(&mut VM, token: &str) -> Result<()>>>,
+    evals: Option<Vec<fn(&mut VM, token: &str) -> Result>>,
 }
 
 impl VM {
@@ -66,10 +66,10 @@ impl Core for VM {
   fn wordlist(&self) -> &Vec<Word<Self>> { &self.wordlist }
   fn state(&mut self) -> &mut State { &mut self.state }
   fn references(&mut self) -> &mut ForwardReferences { &mut self.references }
-  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result<()>>> {
+  fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result>> {
     &mut self.evals
   }
-  fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str) -> Result<()>>) {
+  fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str) -> Result>) {
     self.evals = Some(evaluators)
   }
 }

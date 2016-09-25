@@ -1,8 +1,7 @@
 use std::mem;
 use std::fmt::Write;
-use core::Core;
+use core::{Core, Result};
 use exception::Exception::{
-    self,
     StackUnderflow,
     StackOverflow,
     FloatingPointStackUnderflow,
@@ -28,17 +27,17 @@ pub trait Output : Core {
     /// Run-time: ( x -- )
     ///
     /// Put x into output buffer.
-    fn emit(&mut self) -> Option<Exception> {
+    fn emit(&mut self) -> Result {
         match self.s_stack().pop() {
-            None => Some(StackUnderflow),
+            None => Err(StackUnderflow),
             Some(ch) => {
                 if let Some(ref mut buffer) = *self.output_buffer() {
                     buffer.push(ch as u8 as char)
                 }
                 if self.state().auto_flush {
-                    self.flush();
+                    try!(self.flush());
                 }
-                None
+                Ok(())
             }
         }
     }
@@ -46,9 +45,9 @@ pub trait Output : Core {
     /// Run-time: ( c-addr u -- )
     ///
     /// Put the character string specified by c-addr and u into output buffer.
-    fn p_type(&mut self) -> Option<Exception> {
+    fn p_type(&mut self) -> Result {
         match self.s_stack().pop2() {
-            None => Some(StackUnderflow),
+            None => Err(StackUnderflow),
             Some((addr, len)) => {
                 {
                     let mut output_buffer = self.output_buffer().take().unwrap();
@@ -59,23 +58,23 @@ pub trait Output : Core {
                     self.set_output_buffer(output_buffer);
                 }
                 if self.state().auto_flush {
-                    self.flush();
+                    try!(self.flush());
                 }
-                None
+                Ok(())
             }
         }
     }
 
     /// Runtime of S"
-    fn p_s_quote(&mut self) -> Option<Exception> {
+    fn p_s_quote(&mut self) -> Result {
         let ip = self.state().instruction_pointer;
         let cnt = self.jit_memory().get_i32(ip);
         let addr = self.state().instruction_pointer + mem::size_of::<i32>();
         match self.s_stack().push2(addr as isize, cnt as isize) {
-            Some(_) => { Some(StackOverflow) },
+            Some(_) => { Err(StackOverflow) },
             None => {
                 self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
-                None
+                Ok(())
             }
         }
     }
@@ -89,7 +88,7 @@ pub trait Output : Core {
     ///
     /// Return c-addr and u describing a string consisting of the characters ccc. A program
     /// shall not alter the returned string.
-    fn s_quote(&mut self) -> Option<Exception> {
+    fn s_quote(&mut self) -> Result {
         let input_buffer = self.input_buffer().take().unwrap();
         {
             let source = &input_buffer[self.state().source_index..input_buffer.len()];
@@ -105,7 +104,7 @@ pub trait Output : Core {
             self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;
         }
         self.set_input_buffer(input_buffer);
-        None
+        Ok(())
     }
 
     /// Compilation: ( "ccc<quote>" -- )
@@ -116,31 +115,31 @@ pub trait Output : Core {
     /// Run-time: ( -- )
     ///
     /// Display ccc.
-    fn dot_quote(&mut self) -> Option<Exception> {
-        self.s_quote();
+    fn dot_quote(&mut self) -> Result {
+        try!(self.s_quote());
         let idx_type = self.references().idx_type;
         self.compile_word(idx_type);
-        None
+        Ok(())
     }
 
     /// Execution: ( "ccc&lt;paren&gt;" -- )
     ///
     /// Parse and display ccc delimited by ) (right parenthesis). .( is an immediate word.
-    fn dot_paren(&mut self) -> Option<Exception> {
+    fn dot_paren(&mut self) -> Result {
         let last_token = self.last_token().take().unwrap();
         self.s_stack().push(')' as isize);
-        self.parse();
+        try!(self.parse());
         if let Some(ref mut buffer) = *self.output_buffer() {
             buffer.extend(last_token.chars());
         }
         self.set_last_token(last_token);
-        None
+        Ok(())
     }
 
     /// Run-time: ( n -- )
     ///
     /// Display n in free field format.
-    fn dot(&mut self) -> Option<Exception> {
+    fn dot(&mut self) -> Result {
         let base_addr = self.jit_memory().system_variables().base_addr();
         let base = self.jit_memory().get_isize(base_addr);
         let mut invalid_base = false;
@@ -155,41 +154,41 @@ pub trait Output : Core {
                         _ => { invalid_base = true; },
                     }
                     self.set_output_buffer(buf);
-                    if self.state().auto_flush { self.flush(); }
+                    if self.state().auto_flush { try!(self.flush()); }
                 }
                 if invalid_base {
-                    Some(InvalidBase)
+                    Err(InvalidBase)
                 } else {
-                    None                    
+                    Ok(())
                 }
             },
-            None => Some(StackUnderflow)
+            None => Err(StackUnderflow)
         }
     }
 
     /// Run-time: ( -- ) ( F: r -- )
     ///
     /// Display, with a trailing space, the top number on the floating-point stack using fixed-point notation.
-    fn fdot(&mut self) -> Option<Exception> {
+    fn fdot(&mut self) -> Result {
         match self.f_stack().pop() {
             Some(r) => {
               if let Some(mut buf) = self.output_buffer().take() {
                 write!(buf, "{} ", r).unwrap();
                 self.set_output_buffer(buf);
-                if self.state().auto_flush { self.flush(); }
+                if self.state().auto_flush { try!(self.flush()); }
               }
-              None
+              Ok(())
             },
-            None => Some(FloatingPointStackUnderflow)
+            None => Err(FloatingPointStackUnderflow)
         }
     }
 
-    fn flush(&mut self) -> Option<Exception> {
+    fn flush(&mut self) -> Result {
       if let Some(ref mut buffer) = *self.output_buffer() {
         print!("{}", buffer);
         buffer.clear();
       }
-      None
+      Ok(())
     }
 }
 
@@ -206,7 +205,7 @@ mod tests {
         vm.state().auto_flush = false;
         vm.add_output();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().as_slice(), []);
         assert_eq!(vm.output_buffer().clone().unwrap(), "Hi, how are you");
     }
@@ -218,10 +217,10 @@ mod tests {
         vm.state().auto_flush = false;
         vm.add_output();
         vm.set_source("42 emit 43 emit");
-        assert!(vm.evaluate().is_none());
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().as_slice(), []);
         assert_eq!(vm.output_buffer().clone().unwrap(), "*+");
-        assert!(vm.flush().is_none());
+        assert!(vm.flush().is_ok());
         assert_eq!(vm.s_stack().as_slice(), []);
         assert_eq!(vm.output_buffer().clone().unwrap(), "");
     }

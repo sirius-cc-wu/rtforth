@@ -1,6 +1,5 @@
-use core::Core;
+use core::{Core, Result};
 use exception::Exception::{
-    self,
     StackOverflow,
 };
 
@@ -14,20 +13,20 @@ pub trait Environment : Core {
     /// Run-time: ( -- n )
     ///
     /// Largest usable signed integer
-    fn max_n(&mut self) -> Option<Exception> {
+    fn max_n(&mut self) -> Result {
         match self.s_stack().push(isize::max_value()) {
-            Some(_) => Some(StackOverflow),
-            None => None
+            Some(_) => Err(StackOverflow),
+            None => Ok(())
         }
     }
 
     /// Run-time: ( -- u )
     ///
     /// Largest usable unsigned integer
-    fn max_u(&mut self) -> Option<Exception> {
+    fn max_u(&mut self) -> Result {
         match self.s_stack().push(usize::max_value() as isize) {
-            Some(_) => Some(StackOverflow),
-            None => None
+            Some(_) => Err(StackOverflow),
+            None => Ok(())
         }
     }
 

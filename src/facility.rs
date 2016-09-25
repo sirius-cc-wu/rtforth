@@ -1,7 +1,6 @@
-use core::Core;
+use core::{Core, Result};
 use std::ops::BitAnd;
 use std::ops::Shr;
-use exception::Exception;
 use exception::Exception::{
     StackOverflow
 };
@@ -35,20 +34,20 @@ pub trait Facility : Core {
     /// vm.set_source("ntime .s");
     /// vm.evaluate();
     /// ```
-    fn ntime(&mut self) -> Option<Exception> {
+    fn ntime(&mut self) -> Result {
         let t = time::precise_time_ns();
         if t > usize::max_value() as u64 {
             match self.s_stack().push2(
                 t.bitand(usize::max_value() as u64) as isize,
                 t.shr(usize::max_value().count_ones()) as isize
             ) {
-                Some(_) => Some(StackOverflow),
-                None => None
+                Some(_) => Err(StackOverflow),
+                None => Ok(())
             }
         } else {
             match self.s_stack().push2(t as isize, 0) {
-                Some(_) => Some(StackOverflow),
-                None => None
+                Some(_) => Err(StackOverflow),
+                None => Ok(())
             }
         }
     }
@@ -70,20 +69,20 @@ pub trait Facility : Core {
     /// vm.set_source("utime .s");
     /// vm.evaluate();
     /// ```
-    fn utime(&mut self) -> Option<Exception> {
+    fn utime(&mut self) -> Result {
         let t = time::precise_time_ns()/1000;
         if t > usize::max_value() as u64 {
             match self.s_stack().push2(
                 t.bitand(usize::max_value() as u64) as isize,
                 t.shr(usize::max_value().count_ones()) as isize
             ) {
-                Some(_) => Some(StackOverflow),
-                None => None
+                Some(_) => Err(StackOverflow),
+                None => Ok(())
             }
         } else {
             match self.s_stack().push2(t as isize, 0) {
-                Some(_) => Some(StackOverflow),
-                None => None
+                Some(_) => Err(StackOverflow),
+                None => Ok(())
             }
         }
     }

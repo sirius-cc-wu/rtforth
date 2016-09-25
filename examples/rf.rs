@@ -48,8 +48,8 @@ fn main() {
     } else if !matches.free.is_empty() {
         for file in matches.free {
             match vm.load(&file) {
-                None => {},
-                Some(e) => {
+                Ok(()) => {},
+                Err(e) => {
                     match e {
                         Bye => {},
                         _ => {
@@ -84,7 +84,7 @@ fn repl(vm: &mut VM) {
         rl.add_history_entry(&line);
         vm.set_source(&line);
         match vm.evaluate() {
-            Some(e) => {
+            Err(e) => {
                 match e {
                     Bye => break,
                     _ => {
@@ -94,7 +94,7 @@ fn repl(vm: &mut VM) {
                     }
                 }
             },
-            None => println!(" ok")
+            Ok(()) => println!(" ok")
         }
     }
     println!("");

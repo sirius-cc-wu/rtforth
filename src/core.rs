@@ -928,14 +928,11 @@ pub trait Core : Sized {
   }
 
   fn colon(&mut self) -> Result {
-      match self.define(Core::nest) {
-          Err(e) => Err(e),
-          Ok(()) => {
-              let def = self.state().last_definition;
-              self.wordlist_mut()[def].set_hidden(true);
-              self.compile()
-          }
-      }
+      self.define(Core::nest).and_then(|_| {
+          let def = self.state().last_definition;
+          self.wordlist_mut()[def].set_hidden(true);
+          self.compile()
+      })
   }
 
   fn semicolon(&mut self) -> Result{
@@ -953,25 +950,19 @@ pub trait Core : Sized {
   }
 
   fn variable(&mut self) -> Result {
-      match self.define(Core::p_var) {
-          Err(e) => Err(e),
-          Ok(()) => {
-              self.jit_memory().compile_i32(0);
-              Ok(())
-          }
-      }
+      self.define(Core::p_var).and_then(|_| {
+          self.jit_memory().compile_i32(0);
+          Ok(())
+      })
   }
 
   fn constant(&mut self) -> Result {
       match self.s_stack().pop() {
           Some(v) => {
-              match self.define(Core::p_const) {
-                  Err(e) => Err(e),
-                  Ok(()) => {
-                      self.jit_memory().compile_i32(v as i32);
-                      Ok(())
-                  }
-              }
+              self.define(Core::p_const).and_then(|_| {
+                  self.jit_memory().compile_i32(v as i32);
+                  Ok(())
+              })
           },
           None => Err(StackUnderflow)
       }

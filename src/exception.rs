@@ -1,4 +1,4 @@
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Exception {
     /// = -1, ANS Forth
     Abort = -1,
@@ -125,7 +125,7 @@ pub enum Exception {
     Pause = -9998,
     /// request to leave the application. rtForth
     Bye = -9999,
-} 
+}
 
 impl Exception {
     /// Description of the exception
@@ -196,4 +196,3 @@ impl Exception {
         }
     }
 }
-

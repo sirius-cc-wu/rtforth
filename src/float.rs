@@ -106,12 +106,12 @@ pub trait Float : Core {
 
     fn fconstant(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(v) => {
+            Ok(v) => {
                 try!(self.define(Float::p_fconst));
                 self.jit_memory().compile_f64(v);
                 Ok(())
             },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
@@ -119,286 +119,286 @@ pub trait Float : Core {
 
     fn ffetch(&mut self) -> Result {
         match self.s_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 let value = self.jit_memory().get_f64(t as usize);
                 match self.f_stack().push(value) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 }
             },
-            None => Err(StackUnderflow)
+            Err(_) => Err(StackUnderflow)
         }
     }
 
     fn fstore(&mut self) -> Result {
         match self.s_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().pop() {
-                    Some(n) => {
+                    Ok(n) => {
                         self.jit_memory().put_f64(n, t as usize);
                         Ok(())
                     },
-                    None => Err(StackUnderflow)
+                    Err(_) => Err(StackUnderflow)
                 },
-            None => Err(StackUnderflow)
+            Err(_) => Err(StackUnderflow)
         }
     }
 
     fn fabs(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().push(t.abs()) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fsin(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().push(t.sin()) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fcos(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().push(t.cos()) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn ftan(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().push(t.tan()) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fasin(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().push(t.asin()) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn facos(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().push(t.acos()) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fatan(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().push(t.atan()) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fatan2(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 match self.f_stack().pop() {
-                    Some(n) =>
+                    Ok(n) =>
                         match self.f_stack().push(n.atan2(t)) {
                             Some(_) => Err(FloatingPointStackOverflow),
                             None => Ok(())
                         },
-                    None => Err(FloatingPointStackUnderflow)
+                    Err(_) => Err(FloatingPointStackUnderflow)
                 }
             },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fsqrt(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().push(t.sqrt()) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fswap(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().pop() {
-                    Some(n) =>
+                    Ok(n) =>
                         match self.f_stack().push2(t, n) {
                             Some(_) => Err(FloatingPointStackOverflow),
                             None => Ok(())
                         },
-                    None => Err(FloatingPointStackUnderflow)
+                    Err(_) => Err(FloatingPointStackUnderflow)
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fnip(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().pop() {
-                    Some(_) =>
+                    Ok(_) =>
                         match self.f_stack().push(t) {
                             Some(_) => Err(FloatingPointStackOverflow),
                             None => Ok(())
                         },
-                    None => Err(FloatingPointStackUnderflow)
+                    Err(_) => Err(FloatingPointStackUnderflow)
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fdup(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 match self.f_stack().push2(t, t) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 }
             },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fdrop(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(_) => Ok(()),
-            None => Err(FloatingPointStackUnderflow)
+            Ok(_) => Ok(()),
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn frot(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(x3) =>
+            Ok(x3) =>
                 match self.f_stack().pop() {
-                    Some(x2) =>
+                    Ok(x2) =>
                         match self.f_stack().pop() {
-                            Some(x1) =>
+                            Ok(x1) =>
                                 match self.f_stack().push3(x2, x3, x1) {
                                     Some(_) => Err(FloatingPointStackOverflow),
                                     None => Ok(())
                                 },
-                            None => Err(FloatingPointStackUnderflow)
+                            Err(_) => Err(FloatingPointStackUnderflow)
                         },
-                    None => Err(FloatingPointStackUnderflow)
+                    Err(_) => Err(FloatingPointStackUnderflow)
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fover(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().pop() {
-                    Some(n) =>
+                    Ok(n) =>
                         match self.f_stack().push3(n, t, n) {
                             Some(_) => Err(FloatingPointStackOverflow),
                             None => Ok(())
                         },
-                    None => Err(FloatingPointStackUnderflow)
+                    Err(_) => Err(FloatingPointStackUnderflow)
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn n_to_f(&mut self) -> Result {
         match self.s_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().push(t as f64) {
                     Some(_) => Err(FloatingPointStackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fplus(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().pop() {
-                    Some(n) =>
+                    Ok(n) =>
                         match self.f_stack().push(n+t) {
                             Some(_) => Err(FloatingPointStackOverflow),
                             None => Ok(())
                         },
-                    None => Err(FloatingPointStackUnderflow)
+                    Err(_) => Err(FloatingPointStackUnderflow)
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fminus(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().pop() {
-                    Some(n) =>
+                    Ok(n) =>
                         match self.f_stack().push(n-t) {
                             Some(_) => Err(FloatingPointStackOverflow),
                             None => Ok(())
                         },
-                    None => Err(FloatingPointStackUnderflow)
+                    Err(_) => Err(FloatingPointStackUnderflow)
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fstar(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().pop() {
-                    Some(n) =>
+                    Ok(n) =>
                         match self.f_stack().push(n*t) {
                             Some(_) => Err(FloatingPointStackOverflow),
                             None => Ok(())
                         },
-                    None => Err(FloatingPointStackUnderflow)
+                    Err(_) => Err(FloatingPointStackUnderflow)
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn fslash(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().pop() {
-                    Some(n) =>
+                    Ok(n) =>
                         match self.f_stack().push(n/t) {
                             Some(_) => Err(FloatingPointStackOverflow),
                             None => Ok(())
                         },
-                    None => Err(FloatingPointStackUnderflow)
+                    Err(_) => Err(FloatingPointStackUnderflow)
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
@@ -420,38 +420,38 @@ pub trait Float : Core {
 
     fn f_zero_less_than(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.s_stack().push(if t<0.0 { TRUE } else { FALSE }) {
                     Some(_) => Err(StackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn f_zero_equals(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.s_stack().push(if t==0.0 { TRUE } else { FALSE }) {
                     Some(_) => Err(StackOverflow),
                     None => Ok(())
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
     fn f_less_than(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(t) =>
+            Ok(t) =>
                 match self.f_stack().pop() {
-                    Some(n) =>
+                    Ok(n) =>
                         match self.s_stack().push(if n<t { TRUE } else { FALSE }) {
                             Some(_) => Err(StackOverflow),
                             None => Ok(())
                         },
-                    None => Err(FloatingPointStackUnderflow)
+                    Err(_) => Err(FloatingPointStackUnderflow)
                 },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
@@ -506,10 +506,10 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 t > 3.13999 && t < 3.14001
             },
-            None => false
+            Err(_) => false
         });
     }
 
@@ -522,10 +522,10 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 t > 0.0015925 && t < 0.0015927
             },
-            None => false
+            Err(_) => false
         });
     }
 
@@ -538,10 +538,10 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 t > -0.989993 && t < -0.989991
             },
-            None => false
+            Err(_) => false
         });
     }
 
@@ -554,10 +554,10 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 t > -0.142547 && t < -0.142545
             },
-            None => false
+            Err(_) => false
         });
     }
 
@@ -570,10 +570,10 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 t > 0.304691 && t < 0.304693
             },
-            None => false
+            Err(_) => false
         });
     }
 
@@ -586,10 +586,10 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 t > 1.266102 && t < 1.266104
             },
-            None => false
+            Err(_) => false
         });
     }
 
@@ -602,10 +602,10 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 t > 0.291455 && t < 0.291457
             },
-            None => false
+            Err(_) => false
         });
     }
 
@@ -618,10 +618,10 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 t > 0.643500  && t < 0.643502
             },
-            None => false
+            Err(_) => false
         });
     }
 
@@ -634,10 +634,10 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 t > 0.547721 && t < 0.547723
             },
-            None => false
+            Err(_) => false
         });
     }
 
@@ -728,10 +728,10 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Some(t) => {
+            Ok(t) => {
                 t > 7.384614 && t < 7.384616
             },
-            None => false
+            Err(_) => false
         });
     }
 
@@ -743,9 +743,9 @@ mod tests {
         vm.set_source("0.0 f0<   0.1 f0<   -0.1 f0<");
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Some(-1));
-        assert_eq!(vm.s_stack().pop(), Some(0));
-        assert_eq!(vm.s_stack().pop(), Some(0));
+        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), Ok(0));
         assert_eq!(vm.f_stack().as_slice(), []);
     }
 
@@ -757,9 +757,9 @@ mod tests {
         vm.set_source("0.0 f0=   0.1 f0=   -0.1 f0=");
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Some(0));
-        assert_eq!(vm.s_stack().pop(), Some(0));
-        assert_eq!(vm.s_stack().pop(), Some(-1));
+        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.f_stack().as_slice(), []);
     }
 
@@ -771,9 +771,9 @@ mod tests {
         vm.set_source("0.0 0.0 f<   0.1 0.0 f<   -0.1 0.0 f<");
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Some(-1));
-        assert_eq!(vm.s_stack().pop(), Some(0));
-        assert_eq!(vm.s_stack().pop(), Some(0));
+        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), Ok(0));
         assert_eq!(vm.f_stack().as_slice(), []);
     }
 
@@ -785,24 +785,24 @@ mod tests {
         vm.set_source("0.1 0.1 0.0 f~   0.1 0.10000000001 0.0 f~");
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 2);
-        assert_eq!(vm.s_stack().pop(), Some(0));
-        assert_eq!(vm.s_stack().pop(), Some(-1));
+        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.f_stack().as_slice(), []);
         vm.s_stack().clear();
         vm.set_source("0.1 0.1 0.001 f~   0.1 0.109 0.01 f~   0.1 0.111  0.01 f~");
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Some(0));
-        assert_eq!(vm.s_stack().pop(), Some(-1));
-        assert_eq!(vm.s_stack().pop(), Some(-1));
+        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.f_stack().as_slice(), []);
         vm.s_stack().clear();
         vm.set_source("0.1 0.1 -0.001 f~   0.1 0.109 -0.1 f~   0.1 0.109  -0.01 f~");
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Some(0));
-        assert_eq!(vm.s_stack().pop(), Some(-1));
-        assert_eq!(vm.s_stack().pop(), Some(-1));
+        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.f_stack().as_slice(), []);
         vm.s_stack().clear();
     }

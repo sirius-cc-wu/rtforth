@@ -46,8 +46,8 @@ mod tests {
         vm.set_source("max-n dup 1+ +");
         vm.evaluate();
         match vm.s_stack().pop() {
-            Some(t) => assert_eq!(t, -1),
-            None => assert!(false)
+            Ok(t) => assert_eq!(t, -1),
+            Err(_) => assert!(false)
         }
     }
     #[test]
@@ -59,8 +59,8 @@ mod tests {
         vm.set_source("max-u 1+");
         vm.evaluate();
         match vm.s_stack().pop() {
-            Some(t) => assert_eq!(t, 0),
-            None => assert!(false)
+            Ok(t) => assert_eq!(t, 0),
+            Err(_) => assert!(false)
         }
     }
 }

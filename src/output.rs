@@ -29,8 +29,8 @@ pub trait Output : Core {
     /// Put x into output buffer.
     fn emit(&mut self) -> Result {
         match self.s_stack().pop() {
-            None => Err(StackUnderflow),
-            Some(ch) => {
+            Err(_) => Err(StackUnderflow),
+            Ok(ch) => {
                 if let Some(ref mut buffer) = *self.output_buffer() {
                     buffer.push(ch as u8 as char)
                 }
@@ -144,7 +144,7 @@ pub trait Output : Core {
         let base = self.jit_memory().get_isize(base_addr);
         let mut invalid_base = false;
         match self.s_stack().pop() {
-            Some(n) => {
+            Ok(n) => {
                 if let Some(mut buf) = self.output_buffer().take() {
                     match base {
                         2 => { write!(buf, "{:b}", n).unwrap(); },
@@ -162,7 +162,7 @@ pub trait Output : Core {
                     Ok(())
                 }
             },
-            None => Err(StackUnderflow)
+            Err(_) => Err(StackUnderflow)
         }
     }
 
@@ -171,7 +171,7 @@ pub trait Output : Core {
     /// Display, with a trailing space, the top number on the floating-point stack using fixed-point notation.
     fn fdot(&mut self) -> Result {
         match self.f_stack().pop() {
-            Some(r) => {
+            Ok(r) => {
               if let Some(mut buf) = self.output_buffer().take() {
                 write!(buf, "{} ", r).unwrap();
                 self.set_output_buffer(buf);
@@ -179,7 +179,7 @@ pub trait Output : Core {
               }
               Ok(())
             },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 

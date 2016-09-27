@@ -837,10 +837,10 @@ pub trait Core : Sized {
           Ok(t) => {
               if self.state().is_compiling {
                   self.compile_integer(t);
+                  Ok(())
               } else {
-                  self.s_stack().push (t);
+                  self.s_stack().push (t)
               }
-              Ok(())
           },
           Err(_) => Err(UnsupportedOperation)
       }
@@ -2093,20 +2093,20 @@ pub trait Core : Sized {
 
   /// Reset VM, do not clear data stack and floating point stack.
   /// Called by VM's client upon Quit.
-  fn reset(&mut self) -> Result {
+  fn reset(&mut self) {
       self.r_stack().len = 0;
       if let Some(ref mut buf) = *self.input_buffer() {
           buf.clear()
       }
       self.state().source_index = 0;
       self.state().instruction_pointer = 0;
-      self.interpret()
+      self.interpret();
   }
 
   /// Abort the inner loop with an exception, reset VM and clears stacks.
   fn abort(&mut self) -> Result {
       self.clear_stacks();
-      try!(self.reset());
+      self.reset();
       Err(Abort)
   }
 
@@ -2117,7 +2117,7 @@ pub trait Core : Sized {
 
   /// Quit the inner loop and reset VM, without clearing stacks .
   fn quit(&mut self) -> Result {
-      try!(self.reset());
+      self.reset();
       Err(Quit)
   }
 

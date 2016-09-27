@@ -15,8 +15,8 @@ pub trait Environment : Core {
     /// Largest usable signed integer
     fn max_n(&mut self) -> Result {
         match self.s_stack().push(isize::max_value()) {
-            Some(_) => Err(StackOverflow),
-            None => Ok(())
+            Err(_) => Err(StackOverflow),
+            Ok(()) => Ok(())
         }
     }
 
@@ -25,8 +25,8 @@ pub trait Environment : Core {
     /// Largest usable unsigned integer
     fn max_u(&mut self) -> Result {
         match self.s_stack().push(usize::max_value() as isize) {
-            Some(_) => Err(StackOverflow),
-            None => Ok(())
+            Err(_) => Err(StackOverflow),
+            Ok(()) => Ok(())
         }
     }
 

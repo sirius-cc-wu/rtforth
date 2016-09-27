@@ -80,8 +80,8 @@ pub trait Float : Core {
         let ip = self.state().instruction_pointer as usize;
         let v = self.jit_memory().get_f64(ip);
         match self.f_stack().push (v) {
-            Some(_) => Err(FloatingPointStackOverflow),
-            None => {
+            Err(_) => Err(FloatingPointStackOverflow),
+            Ok(()) => {
                 self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<f64>();
                 Ok(())
             }
@@ -93,8 +93,8 @@ pub trait Float : Core {
         let dfa = self.wordlist()[wp].dfa();
         let v = self.jit_memory().get_f64(dfa);
         match self.f_stack().push(v) {
-            Some(_) => Err(FloatingPointStackOverflow),
-            None => Ok(())
+            Err(_) => Err(FloatingPointStackOverflow),
+            Ok(()) => Ok(())
         }
     }
 
@@ -122,8 +122,8 @@ pub trait Float : Core {
             Ok(t) => {
                 let value = self.jit_memory().get_f64(t as usize);
                 match self.f_stack().push(value) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 }
             },
             Err(_) => Err(StackUnderflow)
@@ -148,8 +148,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) =>
                 match self.f_stack().push(t.abs()) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -159,8 +159,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) =>
                 match self.f_stack().push(t.sin()) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -170,8 +170,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) =>
                 match self.f_stack().push(t.cos()) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -181,8 +181,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) =>
                 match self.f_stack().push(t.tan()) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -192,8 +192,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) =>
                 match self.f_stack().push(t.asin()) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -203,8 +203,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) =>
                 match self.f_stack().push(t.acos()) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -214,8 +214,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) =>
                 match self.f_stack().push(t.atan()) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -227,8 +227,8 @@ pub trait Float : Core {
                 match self.f_stack().pop() {
                     Ok(n) =>
                         match self.f_stack().push(n.atan2(t)) {
-                            Some(_) => Err(FloatingPointStackOverflow),
-                            None => Ok(())
+                            Err(_) => Err(FloatingPointStackOverflow),
+                            Ok(()) => Ok(())
                         },
                     Err(_) => Err(FloatingPointStackUnderflow)
                 }
@@ -241,8 +241,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) =>
                 match self.f_stack().push(t.sqrt()) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -254,8 +254,8 @@ pub trait Float : Core {
                 match self.f_stack().pop() {
                     Ok(n) =>
                         match self.f_stack().push2(t, n) {
-                            Some(_) => Err(FloatingPointStackOverflow),
-                            None => Ok(())
+                            Err(_) => Err(FloatingPointStackOverflow),
+                            Ok(()) => Ok(())
                         },
                     Err(_) => Err(FloatingPointStackUnderflow)
                 },
@@ -269,8 +269,8 @@ pub trait Float : Core {
                 match self.f_stack().pop() {
                     Ok(_) =>
                         match self.f_stack().push(t) {
-                            Some(_) => Err(FloatingPointStackOverflow),
-                            None => Ok(())
+                            Err(_) => Err(FloatingPointStackOverflow),
+                            Ok(()) => Ok(())
                         },
                     Err(_) => Err(FloatingPointStackUnderflow)
                 },
@@ -282,8 +282,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push2(t, t) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 }
             },
             Err(_) => Err(FloatingPointStackUnderflow)
@@ -305,8 +305,8 @@ pub trait Float : Core {
                         match self.f_stack().pop() {
                             Ok(x1) =>
                                 match self.f_stack().push3(x2, x3, x1) {
-                                    Some(_) => Err(FloatingPointStackOverflow),
-                                    None => Ok(())
+                                    Err(_) => Err(FloatingPointStackOverflow),
+                                    Ok(()) => Ok(())
                                 },
                             Err(_) => Err(FloatingPointStackUnderflow)
                         },
@@ -322,8 +322,8 @@ pub trait Float : Core {
                 match self.f_stack().pop() {
                     Ok(n) =>
                         match self.f_stack().push3(n, t, n) {
-                            Some(_) => Err(FloatingPointStackOverflow),
-                            None => Ok(())
+                            Err(_) => Err(FloatingPointStackOverflow),
+                            Ok(()) => Ok(())
                         },
                     Err(_) => Err(FloatingPointStackUnderflow)
                 },
@@ -335,8 +335,8 @@ pub trait Float : Core {
         match self.s_stack().pop() {
             Ok(t) =>
                 match self.f_stack().push(t as f64) {
-                    Some(_) => Err(FloatingPointStackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(FloatingPointStackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -348,8 +348,8 @@ pub trait Float : Core {
                 match self.f_stack().pop() {
                     Ok(n) =>
                         match self.f_stack().push(n+t) {
-                            Some(_) => Err(FloatingPointStackOverflow),
-                            None => Ok(())
+                            Err(_) => Err(FloatingPointStackOverflow),
+                            Ok(()) => Ok(())
                         },
                     Err(_) => Err(FloatingPointStackUnderflow)
                 },
@@ -363,8 +363,8 @@ pub trait Float : Core {
                 match self.f_stack().pop() {
                     Ok(n) =>
                         match self.f_stack().push(n-t) {
-                            Some(_) => Err(FloatingPointStackOverflow),
-                            None => Ok(())
+                            Err(_) => Err(FloatingPointStackOverflow),
+                            Ok(()) => Ok(())
                         },
                     Err(_) => Err(FloatingPointStackUnderflow)
                 },
@@ -378,8 +378,8 @@ pub trait Float : Core {
                 match self.f_stack().pop() {
                     Ok(n) =>
                         match self.f_stack().push(n*t) {
-                            Some(_) => Err(FloatingPointStackOverflow),
-                            None => Ok(())
+                            Err(_) => Err(FloatingPointStackOverflow),
+                            Ok(()) => Ok(())
                         },
                     Err(_) => Err(FloatingPointStackUnderflow)
                 },
@@ -393,8 +393,8 @@ pub trait Float : Core {
                 match self.f_stack().pop() {
                     Ok(n) =>
                         match self.f_stack().push(n/t) {
-                            Some(_) => Err(FloatingPointStackOverflow),
-                            None => Ok(())
+                            Err(_) => Err(FloatingPointStackOverflow),
+                            Ok(()) => Ok(())
                         },
                     Err(_) => Err(FloatingPointStackUnderflow)
                 },
@@ -404,7 +404,7 @@ pub trait Float : Core {
 
     fn fproximate(&mut self) -> Result {
         match self.f_stack().pop3() {
-            Some((x1, x2, x3)) => {
+            Ok((x1, x2, x3)) => {
                 if x3 > 0.0 {
                     self.s_stack().push(if (x1-x2).abs() < x3 { TRUE } else { FALSE });
                 } else if x3 == 0.0 {
@@ -414,7 +414,7 @@ pub trait Float : Core {
                 }
                 Ok(())
             },
-            None => Err(FloatingPointStackUnderflow)
+            Err(_) => Err(FloatingPointStackUnderflow)
         }
     }
 
@@ -422,8 +422,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) =>
                 match self.s_stack().push(if t<0.0 { TRUE } else { FALSE }) {
-                    Some(_) => Err(StackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(StackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -433,8 +433,8 @@ pub trait Float : Core {
         match self.f_stack().pop() {
             Ok(t) =>
                 match self.s_stack().push(if t==0.0 { TRUE } else { FALSE }) {
-                    Some(_) => Err(StackOverflow),
-                    None => Ok(())
+                    Err(_) => Err(StackOverflow),
+                    Ok(()) => Ok(())
                 },
             Err(_) => Err(FloatingPointStackUnderflow)
         }
@@ -446,8 +446,8 @@ pub trait Float : Core {
                 match self.f_stack().pop() {
                     Ok(n) =>
                         match self.s_stack().push(if n<t { TRUE } else { FALSE }) {
-                            Some(_) => Err(StackOverflow),
-                            None => Ok(())
+                            Err(_) => Err(StackOverflow),
+                            Ok(()) => Ok(())
                         },
                     Err(_) => Err(FloatingPointStackUnderflow)
                 },
@@ -647,8 +647,8 @@ mod tests {
         vm.add_core();
         vm.add_float();
         match vm.f_stack().push(1.0) {
-            Some(_) => assert!(true, "Floating point stack overflow"),
-            None => {}
+            Err(_) => assert!(true, "Floating point stack overflow"),
+            Ok(()) => {}
         }
         assert!(vm.fdrop().is_ok());
         assert_eq!(vm.f_stack().as_slice(), []);
@@ -660,8 +660,8 @@ mod tests {
         vm.add_core();
         vm.add_float();
         match vm.f_stack().push2(1.0, 2.0) {
-            Some(_) => assert!(true, "Floating point stack overflow"),
-            None => {}
+            Err(_) => assert!(true, "Floating point stack overflow"),
+            Ok(()) => {}
         };
         assert!(vm.fnip().is_ok());
         assert_eq!(vm.f_stack().as_slice(), [2.0]);
@@ -673,8 +673,8 @@ mod tests {
         vm.add_core();
         vm.add_float();
         match vm.f_stack().push2(1.0, 2.0) {
-            Some(_) => assert!(true, "Floating point stack overflow"),
-            None => {}
+            Err(_) => assert!(true, "Floating point stack overflow"),
+            Ok(()) => {}
         };
         assert!(vm.fswap().is_ok());
         assert_eq!(vm.f_stack().as_slice(), [2.0,1.0]);
@@ -686,8 +686,8 @@ mod tests {
         vm.add_core();
         vm.add_float();
         match vm.f_stack().push(1.0) {
-            Some(_) => assert!(true, "Floating point stack overflow"),
-            None => {}
+            Err(_) => assert!(true, "Floating point stack overflow"),
+            Ok(()) => {}
         };
         assert!(vm.fdup().is_ok());
         assert_eq!(vm.f_stack().as_slice(), [1.0, 1.0]);
@@ -699,8 +699,8 @@ mod tests {
         vm.add_core();
         vm.add_float();
         match vm.f_stack().push2(1.0, 2.0) {
-            Some(_) => assert!(true, "Floating point stack overflow"),
-            None => {}
+            Err(_) => assert!(true, "Floating point stack overflow"),
+            Ok(()) => {}
         };
         assert!(vm.fover().is_ok());
         assert_eq!(vm.f_stack().as_slice(), [1.0,2.0,1.0]);
@@ -712,8 +712,8 @@ mod tests {
         vm.add_core();
         vm.add_float();
         match vm.f_stack().push3(1.0, 2.0, 3.0) {
-            Some(_) => assert!(true, "Floating point stack overflow"),
-            None => {}
+            Err(_) => assert!(true, "Floating point stack overflow"),
+            Ok(()) => {}
         };
         assert!(vm.frot().is_ok());
         assert_eq!(vm.f_stack().as_slice(), [2.0, 3.0, 1.0]);

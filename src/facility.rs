@@ -41,13 +41,13 @@ pub trait Facility : Core {
                 t.bitand(usize::max_value() as u64) as isize,
                 t.shr(usize::max_value().count_ones()) as isize
             ) {
-                Some(_) => Err(StackOverflow),
-                None => Ok(())
+                Err(_) => Err(StackOverflow),
+                Ok(()) => Ok(())
             }
         } else {
             match self.s_stack().push2(t as isize, 0) {
-                Some(_) => Err(StackOverflow),
-                None => Ok(())
+                Err(_) => Err(StackOverflow),
+                Ok(()) => Ok(())
             }
         }
     }
@@ -76,13 +76,13 @@ pub trait Facility : Core {
                 t.bitand(usize::max_value() as u64) as isize,
                 t.shr(usize::max_value().count_ones()) as isize
             ) {
-                Some(_) => Err(StackOverflow),
-                None => Ok(())
+                Err(_) => Err(StackOverflow),
+                Ok(()) => Ok(())
             }
         } else {
             match self.s_stack().push2(t as isize, 0) {
-                Some(_) => Err(StackOverflow),
-                None => Ok(())
+                Err(_) => Err(StackOverflow),
+                Ok(()) => Ok(())
             }
         }
     }

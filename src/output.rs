@@ -47,8 +47,8 @@ pub trait Output : Core {
     /// Put the character string specified by c-addr and u into output buffer.
     fn p_type(&mut self) -> Result {
         match self.s_stack().pop2() {
-            None => Err(StackUnderflow),
-            Some((addr, len)) => {
+            Err(_) => Err(StackUnderflow),
+            Ok((addr, len)) => {
                 {
                     let mut output_buffer = self.output_buffer().take().unwrap();
                     {
@@ -71,8 +71,8 @@ pub trait Output : Core {
         let cnt = self.jit_memory().get_i32(ip);
         let addr = self.state().instruction_pointer + mem::size_of::<i32>();
         match self.s_stack().push2(addr as isize, cnt as isize) {
-            Some(_) => { Err(StackOverflow) },
-            None => {
+            Err(_) => { Err(StackOverflow) },
+            Ok(()) => {
                 self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
                 Ok(())
             }

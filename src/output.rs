@@ -34,9 +34,6 @@ pub trait Output : Core {
                 if let Some(ref mut buffer) = *self.output_buffer() {
                     buffer.push(ch as u8 as char)
                 }
-                if self.state().auto_flush {
-                    try!(self.flush());
-                }
                 Ok(())
             }
         }
@@ -56,9 +53,6 @@ pub trait Output : Core {
                         output_buffer.push_str(s);
                     }
                     self.set_output_buffer(output_buffer);
-                }
-                if self.state().auto_flush {
-                    try!(self.flush());
                 }
                 Ok(())
             }
@@ -127,7 +121,7 @@ pub trait Output : Core {
     /// Parse and display ccc delimited by ) (right parenthesis). .( is an immediate word.
     fn dot_paren(&mut self) -> Result {
         let last_token = self.last_token().take().unwrap();
-        self.s_stack().push(')' as isize);
+        try!(self.s_stack().push(')' as isize));
         try!(self.parse());
         if let Some(ref mut buffer) = *self.output_buffer() {
             buffer.extend(last_token.chars());
@@ -154,7 +148,6 @@ pub trait Output : Core {
                         _ => { invalid_base = true; },
                     }
                     self.set_output_buffer(buf);
-                    if self.state().auto_flush { try!(self.flush()); }
                 }
                 if invalid_base {
                     Err(InvalidBase)
@@ -175,7 +168,6 @@ pub trait Output : Core {
               if let Some(mut buf) = self.output_buffer().take() {
                 write!(buf, "{} ", r).unwrap();
                 self.set_output_buffer(buf);
-                if self.state().auto_flush { try!(self.flush()); }
               }
               Ok(())
             },
@@ -183,13 +175,6 @@ pub trait Output : Core {
         }
     }
 
-    fn flush(&mut self) -> Result {
-      if let Some(ref mut buffer) = *self.output_buffer() {
-        print!("{}", buffer);
-        buffer.clear();
-      }
-      Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -202,7 +187,6 @@ mod tests {
     fn test_s_quote_and_type () {
         let vm = &mut VM::new(16);
         vm.add_core();
-        vm.state().auto_flush = false;
         vm.add_output();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
         assert!(vm.evaluate().is_ok());
@@ -211,18 +195,14 @@ mod tests {
     }
 
     #[test]
-    fn test_emit_and_flush () {
+    fn test_emit () {
         let vm = &mut VM::new(16);
         vm.add_core();
-        vm.state().auto_flush = false;
         vm.add_output();
         vm.set_source("42 emit 43 emit");
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().as_slice(), []);
         assert_eq!(vm.output_buffer().clone().unwrap(), "*+");
-        assert!(vm.flush().is_ok());
-        assert_eq!(vm.s_stack().as_slice(), []);
-        assert_eq!(vm.output_buffer().clone().unwrap(), "");
     }
 
 }

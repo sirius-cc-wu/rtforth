@@ -78,9 +78,8 @@ fn print_version() {
 }
 
 fn repl(vm: &mut VM) {
-    let mut rl = rustyline::Editor::new();
-    rl.set_response(" ");
-    while let Ok(line) = rl.readline("") {
+    let mut rl = rustyline::Editor::<()>::new();
+    while let Ok(line) = rl.readline("rf> ") {
         rl.add_history_entry(&line);
         vm.set_source(&line);
         match vm.evaluate() {
@@ -94,10 +93,19 @@ fn repl(vm: &mut VM) {
                     }
                 }
             },
-            Ok(()) => println!(" ok")
+            Ok(()) => {
+                match *vm.output_buffer() {
+                    Some(ref mut buf) => {
+                        if buf.len() > 0 {
+                            println!("{}", buf);
+                            buf.clear();
+                        }
+                    },
+                    None => {}
+                }
+            }
         }
     }
-    println!("");
 }
 
 #[cfg(not(test))]

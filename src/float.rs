@@ -64,10 +64,10 @@ pub trait Float : Core {
                 } else {
                     if self.state().is_compiling {
                         self.compile_float(t);
+                        Ok(())
                     } else {
-                        self.f_stack().push (t);
+                        self.f_stack().push (t).or(Err(FloatingPointStackOverflow))
                     }
-                    Ok(())
                 }
             },
             Err(_) => {
@@ -406,13 +406,12 @@ pub trait Float : Core {
         match self.f_stack().pop3() {
             Ok((x1, x2, x3)) => {
                 if x3 > 0.0 {
-                    self.s_stack().push(if (x1-x2).abs() < x3 { TRUE } else { FALSE });
+                    self.s_stack().push(if (x1-x2).abs() < x3 { TRUE } else { FALSE })
                 } else if x3 == 0.0 {
-                    self.s_stack().push(if x1==x2 { TRUE } else { FALSE });
+                    self.s_stack().push(if x1==x2 { TRUE } else { FALSE })
                 } else {
-                    self.s_stack().push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) { TRUE } else { FALSE });
+                    self.s_stack().push(if (x1-x2).abs() < (x3.abs()*(x1.abs() + x2.abs())) { TRUE } else { FALSE })
                 }
-                Ok(())
             },
             Err(_) => Err(FloatingPointStackUnderflow)
         }

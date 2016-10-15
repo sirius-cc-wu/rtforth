@@ -296,7 +296,6 @@ pub struct State {
     pub instruction_pointer: usize,
     word_pointer: usize,
     pub source_index: usize,
-    pub auto_flush: bool,
     // Last definition, 0 if last define fails.
     pub last_definition: usize,
 }
@@ -308,7 +307,6 @@ impl State {
         instruction_pointer: 0,
         word_pointer: 0,
         source_index: 0,
-        auto_flush: true,
         last_definition: 0,
       }
     }
@@ -1043,7 +1041,7 @@ pub trait Core : Sized {
       match self.r_stack().pop2() {
           Ok((rn, rt)) => {
               if rt+1 < rn {
-                  self.r_stack().push2(rn, rt+1);
+                  try!(self.r_stack().push2(rn, rt+1));
                   self.branch()
               } else {
                   match self.r_stack().pop() {
@@ -1073,7 +1071,7 @@ pub trait Core : Sized {
               match self.s_stack().pop() {
                   Ok(t) => {
                       if rt+t < rn {
-                          self.r_stack().push2(rn, rt+t);
+                          try!(self.r_stack().push2(rn, rt+t));
                           self.branch()
                       } else {
                           match self.r_stack().pop() {
@@ -2010,9 +2008,8 @@ pub trait Core : Sized {
           self.r_stack().len -= 1;
           unsafe {
               let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-              self.s_stack().push(ptr::read(r0));
+              self.s_stack().push(ptr::read(r0))
           }
-          Ok(())
       }
   }
 
@@ -2022,9 +2019,8 @@ pub trait Core : Sized {
       } else {
           unsafe {
               let r1 = self.r_stack().inner.offset((self.r_stack().len-1) as isize);
-              self.s_stack().push(ptr::read(r1));
+              self.s_stack().push(ptr::read(r1))
           }
-          Ok(())
       }
   }
 
@@ -2052,11 +2048,10 @@ pub trait Core : Sized {
           self.r_stack().len -= 2;
           unsafe {
               let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-              self.s_stack().push(ptr::read(r0));
+              try!(self.s_stack().push(ptr::read(r0)));
               let r1 = self.r_stack().inner.offset((self.r_stack().len+1) as isize);
-              self.s_stack().push(ptr::read(r1));
+              self.s_stack().push(ptr::read(r1))
           }
-          Ok(())
       }
   }
 
@@ -2066,11 +2061,10 @@ pub trait Core : Sized {
       } else {
           unsafe {
               let r2 = self.r_stack().inner.offset((self.r_stack().len-2) as isize);
-              self.s_stack().push(ptr::read(r2));
+              try!(self.s_stack().push(ptr::read(r2)));
               let r1 = self.r_stack().inner.offset((self.r_stack().len-1) as isize);
-              self.s_stack().push(ptr::read(r1));
+              self.s_stack().push(ptr::read(r1))
           }
-          Ok(())
       }
   }
 

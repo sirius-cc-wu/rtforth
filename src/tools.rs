@@ -20,9 +20,6 @@ pub trait Tools : Output {
 //            write!(buf, "{} ", s).unwrap();
 //        }
         self.set_output_buffer(buf);
-        if self.state().auto_flush {
-          try!(self.flush());
-        }
         Ok(())
     }
 
@@ -40,9 +37,6 @@ pub trait Tools : Output {
             }
         }
         self.set_output_buffer(buf);
-        if self.state().auto_flush {
-          try!(self.flush());
-        }
         Ok(())
     }
 }

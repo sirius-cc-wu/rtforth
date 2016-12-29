@@ -1,14 +1,14 @@
 [package]
 
 name = "rtforth"
-version = "0.1.22"
+version = "0.1.23"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 
 [dependencies]
 getopts = "0.2"
 time = "0.1"
 rustyline = "1.0.0"
-byteorder = "0.4.2"
+byteorder = "0.5"
 
 [profile.release]
 debug = true

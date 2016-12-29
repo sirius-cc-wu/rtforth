@@ -13,6 +13,7 @@ pub struct VM {
     r_stk: Stack<isize>,
     f_stk: Stack<f64>,
     symbols: Vec<String>,
+    last_definition: usize,
     wordlist: Vec<Word<VM>>,
     jitmem: JitMemory,
     inbuf: Option<String>,
@@ -30,6 +31,7 @@ impl VM {
             r_stk: Stack::with_capacity(64),
             f_stk: Stack::with_capacity(16),
             symbols: vec![],
+            last_definition: 0,
             wordlist: vec![],
             jitmem: JitMemory::new(pages),
             inbuf: Some(String::with_capacity(128)),
@@ -62,6 +64,8 @@ impl Core for VM {
   fn f_stack(&mut self) -> &mut Stack<f64> { &mut self.f_stk }
   fn symbols_mut(&mut self) -> &mut Vec<String> { &mut self.symbols }
   fn symbols(&self) -> &Vec<String> { &self.symbols }
+  fn last_definition(&self) -> usize { self.last_definition }
+  fn set_last_definition(&mut self, n: usize) { self.last_definition = n; }
   fn wordlist_mut(&mut self) -> &mut Vec<Word<Self>> { &mut self.wordlist }
   fn wordlist(&self) -> &Vec<Word<Self>> { &self.wordlist }
   fn state(&mut self) -> &mut State { &mut self.state }

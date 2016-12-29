@@ -296,8 +296,6 @@ pub struct State {
     pub instruction_pointer: usize,
     word_pointer: usize,
     pub source_index: usize,
-    // Last definition, 0 if last define fails.
-    pub last_definition: usize,
 }
 
 impl State {
@@ -307,7 +305,6 @@ impl State {
         instruction_pointer: 0,
         word_pointer: 0,
         source_index: 0,
-        last_definition: 0,
       }
     }
 
@@ -350,6 +347,9 @@ pub trait Core : Sized {
   fn f_stack(&mut self) -> &mut Stack<f64>;
   fn symbols_mut(&mut self) -> &mut Vec<String>;
   fn symbols(&self) -> &Vec<String>;
+  /// Last definition, 0 if last define fails.
+  fn last_definition(&self) -> usize;
+  fn set_last_definition(&mut self, n: usize);
   fn wordlist_mut(&mut self) -> &mut Vec<Word<Self>>;
   fn wordlist(&self) -> &Vec<Word<Self>>;
   fn state(&mut self) -> &mut State;
@@ -494,28 +494,29 @@ pub trait Core : Sized {
   fn add_primitive(&mut self, name: &str, action: fn(& mut Self) -> Result) {
       let symbol = self.new_symbol(name);
       let word = Word::new(symbol, action, self.jit_memory().len());
-      self.state().last_definition = self.wordlist().len();
+      let len = self.wordlist().len();
+      self.set_last_definition(len);
       self.wordlist_mut().push(word);
   }
 
   /// Add an immediate word to word list.
   fn add_immediate(&mut self, name: &str, action: fn(& mut Self) -> Result) {
       self.add_primitive (name, action);
-      let def = self.state().last_definition;
+      let def = self.last_definition();
       self.wordlist_mut()[def].set_immediate(true);
   }
 
   /// Add a compile-only word to word list.
   fn add_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Result) {
       self.add_primitive (name, action);
-      let def = self.state().last_definition;
+      let def = self.last_definition();
       self.wordlist_mut()[def].set_compile_only(true);
   }
 
   /// Add an immediate and compile-only word to word list.
   fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(& mut Self) -> Result) {
       self.add_primitive (name, action);
-      let def = self.state().last_definition;
+      let def = self.last_definition();
       let w = &mut self.wordlist_mut()[def];
       w.set_immediate(true);
       w.set_compile_only(true);
@@ -912,13 +913,14 @@ pub trait Core : Sized {
           print!("Redefining {}", last_token);
       }
       if last_token.is_empty() {
-          self.state().last_definition = 0;
+          self.set_last_definition(0);
           self.set_last_token(last_token);
           Err(UnexpectedEndOfFile)
       } else {
           let symbol = self.new_symbol(&last_token);
           let word = Word::new(symbol, action, self.jit_memory().len());
-          self.state().last_definition = self.wordlist().len();
+          let len = self.wordlist().len();
+          self.set_last_definition(len);
           self.wordlist_mut().push(word);
           self.set_last_token(last_token);
           Ok(())
@@ -927,17 +929,17 @@ pub trait Core : Sized {
 
   fn colon(&mut self) -> Result {
       self.define(Core::nest).and_then(|_| {
-          let def = self.state().last_definition;
+          let def = self.last_definition();
           self.wordlist_mut()[def].set_hidden(true);
           self.compile()
       })
   }
 
-  fn semicolon(&mut self) -> Result{
-      if self.state().last_definition != 0 {
+  fn semicolon(&mut self) -> Result {
+      if self.last_definition() != 0 {
           let idx = self.references().idx_exit as i32;
           self.jit_memory().compile_i32(idx);
-          let def = self.state().last_definition;
+          let def = self.last_definition();
           self.wordlist_mut()[def].set_hidden(false);
       }
       self.interpret()
@@ -2094,7 +2096,7 @@ pub trait Core : Sized {
       }
       self.state().source_index = 0;
       self.state().instruction_pointer = 0;
-      self.interpret();
+      self.interpret().unwrap();
   }
 
   /// Abort the inner loop with an exception, reset VM and clears stacks.

@@ -5,7 +5,7 @@ use exception::Exception::{
     StackUnderflow,
     StackOverflow,
     FloatingPointStackUnderflow,
-    InvalidBase,
+    UnsupportedOperation,
 };
 
 /// Types that can output to console.
@@ -150,7 +150,7 @@ pub trait Output : Core {
                     self.set_output_buffer(buf);
                 }
                 if invalid_base {
-                    Err(InvalidBase)
+                    Err(UnsupportedOperation)
                 } else {
                     Ok(())
                 }

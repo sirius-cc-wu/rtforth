@@ -356,6 +356,8 @@ pub trait Core : Sized {
   fn references(&mut self) -> &mut ForwardReferences;
   fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result>>;
   fn set_evaluators(&mut self, Vec<fn(&mut Self, token: &str) -> Result>);
+  /// Max number of words parsed for an evaluation, =0 if no limit;
+  fn evaluation_limit(&self) -> isize;
 
   /// Add core primitives to self.
   fn add_core(&mut self) {
@@ -742,13 +744,13 @@ pub trait Core : Sized {
   /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
   /// Never returns Some(Quit).
   fn evaluate(&mut self) -> Result {
-      let result;
+      let mut result = Ok(());
       let mut last_token;
+      let mut limit = self.evaluation_limit();
       loop {
           try!(self.parse_word());
           last_token = self.last_token().take().unwrap();
           if last_token.is_empty() {
-              result = Ok(());
               break;
           }
           match self.find(&last_token) {
@@ -814,6 +816,12 @@ pub trait Core : Sized {
                       break;
                   }
               }
+          }
+          if limit > 0 {
+            limit = limit - 1;
+            if limit == 0 {
+                break;
+            }
           }
           self.set_last_token(last_token);
       }

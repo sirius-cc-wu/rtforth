@@ -22,6 +22,7 @@ pub struct VM {
     state: State,
     references: ForwardReferences,
     evals: Option<Vec<fn(&mut VM, token: &str) -> Result>>,
+    evaluation_limit: isize,
 }
 
 impl VM {
@@ -40,6 +41,7 @@ impl VM {
             state: State::new(),
             references: ForwardReferences::new(),
             evals: None,
+            evaluation_limit: 0isize,
         }
     }
 }
@@ -76,6 +78,7 @@ impl Core for VM {
   fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str) -> Result>) {
     self.evals = Some(evaluators)
   }
+  fn evaluation_limit(&self) -> isize { self.evaluation_limit }
 }
 
 impl Environment for VM {}

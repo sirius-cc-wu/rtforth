@@ -3,6 +3,10 @@
 name = "rtforth"
 version = "0.1.26"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
+keywords = ["forth", "real-time"]
+description = "Forth implemented in Rust for realtime application"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/chengchangwu/rtforth.git"
 
 [dependencies]
 getopts = "0.2"

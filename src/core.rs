@@ -448,10 +448,10 @@ pub trait Core: Sized {
         self.add_primitive("abs", Core::abs);
         self.add_primitive("negate", Core::negate);
         self.add_primitive("between", Core::between);
-        self.add_primitive("parse-word", Core::parse_word);;
+        self.add_primitive("parse-word", Core::parse_word);
         self.add_primitive("char", Core::char);
         self.add_primitive("parse", Core::parse);
-        self.add_primitive("evaluate", Core::evaluate);;
+        self.add_primitive("evaluate", Core::evaluate);
         self.add_primitive(":", Core::colon);
         self.add_primitive("constant", Core::constant);
         self.add_primitive("variable", Core::variable);

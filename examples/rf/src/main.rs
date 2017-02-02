@@ -12,12 +12,9 @@ use rtforth::tools::Tools;
 use rtforth::env::Environment;
 use rtforth::facility::Facility;
 use rtforth::float::Float;
-use rtforth::exception::Exception::{
-    Bye,
-};
+use rtforth::exception::Exception::Bye;
 
 #[cfg(not(test))]
-
 #[cfg(not(test))]
 fn main() {
     let vm = &mut VM::new(65536);
@@ -36,7 +33,7 @@ fn main() {
     opts.optflag("v", "version", "print version number");
 
     let matches = match opts.parse(&args[1..]) {
-        Ok(m) => { m }
+        Ok(m) => m,
         Err(f) => {
             panic!(f.to_string());
         }
@@ -48,10 +45,10 @@ fn main() {
     } else if !matches.free.is_empty() {
         for file in matches.free {
             match vm.load(&file) {
-                Ok(()) => {},
+                Ok(()) => {}
                 Err(e) => {
                     match e {
-                        Bye => {},
+                        Bye => {}
                         _ => {
                             vm.clear_stacks();
                             vm.reset();
@@ -92,7 +89,7 @@ fn repl(vm: &mut VM) {
                         println!("{} ", e.description());
                     }
                 }
-            },
+            }
             Ok(()) => {
                 match *vm.output_buffer() {
                     Some(ref mut buf) => {
@@ -100,7 +97,7 @@ fn repl(vm: &mut VM) {
                             println!("{}", buf);
                             buf.clear();
                         }
-                    },
+                    }
                     None => {}
                 }
             }

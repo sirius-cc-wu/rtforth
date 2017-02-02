@@ -23,7 +23,7 @@ pub enum Exception {
     /// = -11, ANS Forth
     ResultOutOfRange = -11,
     /// = -12, ANS Forth
-    ArgumentTypeMismatch= -12,
+    ArgumentTypeMismatch = -12,
     /// = -13, ANS Forth
     UndefinedWord = -13,
     /// = -14, ANS Forth
@@ -140,12 +140,14 @@ impl Exception {
             Exception::InvalidMemoryAddress => "Invalid memory address",
             Exception::DivisionByZero => "Division by zero",
             Exception::ResultOutOfRange => "Result out of range",
-            Exception::ArgumentTypeMismatch=> "Argument type mismatch",
+            Exception::ArgumentTypeMismatch => "Argument type mismatch",
             Exception::UndefinedWord => "Undefined word",
             Exception::InterpretingACompileOnlyWord => "Interpreting a compile only word",
             Exception::InvalidForget => "Invalid FORGET",
             Exception::AttemptToUseZeroLengthString => "Attempt to use zero length string",
-            Exception::PicturedNumericOutputStringOverflow => "Picture numeric output string overflow",
+            Exception::PicturedNumericOutputStringOverflow => {
+                "Picture numeric output string overflow"
+            }
             Exception::ParsedStringOverflow => "Parsed string overflow",
             Exception::DefinitionNameTooLong => "Definition name too long",
             Exception::WriteToAReadOnlyLocation => "Write to a read only location",
@@ -168,7 +170,9 @@ impl Exception {
             Exception::FileIOException => "File I/O exception",
             Exception::NonExistentFile => "Non-existent file",
             Exception::UnexpectedEndOfFile => "Unexpected end of file",
-            Exception::InvalidBaseForFloatingPointConversion => "Invalid BASE for floating point conversion",
+            Exception::InvalidBaseForFloatingPointConversion => {
+                "Invalid BASE for floating point conversion"
+            }
             Exception::LossOfPrecision => "Loss of precision",
             Exception::FloatingPointDividedByZero => "Floating point divided by zero",
             Exception::FloatingPointResultOutOfRange => "Floating point result out of range",
@@ -185,7 +189,9 @@ impl Exception {
             Exception::FloatingPointUnderflow => "Floating point underflow",
             Exception::FloatingPointUnidentifiedFault => "Floating point unidentified fault",
             Exception::Quit => "QUIT",
-            Exception::ExceptionInSendingOrReceivingACharacter => "Exception in sending or receiving a character",
+            Exception::ExceptionInSendingOrReceivingACharacter => {
+                "Exception in sending or receiving a character"
+            }
             Exception::BracketIfElseOrThenException => "[IF],[ELSE],[THEN] exception",
             Exception::Nest => "Nest",
             Exception::Pause => "Pause",

@@ -1,9 +1,7 @@
 use core::{Core, Result};
-use exception::Exception::{
-    StackOverflow,
-};
+use exception::Exception::StackOverflow;
 
-pub trait Environment : Core {
+pub trait Environment: Core {
     /// Add environment queries.
     fn add_environment(&mut self) {
         self.add_primitive("max-n", Environment::max_n);
@@ -16,7 +14,7 @@ pub trait Environment : Core {
     fn max_n(&mut self) -> Result {
         match self.s_stack().push(isize::max_value()) {
             Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(())
+            Ok(()) => Ok(()),
         }
     }
 
@@ -26,10 +24,9 @@ pub trait Environment : Core {
     fn max_u(&mut self) -> Result {
         match self.s_stack().push(usize::max_value() as isize) {
             Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(())
+            Ok(()) => Ok(()),
         }
     }
-
 }
 
 #[cfg(test)]
@@ -47,7 +44,7 @@ mod tests {
         vm.evaluate();
         match vm.s_stack().pop() {
             Ok(t) => assert_eq!(t, -1),
-            Err(_) => assert!(false)
+            Err(_) => assert!(false),
         }
     }
     #[test]
@@ -60,7 +57,7 @@ mod tests {
         vm.evaluate();
         match vm.s_stack().pop() {
             Ok(t) => assert_eq!(t, 0),
-            Err(_) => assert!(false)
+            Err(_) => assert!(false),
         }
     }
 }

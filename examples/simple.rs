@@ -10,7 +10,7 @@ fn main() {
     vm.add_output();
     vm.set_source("1 .");
     match vm.evaluate() {
-      Err(e) => println!("{:?}", e),
-      Ok(()) => {}
+        Err(e) => println!("{:?}", e),
+        Ok(()) => {}
     }
 }

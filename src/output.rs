@@ -1,15 +1,11 @@
 use std::mem;
 use std::fmt::Write;
 use core::{Core, Result};
-use exception::Exception::{
-    StackUnderflow,
-    StackOverflow,
-    FloatingPointStackUnderflow,
-    UnsupportedOperation,
-};
+use exception::Exception::{StackUnderflow, StackOverflow, FloatingPointStackUnderflow,
+                           UnsupportedOperation};
 
 /// Types that can output to console.
-pub trait Output : Core {
+pub trait Output: Core {
     /// Add output primitives.
     fn add_output(&mut self) {
         self.add_primitive("emit", Output::emit);
@@ -65,9 +61,11 @@ pub trait Output : Core {
         let cnt = self.jit_memory().get_i32(ip);
         let addr = self.state().instruction_pointer + mem::size_of::<i32>();
         match self.s_stack().push2(addr as isize, cnt as isize) {
-            Err(_) => { Err(StackOverflow) },
+            Err(_) => Err(StackOverflow),
             Ok(()) => {
-                self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
+                self.state().instruction_pointer = self.state().instruction_pointer +
+                                                   mem::size_of::<i32>() +
+                                                   cnt as usize;
                 Ok(())
             }
         }
@@ -86,9 +84,11 @@ pub trait Output : Core {
         let input_buffer = self.input_buffer().take().unwrap();
         {
             let source = &input_buffer[self.state().source_index..input_buffer.len()];
-            let (s, cnt)= match source.find('"') {
-                Some(n) => (&input_buffer[self.state().source_index..self.state().source_index + n], n),
-                None => (source, source.len())
+            let (s, cnt) = match source.find('"') {
+                Some(n) => {
+                    (&input_buffer[self.state().source_index..self.state().source_index + n], n)
+                }
+                None => (source, source.len()),
             };
             let idx = self.references().idx_s_quote as i32;
             self.jit_memory().compile_i32(idx);
@@ -141,11 +141,21 @@ pub trait Output : Core {
             Ok(n) => {
                 if let Some(mut buf) = self.output_buffer().take() {
                     match base {
-                        2 => { write!(buf, "{:b}", n).unwrap(); },
-                        8 => { write!(buf, "{:o}", n).unwrap(); },
-                        10 => { write!(buf, "{} ", n).unwrap(); },
-                        16 => { write!(buf, "{:X}", n).unwrap(); },
-                        _ => { invalid_base = true; },
+                        2 => {
+                            write!(buf, "{:b}", n).unwrap();
+                        }
+                        8 => {
+                            write!(buf, "{:o}", n).unwrap();
+                        }
+                        10 => {
+                            write!(buf, "{} ", n).unwrap();
+                        }
+                        16 => {
+                            write!(buf, "{:X}", n).unwrap();
+                        }
+                        _ => {
+                            invalid_base = true;
+                        }
                     }
                     self.set_output_buffer(buf);
                 }
@@ -154,27 +164,27 @@ pub trait Output : Core {
                 } else {
                     Ok(())
                 }
-            },
-            Err(_) => Err(StackUnderflow)
+            }
+            Err(_) => Err(StackUnderflow),
         }
     }
 
     /// Run-time: ( -- ) ( F: r -- )
     ///
-    /// Display, with a trailing space, the top number on the floating-point stack using fixed-point notation.
+    /// Display, with a trailing space, the top number on the floating-point
+    /// stack using fixed-point notation.
     fn fdot(&mut self) -> Result {
         match self.f_stack().pop() {
             Ok(r) => {
-              if let Some(mut buf) = self.output_buffer().take() {
-                write!(buf, "{} ", r).unwrap();
-                self.set_output_buffer(buf);
-              }
-              Ok(())
-            },
-            Err(_) => Err(FloatingPointStackUnderflow)
+                if let Some(mut buf) = self.output_buffer().take() {
+                    write!(buf, "{} ", r).unwrap();
+                    self.set_output_buffer(buf);
+                }
+                Ok(())
+            }
+            Err(_) => Err(FloatingPointStackUnderflow),
         }
     }
-
 }
 
 #[cfg(test)]
@@ -184,7 +194,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_s_quote_and_type () {
+    fn test_s_quote_and_type() {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.add_output();
@@ -195,7 +205,7 @@ mod tests {
     }
 
     #[test]
-    fn test_emit () {
+    fn test_emit() {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.add_output();

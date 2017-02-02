@@ -1,13 +1,11 @@
 use core::{Core, Result};
 use std::ops::BitAnd;
 use std::ops::Shr;
-use exception::Exception::{
-    StackOverflow
-};
+use exception::Exception::StackOverflow;
 
 extern crate time;
 
-pub trait Facility : Core {
+pub trait Facility: Core {
     /// Run-time: ( --  )
     ///
     /// Add facility primitives.
@@ -37,17 +35,15 @@ pub trait Facility : Core {
     fn ntime(&mut self) -> Result {
         let t = time::precise_time_ns();
         if t > usize::max_value() as u64 {
-            match self.s_stack().push2(
-                t.bitand(usize::max_value() as u64) as isize,
-                t.shr(usize::max_value().count_ones()) as isize
-            ) {
+            match self.s_stack().push2(t.bitand(usize::max_value() as u64) as isize,
+                                       t.shr(usize::max_value().count_ones()) as isize) {
                 Err(_) => Err(StackOverflow),
-                Ok(()) => Ok(())
+                Ok(()) => Ok(()),
             }
         } else {
             match self.s_stack().push2(t as isize, 0) {
                 Err(_) => Err(StackOverflow),
-                Ok(()) => Ok(())
+                Ok(()) => Ok(()),
             }
         }
     }
@@ -70,19 +66,17 @@ pub trait Facility : Core {
     /// vm.evaluate();
     /// ```
     fn utime(&mut self) -> Result {
-        let t = time::precise_time_ns()/1000;
+        let t = time::precise_time_ns() / 1000;
         if t > usize::max_value() as u64 {
-            match self.s_stack().push2(
-                t.bitand(usize::max_value() as u64) as isize,
-                t.shr(usize::max_value().count_ones()) as isize
-            ) {
+            match self.s_stack().push2(t.bitand(usize::max_value() as u64) as isize,
+                                       t.shr(usize::max_value().count_ones()) as isize) {
                 Err(_) => Err(StackOverflow),
-                Ok(()) => Ok(())
+                Ok(()) => Ok(()),
             }
         } else {
             match self.s_stack().push2(t as isize, 0) {
                 Err(_) => Err(StackOverflow),
-                Ok(()) => Ok(())
+                Ok(()) => Ok(()),
             }
         }
     }

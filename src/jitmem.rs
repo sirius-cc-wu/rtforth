@@ -5,7 +5,7 @@ use std::ptr::Unique;
 use std::slice;
 use std::marker;
 
-extern {
+extern "C" {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
 }
 
@@ -32,7 +32,7 @@ pub struct JitMemory {
 
 impl JitMemory {
     pub fn new(num_pages: usize) -> JitMemory {
-        let mut ptr : *mut libc::c_void;
+        let mut ptr: *mut libc::c_void;
         let size = num_pages * PAGE_SIZE;
         unsafe {
             ptr = mem::uninitialized();
@@ -53,17 +53,13 @@ impl JitMemory {
     }
 
     // Getter
-    
+
     pub fn system_variables(&self) -> &SystemVariables {
-        unsafe {
-            &*(self.inner.offset(0) as *const SystemVariables)            
-        }
+        unsafe { &*(self.inner.offset(0) as *const SystemVariables) }
     }
-    
+
     pub fn system_variables_mut(&mut self) -> &mut SystemVariables {
-        unsafe {
-            &mut *(self.inner.offset(0) as *mut SystemVariables)            
-        }
+        unsafe { &mut *(self.inner.offset(0) as *mut SystemVariables) }
     }
 
     pub fn len(&self) -> usize {
@@ -97,7 +93,9 @@ impl JitMemory {
     }
 
     pub fn get_str(&self, addr: usize, len: usize) -> &str {
-        unsafe { mem::transmute(slice::from_raw_parts::<u8>(self.inner.offset(addr as isize), len)) }
+        unsafe {
+            mem::transmute(slice::from_raw_parts::<u8>(self.inner.offset(addr as isize), len))
+        }
     }
 
     // Basic operations

@@ -2,7 +2,7 @@ use std::fmt::Write;
 use core::Result;
 use output::Output;
 
-pub trait Tools : Output {
+pub trait Tools: Output {
     /// Add programming-tools primitives.
     fn add_tools(&mut self) {
         self.add_primitive("words", Tools::words);
@@ -15,10 +15,10 @@ pub trait Tools : Output {
     fn dot_s(&mut self) -> Result {
         let mut buf = self.output_buffer().take().unwrap();
         write!(buf, "TODO: .s").unwrap();
-//        write!(buf, "<{}> ", self.s_stack().len()).unwrap();
-//        for s in self.s_stack().iter() {
-//            write!(buf, "{} ", s).unwrap();
-//        }
+        //        write!(buf, "<{}> ", self.s_stack().len()).unwrap();
+        //        for s in self.s_stack().iter() {
+        //            write!(buf, "{} ", s).unwrap();
+        //        }
         self.set_output_buffer(buf);
         Ok(())
     }

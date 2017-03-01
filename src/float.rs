@@ -428,17 +428,9 @@ pub trait Float: Core {
         match self.f_stack().pop3() {
             Ok((x1, x2, x3)) => {
                 if x3 > 0.0 {
-                    self.s_stack().push(if (x1 - x2).abs() < x3 {
-                        TRUE
-                    } else {
-                        FALSE
-                    })
+                    self.s_stack().push(if (x1 - x2).abs() < x3 { TRUE } else { FALSE })
                 } else if x3 == 0.0 {
-                    self.s_stack().push(if x1 == x2 {
-                        TRUE
-                    } else {
-                        FALSE
-                    })
+                    self.s_stack().push(if x1 == x2 { TRUE } else { FALSE })
                 } else {
                     self.s_stack().push(if (x1 - x2).abs() < (x3.abs() * (x1.abs() + x2.abs())) {
                         TRUE
@@ -454,11 +446,7 @@ pub trait Float: Core {
     fn f_zero_less_than(&mut self) -> Result {
         match self.f_stack().pop() {
             Ok(t) => {
-                match self.s_stack().push(if t < 0.0 {
-                    TRUE
-                } else {
-                    FALSE
-                }) {
+                match self.s_stack().push(if t < 0.0 { TRUE } else { FALSE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -470,11 +458,7 @@ pub trait Float: Core {
     fn f_zero_equals(&mut self) -> Result {
         match self.f_stack().pop() {
             Ok(t) => {
-                match self.s_stack().push(if t == 0.0 {
-                    TRUE
-                } else {
-                    FALSE
-                }) {
+                match self.s_stack().push(if t == 0.0 { TRUE } else { FALSE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -488,11 +472,7 @@ pub trait Float: Core {
             Ok(t) => {
                 match self.f_stack().pop() {
                     Ok(n) => {
-                        match self.s_stack().push(if n < t {
-                            TRUE
-                        } else {
-                            FALSE
-                        }) {
+                        match self.s_stack().push(if n < t { TRUE } else { FALSE }) {
                             Err(_) => Err(StackOverflow),
                             Ok(()) => Ok(()),
                         }

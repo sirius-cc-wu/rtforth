@@ -13,8 +13,8 @@ use std::result;
 use jitmem::JitMemory;
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
-                           UnsupportedOperation, InterpretingACompileOnlyWord,
-                           InvalidMemoryAddress, Quit, Nest, Pause, Bye};
+                           UnsupportedOperation, InterpretingACompileOnlyWord, InvalidMemoryAddress,
+                           Quit, Nest, Pause, Bye};
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;
@@ -1104,8 +1104,8 @@ pub trait Core: Sized {
     fn leave(&mut self) -> Result {
         match self.r_stack().pop3() {
             Ok((third, _, _)) => {
-                self.state().instruction_pointer =
-                    self.jit_memory().get_i32(third as usize) as usize;
+                self.state().instruction_pointer = self.jit_memory().get_i32(third as usize) as
+                                                   usize;
                 Ok(())
             }
             Err(_) => Err(ReturnStackUnderflow),
@@ -1387,8 +1387,8 @@ pub trait Core: Sized {
                 let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 2) as isize)));
+                               .inner
+                               .offset((self.s_stack().len - 2) as isize)));
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
                            t);
             }
@@ -1405,8 +1405,8 @@ pub trait Core: Sized {
             unsafe {
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)));
+                               .inner
+                               .offset((self.s_stack().len - 1) as isize)));
                 self.s_stack().len += 1;
             }
             Ok(())
@@ -1444,8 +1444,8 @@ pub trait Core: Sized {
             unsafe {
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 2) as isize)));
+                               .inner
+                               .offset((self.s_stack().len - 2) as isize)));
                 self.s_stack().len += 1;
             }
             Ok(())
@@ -1461,8 +1461,8 @@ pub trait Core: Sized {
                 let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 2) as isize));
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 3) as isize)));
+                               .inner
+                               .offset((self.s_stack().len - 3) as isize)));
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
                            t);
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 3) as isize),
@@ -1491,12 +1491,12 @@ pub trait Core: Sized {
                 self.s_stack().len += 2;
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 3) as isize)));
+                               .inner
+                               .offset((self.s_stack().len - 3) as isize)));
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 4) as isize)));
+                               .inner
+                               .offset((self.s_stack().len - 4) as isize)));
             }
             Ok(())
         }
@@ -1511,12 +1511,12 @@ pub trait Core: Sized {
                 let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 2) as isize));
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 3) as isize)));
+                               .inner
+                               .offset((self.s_stack().len - 3) as isize)));
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 4) as isize)));
+                               .inner
+                               .offset((self.s_stack().len - 4) as isize)));
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 3) as isize),
                            t);
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 4) as isize),
@@ -1536,12 +1536,12 @@ pub trait Core: Sized {
                 self.s_stack().len += 2;
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 5) as isize)));
+                               .inner
+                               .offset((self.s_stack().len - 5) as isize)));
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 6) as isize)));
+                               .inner
+                               .offset((self.s_stack().len - 6) as isize)));
             }
             Ok(())
         }
@@ -1562,8 +1562,8 @@ pub trait Core: Sized {
             unsafe {
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize))
+                                   .inner
+                                   .offset((self.s_stack().len - 1) as isize))
                                .wrapping_add(1));
             }
             Ok(())
@@ -1577,8 +1577,8 @@ pub trait Core: Sized {
             unsafe {
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) -
+                               .inner
+                               .offset((self.s_stack().len - 1) as isize)) -
                            1);
             }
             Ok(())
@@ -1593,8 +1593,8 @@ pub trait Core: Sized {
                 self.s_stack().len -= 1;
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) +
+                               .inner
+                               .offset((self.s_stack().len - 1) as isize)) +
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             Ok(())
@@ -1609,8 +1609,8 @@ pub trait Core: Sized {
                 self.s_stack().len -= 1;
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) -
+                               .inner
+                               .offset((self.s_stack().len - 1) as isize)) -
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             Ok(())
@@ -1625,8 +1625,8 @@ pub trait Core: Sized {
                 self.s_stack().len -= 1;
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) *
+                               .inner
+                               .offset((self.s_stack().len - 1) as isize)) *
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             Ok(())
@@ -1641,8 +1641,8 @@ pub trait Core: Sized {
                 self.s_stack().len -= 1;
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) /
+                               .inner
+                               .offset((self.s_stack().len - 1) as isize)) /
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             Ok(())
@@ -1657,8 +1657,8 @@ pub trait Core: Sized {
                 self.s_stack().len -= 1;
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) %
+                               .inner
+                               .offset((self.s_stack().len - 1) as isize)) %
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
             Ok(())
@@ -1708,11 +1708,7 @@ pub trait Core: Sized {
     fn zero_less(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(t) => {
-                match self.s_stack().push(if t < 0 {
-                    TRUE
-                } else {
-                    FALSE
-                }) {
+                match self.s_stack().push(if t < 0 { TRUE } else { FALSE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -1724,11 +1720,7 @@ pub trait Core: Sized {
     fn zero_equals(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(t) => {
-                match self.s_stack().push(if t == 0 {
-                    TRUE
-                } else {
-                    FALSE
-                }) {
+                match self.s_stack().push(if t == 0 { TRUE } else { FALSE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -1740,11 +1732,7 @@ pub trait Core: Sized {
     fn zero_greater(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(t) => {
-                match self.s_stack().push(if t > 0 {
-                    TRUE
-                } else {
-                    FALSE
-                }) {
+                match self.s_stack().push(if t > 0 { TRUE } else { FALSE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -1756,11 +1744,7 @@ pub trait Core: Sized {
     fn zero_not_equals(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(t) => {
-                match self.s_stack().push(if t == 0 {
-                    FALSE
-                } else {
-                    TRUE
-                }) {
+                match self.s_stack().push(if t == 0 { FALSE } else { TRUE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -1772,11 +1756,7 @@ pub trait Core: Sized {
     fn equals(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
-                match self.s_stack().push(if t == n {
-                    TRUE
-                } else {
-                    FALSE
-                }) {
+                match self.s_stack().push(if t == n { TRUE } else { FALSE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -1788,11 +1768,7 @@ pub trait Core: Sized {
     fn less_than(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
-                match self.s_stack().push(if n < t {
-                    TRUE
-                } else {
-                    FALSE
-                }) {
+                match self.s_stack().push(if n < t { TRUE } else { FALSE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -1804,11 +1780,7 @@ pub trait Core: Sized {
     fn greater_than(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
-                match self.s_stack().push(if n > t {
-                    TRUE
-                } else {
-                    FALSE
-                }) {
+                match self.s_stack().push(if n > t { TRUE } else { FALSE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -1820,11 +1792,7 @@ pub trait Core: Sized {
     fn not_equals(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
-                match self.s_stack().push(if n == t {
-                    FALSE
-                } else {
-                    TRUE
-                }) {
+                match self.s_stack().push(if n == t { FALSE } else { TRUE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -1836,11 +1804,7 @@ pub trait Core: Sized {
     fn between(&mut self) -> Result {
         match self.s_stack().pop3() {
             Ok((x1, x2, x3)) => {
-                match self.s_stack().push(if x2 <= x1 && x1 <= x3 {
-                    TRUE
-                } else {
-                    FALSE
-                }) {
+                match self.s_stack().push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE }) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
                 }
@@ -2598,9 +2562,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(0);
-        b.iter(|| {
-            vm.one_plus();
-        });
+        b.iter(|| { vm.one_plus(); });
     }
 
     #[test]
@@ -2618,9 +2580,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.s_stack().push(0);
-        b.iter(|| {
-            vm.one_minus();
-        });
+        b.iter(|| { vm.one_minus(); });
     }
 
     #[test]

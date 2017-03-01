@@ -39,7 +39,7 @@ impl JitMemory {
             libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
             libc::mprotect(ptr, size, libc::PROT_READ | libc::PROT_WRITE);
 
-            memset(ptr, 0xcc, size);  // prepopulate with 'int3'
+            memset(ptr, 0xcc, size); // prepopulate with 'int3'
         }
         let mut result = JitMemory {
             inner: unsafe { Unique::new(ptr as *mut u8) },

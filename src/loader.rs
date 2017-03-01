@@ -13,6 +13,7 @@ pub trait HasLoader: Core {
         loop {
             let mut input_buffer = self.input_buffer().take().unwrap();
             input_buffer.clear();
+            self.state().source_index = 0;
             let result = reader.read_line(&mut input_buffer);
             match result {
                 Ok(_) => {
@@ -21,7 +22,6 @@ pub trait HasLoader: Core {
                         return Ok(());
                     } else {
                         self.set_input_buffer(input_buffer);
-                        self.state().source_index = 0;
                         if let Err(e) = self.evaluate() {
                             return Err(e);
                         }

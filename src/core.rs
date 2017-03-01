@@ -619,7 +619,7 @@ pub trait Core: Sized {
         let mut last_token = self.last_token().take().unwrap();
         last_token.clear();
         let input_buffer = self.input_buffer().take().unwrap();
-        {
+        if self.state().source_index < input_buffer.len() {
             let source = &input_buffer[self.state().source_index..input_buffer.len()];
             let mut cnt = 0;
             for ch in source.chars() {

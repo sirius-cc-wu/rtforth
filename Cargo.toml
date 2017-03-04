@@ -14,3 +14,8 @@ time = "0.1"
 
 [profile.release]
 debug = true
+
+[dev-dependencies]
+getopts = "0.2"
+rustyline = "1.0.0"
+

@@ -1,9 +1,0 @@
-[package]
-name = "rf"
-version = "0.1.0"
-authors = ["Sirius Wu <ccwu660601@gmail.com>"]
-
-[dependencies]
-rtforth = "*"
-getopts = "0.2"
-rustyline = "1.0.0"

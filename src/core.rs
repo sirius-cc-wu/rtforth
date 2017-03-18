@@ -10,7 +10,7 @@ use std::fmt;
 use std::slice;
 use std::ascii::AsciiExt;
 use std::result;
-use jitmem::JitMemory;
+use jitmem::DataSpace;
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
                            UnsupportedOperation, InterpretingACompileOnlyWord, InvalidMemoryAddress,
@@ -314,8 +314,8 @@ impl Symbol {
 pub trait Core: Sized {
     // Functions to access VM.
 
-    fn jit_memory(&mut self) -> &mut JitMemory;
-    fn jit_memory_const(&self) -> &JitMemory;
+    fn data_space(&mut self) -> &mut DataSpace;
+    fn data_space_const(&self) -> &DataSpace;
     /// Get `output_buffer`.
     fn output_buffer(&mut self) -> &mut Option<String>;
     /// Set `output_buffer` to `Some(buffer)`.
@@ -472,14 +472,14 @@ pub trait Core: Sized {
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
         let idx_halt = self.find("halt").expect("halt undefined");
-        self.jit_memory().put_u32(idx_halt as u32, 0);
+        self.data_space().put_u32(idx_halt as u32, 0);
         self.extend_evaluator(Core::evaluate_integer);
     }
 
     /// Add a primitive word to word list.
     fn add_primitive(&mut self, name: &str, action: fn(&mut Self) -> Result) {
         let symbol = self.new_symbol(name);
-        let word = Word::new(symbol, action, self.jit_memory().len());
+        let word = Word::new(symbol, action, self.data_space().len());
         let len = self.wordlist().len();
         self.set_last_definition(len);
         self.wordlist_mut().push(word);
@@ -556,8 +556,8 @@ pub trait Core: Sized {
     #[inline(never)]
     fn run(&mut self) -> Result {
         let mut ip = self.state().instruction_pointer;
-        while 0 < ip && ip < self.jit_memory().len() {
-            let w = self.jit_memory().get_i32(ip) as usize;
+        while 0 < ip && ip < self.data_space().len() {
+            let w = self.data_space().get_i32(ip) as usize;
             self.state().instruction_pointer += mem::size_of::<i32>();
             if let Err(e) = self.execute_word(w) {
                 match e {
@@ -579,14 +579,14 @@ pub trait Core: Sized {
     // ---------
 
     fn compile_word(&mut self, word_index: usize) {
-        self.jit_memory().compile_i32(word_index as i32);
+        self.data_space().compile_i32(word_index as i32);
     }
 
     /// Compile integer `i`.
     fn compile_integer(&mut self, i: isize) {
         let idx = self.references().idx_lit as i32;
-        self.jit_memory().compile_i32(idx);
-        self.jit_memory().compile_i32(i as i32);
+        self.data_space().compile_i32(idx);
+        self.data_space().compile_i32(i as i32);
     }
 
     // -----------
@@ -817,7 +817,7 @@ pub trait Core: Sized {
     }
 
     fn base(&mut self) -> Result {
-        let base_addr = self.jit_memory().system_variables().base_addr();
+        let base_addr = self.data_space().system_variables().base_addr();
         match self.s_stack().push(base_addr as isize) {
             Err(_) => Err(StackOverflow),
             Ok(()) => Ok(()),
@@ -825,8 +825,8 @@ pub trait Core: Sized {
     }
 
     fn evaluate_integer(&mut self, token: &str) -> Result {
-        let base_addr = self.jit_memory().system_variables().base_addr();
-        let base = self.jit_memory().get_isize(base_addr);
+        let base_addr = self.data_space().system_variables().base_addr();
+        let base = self.data_space().get_isize(base_addr);
         match isize::from_str_radix(token, base as u32) {
             Ok(t) => {
                 if self.state().is_compiling {
@@ -886,7 +886,7 @@ pub trait Core: Sized {
     fn p_const(&mut self) -> Result {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
-        let value = self.jit_memory().get_i32(dfa) as isize;
+        let value = self.data_space().get_i32(dfa) as isize;
         match self.s_stack().push(value) {
             Err(_) => Err(StackOverflow),
             Ok(()) => Ok(()),
@@ -914,7 +914,7 @@ pub trait Core: Sized {
             Err(UnexpectedEndOfFile)
         } else {
             let symbol = self.new_symbol(&last_token);
-            let word = Word::new(symbol, action, self.jit_memory().len());
+            let word = Word::new(symbol, action, self.data_space().len());
             let len = self.wordlist().len();
             self.set_last_definition(len);
             self.wordlist_mut().push(word);
@@ -934,7 +934,7 @@ pub trait Core: Sized {
     fn semicolon(&mut self) -> Result {
         if self.last_definition() != 0 {
             let idx = self.references().idx_exit as i32;
-            self.jit_memory().compile_i32(idx);
+            self.data_space().compile_i32(idx);
             let def = self.last_definition();
             self.wordlist_mut()[def].set_hidden(false);
         }
@@ -947,7 +947,7 @@ pub trait Core: Sized {
 
     fn variable(&mut self) -> Result {
         self.define(Core::p_var).and_then(|_| {
-            self.jit_memory().compile_i32(0);
+            self.data_space().compile_i32(0);
             Ok(())
         })
     }
@@ -956,7 +956,7 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(v) => {
                 self.define(Core::p_const).and_then(|_| {
-                    self.jit_memory().compile_i32(v as i32);
+                    self.data_space().compile_i32(v as i32);
                     Ok(())
                 })
             }
@@ -973,7 +973,7 @@ pub trait Core: Sized {
             dfa = w.dfa();
             symbol = w.symbol();
         }
-        self.jit_memory().truncate(dfa);
+        self.data_space().truncate(dfa);
         self.wordlist_mut().truncate(wp);
         self.symbols_mut().truncate(symbol.id);
         Ok(())
@@ -990,7 +990,7 @@ pub trait Core: Sized {
 
     fn branch(&mut self) -> Result {
         let ip = self.state().instruction_pointer;
-        self.state().instruction_pointer = self.jit_memory().get_i32(ip) as usize;
+        self.state().instruction_pointer = self.data_space().get_i32(ip) as usize;
         Ok(())
     }
 
@@ -1101,7 +1101,7 @@ pub trait Core: Sized {
     fn leave(&mut self) -> Result {
         match self.r_stack().pop3() {
             Ok((third, _, _)) => {
-                self.state().instruction_pointer = self.jit_memory().get_i32(third as usize) as
+                self.state().instruction_pointer = self.data_space().get_i32(third as usize) as
                                                    usize;
                 Ok(())
             }
@@ -1136,8 +1136,8 @@ pub trait Core: Sized {
 
     fn imm_if(&mut self) -> Result {
         let idx = self.references().idx_zero_branch as i32;
-        self.jit_memory().compile_i32(idx);
-        self.jit_memory().compile_i32(0);
+        self.data_space().compile_i32(idx);
+        self.data_space().compile_i32(0);
         self.here()
     }
 
@@ -1145,11 +1145,11 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(if_part) => {
                 let idx = self.references().idx_branch as i32;
-                self.jit_memory().compile_i32(idx);
-                self.jit_memory().compile_i32(0);
+                self.data_space().compile_i32(idx);
+                self.data_space().compile_i32(0);
                 try!(self.here());
-                let here = self.jit_memory().len();
-                self.jit_memory().put_i32(here as i32,
+                let here = self.data_space().len();
+                self.data_space().put_i32(here as i32,
                                           (if_part - mem::size_of::<i32>() as isize) as usize);
                 Ok(())
             }
@@ -1160,8 +1160,8 @@ pub trait Core: Sized {
     fn imm_then(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(branch_part) => {
-                let here = self.jit_memory().len();
-                self.jit_memory().put_i32(here as i32,
+                let here = self.data_space().len();
+                self.data_space().put_i32(here as i32,
                                           (branch_part - mem::size_of::<i32>() as isize) as usize);
                 Ok(())
             }
@@ -1175,8 +1175,8 @@ pub trait Core: Sized {
 
     fn imm_while(&mut self) -> Result {
         let idx = self.references().idx_zero_branch as i32;
-        self.jit_memory().compile_i32(idx);
-        self.jit_memory().compile_i32(0);
+        self.data_space().compile_i32(idx);
+        self.data_space().compile_i32(0);
         self.here()
     }
 
@@ -1184,10 +1184,10 @@ pub trait Core: Sized {
         match self.s_stack().pop2() {
             Ok((begin_part, while_part)) => {
                 let idx = self.references().idx_branch as i32;
-                self.jit_memory().compile_i32(idx);
-                self.jit_memory().compile_i32(begin_part as i32);
-                let here = self.jit_memory().len();
-                self.jit_memory().put_i32(here as i32,
+                self.data_space().compile_i32(idx);
+                self.data_space().compile_i32(begin_part as i32);
+                let here = self.data_space().len();
+                self.data_space().put_i32(here as i32,
                                           (while_part - mem::size_of::<i32>() as isize) as usize);
                 Ok(())
             }
@@ -1199,8 +1199,8 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(begin_part) => {
                 let idx = self.references().idx_branch as i32;
-                self.jit_memory().compile_i32(idx);
-                self.jit_memory().compile_i32(begin_part as i32);
+                self.data_space().compile_i32(idx);
+                self.data_space().compile_i32(begin_part as i32);
                 Ok(())
             }
             Err(_) => Err(StackUnderflow),
@@ -1209,7 +1209,7 @@ pub trait Core: Sized {
 
     fn imm_recurse(&mut self) -> Result {
         let last = self.wordlist().len() - 1;
-        self.jit_memory().compile_u32(last as u32);
+        self.data_space().compile_u32(last as u32);
         Ok(())
     }
 
@@ -1219,8 +1219,8 @@ pub trait Core: Sized {
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
     fn imm_do(&mut self) -> Result {
         let idx = self.references().idx_do as i32;
-        self.jit_memory().compile_i32(idx);
-        self.jit_memory().compile_i32(0);
+        self.data_space().compile_i32(idx);
+        self.data_space().compile_i32(0);
         self.here()
     }
 
@@ -1234,10 +1234,10 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(do_part) => {
                 let idx = self.references().idx_loop as i32;
-                self.jit_memory().compile_i32(idx);
-                self.jit_memory().compile_i32(do_part as i32);
-                let here = self.jit_memory().len();
-                self.jit_memory().put_i32(here as i32,
+                self.data_space().compile_i32(idx);
+                self.data_space().compile_i32(do_part as i32);
+                let here = self.data_space().len();
+                self.data_space().put_i32(here as i32,
                                           (do_part - mem::size_of::<i32>() as isize) as usize);
                 Ok(())
             }
@@ -1255,10 +1255,10 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(do_part) => {
                 let idx = self.references().idx_plus_loop as i32;
-                self.jit_memory().compile_i32(idx);
-                self.jit_memory().compile_i32(do_part as i32);
-                let here = self.jit_memory().len();
-                self.jit_memory().put_i32(here as i32,
+                self.data_space().compile_i32(idx);
+                self.data_space().compile_i32(do_part as i32);
+                let here = self.data_space().len();
+                self.data_space().put_i32(here as i32,
                                           (do_part - mem::size_of::<i32>() as isize) as usize);
                 Ok(())
             }
@@ -1365,7 +1365,7 @@ pub trait Core: Sized {
         } else {
             unsafe {
                 let ip = self.state().instruction_pointer;
-                let v = self.jit_memory().get_i32(ip) as isize;
+                let v = self.data_space().get_i32(ip) as isize;
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
                            v);
             }
@@ -1939,7 +1939,7 @@ pub trait Core: Sized {
     fn fetch(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(t) => {
-                let value = self.jit_memory().get_i32(t as usize) as isize;
+                let value = self.data_space().get_i32(t as usize) as isize;
                 match self.s_stack().push(value) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
@@ -1955,7 +1955,7 @@ pub trait Core: Sized {
     fn store(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
-                self.jit_memory().put_i32(n as i32, t as usize);
+                self.data_space().put_i32(n as i32, t as usize);
                 Ok(())
             }
             Err(_) => Err(StackUnderflow),
@@ -1969,7 +1969,7 @@ pub trait Core: Sized {
     fn c_fetch(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(t) => {
-                let value = self.jit_memory().get_u8(t as usize) as isize;
+                let value = self.data_space().get_u8(t as usize) as isize;
                 match self.s_stack().push(value) {
                     Err(_) => Err(StackOverflow),
                     Ok(()) => Ok(()),
@@ -1987,7 +1987,7 @@ pub trait Core: Sized {
     fn c_store(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
-                self.jit_memory().put_u8(n as u8, t as usize);
+                self.data_space().put_u8(n as u8, t as usize);
                 Ok(())
             }
             Err(_) => Err(StackUnderflow),
@@ -2035,7 +2035,7 @@ pub trait Core: Sized {
     ///
     /// `addr` is the data-space pointer.
     fn here(&mut self) -> Result {
-        let len = self.jit_memory().len() as isize;
+        let len = self.data_space().len() as isize;
         match self.s_stack().push(len) {
             Err(_) => Err(StackOverflow),
             Ok(()) => Ok(()),
@@ -2050,7 +2050,7 @@ pub trait Core: Sized {
     fn allot(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(v) => {
-                self.jit_memory().allot(v);
+                self.data_space().allot(v);
                 Ok(())
             }
             Err(_) => Err(StackUnderflow),
@@ -2066,7 +2066,7 @@ pub trait Core: Sized {
     fn comma(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(v) => {
-                self.jit_memory().compile_i32(v as i32);
+                self.data_space().compile_i32(v as i32);
                 Ok(())
             }
             Err(_) => Err(StackUnderflow),
@@ -2262,7 +2262,7 @@ mod tests {
     fn test_inner_interpreter_without_nest() {
         let vm = &mut VM::new(16);
         vm.add_core();
-        let ip = vm.jit_memory().len();
+        let ip = vm.data_space().len();
         vm.compile_integer(3);
         vm.compile_integer(2);
         vm.compile_integer(1);
@@ -2283,7 +2283,7 @@ mod tests {
     fn bench_inner_interpreter_without_nest(b: &mut Bencher) {
         let vm = &mut VM::new(16);
         vm.add_core();
-        let ip = vm.jit_memory().len();
+        let ip = vm.data_space().len();
         let idx = vm.find("noop").expect("noop not exists");
         vm.compile_word(idx);
         vm.compile_word(idx);
@@ -3125,7 +3125,7 @@ mod tests {
     fn test_here_comma_compile_interpret() {
         let vm = &mut VM::new(16);
         vm.add_core();
-        let here = vm.jit_memory().len();
+        let here = vm.data_space().len();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 2);
@@ -3138,12 +3138,12 @@ mod tests {
             }
         }
         let idx_halt = vm.find("halt").expect("halt undefined");
-        assert_eq!(vm.jit_memory().get_i32(0), idx_halt as i32);
-        assert_eq!(vm.jit_memory().get_i32(here + 0), 1);
-        assert_eq!(vm.jit_memory().get_i32(here + 4), 2);
-        assert_eq!(vm.jit_memory().get_i32(here + 8),
+        assert_eq!(vm.data_space().get_i32(0), idx_halt as i32);
+        assert_eq!(vm.data_space().get_i32(here + 0), 1);
+        assert_eq!(vm.data_space().get_i32(here + 4), 2);
+        assert_eq!(vm.data_space().get_i32(here + 8),
                    vm.references().idx_lit as i32);
-        assert_eq!(vm.jit_memory().get_i32(here + 12),
+        assert_eq!(vm.data_space().get_i32(here + 12),
                    vm.references().idx_exit as i32);
     }
 

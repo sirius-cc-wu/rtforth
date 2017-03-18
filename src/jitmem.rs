@@ -23,15 +23,15 @@ impl SystemVariables {
 }
 
 #[allow(dead_code)]
-pub struct JitMemory {
+pub struct DataSpace {
     pub inner: Unique<u8>,
     cap: usize,
     len: usize,
     marker: marker::PhantomData<SystemVariables>,
 }
 
-impl JitMemory {
-    pub fn new(num_pages: usize) -> JitMemory {
+impl DataSpace {
+    pub fn new(num_pages: usize) -> DataSpace {
         let mut ptr: *mut libc::c_void;
         let size = num_pages * PAGE_SIZE;
         unsafe {
@@ -39,9 +39,9 @@ impl JitMemory {
             libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
             libc::mprotect(ptr, size, libc::PROT_READ | libc::PROT_WRITE);
 
-            memset(ptr, 0xcc, size); // prepopulate with 'int3'
+            memset(ptr, 0x00, size);
         }
-        let mut result = JitMemory {
+        let mut result = DataSpace {
             inner: unsafe { Unique::new(ptr as *mut u8) },
             cap: size,
             len: mem::size_of::<SystemVariables>(),

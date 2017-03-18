@@ -7,7 +7,7 @@ const BUFFER_SIZE: usize = 0x400;
 
 mod vm {
     use rtforth::core::{Core, Stack, State, ForwardReferences, Word, Result};
-    use rtforth::jitmem::JitMemory;
+    use rtforth::jitmem::DataSpace;
     use rtforth::float::Float;
     use rtforth::env::Environment;
     use rtforth::exception::Exception;
@@ -35,7 +35,7 @@ mod vm {
         symbols: Vec<String>,
         last_definition: usize,
         wordlist: Vec<Word<VM>>,
-        jitmem: JitMemory,
+        jitmem: DataSpace,
         references: ForwardReferences,
         evals: Option<Vec<fn(&mut VM, token: &str) -> Result>>,
         // Evalution limit for tasks[1]
@@ -77,7 +77,7 @@ mod vm {
                 symbols: vec![],
                 last_definition: 0,
                 wordlist: vec![],
-                jitmem: JitMemory::new(pages),
+                jitmem: DataSpace::new(pages),
                 references: ForwardReferences::new(),
                 evals: None,
                 evaluation_limit: 80,
@@ -115,10 +115,10 @@ mod vm {
     }
 
     impl Core for VM {
-        fn jit_memory(&mut self) -> &mut JitMemory {
+        fn data_space(&mut self) -> &mut DataSpace {
             &mut self.jitmem
         }
-        fn jit_memory_const(&self) -> &JitMemory {
+        fn data_space_const(&self) -> &DataSpace {
             &self.jitmem
         }
         fn output_buffer(&mut self) -> &mut Option<String> {

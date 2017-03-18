@@ -45,8 +45,8 @@ pub trait Float: Core {
     /// Compile float 'f'.
     fn compile_float(&mut self, f: f64) {
         let idx_flit = self.references().idx_flit;
-        self.jit_memory().compile_i32(idx_flit as i32);
-        self.jit_memory().compile_f64(f);
+        self.data_space().compile_i32(idx_flit as i32);
+        self.data_space().compile_f64(f);
     }
 
     /// Evaluate float.
@@ -71,7 +71,7 @@ pub trait Float: Core {
 
     fn flit(&mut self) -> Result {
         let ip = self.state().instruction_pointer as usize;
-        let v = self.jit_memory().get_f64(ip);
+        let v = self.data_space().get_f64(ip);
         match self.f_stack().push(v) {
             Err(_) => Err(FloatingPointStackOverflow),
             Ok(()) => {
@@ -85,7 +85,7 @@ pub trait Float: Core {
     fn p_fconst(&mut self) -> Result {
         let wp = self.state().word_pointer();
         let dfa = self.wordlist()[wp].dfa();
-        let v = self.jit_memory().get_f64(dfa);
+        let v = self.data_space().get_f64(dfa);
         match self.f_stack().push(v) {
             Err(_) => Err(FloatingPointStackOverflow),
             Ok(()) => Ok(()),
@@ -94,7 +94,7 @@ pub trait Float: Core {
 
     fn fvariable(&mut self) -> Result {
         try!(self.define(Core::p_fvar));
-        self.jit_memory().compile_f64(0.0);
+        self.data_space().compile_f64(0.0);
         Ok(())
     }
 
@@ -102,7 +102,7 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(v) => {
                 try!(self.define(Float::p_fconst));
-                self.jit_memory().compile_f64(v);
+                self.data_space().compile_f64(v);
                 Ok(())
             }
             Err(_) => Err(FloatingPointStackUnderflow),
@@ -114,7 +114,7 @@ pub trait Float: Core {
     fn ffetch(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(t) => {
-                let value = self.jit_memory().get_f64(t as usize);
+                let value = self.data_space().get_f64(t as usize);
                 match self.f_stack().push(value) {
                     Err(_) => Err(FloatingPointStackOverflow),
                     Ok(()) => Ok(()),
@@ -129,7 +129,7 @@ pub trait Float: Core {
             Ok(t) => {
                 match self.f_stack().pop() {
                     Ok(n) => {
-                        self.jit_memory().put_f64(n, t as usize);
+                        self.data_space().put_f64(n, t as usize);
                         Ok(())
                     }
                     Err(_) => Err(StackUnderflow),

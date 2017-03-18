@@ -45,7 +45,7 @@ pub trait Output: Core {
                 {
                     let mut output_buffer = self.output_buffer().take().unwrap();
                     {
-                        let s = &self.jit_memory().get_str(addr as usize, len as usize);
+                        let s = &self.data_space().get_str(addr as usize, len as usize);
                         output_buffer.push_str(s);
                     }
                     self.set_output_buffer(output_buffer);
@@ -58,7 +58,7 @@ pub trait Output: Core {
     /// Runtime of S"
     fn p_s_quote(&mut self) -> Result {
         let ip = self.state().instruction_pointer;
-        let cnt = self.jit_memory().get_i32(ip);
+        let cnt = self.data_space().get_i32(ip);
         let addr = self.state().instruction_pointer + mem::size_of::<i32>();
         match self.s_stack().push2(addr as isize, cnt as isize) {
             Err(_) => Err(StackOverflow),
@@ -91,9 +91,9 @@ pub trait Output: Core {
                 None => (source, source.len()),
             };
             let idx = self.references().idx_s_quote as i32;
-            self.jit_memory().compile_i32(idx);
-            self.jit_memory().compile_i32(cnt as i32);
-            self.jit_memory().compile_str(s);
+            self.data_space().compile_i32(idx);
+            self.data_space().compile_i32(cnt as i32);
+            self.data_space().compile_str(s);
             // ignore the space following S"
             self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;
         }
@@ -134,8 +134,8 @@ pub trait Output: Core {
     ///
     /// Display n in free field format.
     fn dot(&mut self) -> Result {
-        let base_addr = self.jit_memory().system_variables().base_addr();
-        let base = self.jit_memory().get_isize(base_addr);
+        let base_addr = self.data_space().system_variables().base_addr();
+        let base = self.data_space().get_isize(base_addr);
         let mut invalid_base = false;
         match self.s_stack().pop() {
             Ok(n) => {

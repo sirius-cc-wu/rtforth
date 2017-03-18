@@ -1,6 +1,6 @@
 use output::Output;
 use core::{Result, Core, Word, ForwardReferences, Stack, State};
-use jitmem::JitMemory;
+use jitmem::DataSpace;
 use loader::HasLoader;
 use tools::Tools;
 use env::Environment;
@@ -15,7 +15,7 @@ pub struct VM {
     symbols: Vec<String>,
     last_definition: usize,
     wordlist: Vec<Word<VM>>,
-    jitmem: JitMemory,
+    data_space: DataSpace,
     inbuf: Option<String>,
     tkn: Option<String>,
     outbuf: Option<String>,
@@ -34,7 +34,7 @@ impl VM {
             symbols: vec![],
             last_definition: 0,
             wordlist: vec![],
-            jitmem: JitMemory::new(pages),
+            data_space: DataSpace::new(pages),
             inbuf: Some(String::with_capacity(128)),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
@@ -47,11 +47,11 @@ impl VM {
 }
 
 impl Core for VM {
-    fn jit_memory(&mut self) -> &mut JitMemory {
-        &mut self.jitmem
+    fn data_space(&mut self) -> &mut DataSpace {
+        &mut self.data_space
     }
-    fn jit_memory_const(&self) -> &JitMemory {
-        &self.jitmem
+    fn data_space_const(&self) -> &DataSpace {
+        &self.data_space
     }
     fn output_buffer(&mut self) -> &mut Option<String> {
         &mut self.outbuf

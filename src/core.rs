@@ -973,17 +973,14 @@ pub trait Core: Sized {
             dfa = w.dfa();
             symbol = w.symbol();
         }
-        let jlen = self.jit_memory().get_i32(dfa) as usize;
-        self.jit_memory().truncate(jlen);
-        self.wordlist_mut().truncate(wp + 1);
-        self.symbols_mut().truncate(symbol.id + 1);
+        self.jit_memory().truncate(dfa);
+        self.wordlist_mut().truncate(wp);
+        self.symbols_mut().truncate(symbol.id);
         Ok(())
     }
 
     fn marker(&mut self) -> Result {
         try!(self.define(Core::unmark));
-        let jlen = self.jit_memory().len() as i32;
-        self.jit_memory().compile_i32(jlen + (mem::size_of::<i32>() as i32));
         Ok(())
     }
 
@@ -3250,12 +3247,14 @@ mod tests {
     fn test_marker_unmark() {
         let vm = &mut VM::new(16);
         vm.add_core();
-        vm.set_source("marker empty here empty here =");
-        assert!(vm.evaluate().is_ok());
         let symbols_len = vm.symbols().len();
+        let wordlist_len = vm.wordlist().len();
+        vm.set_source("here marker empty empty here =");
+        assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.symbols().len(), symbols_len);
+        assert_eq!(vm.wordlist().len(), wordlist_len);
     }
 
     #[test]

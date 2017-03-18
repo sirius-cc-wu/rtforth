@@ -10,7 +10,7 @@ use std::fmt;
 use std::slice;
 use std::ascii::AsciiExt;
 use std::result;
-use jitmem::DataSpace;
+use jitmem::{self, DataSpace};
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
                            UnsupportedOperation, InterpretingACompileOnlyWord, InvalidMemoryAddress,
@@ -463,6 +463,7 @@ pub trait Core: Sized {
         self.add_primitive("quit", Core::quit);
         self.add_primitive("abort", Core::abort);
         self.add_primitive("bye", Core::bye);
+        self.add_primitive("jit", Core::jit);
 
         self.references().idx_lit = self.find("lit").expect("lit undefined");
         self.references().idx_exit = self.find("exit").expect("exit undefined");
@@ -2209,6 +2210,12 @@ pub trait Core: Sized {
     /// Emit Bye exception.
     fn bye(&mut self) -> Result {
         Err(Bye)
+    }
+
+    /// Jit
+    fn jit(&mut self) -> Result {
+        self.s_stack().push(jitmem::jit_3()() as isize);
+        Ok(())
     }
 }
 

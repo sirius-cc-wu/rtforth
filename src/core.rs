@@ -561,11 +561,18 @@ pub trait Core: Sized {
         while 0 < ip && ip < self.data_space().len() {
             let w = self.data_space().get_i32(ip) as usize;
             self.state().instruction_pointer += mem::size_of::<i32>();
-            if let Err(e) = self.execute_word(w) {
-                match e {
-                    Nest => {}
-                    _ => {
-                        self.set_error(Some(e));
+            match self.execute_word(w) {
+                Err(e) => {
+                    match e {
+                        Nest => {}
+                        _ => {
+                            self.set_error(Some(e));
+                            break;
+                        }
+                    }
+                }
+                Ok(_) => {
+                    if self.last_error().is_some() {
                         break;
                     }
                 }
@@ -3411,6 +3418,7 @@ mod tests {
         }
         assert!(!vm.state().is_idle());
         assert_eq!(vm.s_stack().len(), 3);
+        vm.clear_error();
         vm.run();
         assert!(vm.state().is_idle());
         assert_eq!(vm.s_stack().len(), 6);

@@ -2190,10 +2190,15 @@ pub trait Core: Sized {
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
-    fn abort(&mut self) -> Result {
+    fn abort_with(&mut self, e: Exception) -> Result {
         self.clear_stacks();
         self.reset();
-        Err(Abort)
+        Err(e)
+    }
+
+    /// Abort the inner loop with an exception, reset VM and clears stacks.
+    fn abort(&mut self) -> Result {
+        self.abort_with(Abort)
     }
 
     fn halt(&mut self) -> Result {

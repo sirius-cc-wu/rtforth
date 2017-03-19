@@ -1383,7 +1383,7 @@ pub trait Core: Sized {
 
     fn swap(&mut self) -> Result {
         if self.s_stack().len < 2 {
-            Err(StackUnderflow)
+            self.set_error(Some(StackUnderflow));
         } else {
             unsafe {
                 let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
@@ -1394,15 +1394,15 @@ pub trait Core: Sized {
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
                            t);
             }
-            Ok(())
         }
+        Ok(())
     }
 
     fn dup(&mut self) -> Result {
         if self.s_stack().len < 1 {
-            Err(StackUnderflow)
+            self.set_error(Some(StackUnderflow));
         } else if self.s_stack().is_full() {
-            Err(StackOverflow)
+            self.set_error(Some(StackOverflow));
         } else {
             unsafe {
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
@@ -1411,37 +1411,37 @@ pub trait Core: Sized {
                                .offset((self.s_stack().len - 1) as isize)));
                 self.s_stack().len += 1;
             }
-            Ok(())
         }
+        Ok(())
     }
 
     fn p_drop(&mut self) -> Result {
         if self.s_stack().len < 1 {
-            Err(StackUnderflow)
+            self.set_error(Some(StackUnderflow));
         } else {
             self.s_stack().len -= 1;
-            Ok(())
         }
+        Ok(())
     }
 
     fn nip(&mut self) -> Result {
         if self.s_stack().len < 2 {
-            Err(StackUnderflow)
+            self.set_error(Some(StackUnderflow));
         } else {
             unsafe {
                 self.s_stack().len -= 1;
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
-            Ok(())
         }
+        Ok(())
     }
 
     fn over(&mut self) -> Result {
         if self.s_stack().len < 2 {
-            Err(StackUnderflow)
+            self.set_error(Some(StackUnderflow));
         } else if self.s_stack().is_full() {
-            Err(StackOverflow)
+            self.set_error(Some(StackOverflow));
         } else {
             unsafe {
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
@@ -1450,13 +1450,13 @@ pub trait Core: Sized {
                                .offset((self.s_stack().len - 2) as isize)));
                 self.s_stack().len += 1;
             }
-            Ok(())
         }
+        Ok(())
     }
 
     fn rot(&mut self) -> Result {
         if self.s_stack().len < 3 {
-            Err(StackUnderflow)
+            self.set_error(Some(StackUnderflow));
         } else {
             unsafe {
                 let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
@@ -1470,24 +1470,24 @@ pub trait Core: Sized {
                 ptr::write(self.s_stack().inner.offset((self.s_stack().len - 3) as isize),
                            n);
             }
-            Ok(())
         }
+        Ok(())
     }
 
     fn two_drop(&mut self) -> Result {
         if self.s_stack().len < 2 {
-            Err(StackUnderflow)
+            self.set_error(Some(StackUnderflow));
         } else {
             self.s_stack().len -= 2;
-            Ok(())
         }
+        Ok(())
     }
 
     fn two_dup(&mut self) -> Result {
         if self.s_stack().len < 2 {
-            Err(StackUnderflow)
+            self.set_error(Some(StackUnderflow));
         } else if self.s_stack().len + 2 > self.s_stack().cap {
-            Err(StackOverflow)
+            self.set_error(Some(StackOverflow));
         } else {
             unsafe {
                 self.s_stack().len += 2;
@@ -1500,8 +1500,8 @@ pub trait Core: Sized {
                                .inner
                                .offset((self.s_stack().len - 4) as isize)));
             }
-            Ok(())
         }
+        Ok(())
     }
 
     fn two_swap(&mut self) -> Result {
@@ -2181,6 +2181,11 @@ pub trait Core: Sized {
         self.f_stack().clear();
     }
 
+    /// Clear error.
+    fn clear_error(&mut self) {
+        self.set_error(None);
+    }
+
     /// Reset VM, do not clear data stack and floating point stack.
     /// Called by VM's client upon Quit.
     fn reset(&mut self) {
@@ -2191,6 +2196,7 @@ pub trait Core: Sized {
         self.state().source_index = 0;
         self.state().instruction_pointer = 0;
         self.interpret().unwrap();
+        self.set_error(None);
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
@@ -2236,7 +2242,7 @@ mod tests {
     use vm::VM;
     use self::test::Bencher;
     use std::mem;
-    use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Pause, Bye};
+    use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Pause, Bye, StackUnderflow};
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {
@@ -2320,9 +2326,14 @@ mod tests {
     fn test_drop() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.p_drop();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(1);
-        assert!(vm.p_drop().is_ok());
+        vm.p_drop();
         assert!(vm.s_stack().is_empty());
+        assert!(vm.last_error().is_none());
     }
 
     #[bench]
@@ -2340,9 +2351,19 @@ mod tests {
     fn test_nip() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.nip();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.nip();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.nip().is_ok());
+        vm.nip();
+        assert!(vm.last_error().is_none());
         assert!(vm.s_stack().len() == 1);
         assert!(vm.s_stack().last() == Some(2));
     }
@@ -2363,9 +2384,19 @@ mod tests {
     fn test_swap() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.swap();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.swap();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.swap().is_ok());
+        vm.swap();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Ok(1));
         assert_eq!(vm.s_stack().pop(), Ok(2));
@@ -2384,8 +2415,12 @@ mod tests {
     fn test_dup() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.dup();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
         vm.s_stack().push(1);
-        assert!(vm.dup().is_ok());
+        vm.dup();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Ok(1));
         assert_eq!(vm.s_stack().pop(), Ok(1));
@@ -2406,9 +2441,19 @@ mod tests {
     fn test_over() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.over();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.over();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.over().is_ok());
+        vm.over();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), Ok(1));
         assert_eq!(vm.s_stack().pop(), Ok(2));
@@ -2431,10 +2476,26 @@ mod tests {
     fn test_rot() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.rot();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.rot();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.rot();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.s_stack().push(3);
-        assert!(vm.rot().is_ok());
+        vm.rot();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), Ok(1));
         assert_eq!(vm.s_stack().pop(), Ok(3));
@@ -2455,9 +2516,19 @@ mod tests {
     fn test_2drop() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.two_drop();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.two_drop();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.two_drop().is_ok());
+        vm.two_drop();
+        assert!(vm.last_error().is_none());
         assert!(vm.s_stack().is_empty());
     }
 
@@ -2476,9 +2547,19 @@ mod tests {
     fn test_2dup() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.two_dup();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.two_dup();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.two_dup().is_ok());
+        vm.two_dup();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 4);
         assert_eq!(vm.s_stack().pop(), Ok(2));
         assert_eq!(vm.s_stack().pop(), Ok(1));

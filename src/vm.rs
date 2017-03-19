@@ -6,9 +6,11 @@ use tools::Tools;
 use env::Environment;
 use facility::Facility;
 use float::Float;
+use exception::Exception;
 
 // Virtual machine
 pub struct VM {
+    last_error: Option<Exception>,
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
     f_stk: Stack<f64>,
@@ -28,6 +30,7 @@ pub struct VM {
 impl VM {
     pub fn new(pages: usize) -> VM {
         VM {
+            last_error: None,
             s_stk: Stack::with_capacity(64),
             r_stk: Stack::with_capacity(64),
             f_stk: Stack::with_capacity(16),
@@ -47,6 +50,12 @@ impl VM {
 }
 
 impl Core for VM {
+    fn last_error(&self) -> Option<Exception> {
+        self.last_error
+    }
+    fn set_error(&mut self, e: Option<Exception>) {
+        self.last_error = e;
+    }
     fn data_space(&mut self) -> &mut DataSpace {
         &mut self.data_space
     }

@@ -313,7 +313,8 @@ impl Symbol {
 
 pub trait Core: Sized {
     // Functions to access VM.
-
+    fn last_error(&self) -> Option<Exception>;
+    fn set_error(&mut self, e: Option<Exception>);
     fn data_space(&mut self) -> &mut DataSpace;
     fn data_space_const(&self) -> &DataSpace;
     /// Get `output_buffer`.
@@ -555,7 +556,7 @@ pub trait Core: Sized {
     /// Never return None and Some(Nest).
     #[no_mangle]
     #[inline(never)]
-    fn run(&mut self) -> Result {
+    fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while 0 < ip && ip < self.data_space().len() {
             let w = self.data_space().get_i32(ip) as usize;
@@ -563,15 +564,17 @@ pub trait Core: Sized {
             if let Err(e) = self.execute_word(w) {
                 match e {
                     Nest => {}
-                    _ => return Err(e),
+                    _ => {
+                        self.set_error(Some(e));
+                        break;
+                    }
                 }
             }
             ip = self.state().instruction_pointer;
         }
-        if ip == 0 {
-            Ok(())
-        } else {
-            Err(InvalidMemoryAddress)
+        if self.last_error().is_some() {
+        } else if ip != 0 {
+            self.set_error(Some(InvalidMemoryAddress));
         }
     }
 
@@ -762,7 +765,8 @@ pub trait Core: Sized {
                                 last_token = self.last_token().take().unwrap();
                                 match e {
                                     Nest => {
-                                        if let Err(e2) = self.run() {
+                                        self.run();
+                                        if let Some(e2) = self.last_error() {
                                             match e2 {
                                                 Quit => {}
                                                 _ => {
@@ -2279,14 +2283,16 @@ mod tests {
         vm.compile_integer(2);
         vm.compile_integer(1);
         vm.state().instruction_pointer = ip;
-        match vm.run() {
-            Err(e) => {
+        assert_eq!(vm.last_error(), None);
+        vm.run();
+        match vm.last_error() {
+            Some(e) => {
                 match e {
                     InvalidMemoryAddress => assert!(true),
                     _ => assert!(false),
                 }
             }
-            Ok(()) => assert!(false),
+            None => assert!(false),
         }
         assert_eq!(3usize, vm.s_stack().len());
     }
@@ -3342,8 +3348,9 @@ mod tests {
         b.iter(|| {
             vm.dup();
             vm.execute();
-            match vm.run() {
-                Err(e) => {
+            vm.run();
+            match vm.last_error() {
+                Some(e) => {
                     match e {
                         Quit => {}
                         _ => {
@@ -3351,7 +3358,7 @@ mod tests {
                         }
                     }
                 }
-                Ok(()) => assert!(true),
+                None => assert!(true),
             };
         });
     }

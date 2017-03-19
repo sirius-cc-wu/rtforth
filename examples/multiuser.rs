@@ -18,6 +18,7 @@ mod vm {
     use super::BUFFER_SIZE;
 
     struct Task {
+        last_error: Option<Exception>,
         state: State,
         s_stk: Stack<isize>,
         r_stk: Stack<isize>,
@@ -48,6 +49,7 @@ mod vm {
                 current_task: 0,
                 tasks_used: [false; 3],
                 tasks: [Task {
+                            last_error: None,
                             state: State::new(),
                             s_stk: Stack::with_capacity(64),
                             r_stk: Stack::with_capacity(64),
@@ -57,6 +59,7 @@ mod vm {
                             outbuf: Some(String::with_capacity(BUFFER_SIZE)),
                         },
                         Task {
+                            last_error: None,
                             state: State::new(),
                             s_stk: Stack::with_capacity(64),
                             r_stk: Stack::with_capacity(64),
@@ -66,6 +69,7 @@ mod vm {
                             outbuf: Some(String::with_capacity(BUFFER_SIZE)),
                         },
                         Task {
+                            last_error: None,
                             state: State::new(),
                             s_stk: Stack::with_capacity(64),
                             r_stk: Stack::with_capacity(64),
@@ -115,6 +119,12 @@ mod vm {
     }
 
     impl Core for VM {
+        fn last_error(&self) -> Option<Exception> {
+            self.tasks[self.current_task].last_error
+        }
+        fn set_error(&mut self, e: Option<Exception>) {
+            self.tasks[self.current_task].last_error = e;
+        }
         fn data_space(&mut self) -> &mut DataSpace {
             &mut self.jitmem
         }

@@ -685,10 +685,10 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(ch) => {
                 self.compile_integer(ch);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( char "ccc&lt;char&gt;" -- )
@@ -2036,24 +2036,23 @@ pub trait Core: Sized {
     /// `name` and return `xt`, the execution token for name. An ambiguous
     /// condition exists if name is not found.
     fn tick(&mut self) -> Result {
-        let result;
         try!(self.parse_word());
         let last_token = self.last_token().take().unwrap();
         if last_token.is_empty() {
-            result = Err(UnexpectedEndOfFile);
+            self.set_error(Some(UnexpectedEndOfFile));
         } else {
             match self.find(&last_token) {
                 Some(found_index) => {
                     match self.s_stack().push(found_index as isize) {
-                        Err(_) => result = Err(StackOverflow),
-                        Ok(()) => result = Ok(()),
+                        Err(_) => self.set_error(Some(StackOverflow)),
+                        Ok(()) => {}
                     }
                 }
-                None => result = Err(UndefinedWord),
+                None => self.set_error(Some(UndefinedWord)),
             }
         }
         self.set_last_token(last_token);
-        result
+        Ok(())
     }
 
     /// Run-time: ( i*x xt -- j*x )
@@ -2062,9 +2061,12 @@ pub trait Core: Sized {
     /// Other stack effects are due to the word `EXECUTE`d.
     fn execute(&mut self) -> Result {
         match self.s_stack().pop() {
-            Ok(t) => self.execute_word(t as usize),
-            Err(_) => Err(StackUnderflow),
+            Ok(t) => {
+                self.execute_word(t as usize);
+            }
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( -- addr )
@@ -2073,9 +2075,10 @@ pub trait Core: Sized {
     fn here(&mut self) -> Result {
         let len = self.data_space().len() as isize;
         match self.s_stack().push(len) {
-            Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(()),
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => {}
         }
+        Ok(())
     }
 
     /// Run-time: ( n -- )
@@ -2087,10 +2090,10 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(v) => {
                 self.data_space().allot(v);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( x -- )
@@ -2103,10 +2106,10 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(v) => {
                 self.data_space().compile_i32(v as i32);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn p_to_r(&mut self) -> Result {
@@ -3588,11 +3591,44 @@ mod tests {
     }
 
     #[test]
+    fn test_tick() {
+        let vm = &mut VM::new(16);
+        vm.add_core();
+        // '
+        vm.tick();
+        assert_eq!(vm.last_error(), Some(UnexpectedEndOfFile));
+        vm.clear_error();
+        // ' xdrop
+        vm.set_source("' xdrop");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(UndefinedWord));
+        vm.clear_error();
+        vm.clear_stacks();
+        // ' drop
+        vm.set_source("' drop");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+    }
+
+    #[test]
     fn test_execute() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // execute
+        vm.execute();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        // ' drop execute
+        vm.set_source("' drop");
+        vm.execute();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        // 1 2  ' swap execute
         vm.set_source("1 2  ' swap execute");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Ok(1));
         assert_eq!(vm.s_stack().pop(), Ok(2));
@@ -3602,8 +3638,14 @@ mod tests {
     fn test_here_allot() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // allot
+        vm.allot();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        // here 2 cells allot here -
         vm.set_source("here 2 cells allot here -");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(),
                    Ok(-((mem::size_of::<i32>() * 2) as isize)));
@@ -3613,9 +3655,14 @@ mod tests {
     fn test_here_comma_compile_interpret() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.comma();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        // here 1 , 2 , ] lit exit [ here
         let here = vm.data_space().len();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         match vm.s_stack().pop2() {
             Ok((n, t)) => {

@@ -2116,47 +2116,53 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(v) => {
                 if self.r_stack().is_full() {
-                    Err(ReturnStackOverflow)
+                    self.set_error(Some(ReturnStackOverflow));
                 } else {
                     unsafe {
                         ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), v);
                     }
                     self.r_stack().len += 1;
-                    Ok(())
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn r_from(&mut self) -> Result {
         if self.r_stack().len == 0 {
-            Err(ReturnStackUnderflow)
+            self.set_error(Some(ReturnStackUnderflow));
+        } else if self.s_stack().is_full() {
+            self.set_error(Some(StackOverflow));
         } else {
             self.r_stack().len -= 1;
             unsafe {
                 let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-                self.s_stack().push(ptr::read(r0))
+                self.s_stack().push(ptr::read(r0));
             }
         }
+        Ok(())
     }
 
     fn r_fetch(&mut self) -> Result {
         if self.r_stack().len == 0 {
-            Err(ReturnStackUnderflow)
+            self.set_error(Some(ReturnStackUnderflow));
+        } else if self.s_stack().is_full() {
+            self.set_error(Some(StackOverflow));
         } else {
             unsafe {
                 let r1 = self.r_stack().inner.offset((self.r_stack().len - 1) as isize);
-                self.s_stack().push(ptr::read(r1))
+                self.s_stack().push(ptr::read(r1));
             }
         }
+        Ok(())
     }
 
     fn two_to_r(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 if self.r_stack().space_left() < 2 {
-                    Err(ReturnStackOverflow)
+                    self.set_error(Some(ReturnStackOverflow));
                 } else {
                     unsafe {
                         ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), n);
@@ -2164,44 +2170,48 @@ pub trait Core: Sized {
                                    t);
                     }
                     self.r_stack().len += 2;
-                    Ok(())
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn two_r_from(&mut self) -> Result {
+        // TODO: check overflow.
         if self.r_stack().len < 2 {
-            Err(ReturnStackUnderflow)
+            self.set_error(Some(ReturnStackUnderflow));
         } else {
             self.r_stack().len -= 2;
             unsafe {
                 let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
                 try!(self.s_stack().push(ptr::read(r0)));
                 let r1 = self.r_stack().inner.offset((self.r_stack().len + 1) as isize);
-                self.s_stack().push(ptr::read(r1))
+                self.s_stack().push(ptr::read(r1));
             }
         }
+        Ok(())
     }
 
     fn two_r_fetch(&mut self) -> Result {
         if self.r_stack().len < 2 {
-            Err(ReturnStackUnderflow)
+            self.set_error(Some(ReturnStackUnderflow));
         } else {
             unsafe {
                 let r2 = self.r_stack().inner.offset((self.r_stack().len - 2) as isize);
                 try!(self.s_stack().push(ptr::read(r2)));
                 let r1 = self.r_stack().inner.offset((self.r_stack().len - 1) as isize);
-                self.s_stack().push(ptr::read(r1))
+                self.s_stack().push(ptr::read(r1));
             }
         }
+        Ok(())
     }
 
     /// Leave VM's inner loop, keep VM's all state.
     /// Call inner to resume inner loop.
     fn pause(&mut self) -> Result {
-        Err(Pause)
+        self.set_error(Some(Pause));
+        Ok(())
     }
 
     // ----------------
@@ -3687,7 +3697,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(8));
     }
@@ -3712,7 +3723,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-3));
     }

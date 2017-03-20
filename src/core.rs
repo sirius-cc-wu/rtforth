@@ -3034,10 +3034,8 @@ mod tests {
     fn bench_compile_words_at_beginning_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16);
         vm.add_core();
-        vm.set_source("marker empty");
-        assert!(vm.evaluate().is_ok());
         b.iter(|| {
-            vm.set_source(": main noop noop noop noop noop noop noop noop ; empty");
+            vm.set_source("marker empty : main noop noop noop noop noop noop noop noop ; empty");
             vm.evaluate();
             vm.s_stack().clear();
         });
@@ -3047,10 +3045,8 @@ mod tests {
     fn bench_compile_words_at_end_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16);
         vm.add_core();
-        vm.set_source("marker empty");
-        vm.evaluate();
         b.iter(|| {
-            vm.set_source(": main bye bye bye bye bye bye bye bye ; empty");
+            vm.set_source("marker empty : main bye bye bye bye bye bye bye bye ; empty");
             vm.evaluate();
             vm.s_stack().clear();
         });

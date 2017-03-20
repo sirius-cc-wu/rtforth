@@ -1773,48 +1773,52 @@ pub trait Core: Sized {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(if t == n { TRUE } else { FALSE }) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn less_than(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(if n < t { TRUE } else { FALSE }) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn greater_than(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(if n > t { TRUE } else { FALSE }) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn not_equals(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(if n == t { FALSE } else { TRUE }) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn between(&mut self) -> Result {
@@ -3067,14 +3071,25 @@ mod tests {
     fn test_less_than() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.less_than();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(-1);
+        vm.less_than();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(-1);
         vm.s_stack().push(0);
-        assert!(vm.less_than().is_ok());
+        vm.less_than();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         vm.s_stack().push(0);
         vm.s_stack().push(0);
-        assert!(vm.less_than().is_ok());
+        vm.less_than();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
     }
@@ -3083,19 +3098,31 @@ mod tests {
     fn test_equals() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.equals();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(0);
+        vm.equals();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(0);
         vm.s_stack().push(0);
-        assert!(vm.equals().is_ok());
+        vm.equals();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         vm.s_stack().push(-1);
         vm.s_stack().push(0);
-        assert!(vm.equals().is_ok());
+        vm.equals();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
         vm.s_stack().push(1);
         vm.s_stack().push(0);
-        assert!(vm.equals().is_ok());
+        vm.equals();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
     }
@@ -3104,14 +3131,25 @@ mod tests {
     fn test_greater_than() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.greater_than();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.greater_than();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(0);
-        assert!(vm.greater_than().is_ok());
+        vm.greater_than();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         vm.s_stack().push(0);
         vm.s_stack().push(0);
-        assert!(vm.greater_than().is_ok());
+        vm.greater_than();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
     }
@@ -3120,19 +3158,31 @@ mod tests {
     fn test_not_equals() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.not_equals();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(0);
+        vm.not_equals();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(0);
         vm.s_stack().push(0);
-        assert!(vm.not_equals().is_ok());
+        vm.not_equals();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
         vm.s_stack().push(-1);
         vm.s_stack().push(0);
-        assert!(vm.not_equals().is_ok());
+        vm.not_equals();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         vm.s_stack().push(1);
         vm.s_stack().push(0);
-        assert!(vm.not_equals().is_ok());
+        vm.not_equals();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
     }

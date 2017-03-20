@@ -1825,60 +1825,65 @@ pub trait Core: Sized {
         match self.s_stack().pop3() {
             Ok((x1, x2, x3)) => {
                 match self.s_stack().push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE }) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn invert(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.s_stack().push(!t) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn and(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(t & n) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn or(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(t | n) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {} 
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn xor(&mut self) -> Result {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(t ^ n) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( x1 u -- x2 )
@@ -3191,28 +3196,47 @@ mod tests {
     fn test_between() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.between();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.between();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.s_stack().push(1);
+        vm.between();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.between().is_ok());
+        vm.between();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         vm.s_stack().push(1);
         vm.s_stack().push(0);
         vm.s_stack().push(1);
-        assert!(vm.between().is_ok());
+        vm.between();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         vm.s_stack().push(0);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.between().is_ok());
+        vm.between();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
         vm.s_stack().push(3);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        assert!(vm.between().is_ok());
+        vm.between();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
     }
@@ -3221,8 +3245,13 @@ mod tests {
     fn test_invert() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.invert();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(707);
-        assert!(vm.invert().is_ok());
+        vm.invert();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-708));
     }
@@ -3231,9 +3260,19 @@ mod tests {
     fn test_and() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.and();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(707);
+        vm.and();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(707);
         vm.s_stack().push(007);
-        assert!(vm.and().is_ok());
+        vm.and();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(3));
     }
@@ -3242,9 +3281,19 @@ mod tests {
     fn test_or() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.or();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(707);
+        vm.or();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(707);
         vm.s_stack().push(07);
-        assert!(vm.or().is_ok());
+        vm.or();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(711));
     }
@@ -3253,9 +3302,19 @@ mod tests {
     fn test_xor() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.xor();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        vm.s_stack().push(707);
+        vm.xor();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
         vm.s_stack().push(707);
         vm.s_stack().push(07);
-        assert!(vm.xor().is_ok());
+        vm.xor();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(708));
     }

@@ -742,7 +742,6 @@ pub trait Core: Sized {
     /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
     /// Never returns Some(Quit).
     fn evaluate(&mut self) -> Result {
-        let mut result = Ok(());
         let mut last_token;
         let mut limit = self.evaluation_limit();
         loop {
@@ -763,7 +762,7 @@ pub trait Core: Sized {
                     if self.state().is_compiling && !is_immediate_word {
                         self.compile_word(found_index);
                     } else if !self.state().is_compiling && is_compile_only_word {
-                        result = Err(InterpretingACompileOnlyWord);
+                        self.set_error(Some(InterpretingACompileOnlyWord));
                         break;
                     } else {
                         self.set_last_token(last_token);
@@ -777,7 +776,7 @@ pub trait Core: Sized {
                                             match e2 {
                                                 Quit => {}
                                                 _ => {
-                                                    result = Err(e2);
+                                                    self.set_error(Some(e2));
                                                     break;
                                                 }
                                             }
@@ -785,7 +784,7 @@ pub trait Core: Sized {
                                     }
                                     Quit => {}
                                     _ => {
-                                        result = Err(e);
+                                        self.set_error(Some(e));
                                         break;
                                     }
                                 }
@@ -811,7 +810,7 @@ pub trait Core: Sized {
                     self.set_evaluators(evaluators);
                     if !done {
                         print!("{} ", &last_token);
-                        result = Err(UndefinedWord);
+                        self.set_error(Some(UndefinedWord));
                         break;
                     }
                 }
@@ -825,7 +824,7 @@ pub trait Core: Sized {
             self.set_last_token(last_token);
         }
         self.set_last_token(last_token);
-        result
+        Ok(())
     }
 
     fn base(&mut self) -> Result {
@@ -967,13 +966,15 @@ pub trait Core: Sized {
     fn constant(&mut self) -> Result {
         match self.s_stack().pop() {
             Ok(v) => {
-                self.define(Core::p_const).and_then(|_| {
-                    self.data_space().compile_i32(v as i32);
-                    Ok(())
-                })
+                self.define(Core::p_const)
+                    .and_then(|_| {
+                        self.data_space().compile_i32(v as i32);
+                        Ok(())
+                    });
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn unmark(&mut self) -> Result {
@@ -1317,12 +1318,13 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(v) => {
                 match self.s_stack().push(v + mem::size_of::<u8>() as isize) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: (n1 -- n2 )
@@ -1332,12 +1334,13 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(v) => {
                 match self.s_stack().push(v * mem::size_of::<u8>() as isize) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
 
@@ -1348,12 +1351,13 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(v) => {
                 match self.s_stack().push(v + mem::size_of::<i32>() as isize) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: (n1 -- n2 )
@@ -1363,12 +1367,13 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(v) => {
                 match self.s_stack().push(v * mem::size_of::<i32>() as isize) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     fn lit(&mut self) -> Result {
@@ -2268,7 +2273,8 @@ mod tests {
     use vm::VM;
     use self::test::Bencher;
     use std::mem;
-    use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Pause, Bye, StackUnderflow};
+    use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Pause, Bye, StackUnderflow,
+                               InterpretingACompileOnlyWord, UndefinedWord, UnexpectedEndOfFile};
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {
@@ -3408,13 +3414,13 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("hello world\t\r\n\"");
-        assert!(vm.parse_word().is_ok());
+        vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "hello");
         assert_eq!(vm.state().source_index, 6);
-        assert!(vm.parse_word().is_ok());
+        vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "world");
         assert_eq!(vm.state().source_index, 12);
-        assert!(vm.parse_word().is_ok());
+        vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "\"");
     }
 
@@ -3422,8 +3428,34 @@ mod tests {
     fn test_evaluate() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // >r
+        vm.set_source(">r");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(InterpretingACompileOnlyWord));
+        vm.clear_error();
+        vm.clear_stacks();
+        // drop
+        vm.set_source("drop");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        // error in colon definition: 4drop
+        vm.set_source(": 4drop drop drop drop drop ; 4drop");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        // undefined word
+        vm.set_source("xdrop");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(UndefinedWord));
+        vm.clear_error();
+        vm.clear_stacks();
+        // false true dup 1+ 2 -3
         vm.set_source("false true dup 1+ 2 -3");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 5);
         assert_eq!(vm.s_stack().pop(), Ok(-3));
         assert_eq!(vm.s_stack().pop(), Ok(2));
@@ -3458,8 +3490,16 @@ mod tests {
     fn test_colon_and_semi_colon() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // :
+        vm.set_source(":");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(UnexpectedEndOfFile));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : 2+3 2 3 + ; 2+3
         vm.set_source(": 2+3 2 3 + ; 2+3");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(5));
     }
@@ -3468,8 +3508,16 @@ mod tests {
     fn test_constant() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // constant x
+        vm.set_source("constant");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        // 5 constant x x x
         vm.set_source("5 constant x x x");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Ok(5));
         assert_eq!(vm.s_stack().pop(), Ok(5));
@@ -3479,8 +3527,28 @@ mod tests {
     fn test_variable_and_store_fetch() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // @
+        vm.set_source("@");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        // !
+        vm.set_source("!");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        // variable x x !
+        vm.set_source("variable x x !");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        // variable x  x @  3 x !  x @
         vm.set_source("variable x  x @  3 x !  x @");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), Ok(3));
         assert_eq!(vm.s_stack().pop(), Ok(0));
@@ -3490,8 +3558,16 @@ mod tests {
     fn test_char_plus_and_chars() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.char_plus();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.chars();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        // 2 char+  9 chars
         vm.set_source("2 char+  9 chars");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().as_slice(), [3, 9]);
     }
 
@@ -3499,8 +3575,15 @@ mod tests {
     fn test_cell_plus_and_cells() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        vm.cell_plus();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
+        vm.cells();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_error();
         vm.set_source("2 cell+  9 cells");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().as_slice(), [6, 36]);
     }
 
@@ -3687,10 +3770,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("1 2 3 abort 5 6 7");
-        match vm.evaluate() {
-            Err(Abort) => assert!(true),
-            _ => assert!(false),
-        }
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(Abort));
         assert_eq!(vm.s_stack().len(), 0);
     }
 
@@ -3699,10 +3780,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("1 2 3 bye 5 6 7");
-        match vm.evaluate() {
-            Err(Bye) => assert!(true),
-            _ => assert!(false),
-        }
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(Bye));
         assert!(vm.state().is_idle());
     }
 
@@ -3711,10 +3790,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": test 1 2 3 pause 5 6 7 ; test");
-        match vm.evaluate() {
-            Err(Pause) => assert!(true),
-            _ => assert!(false),
-        }
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(Pause));
         assert!(!vm.state().is_idle());
         assert_eq!(vm.s_stack().len(), 3);
         vm.clear_error();

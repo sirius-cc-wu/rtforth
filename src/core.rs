@@ -2257,7 +2257,8 @@ pub trait Core: Sized {
     fn abort_with(&mut self, e: Exception) -> Result {
         self.clear_stacks();
         self.reset();
-        Err(e)
+        self.set_error(Some(e));
+        Ok(())
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
@@ -2279,7 +2280,8 @@ pub trait Core: Sized {
 
     /// Emit Bye exception.
     fn bye(&mut self) -> Result {
-        Err(Bye)
+        self.set_error(Some(Bye));
+        Ok(())
     }
 
     /// Jit

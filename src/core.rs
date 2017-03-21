@@ -14,7 +14,7 @@ use jitmem::{self, DataSpace};
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
                            UnsupportedOperation, InterpretingACompileOnlyWord, InvalidMemoryAddress,
-                           Quit, Nest, Pause, Bye};
+                           ControlStructureMismatch, Quit, Nest, Pause, Bye};
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;
@@ -327,6 +327,8 @@ pub trait Core: Sized {
     fn set_input_buffer(&mut self, buffer: String);
     fn last_token(&mut self) -> &mut Option<String>;
     fn set_last_token(&mut self, buffer: String);
+    fn structure_depth(&self) -> usize;
+    fn set_structure_depth(&mut self, d: usize);
     fn s_stack(&mut self) -> &mut Stack<isize>;
     fn r_stack(&mut self) -> &mut Stack<isize>;
     fn f_stack(&mut self) -> &mut Stack<f64>;
@@ -938,18 +940,26 @@ pub trait Core: Sized {
         self.define(Core::nest).and_then(|_| {
             let def = self.last_definition();
             self.wordlist_mut()[def].set_hidden(true);
+            let depth = self.s_stack().len;
+            self.set_structure_depth(depth);
             self.compile()
         })
     }
 
     fn semicolon(&mut self) -> Result {
         if self.last_definition() != 0 {
-            let idx = self.references().idx_exit as i32;
-            self.data_space().compile_i32(idx);
-            let def = self.last_definition();
-            self.wordlist_mut()[def].set_hidden(false);
+            let depth = self.s_stack().len;
+            if depth != self.structure_depth() {
+                self.set_error(Some(ControlStructureMismatch));
+            } else {
+                let idx = self.references().idx_exit as i32;
+                self.data_space().compile_i32(idx);
+                let def = self.last_definition();
+                self.wordlist_mut()[def].set_hidden(false);
+            }
         }
-        self.interpret()
+        self.interpret();
+        Ok(())
     }
 
     fn create(&mut self) -> Result {
@@ -1164,10 +1174,10 @@ pub trait Core: Sized {
                 let here = self.data_space().len();
                 self.data_space().put_i32(here as i32,
                                           (if_part - mem::size_of::<i32>() as isize) as usize);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
+        Ok(())
     }
 
     fn imm_then(&mut self) -> Result {
@@ -1176,10 +1186,10 @@ pub trait Core: Sized {
                 let here = self.data_space().len();
                 self.data_space().put_i32(here as i32,
                                           (branch_part - mem::size_of::<i32>() as isize) as usize);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
+        Ok(())
     }
 
     fn imm_begin(&mut self) -> Result {
@@ -1202,10 +1212,10 @@ pub trait Core: Sized {
                 let here = self.data_space().len();
                 self.data_space().put_i32(here as i32,
                                           (while_part - mem::size_of::<i32>() as isize) as usize);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
+        Ok(())
     }
 
     fn imm_again(&mut self) -> Result {
@@ -1214,10 +1224,10 @@ pub trait Core: Sized {
                 let idx = self.references().idx_branch as i32;
                 self.data_space().compile_i32(idx);
                 self.data_space().compile_i32(begin_part as i32);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
+        Ok(())
     }
 
     fn imm_recurse(&mut self) -> Result {
@@ -2287,7 +2297,8 @@ mod tests {
     use self::test::Bencher;
     use std::mem;
     use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Pause, Bye, StackUnderflow,
-                               InterpretingACompileOnlyWord, UndefinedWord, UnexpectedEndOfFile};
+                               InterpretingACompileOnlyWord, UndefinedWord, UnexpectedEndOfFile,
+                               ControlStructureMismatch};
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {
@@ -3748,12 +3759,34 @@ mod tests {
     fn test_if_else_then() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // : t5 if ; t5
+        vm.set_source(": t5 if ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t3 else then ; t3
+        vm.set_source(": t3 else then ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t4 then ; t4
+        vm.set_source(": t4 then ; t4");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t1 0 if true else false then ; t1
         vm.set_source(": t1 0 if true else false then ; t1");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
+        // : t2 1 if true else false then ; t2
         vm.set_source(": t2 1 if true else false then ; t2");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
     }
@@ -3762,6 +3795,19 @@ mod tests {
     fn test_begin_again() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // : t3 begin ;
+        vm.set_source(": t3 begin ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t2 again ;
+        vm.set_source(": t2 again ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t1 0 begin 1+ dup 3 = if exit then again ; t1
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
@@ -3772,7 +3818,44 @@ mod tests {
     fn test_begin_while_repeat() {
         let vm = &mut VM::new(16);
         vm.add_core();
-        vm.set_source(": t1 0 begin 1+ dup 3 <> while repeat ; t1");
+        // : t1 begin ;
+        vm.set_source(": t1 begin ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t2 while ;
+        vm.set_source(": t2 while ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t3 repeat ;
+        vm.set_source(": t3 repeat ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t4 begin while ;
+        vm.set_source(": t4 begin while ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t5 begin repeat ;
+        vm.set_source(": t5 begin repeat ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t6 while repeat ;
+        vm.set_source(": t6 while repeat ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t7 0 begin 1+ dup 3 <> while repeat ; t1
+        vm.set_source(": t7 0 begin 1+ dup 3 <> while repeat ; t7");
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(3));

@@ -34,6 +34,7 @@ mod vm {
         tasks_used: [bool; 3],
         tasks: [Task; 3],
         symbols: Vec<String>,
+        structure_depth: usize,
         last_definition: usize,
         wordlist: Vec<Word<VM>>,
         jitmem: DataSpace,
@@ -79,6 +80,7 @@ mod vm {
                             outbuf: Some(String::with_capacity(BUFFER_SIZE)),
                         }],
                 symbols: vec![],
+                structure_depth: 0,
                 last_definition: 0,
                 wordlist: vec![],
                 jitmem: DataSpace::new(pages),
@@ -124,6 +126,12 @@ mod vm {
         }
         fn set_error(&mut self, e: Option<Exception>) {
             self.tasks[self.current_task].last_error = e;
+        }
+        fn structure_depth(&self) -> usize {
+            self.structure_depth
+        }
+        fn set_structure_depth(&mut self, depth: usize) {
+            self.structure_depth = depth
         }
         fn data_space(&mut self) -> &mut DataSpace {
             &mut self.jitmem

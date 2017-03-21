@@ -11,6 +11,7 @@ use exception::Exception;
 // Virtual machine
 pub struct VM {
     last_error: Option<Exception>,
+    structure_depth: usize,
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
     f_stk: Stack<f64>,
@@ -31,6 +32,7 @@ impl VM {
     pub fn new(pages: usize) -> VM {
         VM {
             last_error: None,
+            structure_depth: 0,
             s_stk: Stack::with_capacity(64),
             r_stk: Stack::with_capacity(64),
             f_stk: Stack::with_capacity(16),
@@ -55,6 +57,12 @@ impl Core for VM {
     }
     fn set_error(&mut self, e: Option<Exception>) {
         self.last_error = e;
+    }
+    fn structure_depth(&self) -> usize {
+        self.structure_depth
+    }
+    fn set_structure_depth(&mut self, depth: usize) {
+        self.structure_depth = depth
     }
     fn data_space(&mut self) -> &mut DataSpace {
         &mut self.data_space

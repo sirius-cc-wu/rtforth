@@ -1040,12 +1040,13 @@ pub trait Core: Sized {
     fn _do(&mut self) -> Result {
         let ip = self.state().instruction_pointer as isize;
         match self.r_stack().push(ip) {
-            Err(_) => Err(ReturnStackOverflow),
+            Err(_) => self.set_error(Some(ReturnStackOverflow)),
             Ok(()) => {
                 self.state().instruction_pointer += mem::size_of::<i32>();
-                self.two_to_r()
+                self.two_to_r();
             }
         }
+        Ok(())
     }
 
     /// Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
@@ -1060,19 +1061,19 @@ pub trait Core: Sized {
             Ok((rn, rt)) => {
                 if rt + 1 < rn {
                     try!(self.r_stack().push2(rn, rt + 1));
-                    self.branch()
+                    self.branch();
                 } else {
                     match self.r_stack().pop() {
                         Ok(_) => {
                             self.state().instruction_pointer += mem::size_of::<i32>();
-                            Ok(())
                         }
-                        Err(_) => Err(ReturnStackUnderflow),
+                        Err(_) => self.set_error(Some(ReturnStackUnderflow)),
                     }
                 }
             }
-            Err(_) => Err(ReturnStackUnderflow),
+            Err(_) => self.set_error(Some(ReturnStackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
@@ -1116,9 +1117,10 @@ pub trait Core: Sized {
     /// are unavailable.
     fn unloop(&mut self) -> Result {
         match self.r_stack().pop3() {
-            Ok(_) => Ok(()),
-            Err(_) => Err(ReturnStackUnderflow),
+            Ok(_) => {}
+            Err(_) => self.set_error(Some(ReturnStackUnderflow)),
         }
+        Ok(())
     }
 
     fn leave(&mut self) -> Result {
@@ -1262,10 +1264,10 @@ pub trait Core: Sized {
                 let here = self.data_space().len();
                 self.data_space().put_i32(here as i32,
                                           (do_part - mem::size_of::<i32>() as isize) as usize);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
+        Ok(())
     }
 
     /// Run-time: ( a-addr -- )
@@ -2301,7 +2303,7 @@ mod tests {
     use std::mem;
     use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Pause, Bye, StackUnderflow,
                                InterpretingACompileOnlyWord, UndefinedWord, UnexpectedEndOfFile,
-                               ControlStructureMismatch};
+                               ControlStructureMismatch, ReturnStackUnderflow};
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {
@@ -3950,7 +3952,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": fib dup 2 < if drop 1 else dup 1- recurse swap 2 - recurse + then ;");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         vm.set_source(": main 7 fib drop ;");
         vm.evaluate();
         vm.set_source("' main");
@@ -3977,8 +3980,22 @@ mod tests {
     fn test_do_loop() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // : t1 do ;
+        vm.set_source(": t1 do ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : t2 loop ;
+        vm.set_source(": t2 loop ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : main 1 5 0 do 1+ loop ;  main
         vm.set_source(": main 1 5 0 do 1+ loop ;  main");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(6));
     }
@@ -3987,8 +4004,16 @@ mod tests {
     fn test_do_unloop_exit_loop() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // : t1 unloop ;
+        vm.set_source(": t1 unloop ; t1");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ReturnStackUnderflow));
+        vm.clear_error();
+        vm.clear_stacks();
+        // : main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(3));
     }

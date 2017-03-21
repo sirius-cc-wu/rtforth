@@ -2273,7 +2273,8 @@ pub trait Core: Sized {
     /// Quit the inner loop and reset VM, without clearing stacks .
     fn quit(&mut self) -> Result {
         self.reset();
-        Err(Quit)
+        self.set_error(Some(Quit));
+        Ok(())
     }
 
     /// Emit Bye exception.
@@ -3862,11 +3863,12 @@ mod tests {
     }
 
     #[test]
-    fn test_backlash() {
+    fn test_backslash() {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source("1 2 3 \\ 5 6 7");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), Ok(3));
         assert_eq!(vm.s_stack().pop(), Ok(2));
@@ -3880,7 +3882,8 @@ mod tests {
         let symbols_len = vm.symbols().len();
         let wordlist_len = vm.wordlist().len();
         vm.set_source("here marker empty empty here =");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.symbols().len(), symbols_len);
@@ -3892,10 +3895,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": main 1 2 ; main 3 quit 5 6 7");
-        match vm.evaluate() {
-            Err(_) => assert!(false),
-            Ok(()) => assert!(true),
-        };
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(Quit));
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), Ok(3));
         assert_eq!(vm.s_stack().pop(), Ok(2));

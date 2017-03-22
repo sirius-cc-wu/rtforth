@@ -563,21 +563,19 @@ pub trait Core: Sized {
         while 0 < ip && ip < self.data_space().len() {
             let w = self.data_space().get_i32(ip) as usize;
             self.state().instruction_pointer += mem::size_of::<i32>();
-            match self.execute_word(w) {
-                Err(e) => {
+            self.execute_word(w);
+            match self.last_error() {
+                Some(e) => {
                     match e {
-                        Nest => {}
+                        Nest => {
+                            self.set_error(None);
+                        }
                         _ => {
-                            self.set_error(Some(e));
                             break;
                         }
                     }
                 }
-                Ok(_) => {
-                    if self.last_error().is_some() {
-                        break;
-                    }
-                }
+                None => {}
             }
             ip = self.state().instruction_pointer;
         }
@@ -741,8 +739,6 @@ pub trait Core: Sized {
         Ok(())
     }
 
-    /// Exception Quit is captured by evaluate. Quit does not be used to leave evaluate.
-    /// Never returns Some(Quit).
     fn evaluate(&mut self) -> Result {
         let mut last_token;
         let mut limit = self.evaluation_limit();
@@ -768,17 +764,18 @@ pub trait Core: Sized {
                         break;
                     } else {
                         self.set_last_token(last_token);
-                        match self.execute_word(found_index) {
-                            Err(e) => {
+                        self.execute_word(found_index);
+                        match self.last_error() {
+                            Some(e) => {
                                 last_token = self.last_token().take().unwrap();
                                 match e {
                                     Nest => {
+                                        self.set_error(None);
                                         self.run();
                                         if let Some(e2) = self.last_error() {
                                             match e2 {
                                                 Quit => {}
                                                 _ => {
-                                                    self.set_error(Some(e2));
                                                     break;
                                                 }
                                             }
@@ -791,7 +788,7 @@ pub trait Core: Sized {
                                     }
                                 }
                             }
-                            Ok(()) => {
+                            None => {
                                 last_token = self.last_token().take().unwrap();
                             }
                         };
@@ -801,12 +798,14 @@ pub trait Core: Sized {
                     let mut done = false;
                     let evaluators = self.evaluators().take().unwrap();
                     for h in &evaluators {
-                        match h(self, &last_token) {
-                            Ok(_) => {
+                        self.set_error(None);
+                        h(self, &last_token);
+                        match self.last_error() {
+                            None => {
                                 done = true;
                                 break;
                             }
-                            Err(_) => continue,
+                            Some(_) => continue,
                         }
                     }
                     self.set_evaluators(evaluators);
@@ -845,13 +844,13 @@ pub trait Core: Sized {
             Ok(t) => {
                 if self.state().is_compiling {
                     self.compile_integer(t);
-                    Ok(())
                 } else {
-                    self.s_stack().push(t)
+                    self.s_stack().push(t);
                 }
             }
-            Err(_) => Err(UnsupportedOperation),
+            Err(_) => self.set_error(Some(UnsupportedOperation)),
         }
+        Ok(())
     }
 
     /// Extend `f` to evaluators.
@@ -875,7 +874,7 @@ pub trait Core: Sized {
 
     fn nest(&mut self) -> Result {
         if self.r_stack().is_full() {
-            Err(ReturnStackOverflow)
+            self.set_error(Some(ReturnStackOverflow));
         } else {
             unsafe {
                 ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize),
@@ -884,17 +883,19 @@ pub trait Core: Sized {
             self.r_stack().len += 1;
             let wp = self.state().word_pointer;
             self.state().instruction_pointer = self.wordlist()[wp].dfa();
-            Err(Nest)
+            self.set_error(Some(Nest));
         }
+        Ok(())
     }
 
     fn p_var(&mut self) -> Result {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa() as isize;
         match self.s_stack().push(dfa) {
-            Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(()),
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => {}
         }
+        Ok(())
     }
 
     fn p_const(&mut self) -> Result {
@@ -902,18 +903,20 @@ pub trait Core: Sized {
         let dfa = self.wordlist()[wp].dfa();
         let value = self.data_space().get_i32(dfa) as isize;
         match self.s_stack().push(value) {
-            Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(()),
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => {}
         }
+        Ok(())
     }
 
     fn p_fvar(&mut self) -> Result {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa() as isize;
         match self.s_stack().push(dfa) {
-            Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(()),
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => {}
         }
+        Ok(())
     }
 
     fn define(&mut self, action: fn(&mut Self) -> Result) -> Result {
@@ -925,7 +928,7 @@ pub trait Core: Sized {
         if last_token.is_empty() {
             self.set_last_definition(0);
             self.set_last_token(last_token);
-            Err(UnexpectedEndOfFile)
+            self.set_error(Some(UnexpectedEndOfFile));
         } else {
             let symbol = self.new_symbol(&last_token);
             let word = Word::new(symbol, action, self.data_space().len());
@@ -933,8 +936,8 @@ pub trait Core: Sized {
             self.set_last_definition(len);
             self.wordlist_mut().push(word);
             self.set_last_token(last_token);
-            Ok(())
         }
+        Ok(())
     }
 
     fn colon(&mut self) -> Result {
@@ -1022,14 +1025,14 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(v) => {
                 if v == 0 {
-                    self.branch()
+                    self.branch();
                 } else {
                     self.state().instruction_pointer += mem::size_of::<i32>();
-                    Ok(())
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
@@ -1973,15 +1976,15 @@ pub trait Core: Sized {
     /// TODO: `UNLOOP`
     fn exit(&mut self) -> Result {
         if self.r_stack().len == 0 {
-            Err(ReturnStackUnderflow)
+            self.set_error(Some(ReturnStackUnderflow));
         } else {
             self.r_stack().len -= 1;
             unsafe {
                 self.state().instruction_pointer =
                     ptr::read(self.r_stack().inner.offset(self.r_stack().len as isize)) as usize;
             }
-            Ok(())
         }
+        Ok(())
     }
 
     /// Run-time: ( a-addr -- x )
@@ -1992,12 +1995,13 @@ pub trait Core: Sized {
             Ok(t) => {
                 let value = self.data_space().get_i32(t as usize) as isize;
                 match self.s_stack().push(value) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( x a-addr -- )
@@ -2007,10 +2011,10 @@ pub trait Core: Sized {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 self.data_space().put_i32(n as i32, t as usize);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( c-addr -- char )
@@ -2022,12 +2026,13 @@ pub trait Core: Sized {
             Ok(t) => {
                 let value = self.data_space().get_u8(t as usize) as isize;
                 match self.s_stack().push(value) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( char c-addr -- )
@@ -2039,10 +2044,10 @@ pub trait Core: Sized {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 self.data_space().put_u8(n as u8, t as usize);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( "<spaces>name" -- xt )
@@ -3813,7 +3818,8 @@ mod tests {
         vm.clear_stacks();
         // : t1 0 begin 1+ dup 3 = if exit then again ; t1
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(3));
     }

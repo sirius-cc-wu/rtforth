@@ -55,18 +55,20 @@ pub trait Float: Core {
             Ok(t) => {
                 if self.references().idx_flit == 0 {
                     print!("{} ", "Floating point");
-                    Err(UnsupportedOperation)
+                    self.set_error(Some(UnsupportedOperation));
                 } else {
                     if self.state().is_compiling {
                         self.compile_float(t);
-                        Ok(())
                     } else {
-                        self.f_stack().push(t).or(Err(FloatingPointStackOverflow))
+                        self.f_stack().push(t);
+                        let err = self.last_error().and(Some(FloatingPointStackOverflow));
+                        self.set_error(err);
                     }
                 }
             }
-            Err(_) => Err(UnsupportedOperation),
+            Err(_) => self.set_error(Some(UnsupportedOperation)),
         }
+        Ok(())
     }
 
     fn flit(&mut self) -> Result {
@@ -497,7 +499,8 @@ mod tests {
         vm.add_core();
         vm.add_float();
         vm.set_source("1.0 2.5");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 2);
         assert!(0.99999 < vm.f_stack().as_slice()[0]);
         assert!(vm.f_stack().as_slice()[0] < 1.00001);

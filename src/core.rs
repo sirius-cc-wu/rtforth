@@ -1091,22 +1091,22 @@ pub trait Core: Sized {
                     Ok(t) => {
                         if rt + t < rn {
                             try!(self.r_stack().push2(rn, rt + t));
-                            self.branch()
+                            self.branch();
                         } else {
                             match self.r_stack().pop() {
                                 Ok(_) => {
                                     self.state().instruction_pointer += mem::size_of::<i32>();
-                                    Ok(())
                                 }
-                                Err(_) => Err(ReturnStackUnderflow),
+                                Err(_) => self.set_error(Some(ReturnStackUnderflow)),
                             }
                         }
                     }
-                    Err(_) => Err(StackUnderflow),
+                    Err(_) => self.set_error(Some(StackUnderflow)),
                 }
             }
-            Err(_) => Err(ReturnStackUnderflow),
+            Err(_) => self.set_error(Some(ReturnStackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( -- ) ( R: loop-sys -- )
@@ -1285,10 +1285,10 @@ pub trait Core: Sized {
                 let here = self.data_space().len();
                 self.data_space().put_i32(here as i32,
                                           (do_part - mem::size_of::<i32>() as isize) as usize);
-                Ok(())
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
+        Ok(())
     }
 
     // -----------
@@ -2237,11 +2237,6 @@ pub trait Core: Sized {
         self.f_stack().clear();
     }
 
-    /// Clear error.
-    fn clear_error(&mut self) {
-        self.set_error(None);
-    }
-
     /// Reset VM, do not clear data stack and floating point stack.
     /// Called by VM's client upon Quit.
     fn reset(&mut self) {
@@ -2270,7 +2265,8 @@ pub trait Core: Sized {
 
     fn halt(&mut self) -> Result {
         self.state().instruction_pointer = 0;
-        Err(Quit)
+        self.set_error(Some(Quit));
+        Ok(())
     }
 
     /// Quit the inner loop and reset VM, without clearing stacks .
@@ -2389,7 +2385,7 @@ mod tests {
         vm.add_core();
         vm.p_drop();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.p_drop();
@@ -2414,12 +2410,12 @@ mod tests {
         vm.add_core();
         vm.nip();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.nip();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
@@ -2447,12 +2443,12 @@ mod tests {
         vm.add_core();
         vm.swap();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.swap();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
@@ -2478,7 +2474,7 @@ mod tests {
         vm.add_core();
         vm.dup();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.s_stack().push(1);
         vm.dup();
         assert!(vm.last_error().is_none());
@@ -2504,12 +2500,12 @@ mod tests {
         vm.add_core();
         vm.over();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.over();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
@@ -2539,18 +2535,18 @@ mod tests {
         vm.add_core();
         vm.rot();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.rot();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.rot();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
@@ -2579,12 +2575,12 @@ mod tests {
         vm.add_core();
         vm.two_drop();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.two_drop();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
@@ -2610,12 +2606,12 @@ mod tests {
         vm.add_core();
         vm.two_dup();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.two_dup();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
@@ -2646,25 +2642,25 @@ mod tests {
         vm.add_core();
         vm.two_swap();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.two_swap();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.two_swap();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.s_stack().push(3);
         vm.two_swap();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
@@ -2696,25 +2692,25 @@ mod tests {
         vm.add_core();
         vm.two_over();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.two_over();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.two_over();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.s_stack().push(3);
         vm.two_over();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
@@ -2756,7 +2752,7 @@ mod tests {
         vm.add_core();
         vm.one_plus();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.one_plus();
@@ -2779,7 +2775,7 @@ mod tests {
         vm.add_core();
         vm.one_minus();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(2);
         vm.one_minus();
@@ -2802,12 +2798,12 @@ mod tests {
         vm.add_core();
         vm.minus();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
         vm.minus();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
         vm.s_stack().push(7);
@@ -2833,12 +2829,12 @@ mod tests {
         vm.add_core();
         vm.plus();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
         vm.plus();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
         vm.s_stack().push(7);
@@ -2865,12 +2861,12 @@ mod tests {
         vm.add_core();
         vm.star();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
         vm.star();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
         vm.s_stack().push(7);
@@ -2897,12 +2893,12 @@ mod tests {
         vm.add_core();
         vm.slash();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
         vm.slash();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
         vm.s_stack().push(7);
@@ -2929,12 +2925,12 @@ mod tests {
         vm.add_core();
         vm.p_mod();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
         vm.p_mod();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
         vm.s_stack().push(7);
@@ -2962,12 +2958,12 @@ mod tests {
         vm.add_core();
         vm.slash_mod();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
         vm.slash_mod();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
         vm.s_stack().push(7);
@@ -2996,7 +2992,7 @@ mod tests {
         vm.add_core();
         vm.abs();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(-30);
         vm.abs();
@@ -3011,7 +3007,7 @@ mod tests {
         vm.add_core();
         vm.negate();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
         vm.negate();
@@ -3026,7 +3022,7 @@ mod tests {
         vm.add_core();
         vm.zero_less();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(-1);
         vm.zero_less();
@@ -3046,7 +3042,7 @@ mod tests {
         vm.add_core();
         vm.zero_equals();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
         vm.zero_equals();
@@ -3071,7 +3067,7 @@ mod tests {
         vm.add_core();
         vm.zero_greater();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.zero_greater();
@@ -3091,7 +3087,7 @@ mod tests {
         vm.add_core();
         vm.zero_not_equals();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
         vm.zero_not_equals();
@@ -3116,12 +3112,12 @@ mod tests {
         vm.add_core();
         vm.less_than();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(-1);
         vm.less_than();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(-1);
         vm.s_stack().push(0);
@@ -3143,12 +3139,12 @@ mod tests {
         vm.add_core();
         vm.equals();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
         vm.equals();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
         vm.s_stack().push(0);
@@ -3176,12 +3172,12 @@ mod tests {
         vm.add_core();
         vm.greater_than();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.greater_than();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(0);
@@ -3203,12 +3199,12 @@ mod tests {
         vm.add_core();
         vm.not_equals();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
         vm.not_equals();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
         vm.s_stack().push(0);
@@ -3236,18 +3232,18 @@ mod tests {
         vm.add_core();
         vm.between();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.between();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(1);
         vm.between();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(1);
@@ -3285,7 +3281,7 @@ mod tests {
         vm.add_core();
         vm.invert();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
         vm.invert();
@@ -3300,12 +3296,12 @@ mod tests {
         vm.add_core();
         vm.and();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
         vm.and();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
         vm.s_stack().push(007);
@@ -3321,12 +3317,12 @@ mod tests {
         vm.add_core();
         vm.or();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
         vm.or();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
         vm.s_stack().push(07);
@@ -3342,12 +3338,12 @@ mod tests {
         vm.add_core();
         vm.xor();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
         vm.xor();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
         vm.s_stack().push(07);
@@ -3363,12 +3359,12 @@ mod tests {
         vm.add_core();
         vm.lshift();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.lshift();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(1);
@@ -3390,12 +3386,12 @@ mod tests {
         vm.add_core();
         vm.rshift();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(8);
         vm.rshift();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(8);
         vm.s_stack().push(1);
@@ -3417,12 +3413,12 @@ mod tests {
         vm.add_core();
         vm.arshift();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(8);
         vm.arshift();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(8);
         vm.s_stack().push(1);
@@ -3461,25 +3457,25 @@ mod tests {
         vm.set_source(">r");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(InterpretingACompileOnlyWord));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // drop
         vm.set_source("drop");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // error in colon definition: 4drop
         vm.set_source(": 4drop drop drop drop drop ; 4drop");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // undefined word
         vm.set_source("xdrop");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(UndefinedWord));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // false true dup 1+ 2 -3
         vm.set_source("false true dup 1+ 2 -3");
@@ -3523,7 +3519,7 @@ mod tests {
         vm.set_source(":");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(UnexpectedEndOfFile));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : 2+3 2 3 + ; 2+3
         vm.set_source(": 2+3 2 3 + ; 2+3");
@@ -3541,7 +3537,7 @@ mod tests {
         vm.set_source("constant");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // 5 constant x x x
         vm.set_source("5 constant x x x");
@@ -3560,19 +3556,19 @@ mod tests {
         vm.set_source("@");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // !
         vm.set_source("!");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // variable x x !
         vm.set_source("variable x x !");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // variable x  x @  3 x !  x @
         vm.set_source("variable x  x @  3 x !  x @");
@@ -3589,10 +3585,10 @@ mod tests {
         vm.add_core();
         vm.char_plus();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.chars();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         // 2 char+  9 chars
         vm.set_source("2 char+  9 chars");
         vm.evaluate();
@@ -3606,10 +3602,10 @@ mod tests {
         vm.add_core();
         vm.cell_plus();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.cells();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.set_source("2 cell+  9 cells");
         vm.evaluate();
         assert!(vm.last_error().is_none());
@@ -3623,12 +3619,12 @@ mod tests {
         // '
         vm.tick();
         assert_eq!(vm.last_error(), Some(UnexpectedEndOfFile));
-        vm.clear_error();
+        vm.reset();
         // ' xdrop
         vm.set_source("' xdrop");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(UndefinedWord));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // ' drop
         vm.set_source("' drop");
@@ -3644,12 +3640,12 @@ mod tests {
         // execute
         vm.execute();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         // ' drop execute
         vm.set_source("' drop");
         vm.execute();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // 1 2  ' swap execute
         vm.set_source("1 2  ' swap execute");
@@ -3667,7 +3663,7 @@ mod tests {
         // allot
         vm.allot();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         // here 2 cells allot here -
         vm.set_source("here 2 cells allot here -");
         vm.evaluate();
@@ -3683,7 +3679,7 @@ mod tests {
         vm.add_core();
         vm.comma();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.clear_error();
+        vm.reset();
         // here 1 , 2 , ] lit exit [ here
         let here = vm.data_space().len();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
@@ -3768,19 +3764,19 @@ mod tests {
         vm.set_source(": t5 if ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t3 else then ; t3
         vm.set_source(": t3 else then ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t4 then ; t4
         vm.set_source(": t4 then ; t4");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t1 0 if true else false then ; t1
         vm.set_source(": t1 0 if true else false then ; t1");
@@ -3804,13 +3800,13 @@ mod tests {
         vm.set_source(": t3 begin ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t2 again ;
         vm.set_source(": t2 again ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t1 0 begin 1+ dup 3 = if exit then again ; t1
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
@@ -3827,37 +3823,37 @@ mod tests {
         vm.set_source(": t1 begin ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t2 while ;
         vm.set_source(": t2 while ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t3 repeat ;
         vm.set_source(": t3 repeat ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t4 begin while ;
         vm.set_source(": t4 begin while ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t5 begin repeat ;
         vm.set_source(": t5 begin repeat ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t6 while repeat ;
         vm.set_source(": t6 while repeat ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t7 0 begin 1+ dup 3 <> while repeat ; t1
         vm.set_source(": t7 0 begin 1+ dup 3 <> while repeat ; t7");
@@ -3941,7 +3937,7 @@ mod tests {
         assert_eq!(vm.last_error(), Some(Pause));
         assert!(!vm.state().is_idle());
         assert_eq!(vm.s_stack().len(), 3);
-        vm.clear_error();
+        vm.set_error(None);
         vm.run();
         assert!(vm.state().is_idle());
         assert_eq!(vm.s_stack().len(), 6);
@@ -3984,13 +3980,13 @@ mod tests {
         vm.set_source(": t1 do ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : t2 loop ;
         vm.set_source(": t2 loop ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : main 1 5 0 do 1+ loop ;  main
         vm.set_source(": main 1 5 0 do 1+ loop ;  main");
@@ -4008,7 +4004,7 @@ mod tests {
         vm.set_source(": t1 unloop ; t1");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ReturnStackUnderflow));
-        vm.clear_error();
+        vm.reset();
         vm.clear_stacks();
         // : main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main");
@@ -4022,12 +4018,28 @@ mod tests {
     fn test_do_plus_loop() {
         let vm = &mut VM::new(16);
         vm.add_core();
-        vm.set_source(": main 1 5 0 do 1+ 2 +loop ;  main");
-        assert!(vm.evaluate().is_ok());
+        // : t1 +loop ;
+        vm.set_source(": t1 +loop ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.reset();
+        vm.clear_stacks();
+        // : t2 5 0 do +loop ;
+        vm.set_source(": t2 5 0 do +loop ; t2");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.clear_stacks();
+        vm.reset();
+        // : t3 1 5 0 do 1+ 2 +loop ;  main
+        vm.set_source(": t3 1 5 0 do 1+ 2 +loop ;  t3");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(4));
-        vm.set_source(": main 1 6 0 do 1+ 2 +loop ;  main");
-        assert!(vm.evaluate().is_ok());
+        // : t4 1 6 0 do 1+ 2 +loop ;  t4
+        vm.set_source(": t4 1 6 0 do 1+ 2 +loop ;  t4");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(4));
     }

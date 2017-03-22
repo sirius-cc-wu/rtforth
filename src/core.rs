@@ -1128,22 +1128,23 @@ pub trait Core: Sized {
             Ok((third, _, _)) => {
                 self.state().instruction_pointer = self.data_space().get_i32(third as usize) as
                                                    usize;
-                Ok(())
             }
-            Err(_) => Err(ReturnStackUnderflow),
+            Err(_) => self.set_error(Some(ReturnStackUnderflow)),
         }
+        Ok(())
     }
 
     fn p_i(&mut self) -> Result {
         match self.r_stack().last() {
             Some(i) => {
                 match self.s_stack().push(i) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            None => Err(ReturnStackUnderflow),
+            None => self.set_error(Some(ReturnStackUnderflow)),
         }
+        Ok(())
     }
 
     fn p_j(&mut self) -> Result {
@@ -1151,12 +1152,13 @@ pub trait Core: Sized {
         match self.r_stack().get(pos) {
             Some(j) => {
                 match self.s_stack().push(j) {
-                    Err(_) => Err(StackOverflow),
-                    Ok(()) => Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            None => Err(ReturnStackUnderflow),
+            None => self.set_error(Some(ReturnStackUnderflow)),
         }
+        Ok(())
     }
 
     fn imm_if(&mut self) -> Result {
@@ -4048,8 +4050,16 @@ mod tests {
     fn test_do_leave_loop() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // : t1 leave ;
+        vm.set_source(": t1 leave ;  t1");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ReturnStackUnderflow));
+        vm.reset();
+        vm.clear_stacks();
+        // : main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop2(), Ok((88, 9)));
     }
@@ -4058,8 +4068,10 @@ mod tests {
     fn test_do_i_loop() {
         let vm = &mut VM::new(16);
         vm.add_core();
+        // : main 3 0 do i loop ;  main
         vm.set_source(": main 3 0 do i loop ;  main");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop3(), Ok((0, 1, 2)));
     }
@@ -4069,7 +4081,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 4);
         assert_eq!(vm.s_stack().as_slice(), [4, 8, 5, 10]);
     }

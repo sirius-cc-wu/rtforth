@@ -658,20 +658,19 @@ pub trait Core: Sized {
     /// Skip leading space delimiters. Parse name delimited by a space.
     /// Put the value of its first character onto the stack.
     fn char(&mut self) -> Result {
-        let result;
         try!(self.parse_word());
         let last_token = self.last_token().take().unwrap();
         match last_token.chars().nth(0) {
             Some(c) => {
                 match self.s_stack().push(c as isize) {
-                    Err(_) => result = Err(StackOverflow),
-                    Ok(()) => result = Ok(()),
+                    Err(_) => self.set_error(Some(StackOverflow)),
+                    Ok(()) => {}
                 }
             }
-            None => result = Err(UnexpectedEndOfFile),
+            None => self.set_error(Some(UnexpectedEndOfFile)),
         }
         self.set_last_token(last_token);
-        result
+        Ok(())
     }
 
     /// Compilation: ( "&lt;spaces&gt;name" -- )
@@ -717,20 +716,21 @@ pub trait Core: Sized {
                 }
                 self.set_last_token(last_token);
                 self.set_input_buffer(input_buffer);
-                Ok(())
             }
             Err(_) => {
                 self.set_input_buffer(input_buffer);
-                Err(StackUnderflow)
+                self.set_error(Some(StackUnderflow));
             }
         }
+        Ok(())
     }
 
     fn imm_paren(&mut self) -> Result {
         match self.s_stack().push(')' as isize) {
-            Err(_) => Err(StackOverflow),
-            Ok(()) => self.parse(),
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => { self.parse(); }
         }
+        Ok(())
     }
 
     fn imm_backslash(&mut self) -> Result {
@@ -832,9 +832,10 @@ pub trait Core: Sized {
     fn base(&mut self) -> Result {
         let base_addr = self.data_space().system_variables().base_addr();
         match self.s_stack().push(base_addr as isize) {
-            Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(()),
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => {}
         }
+        Ok(())
     }
 
     fn evaluate_integer(&mut self, token: &str) -> Result {

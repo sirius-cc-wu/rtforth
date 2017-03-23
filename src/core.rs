@@ -515,7 +515,8 @@ pub trait Core: Sized {
     /// Execute word at position `i`.
     fn execute_word(&mut self, i: usize) -> Result {
         self.state().word_pointer = i;
-        (self.wordlist()[i].action())(self)
+        (self.wordlist()[i].action())(self);
+        Ok(())
     }
 
     /// Find the word with name `name`.
@@ -946,8 +947,10 @@ pub trait Core: Sized {
             self.wordlist_mut()[def].set_hidden(true);
             let depth = self.s_stack().len;
             self.set_structure_depth(depth);
-            self.compile()
-        })
+            self.compile();
+            Ok(())
+        });
+        Ok(())
     }
 
     fn semicolon(&mut self) -> Result {
@@ -967,14 +970,16 @@ pub trait Core: Sized {
     }
 
     fn create(&mut self) -> Result {
-        self.define(Core::p_var)
+        self.define(Core::p_var);
+        Ok(())
     }
 
     fn variable(&mut self) -> Result {
         self.define(Core::p_var).and_then(|_| {
             self.data_space().compile_i32(0);
             Ok(())
-        })
+        });
+        Ok(())
     }
 
     fn constant(&mut self) -> Result {
@@ -1314,9 +1319,10 @@ pub trait Core: Sized {
     /// Return a true flag, a single-cell value with all bits set.
     fn p_true(&mut self) -> Result {
         match self.s_stack().push(TRUE) {
-            Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(()),
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => {}
         }
+        Ok(())
     }
 
     /// Run-time: ( -- false )
@@ -1324,9 +1330,10 @@ pub trait Core: Sized {
     /// Return a false flag.
     fn p_false(&mut self) -> Result {
         match self.s_stack().push(FALSE) {
-            Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(()),
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => {}
         }
+        Ok(())
     }
 
     /// Run-time: (c-addr1 -- c-addr2 )
@@ -1396,7 +1403,7 @@ pub trait Core: Sized {
 
     fn lit(&mut self) -> Result {
         if self.s_stack().is_full() {
-            Err(StackOverflow)
+            self.set_error(Some(StackOverflow));
         } else {
             unsafe {
                 let ip = self.state().instruction_pointer;
@@ -1407,8 +1414,8 @@ pub trait Core: Sized {
             self.s_stack().len += 1;
             self.state().instruction_pointer = self.state().instruction_pointer +
                                                mem::size_of::<i32>();
-            Ok(())
         }
+        Ok(())
     }
 
     fn swap(&mut self) -> Result {
@@ -2268,7 +2275,8 @@ pub trait Core: Sized {
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
     fn abort(&mut self) -> Result {
-        self.abort_with(Abort)
+        self.abort_with(Abort);
+        Ok(())
     }
 
     fn halt(&mut self) -> Result {

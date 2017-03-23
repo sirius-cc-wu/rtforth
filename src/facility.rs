@@ -37,15 +37,16 @@ pub trait Facility: Core {
         if t > usize::max_value() as u64 {
             match self.s_stack().push2(t.bitand(usize::max_value() as u64) as isize,
                                        t.shr(usize::max_value().count_ones()) as isize) {
-                Err(_) => Err(StackOverflow),
-                Ok(()) => Ok(()),
+                Err(_) => self.set_error(Some(StackOverflow)),
+                Ok(()) => {}
             }
         } else {
             match self.s_stack().push2(t as isize, 0) {
-                Err(_) => Err(StackOverflow),
-                Ok(()) => Ok(()),
+                Err(_) => self.set_error(Some(StackOverflow)),
+                Ok(()) => {}
             }
         }
+        Ok(())
     }
 
     /// Run-time: ( -- ud )
@@ -70,14 +71,15 @@ pub trait Facility: Core {
         if t > usize::max_value() as u64 {
             match self.s_stack().push2(t.bitand(usize::max_value() as u64) as isize,
                                        t.shr(usize::max_value().count_ones()) as isize) {
-                Err(_) => Err(StackOverflow),
-                Ok(()) => Ok(()),
+                Err(_) => self.set_error(Some(StackOverflow)),
+                Ok(()) => {}
             }
         } else {
             match self.s_stack().push2(t as isize, 0) {
-                Err(_) => Err(StackOverflow),
-                Ok(()) => Ok(()),
+                Err(_) => self.set_error(Some(StackOverflow)),
+                Ok(()) => {}
             }
         }
+        Ok(())
     }
 }

@@ -13,9 +13,10 @@ pub trait Environment: Core {
     /// Largest usable signed integer
     fn max_n(&mut self) -> Result {
         match self.s_stack().push(isize::max_value()) {
-            Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(()),
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => {}
         }
+        Ok(())
     }
 
     /// Run-time: ( -- u )
@@ -23,9 +24,10 @@ pub trait Environment: Core {
     /// Largest usable unsigned integer
     fn max_u(&mut self) -> Result {
         match self.s_stack().push(usize::max_value() as isize) {
-            Err(_) => Err(StackOverflow),
-            Ok(()) => Ok(()),
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => {}
         }
+        Ok(())
     }
 }
 
@@ -42,6 +44,7 @@ mod tests {
         vm.add_environment();
         vm.set_source("max-n dup 1+ +");
         vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         match vm.s_stack().pop() {
             Ok(t) => assert_eq!(t, -1),
             Err(_) => assert!(false),
@@ -55,6 +58,7 @@ mod tests {
         vm.add_environment();
         vm.set_source("max-u 1+");
         vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         match vm.s_stack().pop() {
             Ok(t) => assert_eq!(t, 0),
             Err(_) => assert!(false),

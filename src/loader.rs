@@ -5,9 +5,12 @@ use core::{Core, Result};
 use exception::Exception::FileIOException;
 
 pub trait HasLoader: Core {
-    fn load(&mut self, path_name: &str) -> Result {
+    fn load(&mut self, path_name: &str) {
         let mut reader = match File::open(&path_name) {
-            Err(_) => return Err(FileIOException),
+            Err(_) => {
+                self.set_error(Some(FileIOException));
+                return;
+            }
             Ok(file) => BufReader::new(file),
         };
         loop {
@@ -19,17 +22,19 @@ pub trait HasLoader: Core {
                 Ok(_) => {
                     if input_buffer.is_empty() {
                         self.set_input_buffer(input_buffer);
-                        return Ok(());
+                        return;
                     } else {
                         self.set_input_buffer(input_buffer);
-                        if let Err(e) = self.evaluate() {
-                            return Err(e);
+                        self.evaluate();
+                        if self.last_error().is_some() {
+                            return;
                         }
                     }
                 }
                 Err(_) => {
                     self.set_input_buffer(input_buffer);
-                    return Err(FileIOException);
+                    self.set_error(Some(FileIOException));
+                    return;
                 }
             };
         }

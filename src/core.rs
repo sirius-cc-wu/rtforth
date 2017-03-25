@@ -28,11 +28,11 @@ pub struct Word<Target> {
     is_compile_only: bool,
     hidden: bool,
     dfa: usize,
-    action: fn(&mut Target) -> Result,
+    action: fn(&mut Target),
 }
 
 impl<Target> Word<Target> {
-    pub fn new(symbol: Symbol, action: fn(&mut Target) -> Result, dfa: usize) -> Word<Target> {
+    pub fn new(symbol: Symbol, action: fn(&mut Target), dfa: usize) -> Word<Target> {
         Word {
             symbol: symbol,
             is_immediate: false,
@@ -75,7 +75,7 @@ impl<Target> Word<Target> {
         self.dfa
     }
 
-    pub fn action(&self) -> (fn(&mut Target) -> Result) {
+    pub fn action(&self) -> fn(&mut Target) {
         self.action
     }
 }
@@ -341,8 +341,8 @@ pub trait Core: Sized {
     fn wordlist(&self) -> &Vec<Word<Self>>;
     fn state(&mut self) -> &mut State;
     fn references(&mut self) -> &mut ForwardReferences;
-    fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result>>;
-    fn set_evaluators(&mut self, Vec<fn(&mut Self, token: &str) -> Result>);
+    fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str)>>;
+    fn set_evaluators(&mut self, Vec<fn(&mut Self, token: &str)>);
     /// Max number of words parsed for an evaluation, =0 if no limit;
     fn evaluation_limit(&self) -> isize;
 
@@ -481,7 +481,7 @@ pub trait Core: Sized {
     }
 
     /// Add a primitive word to word list.
-    fn add_primitive(&mut self, name: &str, action: fn(&mut Self) -> Result) {
+    fn add_primitive(&mut self, name: &str, action: fn(&mut Self)) {
         let symbol = self.new_symbol(name);
         let word = Word::new(symbol, action, self.data_space().len());
         let len = self.wordlist().len();
@@ -490,21 +490,21 @@ pub trait Core: Sized {
     }
 
     /// Add an immediate word to word list.
-    fn add_immediate(&mut self, name: &str, action: fn(&mut Self) -> Result) {
+    fn add_immediate(&mut self, name: &str, action: fn(&mut Self)) {
         self.add_primitive(name, action);
         let def = self.last_definition();
         self.wordlist_mut()[def].set_immediate(true);
     }
 
     /// Add a compile-only word to word list.
-    fn add_compile_only(&mut self, name: &str, action: fn(&mut Self) -> Result) {
+    fn add_compile_only(&mut self, name: &str, action: fn(&mut Self)) {
         self.add_primitive(name, action);
         let def = self.last_definition();
         self.wordlist_mut()[def].set_compile_only(true);
     }
 
     /// Add an immediate and compile-only word to word list.
-    fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(&mut Self) -> Result) {
+    fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(&mut Self)) {
         self.add_primitive(name, action);
         let def = self.last_definition();
         let w = &mut self.wordlist_mut()[def];
@@ -605,14 +605,12 @@ pub trait Core: Sized {
     // Evaluation
     // -----------
 
-    fn interpret(&mut self) -> Result {
+    fn interpret(&mut self) {
         self.state().is_compiling = false;
-        Ok(())
     }
 
-    fn compile(&mut self) -> Result {
+    fn compile(&mut self) {
         self.state().is_compiling = true;
-        Ok(())
     }
 
     /// copy content of `s` to `input_buffer` and set `source_index` to 0.
@@ -627,7 +625,7 @@ pub trait Core: Sized {
     /// Run-time: ( "ccc" -- )
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
-    fn parse_word(&mut self) -> Result {
+    fn parse_word(&mut self) {
         let mut last_token = self.last_token().take().unwrap();
         last_token.clear();
         let input_buffer = self.input_buffer().take().unwrap();
@@ -649,15 +647,17 @@ pub trait Core: Sized {
         }
         self.set_last_token(last_token);
         self.set_input_buffer(input_buffer);
-        Ok(())
     }
 
     /// Run-time: ( "&lt;spaces&gt;name" -- char)
     ///
     /// Skip leading space delimiters. Parse name delimited by a space.
     /// Put the value of its first character onto the stack.
-    fn char(&mut self) -> Result {
-        try!(self.parse_word());
+    fn char(&mut self) {
+        self.parse_word();
+        if self.last_error().is_some() {
+            return;
+        }
         let last_token = self.last_token().take().unwrap();
         match last_token.chars().nth(0) {
             Some(c) => {
@@ -669,7 +669,6 @@ pub trait Core: Sized {
             None => self.set_error(Some(UnexpectedEndOfFile)),
         }
         self.set_last_token(last_token);
-        Ok(())
     }
 
     /// Compilation: ( "&lt;spaces&gt;name" -- )
@@ -680,21 +679,23 @@ pub trait Core: Sized {
     /// Run-time: ( -- char )
     ///
     /// Place `char`, the value of the first character of name, on the stack.
-    fn bracket_char(&mut self) -> Result {
-        try!(self.char());
+    fn bracket_char(&mut self) {
+        self.char();
+        if self.last_error().is_some() {
+            return;
+        }
         match self.s_stack().pop() {
             Ok(ch) => {
                 self.compile_integer(ch);
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( char "ccc&lt;char&gt;" -- )
     ///
     /// Parse ccc delimited by the delimiter char.
-    fn parse(&mut self) -> Result {
+    fn parse(&mut self) {
         let input_buffer = self.input_buffer().take().unwrap();
         match self.s_stack().pop() {
             Ok(v) => {
@@ -721,30 +722,30 @@ pub trait Core: Sized {
                 self.set_error(Some(StackUnderflow));
             }
         }
-        Ok(())
     }
 
-    fn imm_paren(&mut self) -> Result {
+    fn imm_paren(&mut self) {
         match self.s_stack().push(')' as isize) {
             Err(_) => self.set_error(Some(StackOverflow)),
             Ok(()) => { self.parse(); }
         }
-        Ok(())
     }
 
-    fn imm_backslash(&mut self) -> Result {
+    fn imm_backslash(&mut self) {
         self.state().source_index = match *self.input_buffer() {
             Some(ref buf) => buf.len(),
             None => 0,
         };
-        Ok(())
     }
 
-    fn evaluate(&mut self) -> Result {
+    fn evaluate(&mut self) {
         let mut last_token;
         let mut limit = self.evaluation_limit();
         loop {
-            try!(self.parse_word());
+            self.parse_word();
+            if self.last_error().is_some() {
+                return;
+            }
             last_token = self.last_token().take().unwrap();
             if last_token.is_empty() {
                 break;
@@ -826,19 +827,17 @@ pub trait Core: Sized {
             self.set_last_token(last_token);
         }
         self.set_last_token(last_token);
-        Ok(())
     }
 
-    fn base(&mut self) -> Result {
+    fn base(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
         match self.s_stack().push(base_addr as isize) {
             Err(_) => self.set_error(Some(StackOverflow)),
             Ok(()) => {}
         }
-        Ok(())
     }
 
-    fn evaluate_integer(&mut self, token: &str) -> Result {
+    fn evaluate_integer(&mut self, token: &str) {
         let base_addr = self.data_space().system_variables().base_addr();
         let base = self.data_space().get_isize(base_addr);
         match isize::from_str_radix(token, base as u32) {
@@ -851,12 +850,11 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(UnsupportedOperation)),
         }
-        Ok(())
     }
 
     /// Extend `f` to evaluators.
     /// Will create a vector for evaluators if there was no evaluator.
-    fn extend_evaluator(&mut self, f: fn(&mut Self, token: &str) -> Result) {
+    fn extend_evaluator(&mut self, f: fn(&mut Self, token: &str)) {
         let optional_evaluators = self.evaluators().take();
         match optional_evaluators {
             Some(mut evaluators) => {
@@ -873,7 +871,7 @@ pub trait Core: Sized {
     // High level definitions
     // -----------------------
 
-    fn nest(&mut self) -> Result {
+    fn nest(&mut self) {
         if self.r_stack().is_full() {
             self.set_error(Some(ReturnStackOverflow));
         } else {
@@ -886,20 +884,18 @@ pub trait Core: Sized {
             self.state().instruction_pointer = self.wordlist()[wp].dfa();
             self.set_error(Some(Nest));
         }
-        Ok(())
     }
 
-    fn p_var(&mut self) -> Result {
+    fn p_var(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa() as isize;
         match self.s_stack().push(dfa) {
             Err(_) => self.set_error(Some(StackOverflow)),
             Ok(()) => {}
         }
-        Ok(())
     }
 
-    fn p_const(&mut self) -> Result {
+    fn p_const(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
         let value = self.data_space().get_i32(dfa) as isize;
@@ -907,21 +903,19 @@ pub trait Core: Sized {
             Err(_) => self.set_error(Some(StackOverflow)),
             Ok(()) => {}
         }
-        Ok(())
     }
 
-    fn p_fvar(&mut self) -> Result {
+    fn p_fvar(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa() as isize;
         match self.s_stack().push(dfa) {
             Err(_) => self.set_error(Some(StackOverflow)),
             Ok(()) => {}
         }
-        Ok(())
     }
 
-    fn define(&mut self, action: fn(&mut Self) -> Result) -> Result {
-        try!(self.parse_word());
+    fn define(&mut self, action: fn(&mut Self)) {
+        self.parse_word();
         let last_token = self.last_token().take().unwrap();
         if let Some(_) = self.find(&last_token) {
             print!("Redefining {}", last_token);
@@ -938,22 +932,20 @@ pub trait Core: Sized {
             self.wordlist_mut().push(word);
             self.set_last_token(last_token);
         }
-        Ok(())
     }
 
-    fn colon(&mut self) -> Result {
-        self.define(Core::nest).and_then(|_| {
+    fn colon(&mut self) {
+        self.define(Core::nest);
+        if self.last_error().is_none() {
             let def = self.last_definition();
             self.wordlist_mut()[def].set_hidden(true);
             let depth = self.s_stack().len;
             self.set_structure_depth(depth);
             self.compile();
-            Ok(())
-        });
-        Ok(())
+        }
     }
 
-    fn semicolon(&mut self) -> Result {
+    fn semicolon(&mut self) {
         if self.last_definition() != 0 {
             let depth = self.s_stack().len;
             if depth != self.structure_depth() {
@@ -966,37 +958,32 @@ pub trait Core: Sized {
             }
         }
         self.interpret();
-        Ok(())
     }
 
-    fn create(&mut self) -> Result {
+    fn create(&mut self) {
         self.define(Core::p_var);
-        Ok(())
     }
 
-    fn variable(&mut self) -> Result {
-        self.define(Core::p_var).and_then(|_| {
+    fn variable(&mut self) {
+        self.define(Core::p_var);
+        if self.last_error().is_none() {
             self.data_space().compile_i32(0);
-            Ok(())
-        });
-        Ok(())
+        }
     }
 
-    fn constant(&mut self) -> Result {
+    fn constant(&mut self) {
         match self.s_stack().pop() {
             Ok(v) => {
-                self.define(Core::p_const)
-                    .and_then(|_| {
-                        self.data_space().compile_i32(v as i32);
-                        Ok(())
-                    });
+                self.define(Core::p_const);
+                if self.last_error().is_none() {
+                    self.data_space().compile_i32(v as i32);
+                }
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn unmark(&mut self) -> Result {
+    fn unmark(&mut self) {
         let wp = self.state().word_pointer;
         let dfa;
         let symbol;
@@ -1008,25 +995,22 @@ pub trait Core: Sized {
         self.data_space().truncate(dfa);
         self.wordlist_mut().truncate(wp);
         self.symbols_mut().truncate(symbol.id);
-        Ok(())
     }
 
-    fn marker(&mut self) -> Result {
-        try!(self.define(Core::unmark));
-        Ok(())
+    fn marker(&mut self) {
+        self.define(Core::unmark);
     }
 
     // --------
     // Control
-    // --------
+    // --------)
 
-    fn branch(&mut self) -> Result {
+    fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = self.data_space().get_i32(ip) as usize;
-        Ok(())
     }
 
-    fn zero_branch(&mut self) -> Result {
+    fn zero_branch(&mut self) {
         match self.s_stack().pop() {
             Ok(v) => {
                 if v == 0 {
@@ -1037,7 +1021,6 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
@@ -1046,7 +1029,7 @@ pub trait Core: Sized {
     /// ambiguous condition exists if `n1`|`u1` and `n2`|`u2` are not both the same
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded.
-    fn _do(&mut self) -> Result {
+    fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
         match self.r_stack().push(ip) {
             Err(_) => self.set_error(Some(ReturnStackOverflow)),
@@ -1055,7 +1038,6 @@ pub trait Core: Sized {
                 self.two_to_r();
             }
         }
-        Ok(())
     }
 
     /// Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
@@ -1065,11 +1047,14 @@ pub trait Core: Sized {
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
-    fn p_loop(&mut self) -> Result {
+    fn p_loop(&mut self) {
         match self.r_stack().pop2() {
             Ok((rn, rt)) => {
                 if rt + 1 < rn {
-                    try!(self.r_stack().push2(rn, rt + 1));
+                    if let Err(e) = self.r_stack().push2(rn, rt + 1) {
+                        self.set_error(Some(e));
+                        return;
+                    }
                     self.branch();
                 } else {
                     match self.r_stack().pop() {
@@ -1082,7 +1067,6 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(ReturnStackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
@@ -1093,13 +1077,16 @@ pub trait Core: Sized {
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
     /// following the loop.
-    fn p_plus_loop(&mut self) -> Result {
+    fn p_plus_loop(&mut self) {
         match self.r_stack().pop2() {
             Ok((rn, rt)) => {
                 match self.s_stack().pop() {
                     Ok(t) => {
                         if rt + t < rn {
-                            try!(self.r_stack().push2(rn, rt + t));
+                            if let Err(e) = self.r_stack().push2(rn, rt + t) {
+                                self.set_error(Some(e));
+                                return;
+                            }
                             self.branch();
                         } else {
                             match self.r_stack().pop() {
@@ -1115,7 +1102,6 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(ReturnStackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( -- ) ( R: loop-sys -- )
@@ -1124,15 +1110,14 @@ pub trait Core: Sized {
     /// `UNLOOP` is required for each nesting level before the definition may be
     /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
-    fn unloop(&mut self) -> Result {
+    fn unloop(&mut self) {
         match self.r_stack().pop3() {
             Ok(_) => {}
             Err(_) => self.set_error(Some(ReturnStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn leave(&mut self) -> Result {
+    fn leave(&mut self) {
         match self.r_stack().pop3() {
             Ok((third, _, _)) => {
                 self.state().instruction_pointer = self.data_space().get_i32(third as usize) as
@@ -1140,10 +1125,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(ReturnStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn p_i(&mut self) -> Result {
+    fn p_i(&mut self) {
         match self.r_stack().last() {
             Some(i) => {
                 match self.s_stack().push(i) {
@@ -1153,10 +1137,9 @@ pub trait Core: Sized {
             }
             None => self.set_error(Some(ReturnStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn p_j(&mut self) -> Result {
+    fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         match self.r_stack().get(pos) {
             Some(j) => {
@@ -1167,33 +1150,31 @@ pub trait Core: Sized {
             }
             None => self.set_error(Some(ReturnStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn imm_if(&mut self) -> Result {
+    fn imm_if(&mut self) {
         let idx = self.references().idx_zero_branch as i32;
         self.data_space().compile_i32(idx);
         self.data_space().compile_i32(0);
-        self.here()
+        self.here();
     }
 
-    fn imm_else(&mut self) -> Result {
+    fn imm_else(&mut self) {
         match self.s_stack().pop() {
             Ok(if_part) => {
                 let idx = self.references().idx_branch as i32;
                 self.data_space().compile_i32(idx);
                 self.data_space().compile_i32(0);
-                try!(self.here());
+                self.here();
                 let here = self.data_space().len();
                 self.data_space().put_i32(here as i32,
                                           (if_part - mem::size_of::<i32>() as isize) as usize);
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
-        Ok(())
     }
 
-    fn imm_then(&mut self) -> Result {
+    fn imm_then(&mut self) {
         match self.s_stack().pop() {
             Ok(branch_part) => {
                 let here = self.data_space().len();
@@ -1202,21 +1183,20 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
-        Ok(())
     }
 
-    fn imm_begin(&mut self) -> Result {
-        self.here()
+    fn imm_begin(&mut self) {
+        self.here();
     }
 
-    fn imm_while(&mut self) -> Result {
+    fn imm_while(&mut self) {
         let idx = self.references().idx_zero_branch as i32;
         self.data_space().compile_i32(idx);
         self.data_space().compile_i32(0);
-        self.here()
+        self.here();
     }
 
-    fn imm_repeat(&mut self) -> Result {
+    fn imm_repeat(&mut self) {
         match self.s_stack().pop2() {
             Ok((begin_part, while_part)) => {
                 let idx = self.references().idx_branch as i32;
@@ -1228,10 +1208,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
-        Ok(())
     }
 
-    fn imm_again(&mut self) -> Result {
+    fn imm_again(&mut self) {
         match self.s_stack().pop() {
             Ok(begin_part) => {
                 let idx = self.references().idx_branch as i32;
@@ -1240,24 +1219,22 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
-        Ok(())
     }
 
-    fn imm_recurse(&mut self) -> Result {
+    fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;
         self.data_space().compile_u32(last as u32);
-        Ok(())
     }
 
     /// Execution: ( -- a-ddr )
     ///
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
-    fn imm_do(&mut self) -> Result {
+    fn imm_do(&mut self) {
         let idx = self.references().idx_do as i32;
         self.data_space().compile_i32(idx);
         self.data_space().compile_i32(0);
-        self.here()
+        self.here();
     }
 
     /// Run-time: ( a-addr -- )
@@ -1266,7 +1243,7 @@ pub trait Core: Sized {
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the `LOOP`.
-    fn imm_loop(&mut self) -> Result {
+    fn imm_loop(&mut self) {
         match self.s_stack().pop() {
             Ok(do_part) => {
                 let idx = self.references().idx_loop as i32;
@@ -1278,7 +1255,6 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
-        Ok(())
     }
 
     /// Run-time: ( a-addr -- )
@@ -1287,7 +1263,7 @@ pub trait Core: Sized {
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
-    fn imm_plus_loop(&mut self) -> Result {
+    fn imm_plus_loop(&mut self) {
         match self.s_stack().pop() {
             Ok(do_part) => {
                 let idx = self.references().idx_plus_loop as i32;
@@ -1299,7 +1275,6 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
-        Ok(())
     }
 
     // -----------
@@ -1309,37 +1284,34 @@ pub trait Core: Sized {
     /// Run-time: ( -- )
     ///
     /// No operation
-    fn noop(&mut self) -> Result {
+    fn noop(&mut self) {
         // Do nothing
-        Ok(())
     }
 
     /// Run-time: ( -- true )
     ///
     /// Return a true flag, a single-cell value with all bits set.
-    fn p_true(&mut self) -> Result {
+    fn p_true(&mut self) {
         match self.s_stack().push(TRUE) {
             Err(_) => self.set_error(Some(StackOverflow)),
             Ok(()) => {}
         }
-        Ok(())
     }
 
     /// Run-time: ( -- false )
     ///
     /// Return a false flag.
-    fn p_false(&mut self) -> Result {
+    fn p_false(&mut self) {
         match self.s_stack().push(FALSE) {
             Err(_) => self.set_error(Some(StackOverflow)),
             Ok(()) => {}
         }
-        Ok(())
     }
 
     /// Run-time: (c-addr1 -- c-addr2 )
     ///
     ///Add the size in address units of a character to `c-addr1`, giving `c-addr2`.
-    fn char_plus(&mut self) -> Result {
+    fn char_plus(&mut self) {
         match self.s_stack().pop() {
             Ok(v) => {
                 match self.s_stack().push(v + mem::size_of::<u8>() as isize) {
@@ -1349,13 +1321,12 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: (n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` characters.
-    fn chars(&mut self) -> Result {
+    fn chars(&mut self) {
         match self.s_stack().pop() {
             Ok(v) => {
                 match self.s_stack().push(v * mem::size_of::<u8>() as isize) {
@@ -1365,14 +1336,13 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
 
     /// Run-time: (a-addr1 -- a-addr2 )
     ///
     /// Add the size in address units of a cell to `a-addr1`, giving `a-addr2`.
-    fn cell_plus(&mut self) -> Result {
+    fn cell_plus(&mut self) {
         match self.s_stack().pop() {
             Ok(v) => {
                 match self.s_stack().push(v + mem::size_of::<i32>() as isize) {
@@ -1382,13 +1352,12 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: (n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` cells.
-    fn cells(&mut self) -> Result {
+    fn cells(&mut self) {
         match self.s_stack().pop() {
             Ok(v) => {
                 match self.s_stack().push(v * mem::size_of::<i32>() as isize) {
@@ -1398,10 +1367,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn lit(&mut self) -> Result {
+    fn lit(&mut self) {
         if self.s_stack().is_full() {
             self.set_error(Some(StackOverflow));
         } else {
@@ -1415,10 +1383,9 @@ pub trait Core: Sized {
             self.state().instruction_pointer = self.state().instruction_pointer +
                                                mem::size_of::<i32>();
         }
-        Ok(())
     }
 
-    fn swap(&mut self) -> Result {
+    fn swap(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1432,10 +1399,9 @@ pub trait Core: Sized {
                            t);
             }
         }
-        Ok(())
     }
 
-    fn dup(&mut self) -> Result {
+    fn dup(&mut self) {
         if self.s_stack().len < 1 {
             self.set_error(Some(StackUnderflow));
         } else if self.s_stack().is_full() {
@@ -1449,19 +1415,17 @@ pub trait Core: Sized {
                 self.s_stack().len += 1;
             }
         }
-        Ok(())
     }
 
-    fn p_drop(&mut self) -> Result {
+    fn p_drop(&mut self) {
         if self.s_stack().len < 1 {
             self.set_error(Some(StackUnderflow));
         } else {
             self.s_stack().len -= 1;
         }
-        Ok(())
     }
 
-    fn nip(&mut self) -> Result {
+    fn nip(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1471,10 +1435,9 @@ pub trait Core: Sized {
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
         }
-        Ok(())
     }
 
-    fn over(&mut self) -> Result {
+    fn over(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else if self.s_stack().is_full() {
@@ -1488,10 +1451,9 @@ pub trait Core: Sized {
                 self.s_stack().len += 1;
             }
         }
-        Ok(())
     }
 
-    fn rot(&mut self) -> Result {
+    fn rot(&mut self) {
         if self.s_stack().len < 3 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1508,19 +1470,17 @@ pub trait Core: Sized {
                            n);
             }
         }
-        Ok(())
     }
 
-    fn two_drop(&mut self) -> Result {
+    fn two_drop(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else {
             self.s_stack().len -= 2;
         }
-        Ok(())
     }
 
-    fn two_dup(&mut self) -> Result {
+    fn two_dup(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else if self.s_stack().len + 2 > self.s_stack().cap {
@@ -1538,10 +1498,9 @@ pub trait Core: Sized {
                                .offset((self.s_stack().len - 4) as isize)));
             }
         }
-        Ok(())
     }
 
-    fn two_swap(&mut self) -> Result {
+    fn two_swap(&mut self) {
         if self.s_stack().len < 4 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1562,10 +1521,9 @@ pub trait Core: Sized {
                            n);
             }
         }
-        Ok(())
     }
 
-    fn two_over(&mut self) -> Result {
+    fn two_over(&mut self) {
         if self.s_stack().len < 4 {
             self.set_error(Some(StackUnderflow));
         } else if self.s_stack().len + 2 > self.s_stack().cap {
@@ -1583,19 +1541,17 @@ pub trait Core: Sized {
                                .offset((self.s_stack().len - 6) as isize)));
             }
         }
-        Ok(())
     }
 
-    fn depth(&mut self) -> Result {
+    fn depth(&mut self) {
         let len = self.s_stack().len;
         match self.s_stack().push(len as isize) {
             Err(_) => self.set_error(Some(StackOverflow)),
             Ok(()) => {}
         }
-        Ok(())
     }
 
-    fn one_plus(&mut self) -> Result {
+    fn one_plus(&mut self) {
         if self.s_stack().len < 1 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1607,10 +1563,9 @@ pub trait Core: Sized {
                                .wrapping_add(1));
             }
         }
-        Ok(())
     }
 
-    fn one_minus(&mut self) -> Result {
+    fn one_minus(&mut self) {
         if self.s_stack().len < 1 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1622,10 +1577,9 @@ pub trait Core: Sized {
                            1);
             }
         }
-        Ok(())
     }
 
-    fn plus(&mut self) -> Result {
+    fn plus(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1638,10 +1592,9 @@ pub trait Core: Sized {
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
         }
-        Ok(())
     }
 
-    fn minus(&mut self) -> Result {
+    fn minus(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1654,10 +1607,9 @@ pub trait Core: Sized {
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
         }
-        Ok(())
     }
 
-    fn star(&mut self) -> Result {
+    fn star(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1670,10 +1622,9 @@ pub trait Core: Sized {
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
         }
-        Ok(())
     }
 
-    fn slash(&mut self) -> Result {
+    fn slash(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1686,10 +1637,9 @@ pub trait Core: Sized {
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
         }
-        Ok(())
     }
 
-    fn p_mod(&mut self) -> Result {
+    fn p_mod(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1702,10 +1652,9 @@ pub trait Core: Sized {
                            ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
             }
         }
-        Ok(())
     }
 
-    fn slash_mod(&mut self) -> Result {
+    fn slash_mod(&mut self) {
         if self.s_stack().len < 2 {
             self.set_error(Some(StackUnderflow));
         } else {
@@ -1718,10 +1667,9 @@ pub trait Core: Sized {
                            n / t);
             }
         }
-        Ok(())
     }
 
-    fn abs(&mut self) -> Result {
+    fn abs(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.s_stack().push(t.abs()) {
@@ -1731,10 +1679,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn negate(&mut self) -> Result {
+    fn negate(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.s_stack().push(-t) {
@@ -1744,10 +1691,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn zero_less(&mut self) -> Result {
+    fn zero_less(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.s_stack().push(if t < 0 { TRUE } else { FALSE }) {
@@ -1757,10 +1703,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn zero_equals(&mut self) -> Result {
+    fn zero_equals(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.s_stack().push(if t == 0 { TRUE } else { FALSE }) {
@@ -1770,10 +1715,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn zero_greater(&mut self) -> Result {
+    fn zero_greater(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.s_stack().push(if t > 0 { TRUE } else { FALSE }) {
@@ -1783,10 +1727,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn zero_not_equals(&mut self) -> Result {
+    fn zero_not_equals(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.s_stack().push(if t == 0 { FALSE } else { TRUE }) {
@@ -1796,10 +1739,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn equals(&mut self) -> Result {
+    fn equals(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(if t == n { TRUE } else { FALSE }) {
@@ -1809,10 +1751,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn less_than(&mut self) -> Result {
+    fn less_than(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(if n < t { TRUE } else { FALSE }) {
@@ -1822,10 +1763,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn greater_than(&mut self) -> Result {
+    fn greater_than(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(if n > t { TRUE } else { FALSE }) {
@@ -1835,10 +1775,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn not_equals(&mut self) -> Result {
+    fn not_equals(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(if n == t { FALSE } else { TRUE }) {
@@ -1848,10 +1787,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn between(&mut self) -> Result {
+    fn between(&mut self) {
         match self.s_stack().pop3() {
             Ok((x1, x2, x3)) => {
                 match self.s_stack().push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE }) {
@@ -1861,10 +1799,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn invert(&mut self) -> Result {
+    fn invert(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.s_stack().push(!t) {
@@ -1874,10 +1811,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn and(&mut self) -> Result {
+    fn and(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(t & n) {
@@ -1887,10 +1823,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn or(&mut self) -> Result {
+    fn or(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(t | n) {
@@ -1900,10 +1835,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn xor(&mut self) -> Result {
+    fn xor(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(t ^ n) {
@@ -1913,7 +1847,6 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( x1 u -- x2 )
@@ -1922,7 +1855,7 @@ pub trait Core: Sized {
     /// zeroes into the least significant bits vacated by the shift. An
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
-    fn lshift(&mut self) -> Result {
+    fn lshift(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(n << t) {
@@ -1932,7 +1865,6 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( x1 u -- x2 )
@@ -1941,7 +1873,7 @@ pub trait Core: Sized {
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
-    fn rshift(&mut self) -> Result {
+    fn rshift(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push((n as usize >> t) as isize) {
@@ -1951,7 +1883,6 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( x1 u -- x2 )
@@ -1960,7 +1891,7 @@ pub trait Core: Sized {
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
-    fn arshift(&mut self) -> Result {
+    fn arshift(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 match self.s_stack().push(n >> t) {
@@ -1970,7 +1901,6 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Interpretation: Interpretation semantics for this word are undefined.
@@ -1981,7 +1911,7 @@ pub trait Core: Sized {
     /// loop-control parameters by executing `UNLOOP`.
     ///
     /// TODO: `UNLOOP`
-    fn exit(&mut self) -> Result {
+    fn exit(&mut self) {
         if self.r_stack().len == 0 {
             self.set_error(Some(ReturnStackUnderflow));
         } else {
@@ -1991,13 +1921,12 @@ pub trait Core: Sized {
                     ptr::read(self.r_stack().inner.offset(self.r_stack().len as isize)) as usize;
             }
         }
-        Ok(())
     }
 
     /// Run-time: ( a-addr -- x )
     ///
     /// `x` is the value stored at `a-addr`.
-    fn fetch(&mut self) -> Result {
+    fn fetch(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 let value = self.data_space().get_i32(t as usize) as isize;
@@ -2008,27 +1937,25 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( x a-addr -- )
     ///
     /// Store `x` at `a-addr`.
-    fn store(&mut self) -> Result {
+    fn store(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 self.data_space().put_i32(n as i32, t as usize);
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( c-addr -- char )
     ///
     /// Fetch the character stored at `c-addr`. When the cell size is greater than
     /// character size, the unused high-order bits are all zeroes.
-    fn c_fetch(&mut self) -> Result {
+    fn c_fetch(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 let value = self.data_space().get_u8(t as usize) as isize;
@@ -2039,7 +1966,6 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( char c-addr -- )
@@ -2047,14 +1973,13 @@ pub trait Core: Sized {
     /// Store `char` at `c-addr`. When character size is smaller than cell size,
     /// only the number of low-order bits corresponding to character size are
     /// transferred.
-    fn c_store(&mut self) -> Result {
+    fn c_store(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 self.data_space().put_u8(n as u8, t as usize);
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( "<spaces>name" -- xt )
@@ -2062,8 +1987,8 @@ pub trait Core: Sized {
     /// Skip leading space delimiters. Parse name delimited by a space. Find
     /// `name` and return `xt`, the execution token for name. An ambiguous
     /// condition exists if name is not found.
-    fn tick(&mut self) -> Result {
-        try!(self.parse_word());
+    fn tick(&mut self) {
+        self.parse_word();
         let last_token = self.last_token().take().unwrap();
         if last_token.is_empty() {
             self.set_error(Some(UnexpectedEndOfFile));
@@ -2079,33 +2004,30 @@ pub trait Core: Sized {
             }
         }
         self.set_last_token(last_token);
-        Ok(())
     }
 
     /// Run-time: ( i*x xt -- j*x )
     ///
     /// Remove `xt` from the stack and perform the semantics identified by it.
     /// Other stack effects are due to the word `EXECUTE`d.
-    fn execute(&mut self) -> Result {
+    fn execute(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 self.execute_word(t as usize);
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( -- addr )
     ///
     /// `addr` is the data-space pointer.
-    fn here(&mut self) -> Result {
+    fn here(&mut self) {
         let len = self.data_space().len() as isize;
         match self.s_stack().push(len) {
             Err(_) => self.set_error(Some(StackOverflow)),
             Ok(()) => {}
         }
-        Ok(())
     }
 
     /// Run-time: ( n -- )
@@ -2113,14 +2035,13 @@ pub trait Core: Sized {
     /// If `n` is greater than zero, reserve n address units of data space. If `n`
     /// is less than zero, release `|n|` address units of data space. If `n` is
     /// zero, leave the data-space pointer unchanged.
-    fn allot(&mut self) -> Result {
+    fn allot(&mut self) {
         match self.s_stack().pop() {
             Ok(v) => {
                 self.data_space().allot(v);
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( x -- )
@@ -2129,17 +2050,16 @@ pub trait Core: Sized {
     /// data-space pointer is aligned when `,` begins execution, it will remain
     /// aligned when `,` finishes execution. An ambiguous condition exists if the
     /// data-space pointer is not aligned prior to execution of `,`.
-    fn comma(&mut self) -> Result {
+    fn comma(&mut self) {
         match self.s_stack().pop() {
             Ok(v) => {
                 self.data_space().compile_i32(v as i32);
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn p_to_r(&mut self) -> Result {
+    fn p_to_r(&mut self) {
         match self.s_stack().pop() {
             Ok(v) => {
                 if self.r_stack().is_full() {
@@ -2153,10 +2073,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn r_from(&mut self) -> Result {
+    fn r_from(&mut self) {
         if self.r_stack().len == 0 {
             self.set_error(Some(ReturnStackUnderflow));
         } else if self.s_stack().is_full() {
@@ -2168,10 +2087,9 @@ pub trait Core: Sized {
                 self.s_stack().push(ptr::read(r0));
             }
         }
-        Ok(())
     }
 
-    fn r_fetch(&mut self) -> Result {
+    fn r_fetch(&mut self) {
         if self.r_stack().len == 0 {
             self.set_error(Some(ReturnStackUnderflow));
         } else if self.s_stack().is_full() {
@@ -2182,10 +2100,9 @@ pub trait Core: Sized {
                 self.s_stack().push(ptr::read(r1));
             }
         }
-        Ok(())
     }
 
-    fn two_to_r(&mut self) -> Result {
+    fn two_to_r(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
                 if self.r_stack().space_left() < 2 {
@@ -2201,10 +2118,9 @@ pub trait Core: Sized {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn two_r_from(&mut self) -> Result {
+    fn two_r_from(&mut self) {
         // TODO: check overflow.
         if self.r_stack().len < 2 {
             self.set_error(Some(ReturnStackUnderflow));
@@ -2212,33 +2128,30 @@ pub trait Core: Sized {
             self.r_stack().len -= 2;
             unsafe {
                 let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-                try!(self.s_stack().push(ptr::read(r0)));
+                self.s_stack().push(ptr::read(r0));
                 let r1 = self.r_stack().inner.offset((self.r_stack().len + 1) as isize);
                 self.s_stack().push(ptr::read(r1));
             }
         }
-        Ok(())
     }
 
-    fn two_r_fetch(&mut self) -> Result {
+    fn two_r_fetch(&mut self) {
         if self.r_stack().len < 2 {
             self.set_error(Some(ReturnStackUnderflow));
         } else {
             unsafe {
                 let r2 = self.r_stack().inner.offset((self.r_stack().len - 2) as isize);
-                try!(self.s_stack().push(ptr::read(r2)));
+                self.s_stack().push(ptr::read(r2));
                 let r1 = self.r_stack().inner.offset((self.r_stack().len - 1) as isize);
                 self.s_stack().push(ptr::read(r1));
             }
         }
-        Ok(())
     }
 
     /// Leave VM's inner loop, keep VM's all state.
     /// Call inner to resume inner loop.
-    fn pause(&mut self) -> Result {
+    fn pause(&mut self) {
         self.set_error(Some(Pause));
-        Ok(())
     }
 
     // ----------------
@@ -2261,47 +2174,41 @@ pub trait Core: Sized {
         }
         self.state().source_index = 0;
         self.state().instruction_pointer = 0;
-        self.interpret().unwrap();
+        self.interpret();
         self.set_error(None);
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
-    fn abort_with(&mut self, e: Exception) -> Result {
+    fn abort_with(&mut self, e: Exception) {
         self.clear_stacks();
         self.reset();
         self.set_error(Some(e));
-        Ok(())
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
-    fn abort(&mut self) -> Result {
+    fn abort(&mut self) {
         self.abort_with(Abort);
-        Ok(())
     }
 
-    fn halt(&mut self) -> Result {
+    fn halt(&mut self) {
         self.state().instruction_pointer = 0;
         self.set_error(Some(Quit));
-        Ok(())
     }
 
     /// Quit the inner loop and reset VM, without clearing stacks .
-    fn quit(&mut self) -> Result {
+    fn quit(&mut self) {
         self.reset();
         self.set_error(Some(Quit));
-        Ok(())
     }
 
     /// Emit Bye exception.
-    fn bye(&mut self) -> Result {
+    fn bye(&mut self) {
         self.set_error(Some(Bye));
-        Ok(())
     }
 
     /// Jit
-    fn jit(&mut self) -> Result {
+    fn jit(&mut self) {
         self.s_stack().push(jitmem::jit_3()() as isize);
-        Ok(())
     }
 }
 
@@ -2823,7 +2730,8 @@ mod tests {
         vm.clear_stacks();
         vm.s_stack().push(5);
         vm.s_stack().push(7);
-        assert!(vm.minus().is_ok());
+        vm.minus();
+        assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-2));
     }
@@ -3874,7 +3782,8 @@ mod tests {
         vm.clear_stacks();
         // : t7 0 begin 1+ dup 3 <> while repeat ; t1
         vm.set_source(": t7 0 begin 1+ dup 3 <> while repeat ; t7");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(3));
     }

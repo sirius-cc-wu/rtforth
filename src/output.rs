@@ -1,6 +1,6 @@
 use std::mem;
 use std::fmt::Write;
-use core::{Core, Result};
+use core::Core;
 use exception::Exception::{StackUnderflow, StackOverflow, FloatingPointStackUnderflow,
                            UnsupportedOperation};
 
@@ -23,7 +23,7 @@ pub trait Output: Core {
     /// Run-time: ( x -- )
     ///
     /// Put x into output buffer.
-    fn emit(&mut self) -> Result {
+    fn emit(&mut self) {
         match self.s_stack().pop() {
             Err(_) => self.set_error(Some(StackUnderflow)),
             Ok(ch) => {
@@ -36,13 +36,12 @@ pub trait Output: Core {
                 }
             }
         }
-        Ok(())
     }
 
     /// Run-time: ( c-addr u -- )
     ///
     /// Put the character string specified by c-addr and u into output buffer.
-    fn p_type(&mut self) -> Result {
+    fn p_type(&mut self) {
         match self.s_stack().pop2() {
             Err(_) => self.set_error(Some(StackUnderflow)),
             Ok((addr, len)) => {
@@ -58,11 +57,10 @@ pub trait Output: Core {
                 }
             }
         }
-        Ok(())
     }
 
     /// Runtime of S"
-    fn p_s_quote(&mut self) -> Result {
+    fn p_s_quote(&mut self) {
         let ip = self.state().instruction_pointer;
         let cnt = self.data_space().get_i32(ip);
         let addr = self.state().instruction_pointer + mem::size_of::<i32>();
@@ -74,7 +72,6 @@ pub trait Output: Core {
                                                    cnt as usize;
             }
         }
-        Ok(())
     }
 
     /// Compilation: ( "ccc<quote>" -- )
@@ -86,7 +83,7 @@ pub trait Output: Core {
     ///
     /// Return c-addr and u describing a string consisting of the characters ccc. A program
     /// shall not alter the returned string.
-    fn s_quote(&mut self) -> Result {
+    fn s_quote(&mut self) {
         let input_buffer = self.input_buffer().take().unwrap();
         {
             let source = &input_buffer[self.state().source_index..input_buffer.len()];
@@ -104,7 +101,6 @@ pub trait Output: Core {
             self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;
         }
         self.set_input_buffer(input_buffer);
-        Ok(())
     }
 
     /// Compilation: ( "ccc<quote>" -- )
@@ -115,31 +111,29 @@ pub trait Output: Core {
     /// Run-time: ( -- )
     ///
     /// Display ccc.
-    fn dot_quote(&mut self) -> Result {
-        try!(self.s_quote());
+    fn dot_quote(&mut self) {
+        self.s_quote();
         let idx_type = self.references().idx_type;
         self.compile_word(idx_type);
-        Ok(())
     }
 
     /// Execution: ( "ccc&lt;paren&gt;" -- )
     ///
     /// Parse and display ccc delimited by ) (right parenthesis). .( is an immediate word.
-    fn dot_paren(&mut self) -> Result {
-        try!(self.s_stack().push(')' as isize));
-        try!(self.parse());
+    fn dot_paren(&mut self) {
+        self.s_stack().push(')' as isize);
+        self.parse();
         let last_token = self.last_token().take().unwrap();
         if let Some(ref mut buffer) = *self.output_buffer() {
             buffer.extend(last_token.chars());
         }
         self.set_last_token(last_token);
-        Ok(())
     }
 
     /// Run-time: ( n -- )
     ///
     /// Display n in free field format.
-    fn dot(&mut self) -> Result {
+    fn dot(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
         let base = self.data_space().get_isize(base_addr);
         let mut invalid_base = false;
@@ -171,14 +165,13 @@ pub trait Output: Core {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
     /// Run-time: ( -- ) ( F: r -- )
     ///
     /// Display, with a trailing space, the top number on the floating-point
     /// stack using fixed-point notation.
-    fn fdot(&mut self) -> Result {
+    fn fdot(&mut self) {
         match self.f_stack().pop() {
             Ok(r) => {
                 if let Some(mut buf) = self.output_buffer().take() {
@@ -188,7 +181,6 @@ pub trait Output: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 }
 

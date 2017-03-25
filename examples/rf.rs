@@ -44,9 +44,10 @@ fn main() {
         print_version();
     } else if !matches.free.is_empty() {
         for file in matches.free {
-            match vm.load(&file) {
-                Ok(()) => {}
-                Err(e) => {
+            vm.load(&file);
+            match vm.last_error() {
+                None => {}
+                Some(e) => {
                     match e {
                         Bye => {}
                         _ => {
@@ -79,8 +80,9 @@ fn repl(vm: &mut VM) {
     while let Ok(line) = rl.readline("rf> ") {
         rl.add_history_entry(&line);
         vm.set_source(&line);
-        match vm.evaluate() {
-            Err(e) => {
+        vm.evaluate();
+        match vm.last_error() {
+            Some(e) => {
                 match e {
                     Bye => break,
                     _ => {
@@ -90,7 +92,7 @@ fn repl(vm: &mut VM) {
                     }
                 }
             }
-            Ok(()) => {
+            None => {
                 match *vm.output_buffer() {
                     Some(ref mut buf) => {
                         if buf.len() > 0 {

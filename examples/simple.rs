@@ -9,8 +9,9 @@ fn main() {
     vm.add_core();
     vm.add_output();
     vm.set_source("1 .");
-    match vm.evaluate() {
-        Err(e) => println!("{:?}", e),
-        Ok(()) => {}
+    vm.evaluate();
+    match vm.last_error() {
+        Some(e) => println!("{:?}", e),
+        None => {}
     }
 }

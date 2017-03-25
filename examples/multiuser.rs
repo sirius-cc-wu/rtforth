@@ -6,7 +6,7 @@ extern crate tokio_core;
 const BUFFER_SIZE: usize = 0x400;
 
 mod vm {
-    use rtforth::core::{Core, Stack, State, ForwardReferences, Word, Result};
+    use rtforth::core::{Core, Stack, State, ForwardReferences, Word};
     use rtforth::jitmem::DataSpace;
     use rtforth::float::Float;
     use rtforth::env::Environment;
@@ -39,7 +39,7 @@ mod vm {
         wordlist: Vec<Word<VM>>,
         jitmem: DataSpace,
         references: ForwardReferences,
-        evals: Option<Vec<fn(&mut VM, token: &str) -> Result>>,
+        evals: Option<Vec<fn(&mut VM, token: &str)>>,
         // Evalution limit for tasks[1]
         evaluation_limit: isize,
     }
@@ -190,10 +190,10 @@ mod vm {
         fn references(&mut self) -> &mut ForwardReferences {
             &mut self.references
         }
-        fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result>> {
+        fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str)>> {
             &mut self.evals
         }
-        fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str) -> Result>) {
+        fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str)>) {
             self.evals = Some(evaluators)
         }
         fn evaluation_limit(&self) -> isize {
@@ -294,13 +294,13 @@ mod server {
                             let mut vm = self.vm.lock().unwrap();
                             (*vm).set_current_task(i);
                             (*vm).set_source(str::from_utf8(&self.inbuf[0..n]).unwrap());
-                            let res = (*vm).evaluate();
+                            (*vm).evaluate();
                             let mut outbuf = (*vm).output_buffer().take().unwrap();
-                            match res {
-                                Err(e) => {
+                            match vm.last_error() {
+                                Some(e) => {
                                     writeln!(outbuf, "{:?}", e);
                                 }
-                                Ok(()) => {}
+                                None => {}
                             }
                             self.pos = 0;
                             self.cap = outbuf.len();

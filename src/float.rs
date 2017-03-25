@@ -1,4 +1,4 @@
-use core::{Result, Core, TRUE, FALSE};
+use core::{Core, TRUE, FALSE};
 use std::str::FromStr;
 
 use std::mem;
@@ -50,7 +50,7 @@ pub trait Float: Core {
     }
 
     /// Evaluate float.
-    fn evaluate_float(&mut self, token: &str) -> Result {
+    fn evaluate_float(&mut self, token: &str) {
         match FromStr::from_str(token) {
             Ok(t) => {
                 if self.references().idx_flit == 0 {
@@ -68,10 +68,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(UnsupportedOperation)),
         }
-        Ok(())
     }
 
-    fn flit(&mut self) -> Result {
+    fn flit(&mut self) {
         let ip = self.state().instruction_pointer as usize;
         let v = self.data_space().get_f64(ip);
         match self.f_stack().push(v) {
@@ -81,10 +80,9 @@ pub trait Float: Core {
                                                    mem::size_of::<f64>();
             }
         }
-        Ok(())
     }
 
-    fn p_fconst(&mut self) -> Result {
+    fn p_fconst(&mut self) {
         let wp = self.state().word_pointer();
         let dfa = self.wordlist()[wp].dfa();
         let v = self.data_space().get_f64(dfa);
@@ -92,29 +90,26 @@ pub trait Float: Core {
             Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
             Ok(()) => {}
         }
-        Ok(())
     }
 
-    fn fvariable(&mut self) -> Result {
-        try!(self.define(Core::p_fvar));
+    fn fvariable(&mut self) {
+        self.define(Core::p_fvar);
         self.data_space().compile_f64(0.0);
-        Ok(())
     }
 
-    fn fconstant(&mut self) -> Result {
+    fn fconstant(&mut self) {
         match self.f_stack().pop() {
             Ok(v) => {
-                try!(self.define(Float::p_fconst));
+                self.define(Float::p_fconst);
                 self.data_space().compile_f64(v);
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
     // Floating point primitives
 
-    fn ffetch(&mut self) -> Result {
+    fn ffetch(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 let value = self.data_space().get_f64(t as usize);
@@ -125,10 +120,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fstore(&mut self) -> Result {
+    fn fstore(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.f_stack().pop() {
@@ -140,10 +134,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fabs(&mut self) -> Result {
+    fn fabs(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.abs()) {
@@ -153,10 +146,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fsin(&mut self) -> Result {
+    fn fsin(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.sin()) {
@@ -166,10 +158,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fcos(&mut self) -> Result {
+    fn fcos(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.cos()) {
@@ -179,10 +170,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn ftan(&mut self) -> Result {
+    fn ftan(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.tan()) {
@@ -192,10 +182,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fasin(&mut self) -> Result {
+    fn fasin(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.asin()) {
@@ -205,10 +194,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn facos(&mut self) -> Result {
+    fn facos(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.acos()) {
@@ -218,10 +206,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fatan(&mut self) -> Result {
+    fn fatan(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.atan()) {
@@ -231,10 +218,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fatan2(&mut self) -> Result {
+    fn fatan2(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().pop() {
@@ -249,10 +235,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fsqrt(&mut self) -> Result {
+    fn fsqrt(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.sqrt()) {
@@ -262,10 +247,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fswap(&mut self) -> Result {
+    fn fswap(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().pop() {
@@ -280,10 +264,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fnip(&mut self) -> Result {
+    fn fnip(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().pop() {
@@ -298,10 +281,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fdup(&mut self) -> Result {
+    fn fdup(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push2(t, t) {
@@ -311,18 +293,16 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fdrop(&mut self) -> Result {
+    fn fdrop(&mut self) {
         match self.f_stack().pop() {
             Ok(_) => {}
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn frot(&mut self) -> Result {
+    fn frot(&mut self) {
         match self.f_stack().pop() {
             Ok(x3) => {
                 match self.f_stack().pop() {
@@ -342,10 +322,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fover(&mut self) -> Result {
+    fn fover(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().pop() {
@@ -360,10 +339,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn n_to_f(&mut self) -> Result {
+    fn n_to_f(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t as f64) {
@@ -373,10 +351,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fplus(&mut self) -> Result {
+    fn fplus(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().pop() {
@@ -391,10 +368,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fminus(&mut self) -> Result {
+    fn fminus(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().pop() {
@@ -409,10 +385,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fstar(&mut self) -> Result {
+    fn fstar(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().pop() {
@@ -427,10 +402,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fslash(&mut self) -> Result {
+    fn fslash(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().pop() {
@@ -445,10 +419,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn fproximate(&mut self) -> Result {
+    fn fproximate(&mut self) {
         match self.f_stack().pop3() {
             Ok((x1, x2, x3)) => {
                 if x3 > 0.0 {
@@ -465,10 +438,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn f_zero_less_than(&mut self) -> Result {
+    fn f_zero_less_than(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.s_stack().push(if t < 0.0 { TRUE } else { FALSE }) {
@@ -478,10 +450,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn f_zero_equals(&mut self) -> Result {
+    fn f_zero_equals(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.s_stack().push(if t == 0.0 { TRUE } else { FALSE }) {
@@ -491,10 +462,9 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 
-    fn f_less_than(&mut self) -> Result {
+    fn f_less_than(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().pop() {
@@ -509,7 +479,6 @@ pub trait Float: Core {
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
-        Ok(())
     }
 }
 

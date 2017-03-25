@@ -24,7 +24,7 @@ pub struct VM {
     outbuf: Option<String>,
     state: State,
     references: ForwardReferences,
-    evals: Option<Vec<fn(&mut VM, token: &str) -> Result>>,
+    evals: Option<Vec<fn(&mut VM, token: &str)>>,
     evaluation_limit: isize,
 }
 
@@ -121,10 +121,10 @@ impl Core for VM {
     fn references(&mut self) -> &mut ForwardReferences {
         &mut self.references
     }
-    fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str) -> Result>> {
+    fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str)>> {
         &mut self.evals
     }
-    fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str) -> Result>) {
+    fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str)>) {
         self.evals = Some(evaluators)
     }
     fn evaluation_limit(&self) -> isize {

@@ -32,7 +32,7 @@ pub trait Facility: Core {
     /// vm.set_source("ntime .s");
     /// vm.evaluate();
     /// ```
-    fn ntime(&mut self) -> Result {
+    fn ntime(&mut self) {
         let t = time::precise_time_ns();
         if t > usize::max_value() as u64 {
             match self.s_stack().push2(t.bitand(usize::max_value() as u64) as isize,
@@ -46,7 +46,6 @@ pub trait Facility: Core {
                 Ok(()) => {}
             }
         }
-        Ok(())
     }
 
     /// Run-time: ( -- ud )
@@ -66,7 +65,7 @@ pub trait Facility: Core {
     /// vm.set_source("utime .s");
     /// vm.evaluate();
     /// ```
-    fn utime(&mut self) -> Result {
+    fn utime(&mut self) {
         let t = time::precise_time_ns() / 1000;
         if t > usize::max_value() as u64 {
             match self.s_stack().push2(t.bitand(usize::max_value() as u64) as isize,
@@ -80,6 +79,5 @@ pub trait Facility: Core {
                 Ok(()) => {}
             }
         }
-        Ok(())
     }
 }

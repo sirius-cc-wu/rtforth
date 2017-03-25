@@ -60,9 +60,9 @@ pub trait Float: Core {
                     if self.state().is_compiling {
                         self.compile_float(t);
                     } else {
-                        self.f_stack().push(t);
-                        let err = self.last_error().and(Some(FloatingPointStackOverflow));
-                        self.set_error(err);
+                        if let Err(_) = self.f_stack().push(t) {
+                            self.set_error(Some(FloatingPointStackOverflow));
+                        }
                     }
                 }
             }
@@ -425,15 +425,23 @@ pub trait Float: Core {
         match self.f_stack().pop3() {
             Ok((x1, x2, x3)) => {
                 if x3 > 0.0 {
-                    self.s_stack().push(if (x1 - x2).abs() < x3 { TRUE } else { FALSE });
+                    if let Err(e) = self.s_stack()
+                        .push(if (x1 - x2).abs() < x3 { TRUE } else { FALSE }) {
+                        self.set_error(Some(e));
+                    }
                 } else if x3 == 0.0 {
-                    self.s_stack().push(if x1 == x2 { TRUE } else { FALSE });
+                    if let Err(e) = self.s_stack().push(if x1 == x2 { TRUE } else { FALSE }) {
+                        self.set_error(Some(e));
+                    }
                 } else {
-                    self.s_stack().push(if (x1 - x2).abs() < (x3.abs() * (x1.abs() + x2.abs())) {
-                        TRUE
-                    } else {
-                        FALSE
-                    });
+                    if let Err(e) = self.s_stack()
+                        .push(if (x1 - x2).abs() < (x3.abs() * (x1.abs() + x2.abs())) {
+                            TRUE
+                        } else {
+                            FALSE
+                        }) {
+                        self.set_error(Some(e));
+                    }
                 }
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
@@ -679,7 +687,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.add_float();
-        vm.f_stack().push2(1.0, 2.0);
+        vm.f_stack().push2(1.0, 2.0).unwrap();
         match vm.last_error() {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
@@ -694,7 +702,7 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.add_core();
         vm.add_float();
-        vm.f_stack().push2(1.0, 2.0);
+        vm.f_stack().push2(1.0, 2.0).unwrap();
         match vm.last_error() {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}

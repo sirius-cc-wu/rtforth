@@ -25,14 +25,18 @@ pub trait Output: Core {
     /// Put x into output buffer.
     fn emit(&mut self) -> Result {
         match self.s_stack().pop() {
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
             Ok(ch) => {
-                if let Some(ref mut buffer) = *self.output_buffer() {
-                    buffer.push(ch as u8 as char)
+                match self.output_buffer().take() {
+                    Some(mut buffer) => {
+                        buffer.push(ch as u8 as char);
+                        self.set_output_buffer(buffer);
+                    }
+                    None => {}
                 }
-                Ok(())
             }
         }
+        Ok(())
     }
 
     /// Run-time: ( c-addr u -- )
@@ -40,19 +44,21 @@ pub trait Output: Core {
     /// Put the character string specified by c-addr and u into output buffer.
     fn p_type(&mut self) -> Result {
         match self.s_stack().pop2() {
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
             Ok((addr, len)) => {
-                {
-                    let mut output_buffer = self.output_buffer().take().unwrap();
-                    {
-                        let s = &self.data_space().get_str(addr as usize, len as usize);
-                        output_buffer.push_str(s);
+                match self.output_buffer().take() {
+                    Some(mut buffer) => {
+                        {
+                            let s = &self.data_space().get_str(addr as usize, len as usize);
+                            buffer.push_str(s);
+                        }
+                        self.set_output_buffer(buffer);
                     }
-                    self.set_output_buffer(output_buffer);
+                    None => {}
                 }
-                Ok(())
             }
         }
+        Ok(())
     }
 
     /// Runtime of S"
@@ -61,14 +67,14 @@ pub trait Output: Core {
         let cnt = self.data_space().get_i32(ip);
         let addr = self.state().instruction_pointer + mem::size_of::<i32>();
         match self.s_stack().push2(addr as isize, cnt as isize) {
-            Err(_) => Err(StackOverflow),
+            Err(_) => self.set_error(Some(StackOverflow)),
             Ok(()) => {
                 self.state().instruction_pointer = self.state().instruction_pointer +
                                                    mem::size_of::<i32>() +
                                                    cnt as usize;
-                Ok(())
             }
         }
+        Ok(())
     }
 
     /// Compilation: ( "ccc<quote>" -- )
@@ -160,13 +166,12 @@ pub trait Output: Core {
                     self.set_output_buffer(buf);
                 }
                 if invalid_base {
-                    Err(UnsupportedOperation)
-                } else {
-                    Ok(())
+                    self.set_error(Some(UnsupportedOperation));
                 }
             }
-            Err(_) => Err(StackUnderflow),
+            Err(_) => self.set_error(Some(StackUnderflow)),
         }
+        Ok(())
     }
 
     /// Run-time: ( -- ) ( F: r -- )
@@ -180,10 +185,10 @@ pub trait Output: Core {
                     write!(buf, "{} ", r).unwrap();
                     self.set_output_buffer(buf);
                 }
-                Ok(())
             }
-            Err(_) => Err(FloatingPointStackUnderflow),
+            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
+        Ok(())
     }
 }
 
@@ -199,7 +204,8 @@ mod tests {
         vm.add_core();
         vm.add_output();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), []);
         assert_eq!(vm.output_buffer().clone().unwrap(), "Hi, how are you");
     }
@@ -210,9 +216,9 @@ mod tests {
         vm.add_core();
         vm.add_output();
         vm.set_source("42 emit 43 emit");
-        assert!(vm.evaluate().is_ok());
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().as_slice(), []);
         assert_eq!(vm.output_buffer().clone().unwrap(), "*+");
     }
-
 }

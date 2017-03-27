@@ -2223,6 +2223,8 @@ mod tests {
     use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Pause, Bye, StackUnderflow,
                                InterpretingACompileOnlyWord, UndefinedWord, UnexpectedEndOfFile,
                                ControlStructureMismatch, ReturnStackUnderflow};
+    use loader::HasLoader;
+    use output::Output;
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {
@@ -4009,5 +4011,88 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 4);
         assert_eq!(vm.s_stack().as_slice(), [4, 8, 5, 10]);
+    }
+
+    #[bench]
+    fn bench_repeat(b: &mut Bencher) {
+        let vm = &mut VM::new(16);
+        vm.add_core();
+        vm.set_source(": bench 0 begin over over > while 1 + repeat drop drop ;");
+        vm.evaluate();
+        vm.set_source(": main 8000 bench ;");
+        vm.evaluate();
+        vm.set_source("' main");
+        vm.evaluate();
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            vm.run();
+            match vm.last_error() {
+                Some(e) => {
+                    match e {
+                        Quit => {}
+                        _ => {
+                            assert!(false);
+                        }
+                    }
+                }
+                None => assert!(true),
+            };
+        });
+    }
+
+    #[bench]
+    fn bench_sieve(b: &mut Bencher) {
+        let vm = &mut VM::new(16);
+        vm.add_core();
+        vm.add_output();
+        vm.load("./lib.fs");
+        assert_eq!(vm.last_error(), None);
+        vm.set_source("CREATE FLAGS 8190 ALLOT   VARIABLE EFLAG");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        vm.set_source("
+            : PRIMES  ( -- n )  FLAGS 8190 1 FILL  0 3  EFLAG @ FLAGS
+                DO   I C@
+                    IF  DUP I + DUP EFLAG @ <
+                        IF    EFLAG @ SWAP
+                            DO  0 I C! DUP  +LOOP
+                        ELSE  DROP  THEN  SWAP 1+ SWAP
+                    THEN  2 +
+                LOOP  DROP ;
+        ");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        vm.set_source("
+            : BENCHMARK  0 1 0 DO  PRIMES NIP  LOOP ;
+        ");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        vm.set_source("
+            : MAIN 
+                FLAGS 8190 + EFLAG !
+                BENCHMARK DROP
+            ;
+        ");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        vm.set_source("' main");
+        vm.evaluate();
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            vm.run();
+            match vm.last_error() {
+                Some(e) => {
+                    match e {
+                        Quit => {}
+                        _ => {
+                            assert!(false);
+                        }
+                    }
+                }
+                None => assert!(true),
+            };
+        });
     }
 }

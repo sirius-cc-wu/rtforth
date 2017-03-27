@@ -2228,6 +2228,8 @@ mod tests {
     use self::test::Bencher;
     use std::mem;
     use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Pause, Bye};
+    use loader::HasLoader;
+    use output::Output;
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {
@@ -3409,5 +3411,81 @@ mod tests {
         assert!(vm.evaluate().is_ok());
         assert_eq!(vm.s_stack().len(), 4);
         assert_eq!(vm.s_stack().as_slice(), [4, 8, 5, 10]);
+    }
+
+    #[bench]
+    fn bench_repeat(b: &mut Bencher) {
+        let vm = &mut VM::new(16);
+        vm.add_core();
+        vm.set_source(": bench 0 begin over over > while 1 + repeat drop drop ;");
+        vm.evaluate();
+        vm.set_source(": main 8000 bench ;");
+        vm.evaluate();
+        vm.set_source("' main");
+        vm.evaluate();
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            match vm.run() {
+                Err(e) => {
+                    match e {
+                        Quit => {}
+                        _ => {
+                            assert!(false);
+                        }
+                    }
+                }
+                Ok(()) => assert!(true),
+            };
+        });
+    }
+
+    #[bench]
+    fn bench_sieve(b: &mut Bencher) {
+        let vm = &mut VM::new(16);
+        vm.add_core();
+        vm.add_output();
+        assert!(vm.load("./lib.fs").is_ok());
+        vm.set_source("CREATE FLAGS 8190 ALLOT   VARIABLE EFLAG");
+        assert!(vm.evaluate().is_ok());
+        vm.set_source("
+            : PRIMES  ( -- n )  FLAGS 8190 1 FILL  0 3  EFLAG @ FLAGS
+                DO   I C@
+                    IF  DUP I + DUP EFLAG @ <
+                        IF    EFLAG @ SWAP
+                            DO  0 I C! DUP  +LOOP
+                        ELSE  DROP  THEN  SWAP 1+ SWAP
+                    THEN  2 +
+                LOOP  DROP ;
+        ");
+        assert!(vm.evaluate().is_ok());
+        vm.set_source("
+            : BENCHMARK  0 1 0 DO  PRIMES NIP  LOOP ;
+        ");
+        assert!(vm.evaluate().is_ok());
+        vm.set_source("
+            : MAIN 
+                FLAGS 8190 + EFLAG !
+                BENCHMARK DROP
+            ;
+        ");
+        assert!(vm.evaluate().is_ok());
+        vm.set_source("' main");
+        vm.evaluate();
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            match vm.run() {
+                Err(e) => {
+                    match e {
+                        Quit => {}
+                        _ => {
+                            assert!(false);
+                        }
+                    }
+                }
+                Ok(()) => assert!(true),
+            };
+        });
     }
 }

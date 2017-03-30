@@ -580,9 +580,16 @@ pub trait Core: Sized {
             }
             ip = self.state().instruction_pointer;
         }
-        if self.last_error().is_some() {
-        } else if ip != 0 {
-            self.set_error(Some(InvalidMemoryAddress));
+        if self.state().instruction_pointer != 0 {
+            match self.last_error() {
+                None => {
+                    self.set_error(Some(InvalidMemoryAddress));
+                }
+                Some(Pause) => {}
+                _ => {
+                    self.state().instruction_pointer = 0;
+                }
+            }
         }
     }
 
@@ -2173,7 +2180,6 @@ pub trait Core: Sized {
             buf.clear()
         }
         self.state().source_index = 0;
-        self.state().instruction_pointer = 0;
         self.interpret();
         self.set_error(None);
     }
@@ -3867,6 +3873,7 @@ mod tests {
         assert_eq!(vm.s_stack().len(), 3);
         vm.set_error(None);
         vm.run();
+        assert_eq!(vm.last_error(), None);
         assert!(vm.state().is_idle());
         assert_eq!(vm.s_stack().len(), 6);
     }

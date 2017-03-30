@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
-use core::{Core, Result};
+use core::Core;
 use exception::Exception::FileIOException;
 
 pub trait HasLoader: Core {

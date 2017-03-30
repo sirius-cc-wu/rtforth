@@ -1,4 +1,4 @@
-use core::{Core, Result};
+use core::Core;
 use std::ops::BitAnd;
 use std::ops::Shr;
 use exception::Exception::StackOverflow;

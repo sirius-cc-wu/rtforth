@@ -1,8 +1,6 @@
-use std::mem;
 use std::fmt::Write;
 use core::Core;
-use exception::Exception::{StackUnderflow, StackOverflow, FloatingPointStackUnderflow,
-                           UnsupportedOperation};
+use exception::Exception::{StackUnderflow, FloatingPointStackUnderflow, UnsupportedOperation};
 
 /// Types that can output to console.
 pub trait Output: Core {
@@ -10,7 +8,6 @@ pub trait Output: Core {
     fn add_output(&mut self) {
         self.add_primitive("emit", Output::emit);
         self.add_primitive("type", Output::p_type);
-        self.add_primitive("_s\"", Output::p_s_quote);
         self.add_immediate("s\"", Output::s_quote);
         self.add_immediate(".\"", Output::dot_quote);
         self.add_immediate(".(", Output::dot_paren);
@@ -55,21 +52,6 @@ pub trait Output: Core {
                     }
                     None => {}
                 }
-            }
-        }
-    }
-
-    /// Runtime of S"
-    fn p_s_quote(&mut self) {
-        let ip = self.state().instruction_pointer;
-        let cnt = self.data_space().get_i32(ip);
-        let addr = self.state().instruction_pointer + mem::size_of::<i32>();
-        match self.s_stack().push2(addr as isize, cnt as isize) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {
-                self.state().instruction_pointer = self.state().instruction_pointer +
-                                                   mem::size_of::<i32>() +
-                                                   cnt as usize;
             }
         }
     }

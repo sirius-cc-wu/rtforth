@@ -1,14 +1,10 @@
 use core::{Core, TRUE, FALSE};
 use std::str::FromStr;
-
-use std::mem;
-
 use exception::Exception::{StackUnderflow, StackOverflow, FloatingPointStackOverflow,
                            FloatingPointStackUnderflow, UnsupportedOperation};
 
 pub trait Float: Core {
     fn add_float(&mut self) {
-        self.add_primitive("flit", Float::flit);
         self.add_primitive("fconstant", Float::fconstant);
         self.add_primitive("fvariable", Float::fvariable);
         self.add_primitive("f!", Float::fstore);
@@ -67,18 +63,6 @@ pub trait Float: Core {
                 }
             }
             Err(_) => self.set_error(Some(UnsupportedOperation)),
-        }
-    }
-
-    fn flit(&mut self) {
-        let ip = self.state().instruction_pointer as usize;
-        let v = self.data_space().get_f64(ip);
-        match self.f_stack().push(v) {
-            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
-            Ok(()) => {
-                self.state().instruction_pointer = self.state().instruction_pointer +
-                                                   mem::size_of::<f64>();
-            }
         }
     }
 

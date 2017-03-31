@@ -12,7 +12,7 @@ use rtforth::exception::Exception::Bye;
 #[cfg(not(test))]
 #[cfg(not(test))]
 fn main() {
-    let vm = &mut VM::new(65536);
+    let vm = &mut VM::new(1024);
     let mut bye = false;
 
     let args: Vec<_> = env::args().collect();

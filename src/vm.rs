@@ -35,7 +35,7 @@ pub struct VM {
 
 impl VM {
     pub fn new(pages: usize) -> VM {
-        VM {
+        let mut vm = VM {
             last_error: None,
             structure_depth: 0,
             s_stk: Stack::with_capacity(64),
@@ -52,7 +52,14 @@ impl VM {
             references: ForwardReferences::new(),
             evals: None,
             evaluation_limit: 0isize,
-        }
+        };
+        vm.add_core();
+        vm.add_output();
+        vm.add_tools();
+        vm.add_environment();
+        vm.add_facility();
+        vm.add_float();
+        vm
     }
 }
 

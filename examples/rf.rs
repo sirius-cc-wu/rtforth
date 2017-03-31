@@ -7,11 +7,6 @@ use getopts::Options;
 use rtforth::vm::VM;
 use rtforth::core::Core;
 use rtforth::loader::HasLoader;
-use rtforth::output::Output;
-use rtforth::tools::Tools;
-use rtforth::env::Environment;
-use rtforth::facility::Facility;
-use rtforth::float::Float;
 use rtforth::exception::Exception::Bye;
 
 #[cfg(not(test))]
@@ -19,12 +14,6 @@ use rtforth::exception::Exception::Bye;
 fn main() {
     let vm = &mut VM::new(65536);
     let mut bye = false;
-    vm.add_core();
-    vm.add_output();
-    vm.add_tools();
-    vm.add_environment();
-    vm.add_facility();
-    vm.add_float();
 
     let args: Vec<_> = env::args().collect();
     let program = args[0].clone();

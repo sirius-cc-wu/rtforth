@@ -463,7 +463,6 @@ mod tests {
     #[bench]
     fn bench_fib(b: &mut Bencher) {
         let mut vm = &mut VM::new(16);
-        vm.add_core();
         vm.set_source(": fib dup 2 < if drop 1 else dup 1- recurse swap 2 - recurse + then ;");
         vm.evaluate();
         assert!(vm.last_error().is_none());
@@ -492,7 +491,6 @@ mod tests {
     #[bench]
     fn bench_repeat(b: &mut Bencher) {
         let mut vm = &mut VM::new(16);
-        vm.add_core();
         vm.set_source(": bench 0 begin over over > while 1 + repeat drop drop ;");
         vm.evaluate();
         vm.set_source(": main 8000 bench ;");
@@ -520,8 +518,6 @@ mod tests {
     #[bench]
     fn bench_sieve(b: &mut Bencher) {
         let mut vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_output();
         vm.load("./lib.fs");
         assert_eq!(vm.last_error(), None);
         vm.set_source("CREATE FLAGS 8190 ALLOT   VARIABLE EFLAG");

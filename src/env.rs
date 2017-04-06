@@ -38,8 +38,6 @@ mod tests {
     #[test]
     fn test_max_n() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_environment();
         vm.set_source("max-n dup 1+ +");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -52,8 +50,6 @@ mod tests {
 
     fn test_max_u() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_environment();
         vm.set_source("max-u 1+");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);

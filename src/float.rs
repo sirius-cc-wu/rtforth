@@ -483,8 +483,6 @@ mod tests {
     #[test]
     fn test_evaluate_f64() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("1.0 2.5");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -498,8 +496,6 @@ mod tests {
     #[test]
     fn test_fconstant() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("1.1 fconstant x x x");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -509,8 +505,6 @@ mod tests {
     #[test]
     fn test_fvariable_and_fstore_ffetch() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("fvariable fx  fx f@  3.3 fx f!  fx f@");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -520,8 +514,6 @@ mod tests {
     #[test]
     fn test_fabs() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("-3.14 fabs");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -535,8 +527,6 @@ mod tests {
     #[test]
     fn test_fsin() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("3.14 fsin");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -550,8 +540,6 @@ mod tests {
     #[test]
     fn test_fcos() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("3.0 fcos");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -565,8 +553,6 @@ mod tests {
     #[test]
     fn test_ftan() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("3.0 ftan");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -580,8 +566,6 @@ mod tests {
     #[test]
     fn test_fasin() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("0.3 fasin");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -595,8 +579,6 @@ mod tests {
     #[test]
     fn test_facos() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("0.3 facos");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -610,8 +592,6 @@ mod tests {
     #[test]
     fn test_fatan() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("0.3 fatan");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -625,8 +605,6 @@ mod tests {
     #[test]
     fn test_fatan2() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("3.0 4.0 fatan2");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -640,8 +618,6 @@ mod tests {
     #[test]
     fn test_fsqrt() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("0.3 fsqrt");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -655,8 +631,6 @@ mod tests {
     #[test]
     fn test_fdrop() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         match vm.f_stack().push(1.0) {
             Err(_) => assert!(true, "Floating point stack overflow"),
             Ok(()) => {}
@@ -669,8 +643,6 @@ mod tests {
     #[test]
     fn test_fnip() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.f_stack().push2(1.0, 2.0).unwrap();
         match vm.last_error() {
             Some(_) => assert!(true, "Floating point stack overflow"),
@@ -684,8 +656,6 @@ mod tests {
     #[test]
     fn test_fswap() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.f_stack().push2(1.0, 2.0).unwrap();
         match vm.last_error() {
             Some(_) => assert!(true, "Floating point stack overflow"),
@@ -699,8 +669,6 @@ mod tests {
     #[test]
     fn test_fdup() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         match vm.f_stack().push(1.0) {
             Err(_) => assert!(true, "Floating point stack overflow"),
             Ok(()) => {}
@@ -713,8 +681,6 @@ mod tests {
     #[test]
     fn test_fover() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         match vm.f_stack().push2(1.0, 2.0) {
             Err(_) => assert!(true, "Floating point stack overflow"),
             Ok(()) => {}
@@ -727,8 +693,6 @@ mod tests {
     #[test]
     fn test_frot() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         match vm.f_stack().push3(1.0, 2.0, 3.0) {
             Err(_) => assert!(true, "Floating point stack overflow"),
             Ok(()) => {}
@@ -741,8 +705,6 @@ mod tests {
     #[test]
     fn test_fplus_fminus_fstar_fslash() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("9.0 10.0 f+ 11.0 f- 12.0 f* 13.0 f/");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -756,8 +718,6 @@ mod tests {
     #[test]
     fn test_f_zero_less_than() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("0.0 f0<   0.1 f0<   -0.1 f0<");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -771,8 +731,6 @@ mod tests {
     #[test]
     fn test_f_zero_equals() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("0.0 f0=   0.1 f0=   -0.1 f0=");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -786,8 +744,6 @@ mod tests {
     #[test]
     fn test_f_less_than() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("0.0 0.0 f<   0.1 0.0 f<   -0.1 0.0 f<");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -801,8 +757,6 @@ mod tests {
     #[test]
     fn test_fproximate() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("0.1 0.1 0.0 f~   0.1 0.10000000001 0.0 f~");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -834,8 +788,6 @@ mod tests {
     #[test]
     fn test_n_to_f() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source("0 n>f -1 n>f 1 n>f");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -845,8 +797,6 @@ mod tests {
     #[test]
     fn test_flit_and_compile_float() {
         let vm = &mut VM::new(16);
-        vm.add_core();
-        vm.add_float();
         vm.set_source(": test 1.0 2.0 ; test");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);

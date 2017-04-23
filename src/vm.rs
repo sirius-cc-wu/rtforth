@@ -11,7 +11,7 @@ use float::Float;
 use bc::*;
 use exception::Exception::{self, StackUnderflow, StackOverflow, ReturnStackUnderflow,
                            ReturnStackOverflow, FloatingPointStackOverflow, InvalidMemoryAddress,
-                           Nest, Quit, Pause};
+                           Nest, Quit};
 
 // Virtual machine
 pub struct VM {
@@ -174,9 +174,7 @@ fn switch_threading_run(vm: &mut VM) {
                 } else {
                     vm.r_stack().len -= 1;
                     unsafe {
-                        ip = ptr::read(vm.r_stack()
-                            .inner
-                            .offset(vm.r_stack().len as isize)) as
+                        ip = ptr::read(vm.r_stack().inner.offset(vm.r_stack().len as isize)) as
                              usize;
                     }
                 }
@@ -331,10 +329,7 @@ fn switch_threading_run(vm: &mut VM) {
                             vm.set_error(Some(ReturnStackOverflow));
                         } else {
                             unsafe {
-                                ptr::write(vm.r_stack()
-                                               .inner
-                                               .offset(vm.r_stack().len as isize),
-                                           v);
+                                ptr::write(vm.r_stack().inner.offset(vm.r_stack().len as isize), v);
                             }
                             vm.r_stack().len += 1;
                         }
@@ -365,7 +360,9 @@ fn switch_threading_run(vm: &mut VM) {
                     vm.set_error(Some(StackOverflow));
                 } else {
                     unsafe {
-                        let r1 = vm.r_stack().inner.offset((vm.r_stack().len - 1) as isize);
+                        let r1 = vm.r_stack()
+                            .inner
+                            .offset((vm.r_stack().len - 1) as isize);
                         match vm.s_stack().push(ptr::read(r1)) {
                             Err(e) => vm.set_error(Some(e)),
                             Ok(()) => {}
@@ -388,7 +385,9 @@ fn switch_threading_run(vm: &mut VM) {
                             Err(e) => vm.set_error(Some(e)),
                             Ok(()) => {}
                         }
-                        let r1 = vm.r_stack().inner.offset((vm.r_stack().len + 1) as isize);
+                        let r1 = vm.r_stack()
+                            .inner
+                            .offset((vm.r_stack().len + 1) as isize);
                         match vm.s_stack().push(ptr::read(r1)) {
                             Err(e) => vm.set_error(Some(e)),
                             Ok(()) => {}
@@ -401,12 +400,16 @@ fn switch_threading_run(vm: &mut VM) {
                     vm.set_error(Some(ReturnStackUnderflow));
                 } else {
                     unsafe {
-                        let r2 = vm.r_stack().inner.offset((vm.r_stack().len - 2) as isize);
+                        let r2 = vm.r_stack()
+                            .inner
+                            .offset((vm.r_stack().len - 2) as isize);
                         match vm.s_stack().push(ptr::read(r2)) {
                             Err(e) => vm.set_error(Some(e)),
                             Ok(()) => {}
                         }
-                        let r1 = vm.r_stack().inner.offset((vm.r_stack().len - 1) as isize);
+                        let r1 = vm.r_stack()
+                            .inner
+                            .offset((vm.r_stack().len - 1) as isize);
                         match vm.s_stack().push(ptr::read(r1)) {
                             Err(e) => vm.set_error(Some(e)),
                             Ok(()) => {}

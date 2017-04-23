@@ -15,7 +15,7 @@ use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, Stac
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
                            FloatingPointStackOverflow, UnsupportedOperation,
                            InterpretingACompileOnlyWord, InvalidMemoryAddress,
-                           ControlStructureMismatch, Quit, Nest, Pause, Bye};
+                           ControlStructureMismatch, Quit, Nest, Bye};
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;
@@ -411,7 +411,7 @@ pub trait Core: Sized {
         // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
         // j1: U<, RET, IO@, IO!
         // eForth: UM+, !IO, ?RX, TX!
-        // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, UP!, UP+, PAUSE,
+        // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, UP!, UP+,
 
         // Immediate words
         self.add_immediate("(", Core::imm_paren);
@@ -447,7 +447,6 @@ pub trait Core: Sized {
         self.add_primitive("2drop", Core::two_drop);
         self.add_primitive("2swap", Core::two_swap);
         self.add_primitive("2over", Core::two_over);
-        self.add_primitive("pause", Core::pause);
         self.add_primitive("/", Core::slash);
         self.add_primitive("mod", Core::p_mod);
         self.add_primitive("abs", Core::abs);
@@ -585,7 +584,6 @@ pub trait Core: Sized {
                 None => {
                     self.set_error(Some(InvalidMemoryAddress));
                 }
-                Some(Pause) => {}
                 _ => {
                     self.state().instruction_pointer = 0;
                 }
@@ -2182,12 +2180,6 @@ pub trait Core: Sized {
         }
     }
 
-    /// Leave VM's inner loop, keep VM's all state.
-    /// Call inner to resume inner loop.
-    fn pause(&mut self) {
-        self.set_error(Some(Pause));
-    }
-
     // ----------------
     // Error handlling
     // ----------------
@@ -2252,7 +2244,7 @@ mod tests {
     use vm::VM;
     use self::test::Bencher;
     use std::mem;
-    use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Pause, Bye, StackUnderflow,
+    use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Bye, StackUnderflow,
                                InterpretingACompileOnlyWord, UndefinedWord, UnexpectedEndOfFile,
                                ControlStructureMismatch, ReturnStackUnderflow};
     use loader::HasLoader;
@@ -3799,21 +3791,6 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(Bye));
         assert!(vm.state().is_idle());
-    }
-
-    #[test]
-    fn test_pause() {
-        let vm = &mut VM::new(16);
-        vm.set_source(": test 1 2 3 pause 5 6 7 ; test");
-        vm.evaluate();
-        assert_eq!(vm.last_error(), Some(Pause));
-        assert!(!vm.state().is_idle());
-        assert_eq!(vm.s_stack().len(), 3);
-        vm.set_error(None);
-        vm.run();
-        assert_eq!(vm.last_error(), None);
-        assert!(vm.state().is_idle());
-        assert_eq!(vm.s_stack().len(), 6);
     }
 
     #[test]

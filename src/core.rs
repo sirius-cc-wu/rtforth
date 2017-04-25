@@ -16,7 +16,7 @@ use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, Stac
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
                            FloatingPointStackOverflow, UnsupportedOperation,
                            InterpretingACompileOnlyWord, InvalidMemoryAddress,
-                           ControlStructureMismatch, Quit, Nest, Bye};
+                           ControlStructureMismatch, Nest, Bye};
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;
@@ -462,7 +462,6 @@ pub trait Core: Sized {
         self.add_primitive("]", Core::compile);
         self.add_primitive(",", Core::comma);
         self.add_primitive("marker", Core::marker);
-        self.add_primitive("quit", Core::quit);
         self.add_primitive("abort", Core::abort);
         self.add_primitive("bye", Core::bye);
         self.add_primitive("jit", Core::jit);
@@ -553,8 +552,6 @@ pub trait Core: Sized {
 
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception other than Nest causes termination of inner loop.
-    /// Quit is aspecially used for this purpose.
-    /// Never return None and Some(Nest).
     #[inline(never)]
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
@@ -773,15 +770,9 @@ pub trait Core: Sized {
                                             self.set_error(None);
                                             self.run();
                                             if let Some(e2) = self.last_error() {
-                                                match e2 {
-                                                    Quit => {}
-                                                    _ => {
-                                                        break;
-                                                    }
-                                                }
+                                                break;
                                             }
                                         }
-                                        Quit => {}
                                         _ => {
                                             self.set_error(Some(e));
                                             break;
@@ -834,15 +825,9 @@ pub trait Core: Sized {
                                             self.set_error(None);
                                             self.run();
                                             if let Some(e2) = self.last_error() {
-                                                match e2 {
-                                                    Quit => {}
-                                                    _ => {
-                                                        break;
-                                                    }
-                                                }
+                                                break;
                                             }
                                         }
-                                        Quit => {}
                                         _ => {
                                             self.set_error(Some(e));
                                             break;
@@ -2372,13 +2357,6 @@ pub trait Core: Sized {
 
     fn halt(&mut self) {
         self.state().instruction_pointer = 0;
-        self.set_error(Some(Quit));
-    }
-
-    /// Quit the inner loop and reset VM, without clearing stacks .
-    fn quit(&mut self) {
-        self.reset();
-        self.set_error(Some(Quit));
     }
 
     /// Emit Bye exception.
@@ -3914,23 +3892,6 @@ mod tests {
     }
 
     #[test]
-    fn test_quit() {
-        let vm = &mut VM::new(16);
-        vm.set_source(": main 1 2 ; main 3 quit 5 6 7");
-        vm.evaluate();
-        assert_eq!(vm.last_error(), Some(Quit));
-        assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Ok(3));
-        assert_eq!(vm.s_stack().pop(), Ok(2));
-        assert_eq!(vm.s_stack().pop(), Ok(1));
-        assert_eq!(vm.r_stack().len, 0);
-        assert_eq!(vm.input_buffer().clone().unwrap().len(), 0);
-        assert_eq!(vm.state().source_index, 0);
-        assert_eq!(vm.state().instruction_pointer, 0);
-        assert!(!vm.state().is_compiling);
-    }
-
-    #[test]
     fn test_abort() {
         let vm = &mut VM::new(16);
         vm.set_source("1 2 3 abort 5 6 7");
@@ -4071,12 +4032,7 @@ mod tests {
             vm.run();
             match vm.last_error() {
                 Some(e) => {
-                    match e {
-                        Quit => {}
-                        _ => {
-                            assert!(false);
-                        }
-                    }
+                    assert!(false);
                 }
                 None => assert!(true),
             };
@@ -4098,12 +4054,7 @@ mod tests {
             vm.run();
             match vm.last_error() {
                 Some(e) => {
-                    match e {
-                        Quit => {}
-                        _ => {
-                            assert!(false);
-                        }
-                    }
+                    assert!(false);
                 }
                 None => assert!(true),
             };
@@ -4151,12 +4102,7 @@ mod tests {
             vm.run();
             match vm.last_error() {
                 Some(e) => {
-                    match e {
-                        Quit => {}
-                        _ => {
-                            assert!(false);
-                        }
-                    }
+                    assert!(false);
                 }
                 None => assert!(true),
             };

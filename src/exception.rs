@@ -116,9 +116,6 @@ pub enum Exception {
     ExceptionInSendingOrReceivingACharacter = -57,
     /// = -58, ANS Forth
     BracketIfElseOrThenException = -58,
-    /// Request to run rtForth's inner loop, used in rtForth's core
-    /// only. rtForth
-    Nest = -9998,
     /// request to leave the application. rtForth
     Bye = -9999,
 }
@@ -185,7 +182,6 @@ impl Exception {
             Exception::Quit => "QUIT",
             Exception::ExceptionInSendingOrReceivingACharacter => "Exception in sending or receiving a character",
             Exception::BracketIfElseOrThenException => "[IF],[ELSE],[THEN] exception",
-            Exception::Nest => "Nest",
             Exception::Bye => "Bye",
         }
     }

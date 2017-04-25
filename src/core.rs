@@ -15,8 +15,7 @@ use jitmem::{self, DataSpace};
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
                            FloatingPointStackOverflow, UnsupportedOperation,
-                           InterpretingACompileOnlyWord, InvalidMemoryAddress,
-                           ControlStructureMismatch, Nest, Bye};
+                           InterpretingACompileOnlyWord, ControlStructureMismatch, Bye};
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;
@@ -551,9 +550,13 @@ pub trait Core: Sized {
     // ------------------
 
     /// Evaluate a compiled program following self.state().instruction_pointer.
-    /// Any exception other than Nest causes termination of inner loop.
+    /// Any exception causes termination of inner loop.
     #[inline(never)]
     fn run(&mut self) {
+        if self.last_error().is_some() {
+            self.state().instruction_pointer = 0;
+            return;
+        }
         let mut ip = self.state().instruction_pointer;
         while 0 < ip && ip < self.data_space().len() {
             let w = self.data_space().get_i32(ip) as usize;
@@ -561,29 +564,13 @@ pub trait Core: Sized {
             self.execute_word(w);
             match self.last_error() {
                 Some(e) => {
-                    match e {
-                        Nest => {
-                            self.set_error(None);
-                        }
-                        _ => {
-                            break;
-                        }
-                    }
+                    break;
                 }
                 None => {}
             }
             ip = self.state().instruction_pointer;
         }
-        if self.state().instruction_pointer != 0 {
-            match self.last_error() {
-                None => {
-                    self.set_error(Some(InvalidMemoryAddress));
-                }
-                _ => {
-                    self.state().instruction_pointer = 0;
-                }
-            }
-        }
+        self.state().instruction_pointer = 0;
     }
 
     // ---------
@@ -763,21 +750,10 @@ pub trait Core: Sized {
                             self.compile_word(found_index);
                         } else {
                             self.execute_word(found_index);
+                            self.run();
                             match self.last_error() {
                                 Some(e) => {
-                                    match e {
-                                        Nest => {
-                                            self.set_error(None);
-                                            self.run();
-                                            if let Some(e2) = self.last_error() {
-                                                break;
-                                            }
-                                        }
-                                        _ => {
-                                            self.set_error(Some(e));
-                                            break;
-                                        }
-                                    }
+                                    break;
                                 }
                                 None => {}
                             };
@@ -818,21 +794,10 @@ pub trait Core: Sized {
                             break;
                         } else {
                             self.execute_word(found_index);
+                            self.run();
                             match self.last_error() {
                                 Some(e) => {
-                                    match e {
-                                        Nest => {
-                                            self.set_error(None);
-                                            self.run();
-                                            if let Some(e2) = self.last_error() {
-                                                break;
-                                            }
-                                        }
-                                        _ => {
-                                            self.set_error(Some(e));
-                                            break;
-                                        }
-                                    }
+                                    break;
                                 }
                                 None => {}
                             };
@@ -933,7 +898,6 @@ pub trait Core: Sized {
             self.r_stack().len += 1;
             let wp = self.state().word_pointer;
             self.state().instruction_pointer = self.wordlist()[wp].dfa();
-            self.set_error(Some(Nest));
         }
     }
 
@@ -2377,9 +2341,9 @@ mod tests {
     use vm::VM;
     use self::test::Bencher;
     use std::mem;
-    use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Bye, StackUnderflow,
-                               InterpretingACompileOnlyWord, UndefinedWord, UnexpectedEndOfFile,
-                               ControlStructureMismatch, ReturnStackUnderflow};
+    use exception::Exception::{Abort, Quit, Bye, StackUnderflow, InterpretingACompileOnlyWord,
+                               UndefinedWord, UnexpectedEndOfFile, ControlStructureMismatch,
+                               ReturnStackUnderflow};
     use loader::HasLoader;
 
     #[bench]
@@ -2412,28 +2376,6 @@ mod tests {
     fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16);
         b.iter(|| vm.find("bye"));
-    }
-
-    #[test]
-    fn test_inner_interpreter_without_nest() {
-        let vm = &mut VM::new(16);
-        let ip = vm.data_space().len();
-        vm.compile_integer(3);
-        vm.compile_integer(2);
-        vm.compile_integer(1);
-        vm.state().instruction_pointer = ip;
-        assert_eq!(vm.last_error(), None);
-        vm.run();
-        match vm.last_error() {
-            Some(e) => {
-                match e {
-                    InvalidMemoryAddress => assert!(true),
-                    _ => assert!(false),
-                }
-            }
-            None => assert!(false),
-        }
-        assert_eq!(3usize, vm.s_stack().len());
     }
 
     #[bench]

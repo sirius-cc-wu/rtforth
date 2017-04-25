@@ -10,8 +10,7 @@ use facility::Facility;
 use float::Float;
 use bc::*;
 use exception::Exception::{self, StackUnderflow, StackOverflow, ReturnStackUnderflow,
-                           ReturnStackOverflow, FloatingPointStackOverflow, InvalidMemoryAddress,
-                           Nest, Quit};
+                           ReturnStackOverflow, FloatingPointStackOverflow, InvalidMemoryAddress};
 
 // Virtual machine
 pub struct VM {
@@ -149,11 +148,13 @@ impl Tools for VM {}
 // ------------------
 
 /// Evaluate a compiled program following self.state().instruction_pointer.
-/// Any exception other than Nest causes termination of inner loop.
-/// Quit is aspecially used for this purpose.
-/// Never return None and Some(Nest).
+/// Any exception causes termination of inner loop.
 #[inline(never)]
 fn switch_threading_run(vm: &mut VM) {
+    if vm.last_error().is_some() {
+        vm.state().instruction_pointer = 0;
+        return;
+    }
     let mut ip = vm.state().instruction_pointer;
     while 0 < ip && ip < vm.data_space().len() {
         let w = vm.data_space().get_i32(ip) as usize;
@@ -173,7 +174,6 @@ fn switch_threading_run(vm: &mut VM) {
             }
             BC_HALT => {
                 ip = 0;
-                vm.set_error(Some(Quit));
             }
             BC_LIT => {
                 if vm.s_stack().is_full() {
@@ -417,30 +417,12 @@ fn switch_threading_run(vm: &mut VM) {
         }
         match vm.last_error() {
             Some(e) => {
-                match e {
-                    Nest => {
-                        vm.set_error(None);
-                    }
-                    _ => {
-                        break;
-                    }
-                }
+                break;
             }
             None => {}
         }
     }
-    vm.state().instruction_pointer = ip;
-    if vm.state().instruction_pointer != 0 {
-        match vm.last_error() {
-            None => {
-                vm.set_error(Some(InvalidMemoryAddress));
-                vm.state().instruction_pointer = 0;
-            }
-            _ => {
-                vm.state().instruction_pointer = 0;
-            }
-        }
-    }
+    vm.state().instruction_pointer = 0;
 }
 
 #[cfg(test)]

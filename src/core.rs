@@ -758,10 +758,12 @@ pub trait Core: Sized {
             }
             last_token = self.last_token().take().unwrap();
             if last_token.is_empty() {
-                break;
+                self.set_last_token(last_token);
+                return;
             }
             match self.find(&last_token) {
                 Some(found_index) => {
+                    self.set_last_token(last_token);
                     let is_immediate_word;
                     let is_compile_only_word;
                     {
@@ -775,11 +777,9 @@ pub trait Core: Sized {
                         self.set_error(Some(InterpretingACompileOnlyWord));
                         break;
                     } else {
-                        self.set_last_token(last_token);
                         self.execute_word(found_index);
                         match self.last_error() {
                             Some(e) => {
-                                last_token = self.last_token().take().unwrap();
                                 match e {
                                     Nest => {
                                         self.set_error(None);
@@ -800,13 +800,13 @@ pub trait Core: Sized {
                                     }
                                 }
                             }
-                            None => {
-                                last_token = self.last_token().take().unwrap();
-                            }
+                            None => {}
                         };
                     }
                 }
                 None => {
+                    self.set_last_token(last_token);
+                    last_token = self.last_token().take().unwrap();
                     let mut done = false;
                     self.set_error(None);
                     self.evaluate_integer(&last_token);
@@ -824,8 +824,10 @@ pub trait Core: Sized {
                     if !done {
                         print!("{} ", &last_token);
                         self.set_error(Some(UndefinedWord));
+                        self.set_last_token(last_token);
                         break;
                     }
+                    self.set_last_token(last_token);
                 }
             }
             if limit > 0 {
@@ -834,9 +836,7 @@ pub trait Core: Sized {
                     break;
                 }
             }
-            self.set_last_token(last_token);
         }
-        self.set_last_token(last_token);
     }
 
     fn base(&mut self) {

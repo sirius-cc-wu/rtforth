@@ -352,7 +352,7 @@ fn switch_threading_run(vm: &mut VM) {
                         }
                     }
                 }
-            } 
+            }
             BC_R_FETCH => {
                 if vm.r_stack().len == 0 {
                     vm.set_error(Some(ReturnStackUnderflow));
@@ -544,7 +544,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         vm.set_source("
-            : MAIN 
+            : MAIN
                 FLAGS 8190 + EFLAG !
                 BENCHMARK DROP
             ;

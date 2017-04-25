@@ -410,7 +410,7 @@ pub trait Float: Core {
             Ok((x1, x2, x3)) => {
                 if x3 > 0.0 {
                     if let Err(e) = self.s_stack()
-                        .push(if (x1 - x2).abs() < x3 { TRUE } else { FALSE }) {
+                           .push(if (x1 - x2).abs() < x3 { TRUE } else { FALSE }) {
                         self.set_error(Some(e));
                     }
                 } else if x3 == 0.0 {
@@ -419,11 +419,11 @@ pub trait Float: Core {
                     }
                 } else {
                     if let Err(e) = self.s_stack()
-                        .push(if (x1 - x2).abs() < (x3.abs() * (x1.abs() + x2.abs())) {
-                            TRUE
-                        } else {
-                            FALSE
-                        }) {
+                           .push(if (x1 - x2).abs() < (x3.abs() * (x1.abs() + x2.abs())) {
+                                     TRUE
+                                 } else {
+                                     FALSE
+                                 }) {
                         self.set_error(Some(e));
                     }
                 }
@@ -519,9 +519,9 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Ok(t) => t > 3.13999 && t < 3.14001,
-            Err(_) => false,
-        });
+                    Ok(t) => t > 3.13999 && t < 3.14001,
+                    Err(_) => false,
+                });
     }
 
     #[test]
@@ -532,9 +532,9 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Ok(t) => t > 0.0015925 && t < 0.0015927,
-            Err(_) => false,
-        });
+                    Ok(t) => t > 0.0015925 && t < 0.0015927,
+                    Err(_) => false,
+                });
     }
 
     #[test]
@@ -545,9 +545,9 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Ok(t) => t > -0.989993 && t < -0.989991,
-            Err(_) => false,
-        });
+                    Ok(t) => t > -0.989993 && t < -0.989991,
+                    Err(_) => false,
+                });
     }
 
     #[test]
@@ -558,9 +558,9 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Ok(t) => t > -0.142547 && t < -0.142545,
-            Err(_) => false,
-        });
+                    Ok(t) => t > -0.142547 && t < -0.142545,
+                    Err(_) => false,
+                });
     }
 
     #[test]
@@ -571,9 +571,9 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Ok(t) => t > 0.304691 && t < 0.304693,
-            Err(_) => false,
-        });
+                    Ok(t) => t > 0.304691 && t < 0.304693,
+                    Err(_) => false,
+                });
     }
 
     #[test]
@@ -584,9 +584,9 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Ok(t) => t > 1.266102 && t < 1.266104,
-            Err(_) => false,
-        });
+                    Ok(t) => t > 1.266102 && t < 1.266104,
+                    Err(_) => false,
+                });
     }
 
     #[test]
@@ -597,9 +597,9 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Ok(t) => t > 0.291455 && t < 0.291457,
-            Err(_) => false,
-        });
+                    Ok(t) => t > 0.291455 && t < 0.291457,
+                    Err(_) => false,
+                });
     }
 
     #[test]
@@ -610,9 +610,9 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Ok(t) => t > 0.643500 && t < 0.643502,
-            Err(_) => false,
-        });
+                    Ok(t) => t > 0.643500 && t < 0.643502,
+                    Err(_) => false,
+                });
     }
 
     #[test]
@@ -623,9 +623,9 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Ok(t) => t > 0.547721 && t < 0.547723,
-            Err(_) => false,
-        });
+                    Ok(t) => t > 0.547721 && t < 0.547723,
+                    Err(_) => false,
+                });
     }
 
     #[test]
@@ -710,9 +710,9 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-            Ok(t) => t > 7.384614 && t < 7.384616,
-            Err(_) => false,
-        });
+                    Ok(t) => t > 7.384614 && t < 7.384616,
+                    Err(_) => false,
+                });
     }
 
     #[test]

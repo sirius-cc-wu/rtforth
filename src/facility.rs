@@ -32,8 +32,9 @@ pub trait Facility: Core {
     fn ntime(&mut self) {
         let t = time::precise_time_ns();
         if t > usize::max_value() as u64 {
-            match self.s_stack().push2(t.bitand(usize::max_value() as u64) as isize,
-                                       t.shr(usize::max_value().count_ones()) as isize) {
+            match self.s_stack()
+                      .push2(t.bitand(usize::max_value() as u64) as isize,
+                             t.shr(usize::max_value().count_ones()) as isize) {
                 Err(_) => self.set_error(Some(StackOverflow)),
                 Ok(()) => {}
             }
@@ -63,8 +64,9 @@ pub trait Facility: Core {
     fn utime(&mut self) {
         let t = time::precise_time_ns() / 1000;
         if t > usize::max_value() as u64 {
-            match self.s_stack().push2(t.bitand(usize::max_value() as u64) as isize,
-                                       t.shr(usize::max_value().count_ones()) as isize) {
+            match self.s_stack()
+                      .push2(t.bitand(usize::max_value() as u64) as isize,
+                             t.shr(usize::max_value().count_ones()) as isize) {
                 Err(_) => self.set_error(Some(StackOverflow)),
                 Ok(()) => {}
             }

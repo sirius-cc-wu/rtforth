@@ -455,7 +455,6 @@ pub trait Core: Sized {
         self.add_primitive("parse-word", Core::parse_word);
         self.add_primitive("char", Core::char);
         self.add_primitive("parse", Core::parse);
-        self.add_primitive("evaluate", Core::evaluate);
         self.add_primitive(":", Core::colon);
         self.add_primitive("constant", Core::constant);
         self.add_primitive("variable", Core::variable);
@@ -1172,8 +1171,9 @@ pub trait Core: Sized {
                 self.data_space().compile_i32(0);
                 self.here();
                 let here = self.data_space().len();
-                self.data_space().put_i32(here as i32,
-                                          (if_part - mem::size_of::<i32>() as isize) as usize);
+                self.data_space()
+                    .put_i32(here as i32,
+                             (if_part - mem::size_of::<i32>() as isize) as usize);
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
@@ -1183,8 +1183,9 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(branch_part) => {
                 let here = self.data_space().len();
-                self.data_space().put_i32(here as i32,
-                                          (branch_part - mem::size_of::<i32>() as isize) as usize);
+                self.data_space()
+                    .put_i32(here as i32,
+                             (branch_part - mem::size_of::<i32>() as isize) as usize);
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
@@ -1208,8 +1209,9 @@ pub trait Core: Sized {
                 self.data_space().compile_i32(idx);
                 self.data_space().compile_i32(begin_part as i32);
                 let here = self.data_space().len();
-                self.data_space().put_i32(here as i32,
-                                          (while_part - mem::size_of::<i32>() as isize) as usize);
+                self.data_space()
+                    .put_i32(here as i32,
+                             (while_part - mem::size_of::<i32>() as isize) as usize);
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
@@ -1255,8 +1257,9 @@ pub trait Core: Sized {
                 self.data_space().compile_i32(idx);
                 self.data_space().compile_i32(do_part as i32);
                 let here = self.data_space().len();
-                self.data_space().put_i32(here as i32,
-                                          (do_part - mem::size_of::<i32>() as isize) as usize);
+                self.data_space()
+                    .put_i32(here as i32,
+                             (do_part - mem::size_of::<i32>() as isize) as usize);
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
@@ -1275,8 +1278,9 @@ pub trait Core: Sized {
                 self.data_space().compile_i32(idx);
                 self.data_space().compile_i32(do_part as i32);
                 let here = self.data_space().len();
-                self.data_space().put_i32(here as i32,
-                                          (do_part - mem::size_of::<i32>() as isize) as usize);
+                self.data_space()
+                    .put_i32(here as i32,
+                             (do_part - mem::size_of::<i32>() as isize) as usize);
             }
             Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
@@ -1381,7 +1385,9 @@ pub trait Core: Sized {
             unsafe {
                 let ip = self.state().instruction_pointer;
                 let v = self.data_space().get_i32(ip) as isize;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
+                ptr::write(self.s_stack()
+                               .inner
+                               .offset((self.s_stack().len) as isize),
                            v);
             }
             self.s_stack().len += 1;
@@ -1422,12 +1428,18 @@ pub trait Core: Sized {
             self.set_error(Some(StackUnderflow));
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                let t = ptr::read(self.s_stack()
+                                      .inner
+                                      .offset((self.s_stack().len - 1) as isize));
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 2) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
+                               .offset((self.s_stack().len - 1) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 2) as isize)));
+                ptr::write(self.s_stack()
+                               .inner
+                               .offset((self.s_stack().len - 2) as isize),
                            t);
             }
         }
@@ -1440,10 +1452,12 @@ pub trait Core: Sized {
             self.set_error(Some(StackOverflow));
         } else {
             unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
-                           ptr::read(self.s_stack()
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 1) as isize)));
+                               .offset((self.s_stack().len) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 1) as isize)));
                 self.s_stack().len += 1;
             }
         }
@@ -1463,8 +1477,12 @@ pub trait Core: Sized {
         } else {
             unsafe {
                 self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+                ptr::write(self.s_stack()
+                               .inner
+                               .offset((self.s_stack().len - 1) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len) as isize)));
             }
         }
     }
@@ -1476,10 +1494,12 @@ pub trait Core: Sized {
             self.set_error(Some(StackOverflow));
         } else {
             unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
-                           ptr::read(self.s_stack()
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 2) as isize)));
+                               .offset((self.s_stack().len) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 2) as isize)));
                 self.s_stack().len += 1;
             }
         }
@@ -1490,15 +1510,25 @@ pub trait Core: Sized {
             self.set_error(Some(StackUnderflow));
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
-                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 2) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                let t = ptr::read(self.s_stack()
+                                      .inner
+                                      .offset((self.s_stack().len - 1) as isize));
+                let n = ptr::read(self.s_stack()
+                                      .inner
+                                      .offset((self.s_stack().len - 2) as isize));
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 3) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
+                               .offset((self.s_stack().len - 1) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 3) as isize)));
+                ptr::write(self.s_stack()
+                               .inner
+                               .offset((self.s_stack().len - 2) as isize),
                            t);
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 3) as isize),
+                ptr::write(self.s_stack()
+                               .inner
+                               .offset((self.s_stack().len - 3) as isize),
                            n);
             }
         }
@@ -1520,14 +1550,18 @@ pub trait Core: Sized {
         } else {
             unsafe {
                 self.s_stack().len += 2;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 3) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
+                               .offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 3) as isize)));
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 4) as isize)));
+                               .offset((self.s_stack().len - 2) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 4) as isize)));
             }
         }
     }
@@ -1537,19 +1571,31 @@ pub trait Core: Sized {
             self.set_error(Some(StackUnderflow));
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
-                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 2) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                let t = ptr::read(self.s_stack()
+                                      .inner
+                                      .offset((self.s_stack().len - 1) as isize));
+                let n = ptr::read(self.s_stack()
+                                      .inner
+                                      .offset((self.s_stack().len - 2) as isize));
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 3) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
+                               .offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 3) as isize)));
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 4) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 3) as isize),
+                               .offset((self.s_stack().len - 2) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 4) as isize)));
+                ptr::write(self.s_stack()
+                               .inner
+                               .offset((self.s_stack().len - 3) as isize),
                            t);
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 4) as isize),
+                ptr::write(self.s_stack()
+                               .inner
+                               .offset((self.s_stack().len - 4) as isize),
                            n);
             }
         }
@@ -1563,14 +1609,18 @@ pub trait Core: Sized {
         } else {
             unsafe {
                 self.s_stack().len += 2;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 5) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
+                               .offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 5) as isize)));
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 6) as isize)));
+                               .offset((self.s_stack().len - 2) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 6) as isize)));
             }
         }
     }
@@ -1588,11 +1638,13 @@ pub trait Core: Sized {
             self.set_error(Some(StackUnderflow));
         } else {
             unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
+                ptr::write(self.s_stack()
+                               .inner
+                               .offset((self.s_stack().len - 1) as isize),
                            ptr::read(self.s_stack()
-                                   .inner
-                                   .offset((self.s_stack().len - 1) as isize))
-                               .wrapping_add(1));
+                                         .inner
+                                         .offset((self.s_stack().len - 1) as isize))
+                                   .wrapping_add(1));
             }
         }
     }
@@ -1602,10 +1654,12 @@ pub trait Core: Sized {
             self.set_error(Some(StackUnderflow));
         } else {
             unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 1) as isize)) -
+                               .offset((self.s_stack().len - 1) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 1) as isize)) -
                            1);
             }
         }
@@ -1617,11 +1671,15 @@ pub trait Core: Sized {
         } else {
             unsafe {
                 self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 1) as isize)) +
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+                               .offset((self.s_stack().len - 1) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 1) as isize)) +
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len) as isize)));
             }
         }
     }
@@ -1632,11 +1690,15 @@ pub trait Core: Sized {
         } else {
             unsafe {
                 self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 1) as isize)) -
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+                               .offset((self.s_stack().len - 1) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 1) as isize)) -
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len) as isize)));
             }
         }
     }
@@ -1647,11 +1709,15 @@ pub trait Core: Sized {
         } else {
             unsafe {
                 self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 1) as isize)) *
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+                               .offset((self.s_stack().len - 1) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 1) as isize)) *
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len) as isize)));
             }
         }
     }
@@ -1662,11 +1728,15 @@ pub trait Core: Sized {
         } else {
             unsafe {
                 self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 1) as isize)) /
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+                               .offset((self.s_stack().len - 1) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 1) as isize)) /
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len) as isize)));
             }
         }
     }
@@ -1677,11 +1747,15 @@ pub trait Core: Sized {
         } else {
             unsafe {
                 self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
+                ptr::write(self.s_stack()
                                .inner
-                               .offset((self.s_stack().len - 1) as isize)) %
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
+                               .offset((self.s_stack().len - 1) as isize),
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len - 1) as isize)) %
+                           ptr::read(self.s_stack()
+                                         .inner
+                                         .offset((self.s_stack().len) as isize)));
             }
         }
     }
@@ -1691,11 +1765,19 @@ pub trait Core: Sized {
             self.set_error(Some(StackUnderflow));
         } else {
             unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
-                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 2) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
+                let t = ptr::read(self.s_stack()
+                                      .inner
+                                      .offset((self.s_stack().len - 1) as isize));
+                let n = ptr::read(self.s_stack()
+                                      .inner
+                                      .offset((self.s_stack().len - 2) as isize));
+                ptr::write(self.s_stack()
+                               .inner
+                               .offset((self.s_stack().len - 2) as isize),
                            n % t);
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
+                ptr::write(self.s_stack()
+                               .inner
+                               .offset((self.s_stack().len - 1) as isize),
                            n / t);
             }
         }
@@ -1824,7 +1906,8 @@ pub trait Core: Sized {
     fn between(&mut self) {
         match self.s_stack().pop3() {
             Ok((x1, x2, x3)) => {
-                match self.s_stack().push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE }) {
+                match self.s_stack()
+                          .push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE }) {
                     Err(_) => self.set_error(Some(StackOverflow)),
                     Ok(()) => {}
                 }
@@ -1862,7 +1945,7 @@ pub trait Core: Sized {
             Ok((n, t)) => {
                 match self.s_stack().push(t | n) {
                     Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {} 
+                    Ok(()) => {}
                 }
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
@@ -2128,7 +2211,9 @@ pub trait Core: Sized {
             self.set_error(Some(StackOverflow));
         } else {
             unsafe {
-                let r1 = self.r_stack().inner.offset((self.r_stack().len - 1) as isize);
+                let r1 = self.r_stack()
+                    .inner
+                    .offset((self.r_stack().len - 1) as isize);
                 self.s_stack().push(ptr::read(r1));
             }
         }
@@ -2142,7 +2227,9 @@ pub trait Core: Sized {
                 } else {
                     unsafe {
                         ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), n);
-                        ptr::write(self.r_stack().inner.offset((self.r_stack().len + 1) as isize),
+                        ptr::write(self.r_stack()
+                                       .inner
+                                       .offset((self.r_stack().len + 1) as isize),
                                    t);
                     }
                     self.r_stack().len += 2;
@@ -2161,7 +2248,9 @@ pub trait Core: Sized {
             unsafe {
                 let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
                 self.s_stack().push(ptr::read(r0));
-                let r1 = self.r_stack().inner.offset((self.r_stack().len + 1) as isize);
+                let r1 = self.r_stack()
+                    .inner
+                    .offset((self.r_stack().len + 1) as isize);
                 self.s_stack().push(ptr::read(r1));
             }
         }
@@ -2172,9 +2261,13 @@ pub trait Core: Sized {
             self.set_error(Some(ReturnStackUnderflow));
         } else {
             unsafe {
-                let r2 = self.r_stack().inner.offset((self.r_stack().len - 2) as isize);
+                let r2 = self.r_stack()
+                    .inner
+                    .offset((self.r_stack().len - 2) as isize);
                 self.s_stack().push(ptr::read(r2));
-                let r1 = self.r_stack().inner.offset((self.r_stack().len - 1) as isize);
+                let r1 = self.r_stack()
+                    .inner
+                    .offset((self.r_stack().len - 1) as isize);
                 self.s_stack().push(ptr::read(r1));
             }
         }
@@ -2316,9 +2409,9 @@ mod tests {
         vm.compile_word(idx);
         vm.compile_word(idx);
         b.iter(|| {
-            vm.state().instruction_pointer = ip;
-            vm.run();
-        });
+                   vm.state().instruction_pointer = ip;
+                   vm.run();
+               });
     }
 
     #[test]
@@ -2339,9 +2432,9 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.s_stack().push(1).unwrap();
         b.iter(|| {
-            vm.p_drop();
-            vm.s_stack().push(1).unwrap();
-        });
+                   vm.p_drop();
+                   vm.s_stack().push(1).unwrap();
+               });
     }
 
     #[test]
@@ -2370,9 +2463,9 @@ mod tests {
         vm.s_stack().push(1).unwrap();
         vm.s_stack().push(1).unwrap();
         b.iter(|| {
-            vm.nip();
-            vm.s_stack().push(1).unwrap();
-        });
+                   vm.nip();
+                   vm.s_stack().push(1).unwrap();
+               });
     }
 
     #[test]
@@ -2423,9 +2516,9 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.s_stack().push(1).unwrap();
         b.iter(|| {
-            vm.dup();
-            vm.s_stack().pop().unwrap();
-        });
+                   vm.dup();
+                   vm.s_stack().pop().unwrap();
+               });
     }
 
     #[test]
@@ -2456,9 +2549,9 @@ mod tests {
         vm.s_stack().push(1).unwrap();
         vm.s_stack().push(2).unwrap();
         b.iter(|| {
-            vm.over();
-            vm.s_stack().pop().unwrap();
-        });
+                   vm.over();
+                   vm.s_stack().pop().unwrap();
+               });
     }
 
     #[test]
@@ -2522,10 +2615,10 @@ mod tests {
     fn bench_2drop(b: &mut Bencher) {
         let vm = &mut VM::new(16);
         b.iter(|| {
-            vm.s_stack().push(1).unwrap();
-            vm.s_stack().push(2).unwrap();
-            vm.two_drop();
-        });
+                   vm.s_stack().push(1).unwrap();
+                   vm.s_stack().push(2).unwrap();
+                   vm.two_drop();
+               });
     }
 
     #[test]
@@ -2557,9 +2650,9 @@ mod tests {
         vm.s_stack().push(1).unwrap();
         vm.s_stack().push(2).unwrap();
         b.iter(|| {
-            vm.two_dup();
-            vm.two_drop();
-        });
+                   vm.two_dup();
+                   vm.two_drop();
+               });
     }
 
     #[test]
@@ -2653,9 +2746,9 @@ mod tests {
         vm.s_stack().push(3).unwrap();
         vm.s_stack().push(4).unwrap();
         b.iter(|| {
-            vm.two_over();
-            vm.two_drop();
-        });
+                   vm.two_over();
+                   vm.two_drop();
+               });
     }
 
     #[test]
@@ -2734,9 +2827,9 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.s_stack().push(0).unwrap();
         b.iter(|| {
-            vm.dup();
-            vm.minus();
-        });
+                   vm.dup();
+                   vm.minus();
+               });
     }
 
     #[test]
@@ -2764,9 +2857,9 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.s_stack().push(1).unwrap();
         b.iter(|| {
-            vm.dup();
-            vm.plus();
-        });
+                   vm.dup();
+                   vm.plus();
+               });
     }
 
     #[test]
@@ -2794,9 +2887,9 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.s_stack().push(1).unwrap();
         b.iter(|| {
-            vm.dup();
-            vm.star();
-        });
+                   vm.dup();
+                   vm.star();
+               });
     }
 
     #[test]
@@ -2824,9 +2917,9 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.s_stack().push(1).unwrap();
         b.iter(|| {
-            vm.dup();
-            vm.slash();
-        });
+                   vm.dup();
+                   vm.slash();
+               });
     }
 
     #[test]
@@ -2855,9 +2948,9 @@ mod tests {
         vm.s_stack().push(1).unwrap();
         vm.s_stack().push(2).unwrap();
         b.iter(|| {
-            vm.p_mod();
-            vm.s_stack().push(2).unwrap();
-        });
+                   vm.p_mod();
+                   vm.s_stack().push(2).unwrap();
+               });
     }
 
     #[test]
@@ -2886,10 +2979,10 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.s_stack().push2(1, 2).unwrap();
         b.iter(|| {
-            vm.slash_mod();
-            vm.p_drop();
-            vm.s_stack().push(2).unwrap();
-        });
+                   vm.slash_mod();
+                   vm.p_drop();
+                   vm.s_stack().push(2).unwrap();
+               });
     }
 
     #[test]
@@ -3389,10 +3482,10 @@ mod tests {
     fn bench_compile_words_at_end_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16);
         b.iter(|| {
-            vm.set_source("marker empty : main bye bye bye bye bye bye bye bye ; empty");
-            vm.evaluate();
-            vm.s_stack().clear();
-        });
+                   vm.set_source("marker empty : main bye bye bye bye bye bye bye bye ; empty");
+                   vm.evaluate();
+                   vm.s_stack().clear();
+               });
     }
 
     #[test]
@@ -3597,10 +3690,10 @@ mod tests {
         vm.set_source("' main");
         vm.evaluate();
         b.iter(|| {
-            vm.dup();
-            vm.execute();
-            vm.run();
-        });
+                   vm.dup();
+                   vm.execute();
+                   vm.run();
+               });
     }
 
     #[test]
@@ -3621,10 +3714,10 @@ mod tests {
         vm.set_source("' main");
         vm.evaluate();
         b.iter(|| {
-            vm.dup();
-            vm.execute();
-            vm.run();
-        });
+                   vm.dup();
+                   vm.execute();
+                   vm.run();
+               });
     }
 
     #[test]
@@ -3981,7 +4074,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         vm.set_source("
-            : MAIN 
+            : MAIN
                 FLAGS 8190 + EFLAG !
                 BENCHMARK DROP
             ;

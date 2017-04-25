@@ -338,18 +338,20 @@ fn main() {
 
     let vm = Arc::new(Mutex::new(VM::new(0x100)));
 
-    let server = sock.incoming().for_each(|(sock, _)| {
-        let (reader, writer) = sock.split();
+    let server = sock.incoming()
+        .for_each(|(sock, _)| {
+            let (reader, writer) = sock.split();
 
-        let future = server::eval(reader, writer, vm.clone());
+            let future = server::eval(reader, writer, vm.clone());
 
-        let handle_conn = future.map(|_| println!("done"))
-            .map_err(|err| println!("IO error {:?}", err));
+            let handle_conn = future
+                .map(|_| println!("done"))
+                .map_err(|err| println!("IO error {:?}", err));
 
-        handle.spawn(handle_conn);
+            handle.spawn(handle_conn);
 
-        Ok(())
-    });
+            Ok(())
+        });
 
     core.run(server).unwrap();
 }

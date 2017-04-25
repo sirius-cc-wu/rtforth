@@ -753,9 +753,6 @@ pub trait Core: Sized {
         let mut limit = self.evaluation_limit();
         loop {
             self.parse_word();
-            if self.last_error().is_some() {
-                return;
-            }
             last_token = self.last_token().take().unwrap();
             if last_token.is_empty() {
                 self.set_last_token(last_token);

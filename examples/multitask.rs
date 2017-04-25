@@ -28,7 +28,6 @@ mod vm {
         tkn: Option<String>,
         outbuf: Option<String>,
         references: ForwardReferences,
-        evals: Option<Vec<fn(&mut VM, token: &str)>>,
         evaluation_limit: isize,
     }
 
@@ -58,7 +57,6 @@ mod vm {
                 tkn: Some(String::with_capacity(64)),
                 outbuf: Some(String::with_capacity(BUFFER_SIZE)),
                 references: ForwardReferences::new(),
-                evals: None,
                 evaluation_limit: 80,
             };
             vm.add_core();
@@ -145,12 +143,6 @@ mod vm {
         }
         fn references(&mut self) -> &mut ForwardReferences {
             &mut self.references
-        }
-        fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str)>> {
-            &mut self.evals
-        }
-        fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str)>) {
-            self.evals = Some(evaluators)
         }
         fn evaluation_limit(&self) -> isize {
             self.evaluation_limit

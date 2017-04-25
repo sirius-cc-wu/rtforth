@@ -29,7 +29,6 @@ pub struct VM {
     outbuf: Option<String>,
     state: State,
     references: ForwardReferences,
-    evals: Option<Vec<fn(&mut VM, token: &str)>>,
     evaluation_limit: isize,
 }
 
@@ -50,7 +49,6 @@ impl VM {
             outbuf: Some(String::with_capacity(128)),
             state: State::new(),
             references: ForwardReferences::new(),
-            evals: None,
             evaluation_limit: 0isize,
         };
         vm.add_core();
@@ -132,12 +130,6 @@ impl Core for VM {
     }
     fn references(&mut self) -> &mut ForwardReferences {
         &mut self.references
-    }
-    fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str)>> {
-        &mut self.evals
-    }
-    fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str)>) {
-        self.evals = Some(evaluators)
     }
     fn evaluation_limit(&self) -> isize {
         self.evaluation_limit
@@ -444,7 +436,6 @@ fn switch_threading_run(vm: &mut VM) {
                 vm.set_error(Some(InvalidMemoryAddress));
                 vm.state().instruction_pointer = 0;
             }
-            Some(Pause) => {}
             _ => {
                 vm.state().instruction_pointer = 0;
             }

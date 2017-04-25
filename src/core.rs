@@ -7,6 +7,7 @@ extern "C" {
 use std::mem;
 use std::ptr::{self, Unique};
 use std::fmt;
+use std::str::FromStr;
 use std::slice;
 use std::ascii::AsciiExt;
 use std::result;
@@ -342,8 +343,6 @@ pub trait Core: Sized {
     fn wordlist(&self) -> &Vec<Word<Self>>;
     fn state(&mut self) -> &mut State;
     fn references(&mut self) -> &mut ForwardReferences;
-    fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str)>>;
-    fn set_evaluators(&mut self, Vec<fn(&mut Self, token: &str)>);
     /// Max number of words parsed for an evaluation, =0 if no limit;
     fn evaluation_limit(&self) -> isize;
 
@@ -469,6 +468,7 @@ pub trait Core: Sized {
         self.add_primitive("jit", Core::jit);
 
         self.references().idx_lit = self.find("lit").expect("lit undefined");
+        self.references().idx_flit = self.find("flit").expect("flit undefined");
         self.references().idx_exit = self.find("exit").expect("exit undefined");
         self.references().idx_zero_branch = self.find("0branch").expect("0branch undefined");
         self.references().idx_branch = self.find("branch").expect("branch undefined");
@@ -477,7 +477,6 @@ pub trait Core: Sized {
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
         let idx_halt = self.find("halt").expect("halt undefined");
         self.data_space().put_u32(idx_halt as u32, 0);
-        self.extend_evaluator(Core::evaluate_integer);
     }
 
     /// Add a primitive word to word list.
@@ -603,6 +602,13 @@ pub trait Core: Sized {
         let idx = self.references().idx_lit as i32;
         self.data_space().compile_i32(idx);
         self.data_space().compile_i32(i as i32);
+    }
+
+    /// Compile float 'f'.
+    fn compile_float(&mut self, f: f64) {
+        let idx_flit = self.references().idx_flit;
+        self.data_space().compile_i32(idx_flit as i32);
+        self.data_space().compile_f64(f);
     }
 
     // -----------
@@ -802,19 +808,19 @@ pub trait Core: Sized {
                 }
                 None => {
                     let mut done = false;
-                    let evaluators = self.evaluators().take().unwrap();
-                    for h in &evaluators {
-                        self.set_error(None);
-                        h(self, &last_token);
-                        match self.last_error() {
-                            None => {
-                                done = true;
-                                break;
+                    self.set_error(None);
+                    self.evaluate_integer(&last_token);
+                    match self.last_error() {
+                        None => done = true,
+                        Some(_) => {
+                            self.set_error(None);
+                            self.evaluate_float(&last_token);
+                            match self.last_error() {
+                                None => done = true,
+                                Some(_) => {}
                             }
-                            Some(_) => continue,
                         }
                     }
-                    self.set_evaluators(evaluators);
                     if !done {
                         print!("{} ", &last_token);
                         self.set_error(Some(UndefinedWord));
@@ -856,18 +862,24 @@ pub trait Core: Sized {
         }
     }
 
-    /// Extend `f` to evaluators.
-    /// Will create a vector for evaluators if there was no evaluator.
-    fn extend_evaluator(&mut self, f: fn(&mut Self, token: &str)) {
-        let optional_evaluators = self.evaluators().take();
-        match optional_evaluators {
-            Some(mut evaluators) => {
-                evaluators.push(f);
-                self.set_evaluators(evaluators);
+    /// Evaluate float.
+    fn evaluate_float(&mut self, token: &str) {
+        match FromStr::from_str(token) {
+            Ok(t) => {
+                if self.references().idx_flit == 0 {
+                    print!("{} ", "Floating point");
+                    self.set_error(Some(UnsupportedOperation));
+                } else {
+                    if self.state().is_compiling {
+                        self.compile_float(t);
+                    } else {
+                        if let Err(_) = self.f_stack().push(t) {
+                            self.set_error(Some(FloatingPointStackOverflow));
+                        }
+                    }
+                }
             }
-            None => {
-                self.set_evaluators(vec![f]);
-            }
+            Err(_) => self.set_error(Some(UnsupportedOperation)),
         }
     }
 

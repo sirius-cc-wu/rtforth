@@ -170,7 +170,6 @@ pub trait Output: Core {
 mod tests {
     use vm::VM;
     use core::Core;
-    use super::*;
 
     #[test]
     fn test_s_quote_and_type() {

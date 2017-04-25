@@ -1,7 +1,6 @@
 use core::{Core, TRUE, FALSE};
-use std::str::FromStr;
 use exception::Exception::{StackUnderflow, StackOverflow, FloatingPointStackOverflow,
-                           FloatingPointStackUnderflow, UnsupportedOperation};
+                           FloatingPointStackUnderflow};
 
 pub trait Float: Core {
     fn add_float(&mut self) {
@@ -33,37 +32,6 @@ pub trait Float: Core {
         self.add_primitive("f0<", Float::f_zero_less_than);
         self.add_primitive("f0=", Float::f_zero_equals);
         self.add_primitive("f<", Float::f_less_than);
-
-        self.extend_evaluator(Float::evaluate_float);
-        self.references().idx_flit = self.find("flit").expect("flit undefined");
-    }
-
-    /// Compile float 'f'.
-    fn compile_float(&mut self, f: f64) {
-        let idx_flit = self.references().idx_flit;
-        self.data_space().compile_i32(idx_flit as i32);
-        self.data_space().compile_f64(f);
-    }
-
-    /// Evaluate float.
-    fn evaluate_float(&mut self, token: &str) {
-        match FromStr::from_str(token) {
-            Ok(t) => {
-                if self.references().idx_flit == 0 {
-                    print!("{} ", "Floating point");
-                    self.set_error(Some(UnsupportedOperation));
-                } else {
-                    if self.state().is_compiling {
-                        self.compile_float(t);
-                    } else {
-                        if let Err(_) = self.f_stack().push(t) {
-                            self.set_error(Some(FloatingPointStackOverflow));
-                        }
-                    }
-                }
-            }
-            Err(_) => self.set_error(Some(UnsupportedOperation)),
-        }
     }
 
     fn p_fconst(&mut self) {

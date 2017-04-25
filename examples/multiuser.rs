@@ -39,7 +39,6 @@ mod vm {
         wordlist: Vec<Word<VM>>,
         jitmem: DataSpace,
         references: ForwardReferences,
-        evals: Option<Vec<fn(&mut VM, token: &str)>>,
         // Evalution limit for tasks[1]
         evaluation_limit: isize,
     }
@@ -85,7 +84,6 @@ mod vm {
                 wordlist: vec![],
                 jitmem: DataSpace::new(pages),
                 references: ForwardReferences::new(),
-                evals: None,
                 evaluation_limit: 80,
             };
             vm.add_core();
@@ -189,12 +187,6 @@ mod vm {
         }
         fn references(&mut self) -> &mut ForwardReferences {
             &mut self.references
-        }
-        fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str)>> {
-            &mut self.evals
-        }
-        fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str)>) {
-            self.evals = Some(evaluators)
         }
         fn evaluation_limit(&self) -> isize {
             if self.current_task == 0 {

@@ -33,7 +33,6 @@ pub trait Environment: Core {
 mod tests {
     use vm::VM;
     use core::Core;
-    use super::*;
 
     #[test]
     fn test_max_n() {

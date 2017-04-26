@@ -562,11 +562,8 @@ pub trait Core: Sized {
             let w = self.data_space().get_i32(ip) as usize;
             self.state().instruction_pointer += mem::size_of::<i32>();
             self.execute_word(w);
-            match self.last_error() {
-                Some(e) => {
-                    break;
-                }
-                None => {}
+            if self.last_error().is_some() {
+                break;
             }
             ip = self.state().instruction_pointer;
         }
@@ -732,103 +729,92 @@ pub trait Core: Sized {
         };
     }
 
+    fn compile_token(&mut self) {
+        let last_token = self.last_token().take().unwrap();
+        match self.find(&last_token) {
+            Some(found_index) => {
+                self.set_last_token(last_token);
+                if !self.wordlist()[found_index].is_immediate() {
+                    self.compile_word(found_index);
+                } else {
+                    self.execute_word(found_index);
+                }
+            }
+            None => {
+                let mut done = false;
+                self.set_error(None);
+                self.evaluate_integer(&last_token);
+                match self.last_error() {
+                    None => done = true,
+                    Some(_) => {
+                        self.set_error(None);
+                        self.evaluate_float(&last_token);
+                        if self.last_error().is_none() {
+                            done = true;
+                        }
+                    }
+                }
+                if !done {
+                    print!("{} ", &last_token);
+                    self.set_error(Some(UndefinedWord));
+                }
+                self.set_last_token(last_token);
+            }
+        }
+    }
+
+    fn interpret_token(&mut self) {
+        let last_token = self.last_token().take().unwrap();
+        match self.find(&last_token) {
+            Some(found_index) => {
+                self.set_last_token(last_token);
+                if self.wordlist()[found_index].is_compile_only() {
+                    self.set_error(Some(InterpretingACompileOnlyWord));
+                } else {
+                    self.execute_word(found_index);
+                }
+            }
+            None => {
+                let mut done = false;
+                self.set_error(None);
+                self.evaluate_integer(&last_token);
+                match self.last_error() {
+                    None => done = true,
+                    Some(_) => {
+                        self.set_error(None);
+                        self.evaluate_float(&last_token);
+                        if self.last_error().is_none() {
+                            done = true;
+                        }
+                    }
+                }
+                if !done {
+                    print!("{} ", &last_token);
+                    self.set_error(Some(UndefinedWord));
+                }
+                self.set_last_token(last_token);
+            }
+        }
+    }
+
     fn evaluate(&mut self) {
-        let mut last_token;
         let mut limit = self.evaluation_limit();
         loop {
             self.parse_word();
-            last_token = self.last_token().take().unwrap();
-            if last_token.is_empty() {
-                self.set_last_token(last_token);
+            let token = self.last_token().take().unwrap();
+            if token.is_empty() {
+                self.set_last_token(token);
                 return;
             }
+            self.set_last_token(token);
             if self.state().is_compiling {
-                match self.find(&last_token) {
-                    Some(found_index) => {
-                        self.set_last_token(last_token);
-                        if !self.wordlist()[found_index].is_immediate() {
-                            self.compile_word(found_index);
-                        } else {
-                            self.execute_word(found_index);
-                            self.run();
-                            match self.last_error() {
-                                Some(e) => {
-                                    break;
-                                }
-                                None => {}
-                            };
-                        }
-                    }
-                    None => {
-                        self.set_last_token(last_token);
-                        last_token = self.last_token().take().unwrap();
-                        let mut done = false;
-                        self.set_error(None);
-                        self.evaluate_integer(&last_token);
-                        match self.last_error() {
-                            None => done = true,
-                            Some(_) => {
-                                self.set_error(None);
-                                self.evaluate_float(&last_token);
-                                match self.last_error() {
-                                    None => done = true,
-                                    Some(_) => {}
-                                }
-                            }
-                        }
-                        if !done {
-                            print!("{} ", &last_token);
-                            self.set_error(Some(UndefinedWord));
-                            self.set_last_token(last_token);
-                            break;
-                        }
-                        self.set_last_token(last_token);
-                    }
-                }
+                self.compile_token();
             } else {
-                match self.find(&last_token) {
-                    Some(found_index) => {
-                        self.set_last_token(last_token);
-                        if self.wordlist()[found_index].is_compile_only() {
-                            self.set_error(Some(InterpretingACompileOnlyWord));
-                            break;
-                        } else {
-                            self.execute_word(found_index);
-                            self.run();
-                            match self.last_error() {
-                                Some(e) => {
-                                    break;
-                                }
-                                None => {}
-                            };
-                        }
-                    }
-                    None => {
-                        self.set_last_token(last_token);
-                        last_token = self.last_token().take().unwrap();
-                        let mut done = false;
-                        self.set_error(None);
-                        self.evaluate_integer(&last_token);
-                        match self.last_error() {
-                            None => done = true,
-                            Some(_) => {
-                                self.set_error(None);
-                                self.evaluate_float(&last_token);
-                                match self.last_error() {
-                                    None => done = true,
-                                    Some(_) => {}
-                                }
-                            }
-                        }
-                        if !done {
-                            print!("{} ", &last_token);
-                            self.set_error(Some(UndefinedWord));
-                            self.set_last_token(last_token);
-                            break;
-                        }
-                        self.set_last_token(last_token);
-                    }
-                }
+                self.interpret_token();
+            }
+            self.run();
+            if self.last_error().is_some() {
+                break;
             }
             if limit > 0 {
                 limit = limit - 1;

@@ -28,7 +28,6 @@ mod vm {
         tkn: Option<String>,
         outbuf: Option<String>,
         references: ForwardReferences,
-        evaluation_limit: isize,
     }
 
     impl VM {
@@ -57,7 +56,6 @@ mod vm {
                 tkn: Some(String::with_capacity(64)),
                 outbuf: Some(String::with_capacity(BUFFER_SIZE)),
                 references: ForwardReferences::new(),
-                evaluation_limit: 80,
             };
             vm.add_core();
             vm.add_output();
@@ -143,9 +141,6 @@ mod vm {
         }
         fn references(&mut self) -> &mut ForwardReferences {
             &mut self.references
-        }
-        fn evaluation_limit(&self) -> isize {
-            self.evaluation_limit
         }
     }
 

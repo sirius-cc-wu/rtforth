@@ -14,6 +14,9 @@ pub mod facility;
 pub mod float;
 pub mod jitmem;
 
+pub const TRUE: isize = -1;
+pub const FALSE: isize = 0;
+
 pub mod bc {
     // Byte codes
     pub const BC_NOOP: usize = 0;

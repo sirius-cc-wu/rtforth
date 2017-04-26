@@ -4,6 +4,7 @@ extern "C" {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
 }
 
+use {TRUE, FALSE};
 use std::mem;
 use std::ptr::{self, Unique};
 use std::fmt;
@@ -16,9 +17,6 @@ use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, Stac
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
                            FloatingPointStackOverflow, UnsupportedOperation,
                            InterpretingACompileOnlyWord, ControlStructureMismatch, Bye};
-
-pub const TRUE: isize = -1;
-pub const FALSE: isize = 0;
 
 pub type Result = result::Result<(), Exception>;
 
@@ -342,8 +340,6 @@ pub trait Core: Sized {
     fn wordlist(&self) -> &Vec<Word<Self>>;
     fn state(&mut self) -> &mut State;
     fn references(&mut self) -> &mut ForwardReferences;
-    /// Max number of words parsed for an evaluation, =0 if no limit;
-    fn evaluation_limit(&self) -> isize;
 
     /// Add core primitives to self.
     fn add_core(&mut self) {
@@ -405,12 +401,6 @@ pub trait Core: Sized {
         self.add_primitive("c!", Core::c_store);
         self.add_primitive("base", Core::base);
 
-        // Candidates for bytecodes
-        // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
-        // j1: U<, RET, IO@, IO!
-        // eForth: UM+, !IO, ?RX, TX!
-        // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, UP!, UP+,
-
         // Immediate words
         self.add_immediate("(", Core::imm_paren);
         self.add_immediate("\\", Core::imm_backslash);
@@ -428,8 +418,6 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("do", Core::imm_do);
         self.add_immediate_and_compile_only("loop", Core::imm_loop);
         self.add_immediate_and_compile_only("+loop", Core::imm_plus_loop);
-
-        // Compile-only words
 
         // More Primitives
         self.add_primitive("true", Core::p_true);
@@ -464,6 +452,8 @@ pub trait Core: Sized {
         self.add_primitive("abort", Core::abort);
         self.add_primitive("bye", Core::bye);
         self.add_primitive("jit", Core::jit);
+        self.add_primitive("compiling?", Core::p_compiling);
+        self.add_primitive("token-empty?", Core::p_token_empty);
 
         self.references().idx_lit = self.find("lit").expect("lit undefined");
         self.references().idx_flit = self.find("flit").expect("flit undefined");
@@ -797,16 +787,40 @@ pub trait Core: Sized {
         }
     }
 
+    fn p_compiling(&mut self) {
+        let value = if self.state().is_compiling {
+            TRUE
+        } else {
+            FALSE
+        };
+        match self.s_stack().push(value) {
+            Err(e) => self.set_error(Some(StackOverflow)),
+            Ok(_) => {}
+        }
+
+    }
+    fn p_token_empty(&mut self) {
+        let value = match self.last_token().as_ref() {
+            Some(ref t) => if t.is_empty() { TRUE } else { FALSE },
+            None => TRUE,
+        };
+        match self.s_stack().push(value) {
+            Err(e) => self.set_error(Some(StackOverflow)),
+            Ok(_) => {}
+        }
+    }
+
     fn evaluate(&mut self) {
-        let mut limit = self.evaluation_limit();
         loop {
             self.parse_word();
-            let token = self.last_token().take().unwrap();
-            if token.is_empty() {
-                self.set_last_token(token);
-                return;
+            match self.last_token().as_ref() {
+                Some(t) => {
+                    if t.is_empty() {
+                        return;
+                    }
+                }
+                None => {}
             }
-            self.set_last_token(token);
             if self.state().is_compiling {
                 self.compile_token();
             } else {
@@ -815,12 +829,6 @@ pub trait Core: Sized {
             self.run();
             if self.last_error().is_some() {
                 break;
-            }
-            if limit > 0 {
-                limit = limit - 1;
-                if limit == 0 {
-                    break;
-                }
             }
         }
     }

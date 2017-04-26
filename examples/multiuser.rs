@@ -40,7 +40,6 @@ mod vm {
         jitmem: DataSpace,
         references: ForwardReferences,
         // Evalution limit for tasks[1]
-        evaluation_limit: isize,
     }
 
     impl VM {
@@ -84,7 +83,6 @@ mod vm {
                 wordlist: vec![],
                 jitmem: DataSpace::new(pages),
                 references: ForwardReferences::new(),
-                evaluation_limit: 80,
             };
             vm.add_core();
             vm.add_output();
@@ -187,13 +185,6 @@ mod vm {
         }
         fn references(&mut self) -> &mut ForwardReferences {
             &mut self.references
-        }
-        fn evaluation_limit(&self) -> isize {
-            if self.current_task == 0 {
-                0
-            } else {
-                self.evaluation_limit
-            }
         }
     }
 

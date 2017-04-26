@@ -1,4 +1,5 @@
-use core::{Core, TRUE, FALSE};
+use {TRUE, FALSE};
+use core::Core;
 use exception::Exception::{StackUnderflow, StackOverflow, FloatingPointStackOverflow,
                            FloatingPointStackUnderflow};
 

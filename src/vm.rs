@@ -28,7 +28,6 @@ pub struct VM {
     outbuf: Option<String>,
     state: State,
     references: ForwardReferences,
-    evaluation_limit: isize,
 }
 
 impl VM {
@@ -48,7 +47,6 @@ impl VM {
             outbuf: Some(String::with_capacity(128)),
             state: State::new(),
             references: ForwardReferences::new(),
-            evaluation_limit: 0isize,
         };
         vm.add_core();
         vm.add_output();
@@ -129,9 +127,6 @@ impl Core for VM {
     }
     fn references(&mut self) -> &mut ForwardReferences {
         &mut self.references
-    }
-    fn evaluation_limit(&self) -> isize {
-        self.evaluation_limit
     }
 }
 

@@ -467,6 +467,13 @@ pub trait Core: Sized {
         self.data_space().put_u32(idx_halt as u32, 0);
     }
 
+    fn push(&mut self, value: isize) {
+        match self.s_stack().push(value) {
+            Err(_) => self.set_error(Some(StackOverflow)),
+            Ok(()) => {}
+        }
+    }
+
     /// Add a primitive word to word list.
     fn add_primitive(&mut self, name: &str, action: fn(&mut Self)) {
         let symbol = self.new_symbol(name);
@@ -641,12 +648,7 @@ pub trait Core: Sized {
         }
         let last_token = self.last_token().take().unwrap();
         match last_token.chars().nth(0) {
-            Some(c) => {
-                match self.s_stack().push(c as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Some(c) => self.push(c as isize),
             None => self.set_error(Some(UnexpectedEndOfFile)),
         }
         self.set_last_token(last_token);
@@ -793,21 +795,15 @@ pub trait Core: Sized {
         } else {
             FALSE
         };
-        match self.s_stack().push(value) {
-            Err(e) => self.set_error(Some(StackOverflow)),
-            Ok(_) => {}
-        }
-
+        self.push(value);
     }
+
     fn p_token_empty(&mut self) {
         let value = match self.last_token().as_ref() {
             Some(ref t) => if t.is_empty() { TRUE } else { FALSE },
             None => TRUE,
         };
-        match self.s_stack().push(value) {
-            Err(e) => self.set_error(Some(StackOverflow)),
-            Ok(_) => {}
-        }
+        self.push(value);
     }
 
     fn evaluate(&mut self) {
@@ -835,10 +831,7 @@ pub trait Core: Sized {
 
     fn base(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
-        match self.s_stack().push(base_addr as isize) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
+        self.push(base_addr as isize);
     }
 
     fn evaluate_integer(&mut self, token: &str) {
@@ -849,7 +842,7 @@ pub trait Core: Sized {
                 if self.state().is_compiling {
                     self.compile_integer(t);
                 } else {
-                    self.s_stack().push(t);
+                    self.push(t);
                 }
             }
             Err(_) => self.set_error(Some(UnsupportedOperation)),
@@ -898,29 +891,20 @@ pub trait Core: Sized {
     fn p_var(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa() as isize;
-        match self.s_stack().push(dfa) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
+        self.push(dfa);
     }
 
     fn p_const(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
         let value = self.data_space().get_i32(dfa) as isize;
-        match self.s_stack().push(value) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
+        self.push(value);
     }
 
     fn p_fvar(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa() as isize;
-        match self.s_stack().push(dfa) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
+        self.push(dfa);
     }
 
     fn define(&mut self, action: fn(&mut Self)) {
@@ -1138,12 +1122,7 @@ pub trait Core: Sized {
 
     fn p_i(&mut self) {
         match self.r_stack().last() {
-            Some(i) => {
-                match self.s_stack().push(i) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Some(i) => self.push(i),
             None => self.set_error(Some(ReturnStackUnderflow)),
         }
     }
@@ -1151,12 +1130,7 @@ pub trait Core: Sized {
     fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         match self.r_stack().get(pos) {
-            Some(j) => {
-                match self.s_stack().push(j) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Some(j) => self.push(j),
             None => self.set_error(Some(ReturnStackUnderflow)),
         }
     }
@@ -1306,20 +1280,14 @@ pub trait Core: Sized {
     ///
     /// Return a true flag, a single-cell value with all bits set.
     fn p_true(&mut self) {
-        match self.s_stack().push(TRUE) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
+        self.push(TRUE);
     }
 
     /// Run-time: ( -- false )
     ///
     /// Return a false flag.
     fn p_false(&mut self) {
-        match self.s_stack().push(FALSE) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
+        self.push(FALSE);
     }
 
     /// Run-time: (c-addr1 -- c-addr2 )
@@ -1327,12 +1295,7 @@ pub trait Core: Sized {
     ///Add the size in address units of a character to `c-addr1`, giving `c-addr2`.
     fn char_plus(&mut self) {
         match self.s_stack().pop() {
-            Ok(v) => {
-                match self.s_stack().push(v + mem::size_of::<u8>() as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(v) => self.push(v + mem::size_of::<u8>() as isize),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
@@ -1342,12 +1305,7 @@ pub trait Core: Sized {
     /// `n2` is the size in address units of `n1` characters.
     fn chars(&mut self) {
         match self.s_stack().pop() {
-            Ok(v) => {
-                match self.s_stack().push(v * mem::size_of::<u8>() as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(v) => self.push(v * mem::size_of::<u8>() as isize),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
@@ -1358,12 +1316,7 @@ pub trait Core: Sized {
     /// Add the size in address units of a cell to `a-addr1`, giving `a-addr2`.
     fn cell_plus(&mut self) {
         match self.s_stack().pop() {
-            Ok(v) => {
-                match self.s_stack().push(v + mem::size_of::<i32>() as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(v) => self.push(v + mem::size_of::<i32>() as isize),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
@@ -1373,12 +1326,7 @@ pub trait Core: Sized {
     /// `n2` is the size in address units of `n1` cells.
     fn cells(&mut self) {
         match self.s_stack().pop() {
-            Ok(v) => {
-                match self.s_stack().push(v * mem::size_of::<i32>() as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(v) => self.push(v * mem::size_of::<i32>() as isize),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
@@ -1632,10 +1580,7 @@ pub trait Core: Sized {
 
     fn depth(&mut self) {
         let len = self.s_stack().len;
-        match self.s_stack().push(len as isize) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
+        self.push(len as isize);
     }
 
     fn one_plus(&mut self) {
@@ -1790,181 +1735,105 @@ pub trait Core: Sized {
 
     fn abs(&mut self) {
         match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(t.abs()) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(t) => self.push(t.abs()),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn negate(&mut self) {
         match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(-t) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(t) => self.push(-t),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn zero_less(&mut self) {
         match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(if t < 0 { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(t) => self.push(if t < 0 { TRUE } else { FALSE }),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn zero_equals(&mut self) {
         match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(if t == 0 { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(t) => self.push(if t == 0 { TRUE } else { FALSE }),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn zero_greater(&mut self) {
         match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(if t > 0 { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(t) => self.push(if t > 0 { TRUE } else { FALSE }),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn zero_not_equals(&mut self) {
         match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(if t == 0 { FALSE } else { TRUE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(t) => self.push(if t == 0 { FALSE } else { TRUE }),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn equals(&mut self) {
         match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(if t == n { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((n, t)) => self.push(if t == n { TRUE } else { FALSE }),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn less_than(&mut self) {
         match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(if n < t { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((n, t)) => self.push(if n < t { TRUE } else { FALSE }),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn greater_than(&mut self) {
         match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(if n > t { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((n, t)) => self.push(if n > t { TRUE } else { FALSE }),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn not_equals(&mut self) {
         match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(if n == t { FALSE } else { TRUE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((n, t)) => self.push(if n == t { FALSE } else { TRUE }),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn between(&mut self) {
         match self.s_stack().pop3() {
-            Ok((x1, x2, x3)) => {
-                match self.s_stack()
-                          .push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((x1, x2, x3)) => self.push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE }),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn invert(&mut self) {
         match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(!t) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok(t) => self.push(!t),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn and(&mut self) {
         match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(t & n) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((n, t)) => self.push(t & n),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn or(&mut self) {
         match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(t | n) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((n, t)) => self.push(t | n),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
 
     fn xor(&mut self) {
         match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(t ^ n) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((n, t)) => self.push(t ^ n),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
@@ -1977,12 +1846,7 @@ pub trait Core: Sized {
     /// of bits in a cell.
     fn lshift(&mut self) {
         match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(n << t) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((n, t)) => self.push(n << t),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
@@ -1995,12 +1859,7 @@ pub trait Core: Sized {
     /// of bits in a cell.
     fn rshift(&mut self) {
         match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push((n as usize >> t) as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((n, t)) => self.push((n as usize >> t) as isize),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
@@ -2013,12 +1872,7 @@ pub trait Core: Sized {
     /// of bits in a cell.
     fn arshift(&mut self) {
         match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(n >> t) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
+            Ok((n, t)) => self.push(n >> t),
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
     }
@@ -2050,10 +1904,7 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(t) => {
                 let value = self.data_space().get_i32(t as usize) as isize;
-                match self.s_stack().push(value) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
+                self.push(value);
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
@@ -2079,10 +1930,7 @@ pub trait Core: Sized {
         match self.s_stack().pop() {
             Ok(t) => {
                 let value = self.data_space().get_u8(t as usize) as isize;
-                match self.s_stack().push(value) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
+                self.push(value);
             }
             Err(_) => self.set_error(Some(StackUnderflow)),
         }
@@ -2114,12 +1962,7 @@ pub trait Core: Sized {
             self.set_error(Some(UnexpectedEndOfFile));
         } else {
             match self.find(&last_token) {
-                Some(found_index) => {
-                    match self.s_stack().push(found_index as isize) {
-                        Err(_) => self.set_error(Some(StackOverflow)),
-                        Ok(()) => {}
-                    }
-                }
+                Some(found_index) => self.push(found_index as isize),
                 None => self.set_error(Some(UndefinedWord)),
             }
         }
@@ -2144,10 +1987,7 @@ pub trait Core: Sized {
     /// `addr` is the data-space pointer.
     fn here(&mut self) {
         let len = self.data_space().len() as isize;
-        match self.s_stack().push(len) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
+        self.push(len);
     }
 
     /// Run-time: ( n -- )
@@ -2204,7 +2044,7 @@ pub trait Core: Sized {
             self.r_stack().len -= 1;
             unsafe {
                 let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-                self.s_stack().push(ptr::read(r0));
+                self.push(ptr::read(r0));
             }
         }
     }
@@ -2219,7 +2059,7 @@ pub trait Core: Sized {
                 let r1 = self.r_stack()
                     .inner
                     .offset((self.r_stack().len - 1) as isize);
-                self.s_stack().push(ptr::read(r1));
+                self.push(ptr::read(r1));
             }
         }
     }
@@ -2252,11 +2092,11 @@ pub trait Core: Sized {
             self.r_stack().len -= 2;
             unsafe {
                 let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-                self.s_stack().push(ptr::read(r0));
+                self.push(ptr::read(r0));
                 let r1 = self.r_stack()
                     .inner
                     .offset((self.r_stack().len + 1) as isize);
-                self.s_stack().push(ptr::read(r1));
+                self.push(ptr::read(r1));
             }
         }
     }
@@ -2269,11 +2109,11 @@ pub trait Core: Sized {
                 let r2 = self.r_stack()
                     .inner
                     .offset((self.r_stack().len - 2) as isize);
-                self.s_stack().push(ptr::read(r2));
+                self.push(ptr::read(r2));
                 let r1 = self.r_stack()
                     .inner
                     .offset((self.r_stack().len - 1) as isize);
-                self.s_stack().push(ptr::read(r1));
+                self.push(ptr::read(r1));
             }
         }
     }
@@ -2324,7 +2164,7 @@ pub trait Core: Sized {
 
     /// Jit
     fn jit(&mut self) {
-        self.s_stack().push(jitmem::jit_3()() as isize);
+        self.push(jitmem::jit_3()() as isize);
     }
 }
 
@@ -2335,7 +2175,7 @@ mod tests {
     use vm::VM;
     use self::test::Bencher;
     use std::mem;
-    use exception::Exception::{Abort, Quit, Bye, StackUnderflow, InterpretingACompileOnlyWord,
+    use exception::Exception::{Abort, Bye, StackUnderflow, InterpretingACompileOnlyWord,
                                UndefinedWord, UnexpectedEndOfFile, ControlStructureMismatch,
                                ReturnStackUnderflow};
     use loader::HasLoader;
@@ -3967,9 +3807,7 @@ mod tests {
             vm.execute();
             vm.run();
             match vm.last_error() {
-                Some(e) => {
-                    assert!(false);
-                }
+                Some(_) => assert!(false),
                 None => assert!(true),
             };
         });
@@ -3989,9 +3827,7 @@ mod tests {
             vm.execute();
             vm.run();
             match vm.last_error() {
-                Some(e) => {
-                    assert!(false);
-                }
+                Some(_) => assert!(false),
                 None => assert!(true),
             };
         });
@@ -4037,9 +3873,7 @@ mod tests {
             vm.execute();
             vm.run();
             match vm.last_error() {
-                Some(e) => {
-                    assert!(false);
-                }
+                Some(_) => assert!(false),
                 None => assert!(true),
             };
         });

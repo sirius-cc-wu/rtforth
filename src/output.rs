@@ -103,7 +103,7 @@ pub trait Output: Core {
     ///
     /// Parse and display ccc delimited by ) (right parenthesis). .( is an immediate word.
     fn dot_paren(&mut self) {
-        self.s_stack().push(')' as isize);
+        self.push(')' as isize);
         self.parse();
         let last_token = self.last_token().take().unwrap();
         if let Some(ref mut buffer) = *self.output_buffer() {

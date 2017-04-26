@@ -1,5 +1,4 @@
 use core::Core;
-use exception::Exception::StackOverflow;
 
 pub trait Environment: Core {
     /// Add environment queries.
@@ -12,20 +11,14 @@ pub trait Environment: Core {
     ///
     /// Largest usable signed integer
     fn max_n(&mut self) {
-        match self.s_stack().push(isize::max_value()) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
+        self.push(isize::max_value());
     }
 
     /// Run-time: ( -- u )
     ///
     /// Largest usable unsigned integer
     fn max_u(&mut self) {
-        match self.s_stack().push(usize::max_value() as isize) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
+        self.push(usize::max_value() as isize);
     }
 }
 

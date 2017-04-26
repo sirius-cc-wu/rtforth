@@ -1,7 +1,6 @@
 use {TRUE, FALSE};
 use core::Core;
-use exception::Exception::{StackUnderflow, StackOverflow, FloatingPointStackOverflow,
-                           FloatingPointStackUnderflow};
+use exception::Exception::{StackUnderflow, FloatingPointStackOverflow, FloatingPointStackUnderflow};
 
 pub trait Float: Core {
     fn add_float(&mut self) {
@@ -404,10 +403,7 @@ pub trait Float: Core {
     fn f_zero_less_than(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
-                match self.s_stack().push(if t < 0.0 { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
+                self.push(if t < 0.0 { TRUE } else { FALSE });
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
@@ -416,10 +412,7 @@ pub trait Float: Core {
     fn f_zero_equals(&mut self) {
         match self.f_stack().pop() {
             Ok(t) => {
-                match self.s_stack().push(if t == 0.0 { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
+                self.push(if t == 0.0 { TRUE } else { FALSE });
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
         }
@@ -430,10 +423,7 @@ pub trait Float: Core {
             Ok(t) => {
                 match self.f_stack().pop() {
                     Ok(n) => {
-                        match self.s_stack().push(if n < t { TRUE } else { FALSE }) {
-                            Err(_) => self.set_error(Some(StackOverflow)),
-                            Ok(()) => {}
-                        }
+                        self.push(if n < t { TRUE } else { FALSE });
                     }
                     Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
                 }

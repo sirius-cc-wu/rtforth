@@ -10,7 +10,7 @@ use facility::Facility;
 use float::Float;
 use bc::*;
 use exception::Exception::{self, StackUnderflow, StackOverflow, ReturnStackUnderflow,
-                           ReturnStackOverflow, FloatingPointStackOverflow, InvalidMemoryAddress};
+                           ReturnStackOverflow, FloatingPointStackOverflow};
 
 // Virtual machine
 pub struct VM {
@@ -289,10 +289,7 @@ fn switch_threading_run(vm: &mut VM) {
             BC_I => {
                 match vm.r_stack().last() {
                     Some(i) => {
-                        match vm.s_stack().push(i) {
-                            Err(_) => vm.set_error(Some(StackOverflow)),
-                            Ok(()) => {}
-                        }
+                        vm.push(i);
                     }
                     None => vm.set_error(Some(ReturnStackUnderflow)),
                 }
@@ -301,10 +298,7 @@ fn switch_threading_run(vm: &mut VM) {
                 let pos = vm.r_stack().len() - 4;
                 match vm.r_stack().get(pos) {
                     Some(j) => {
-                        match vm.s_stack().push(j) {
-                            Err(_) => vm.set_error(Some(StackOverflow)),
-                            Ok(()) => {}
-                        }
+                        vm.push(j);
                     }
                     None => vm.set_error(Some(ReturnStackUnderflow)),
                 }
@@ -411,9 +405,7 @@ fn switch_threading_run(vm: &mut VM) {
             }
         }
         match vm.last_error() {
-            Some(e) => {
-                break;
-            }
+            Some(_) => break,
             None => {}
         }
     }
@@ -425,7 +417,6 @@ mod tests {
     extern crate test;
     use vm::VM;
     use core::Core;
-    use output::Output;
     use loader::HasLoader;
     use self::test::Bencher;
     use exception::Exception::Quit;

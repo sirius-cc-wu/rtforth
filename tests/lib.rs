@@ -14,7 +14,7 @@ fn test_primitives() {
     vm.p_true();
     assert_eq!(vm.s_stack().len(), 2);
     assert_eq!(vm.s_stack().last(), Some(-1));
-    vm.s_stack().push(2);
+    vm.push(2);
     assert_eq!(vm.s_stack().len(), 3);
     vm.dot_s();
     vm.words();

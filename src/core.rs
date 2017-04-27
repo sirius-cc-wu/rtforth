@@ -555,7 +555,6 @@ pub trait Core: Sized {
             self.execute_word(w);
             ip = self.state().instruction_pointer;
         }
-        self.state().instruction_pointer = 0;
     }
 
     // ---------

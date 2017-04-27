@@ -3,6 +3,7 @@ extern crate getopts;
 extern crate rustyline;
 
 use std::env;
+use std::fmt::Write;
 use getopts::Options;
 use rtforth::core::{Core, Word, ForwardReferences, Stack, State};
 use rtforth::exception::Exception::{self, Bye};
@@ -204,9 +205,22 @@ fn print_version() {
 }
 
 fn p_accept(vm: &mut VM) {
-    if let Ok(line) = vm.editor.readline("rf> ") {
-        vm.editor.add_history_entry(&line);
-        vm.set_source(&line);
+    match vm.editor.readline("rf> ") {
+        Ok(line) => {
+            vm.editor.add_history_entry(&line);
+            vm.set_source(&line);
+        }
+        Err(rustyline::error::ReadlineError::Eof) => {
+            vm.set_error(Some(Bye));
+        }
+        Err(err) => {
+            match vm.output_buffer().as_mut() {
+                Some(ref mut buf) => {
+                    write!(buf, "{}", err).unwrap();
+                }
+                None => {}
+            }
+        }
     }
 }
 

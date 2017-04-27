@@ -6,7 +6,7 @@ use std::env;
 use std::fmt::Write;
 use getopts::Options;
 use rtforth::core::{Core, Word, ForwardReferences, Stack, State};
-use rtforth::exception::Exception::{self, Bye};
+use rtforth::exception::Exception;
 use rtforth::{FALSE, TRUE};
 use rtforth::output::Output;
 use rtforth::jitmem::DataSpace;
@@ -65,7 +65,6 @@ impl VM {
         vm.add_float();
         vm.add_primitive("out", p_out);
         vm.add_primitive("accept", p_accept);
-        vm.add_primitive("bye?", p_bye_q);
         vm.add_primitive("error?", p_error_q);
         vm.add_primitive("handle-error", p_handle_error);
         vm
@@ -177,14 +176,9 @@ fn main() {
             match vm.last_error() {
                 None => {}
                 Some(e) => {
-                    match e {
-                        Bye => {}
-                        _ => {
-                            vm.clear_stacks();
-                            vm.reset();
-                            println!("{} ", e.description());
-                        }
-                    }
+                    vm.clear_stacks();
+                    vm.reset();
+                    println!("{} ", e.description());
                     bye = true;
                     break;
                 }
@@ -211,7 +205,7 @@ fn p_accept(vm: &mut VM) {
             vm.set_source(&line);
         }
         Err(rustyline::error::ReadlineError::Eof) => {
-            vm.set_error(Some(Bye));
+            vm.bye();
         }
         Err(err) => {
             match vm.output_buffer().as_mut() {
@@ -226,15 +220,6 @@ fn p_accept(vm: &mut VM) {
 
 fn p_error_q(vm: &mut VM) {
     let value = if vm.last_error().is_some() {
-        TRUE
-    } else {
-        FALSE
-    };
-    vm.push(value);
-}
-
-fn p_bye_q(vm: &mut VM) {
-    let value = if vm.last_error() == Some(Bye) {
         TRUE
     } else {
         FALSE
@@ -275,12 +260,10 @@ fn repl(vm: &mut VM) {
         REPEAT ;
     : QUIT
         BEGIN ACCEPT EVALUATE
-          BYE? NOT
-        WHILE
           ERROR?
           IF HANDLE-ERROR ELSE .\"  ok\" THEN
           OUT
-        REPEAT ;
+        AGAIN ;
     QUIT ");
     vm.evaluate();
     vm.run();

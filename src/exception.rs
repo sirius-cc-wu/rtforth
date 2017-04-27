@@ -116,8 +116,6 @@ pub enum Exception {
     ExceptionInSendingOrReceivingACharacter = -57,
     /// = -58, ANS Forth
     BracketIfElseOrThenException = -58,
-    /// request to leave the application. rtForth
-    Bye = -9999,
 }
 
 impl Exception {
@@ -182,7 +180,6 @@ impl Exception {
             Exception::Quit => "QUIT",
             Exception::ExceptionInSendingOrReceivingACharacter => "Exception in sending or receiving a character",
             Exception::BracketIfElseOrThenException => "[IF],[ELSE],[THEN] exception",
-            Exception::Bye => "Bye",
         }
     }
 }

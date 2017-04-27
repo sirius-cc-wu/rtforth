@@ -5,6 +5,7 @@ extern "C" {
 }
 
 use {TRUE, FALSE};
+use std::process;
 use std::mem;
 use std::ptr::{self, Unique};
 use std::fmt;
@@ -16,7 +17,7 @@ use jitmem::{self, DataSpace};
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
                            FloatingPointStackOverflow, UnsupportedOperation,
-                           InterpretingACompileOnlyWord, ControlStructureMismatch, Bye};
+                           InterpretingACompileOnlyWord, ControlStructureMismatch};
 
 pub type Result = result::Result<(), Exception>;
 
@@ -552,9 +553,6 @@ pub trait Core: Sized {
             let w = self.data_space().get_i32(ip) as usize;
             self.state().instruction_pointer += mem::size_of::<i32>();
             self.execute_word(w);
-            if self.last_error() == Some(Bye) {
-                break;
-            }
             ip = self.state().instruction_pointer;
         }
         self.state().instruction_pointer = 0;
@@ -2150,9 +2148,8 @@ pub trait Core: Sized {
         self.state().instruction_pointer = 0;
     }
 
-    /// Emit Bye exception.
     fn bye(&mut self) {
-        self.set_error(Some(Bye));
+        process::exit(0);
     }
 
     /// Jit
@@ -2168,9 +2165,8 @@ mod tests {
     use vm::VM;
     use self::test::Bencher;
     use std::mem;
-    use exception::Exception::{Abort, Bye, StackUnderflow, InterpretingACompileOnlyWord,
-                               UndefinedWord, UnexpectedEndOfFile, ControlStructureMismatch,
-                               ReturnStackUnderflow};
+    use exception::Exception::{Abort, StackUnderflow, InterpretingACompileOnlyWord, UndefinedWord,
+                               UnexpectedEndOfFile, ControlStructureMismatch, ReturnStackUnderflow};
     use loader::HasLoader;
 
     #[bench]
@@ -3667,15 +3663,6 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(Abort));
         assert_eq!(vm.s_stack().len(), 0);
-    }
-
-    #[test]
-    fn test_bye() {
-        let vm = &mut VM::new(16);
-        vm.set_source("1 2 3 bye 5 6 7");
-        vm.evaluate();
-        assert_eq!(vm.last_error(), Some(Bye));
-        assert!(vm.state().is_idle());
     }
 
     #[test]

@@ -515,17 +515,12 @@ pub trait Core: Sized {
     /// Find the word with name `name`.
     /// If not found returns zero.
     fn find(&mut self, name: &str) -> Option<usize> {
-        match self.find_symbol(name) {
-            Some(symbol) => {
-                for (i, word) in self.wordlist().iter().enumerate() {
-                    if !word.is_hidden() && word.symbol() == symbol {
-                        return Some(i);
-                    }
-                }
-                None
+        for (i, word) in self.wordlist().iter().enumerate().rev() {
+            if !word.is_hidden() && self.symbols()[word.symbol().id].eq_ignore_ascii_case(name) {
+                return Some(i);
             }
-            None => None,
         }
+        None
     }
 
     fn find_symbol(&mut self, s: &str) -> Option<Symbol> {

@@ -4,13 +4,152 @@ extern crate rustyline;
 
 use std::env;
 use getopts::Options;
-use rtforth::vm::VM;
-use rtforth::core::Core;
+use rtforth::core::{Core, Word, ForwardReferences, Stack, State};
+use rtforth::exception::Exception::{self, Bye};
+use rtforth::{FALSE, TRUE};
+use rtforth::output::Output;
+use rtforth::jitmem::DataSpace;
 use rtforth::loader::HasLoader;
-use rtforth::exception::Exception::Bye;
+use rtforth::tools::Tools;
+use rtforth::env::Environment;
+use rtforth::facility::Facility;
+use rtforth::float::Float;
 
 #[cfg(not(test))]
 #[cfg(not(test))]
+
+// Virtual machine
+pub struct VM {
+    editor: rustyline::Editor<()>,
+    last_error: Option<Exception>,
+    structure_depth: usize,
+    s_stk: Stack<isize>,
+    r_stk: Stack<isize>,
+    f_stk: Stack<f64>,
+    symbols: Vec<String>,
+    last_definition: usize,
+    wordlist: Vec<Word<VM>>,
+    data_space: DataSpace,
+    inbuf: Option<String>,
+    tkn: Option<String>,
+    outbuf: Option<String>,
+    state: State,
+    references: ForwardReferences,
+}
+
+impl VM {
+    pub fn new(pages: usize) -> VM {
+        let mut vm = VM {
+            editor: rustyline::Editor::<()>::new(),
+            last_error: None,
+            structure_depth: 0,
+            s_stk: Stack::with_capacity(64),
+            r_stk: Stack::with_capacity(64),
+            f_stk: Stack::with_capacity(16),
+            symbols: vec![],
+            last_definition: 0,
+            wordlist: vec![],
+            data_space: DataSpace::new(pages),
+            inbuf: Some(String::with_capacity(128)),
+            tkn: Some(String::with_capacity(64)),
+            outbuf: Some(String::with_capacity(128)),
+            state: State::new(),
+            references: ForwardReferences::new(),
+        };
+        vm.add_core();
+        vm.add_output();
+        vm.add_tools();
+        vm.add_environment();
+        vm.add_facility();
+        vm.add_float();
+        vm.add_primitive("out", p_out);
+        vm.add_primitive("accept", p_accept);
+        vm.add_primitive("bye?", p_bye_q);
+        vm.add_primitive("error?", p_error_q);
+        vm.add_primitive("handle-error", p_handle_error);
+        vm
+    }
+}
+
+impl Core for VM {
+    fn last_error(&self) -> Option<Exception> {
+        self.last_error
+    }
+    fn set_error(&mut self, e: Option<Exception>) {
+        self.last_error = e;
+    }
+    fn structure_depth(&self) -> usize {
+        self.structure_depth
+    }
+    fn set_structure_depth(&mut self, depth: usize) {
+        self.structure_depth = depth
+    }
+    fn data_space(&mut self) -> &mut DataSpace {
+        &mut self.data_space
+    }
+    fn data_space_const(&self) -> &DataSpace {
+        &self.data_space
+    }
+    fn output_buffer(&mut self) -> &mut Option<String> {
+        &mut self.outbuf
+    }
+    fn set_output_buffer(&mut self, buffer: String) {
+        self.outbuf = Some(buffer);
+    }
+    fn input_buffer(&mut self) -> &mut Option<String> {
+        &mut self.inbuf
+    }
+    fn set_input_buffer(&mut self, buffer: String) {
+        self.inbuf = Some(buffer);
+    }
+    fn last_token(&mut self) -> &mut Option<String> {
+        &mut self.tkn
+    }
+    fn set_last_token(&mut self, buffer: String) {
+        self.tkn = Some(buffer);
+    }
+    fn s_stack(&mut self) -> &mut Stack<isize> {
+        &mut self.s_stk
+    }
+    fn r_stack(&mut self) -> &mut Stack<isize> {
+        &mut self.r_stk
+    }
+    fn f_stack(&mut self) -> &mut Stack<f64> {
+        &mut self.f_stk
+    }
+    fn symbols_mut(&mut self) -> &mut Vec<String> {
+        &mut self.symbols
+    }
+    fn symbols(&self) -> &Vec<String> {
+        &self.symbols
+    }
+    fn last_definition(&self) -> usize {
+        self.last_definition
+    }
+    fn set_last_definition(&mut self, n: usize) {
+        self.last_definition = n;
+    }
+    fn wordlist_mut(&mut self) -> &mut Vec<Word<Self>> {
+        &mut self.wordlist
+    }
+    fn wordlist(&self) -> &Vec<Word<Self>> {
+        &self.wordlist
+    }
+    fn state(&mut self) -> &mut State {
+        &mut self.state
+    }
+    fn references(&mut self) -> &mut ForwardReferences {
+        &mut self.references
+    }
+}
+
+impl Environment for VM {}
+impl Facility for VM {}
+impl Float for VM {}
+impl HasLoader for VM {}
+impl Output for VM {}
+impl Tools for VM {}
+
 fn main() {
     let vm = &mut VM::new(1024);
     let mut bye = false;
@@ -64,36 +203,73 @@ fn print_version() {
     println!("rtForth v0.1.19, Copyright (C) 2016 Mapacode Inc.");
 }
 
-fn repl(vm: &mut VM) {
-    let mut rl = rustyline::Editor::<()>::new();
-    while let Ok(line) = rl.readline("rf> ") {
-        rl.add_history_entry(&line);
+fn p_accept(vm: &mut VM) {
+    if let Ok(line) = vm.editor.readline("rf> ") {
+        vm.editor.add_history_entry(&line);
         vm.set_source(&line);
-        vm.evaluate();
-        match vm.last_error() {
-            Some(e) => {
-                match e {
-                    Bye => break,
-                    _ => {
-                        vm.clear_stacks();
-                        vm.reset();
-                        println!("{} ", e.description());
-                    }
-                }
-            }
-            None => {
-                match *vm.output_buffer() {
-                    Some(ref mut buf) => {
-                        if buf.len() > 0 {
-                            println!("{}", buf);
-                            buf.clear();
-                        }
-                    }
-                    None => {}
-                }
+    }
+}
+
+fn p_error_q(vm: &mut VM) {
+    let value = if vm.last_error().is_some() {
+        TRUE
+    } else {
+        FALSE
+    };
+    vm.push(value);
+}
+
+fn p_bye_q(vm: &mut VM) {
+    let value = if vm.last_error() == Some(Bye) {
+        TRUE
+    } else {
+        FALSE
+    };
+    vm.push(value);
+}
+
+fn p_out(vm: &mut VM) {
+    match vm.output_buffer().as_mut() {
+        Some(ref mut buf) => {
+            if buf.len() > 0 {
+                println!("{}", buf);
+                buf.clear();
             }
         }
+        None => {}
     }
+}
+
+fn p_handle_error(vm: &mut VM) {
+    match vm.last_error() {
+        Some(e) => {
+            vm.clear_stacks();
+            vm.reset();
+            println!("{} ", e.description());
+        }
+        None => {}
+    }
+}
+
+fn repl(vm: &mut VM) {
+    vm.set_source("
+    : EVALUATE
+        BEGIN PARSE-WORD
+          TOKEN-EMPTY? NOT  ERROR? NOT  AND
+        WHILE
+          COMPILING? IF COMPILE-TOKEN ELSE INTERPRET-TOKEN THEN
+        REPEAT ;
+    : QUIT
+        BEGIN ACCEPT EVALUATE
+          BYE? NOT
+        WHILE
+          ERROR?
+          IF HANDLE-ERROR ELSE .\"  ok\" THEN
+          OUT
+        REPEAT ;
+    QUIT ");
+    vm.evaluate();
+    vm.run();
 }
 
 #[cfg(not(test))]

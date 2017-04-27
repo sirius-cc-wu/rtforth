@@ -454,6 +454,8 @@ pub trait Core: Sized {
         self.add_primitive("jit", Core::jit);
         self.add_primitive("compiling?", Core::p_compiling);
         self.add_primitive("token-empty?", Core::p_token_empty);
+        self.add_primitive("compile-token", Core::compile_token);
+        self.add_primitive("interpret-token", Core::interpret_token);
 
         self.references().idx_lit = self.find("lit").expect("lit undefined");
         self.references().idx_flit = self.find("flit").expect("flit undefined");
@@ -545,16 +547,12 @@ pub trait Core: Sized {
     /// Any exception causes termination of inner loop.
     #[inline(never)]
     fn run(&mut self) {
-        if self.last_error().is_some() {
-            self.state().instruction_pointer = 0;
-            return;
-        }
         let mut ip = self.state().instruction_pointer;
         while 0 < ip && ip < self.data_space().len() {
             let w = self.data_space().get_i32(ip) as usize;
             self.state().instruction_pointer += mem::size_of::<i32>();
             self.execute_word(w);
-            if self.last_error().is_some() {
+            if self.last_error() == Some(Bye) {
                 break;
             }
             ip = self.state().instruction_pointer;

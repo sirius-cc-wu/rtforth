@@ -902,7 +902,8 @@ pub trait Core: Sized {
 
     fn define(&mut self, action: fn(&mut Self)) {
         self.parse_word();
-        let last_token = self.last_token().take().unwrap();
+        let mut last_token = self.last_token().take().unwrap();
+        last_token.make_ascii_lowercase();
         if let Some(_) = self.find(&last_token) {
             print!("Redefining {}", last_token);
         }

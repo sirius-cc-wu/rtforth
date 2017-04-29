@@ -32,6 +32,12 @@ pub trait Float: Core {
         self.add_primitive("f0<", Float::f_zero_less_than);
         self.add_primitive("f0=", Float::f_zero_equals);
         self.add_primitive("f<", Float::f_less_than);
+        self.add_primitive("fmin", Float::fmin);
+        self.add_primitive("fmax", Float::fmax);
+        self.add_primitive("floor", Float::floor);
+        self.add_primitive("fround", Float::fround);
+        self.add_primitive("fceil", Float::fceil);
+        self.add_primitive("fnegate", Float::fnegate);
     }
 
     fn p_fconst(&mut self) {
@@ -426,6 +432,78 @@ pub trait Float: Core {
                         self.push(if n < t { TRUE } else { FALSE });
                     }
                     Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                }
+            }
+            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+        }
+    }
+
+    fn fmin(&mut self) {
+        match self.f_stack().pop2() {
+            Ok((t,n)) => {
+                match self.f_stack().push(t.min(n)) {
+                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Ok(()) => {}
+                }
+            }
+            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+        }
+    }
+
+    fn fmax(&mut self) {
+        match self.f_stack().pop2() {
+            Ok((t,n)) => {
+                match self.f_stack().push(t.max(n)) {
+                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Ok(()) => {}
+                }
+            }
+            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+        }
+    }
+
+    fn fround(&mut self) {
+        match self.f_stack().pop() {
+            Ok(t) => {
+                match self.f_stack().push(t.round()) {
+                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Ok(()) => {}
+                }
+            }
+            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+        }
+    }
+
+    fn floor(&mut self) {
+        match self.f_stack().pop() {
+            Ok(t) => {
+                match self.f_stack().push(t.floor()) {
+                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Ok(()) => {}
+                }
+            }
+            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+        }
+    }
+
+    fn fceil(&mut self) {
+        match self.f_stack().pop() {
+            Ok(t) => {
+                match self.f_stack().push(t.ceil()) {
+                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Ok(()) => {}
+                }
+            }
+            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+        }
+    }
+
+    fn fnegate(&mut self) {
+        match self.f_stack().pop() {
+            Ok(t) => {
+                match self.f_stack().push(-t) {
+                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Ok(()) => {}
                 }
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),

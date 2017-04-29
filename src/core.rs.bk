@@ -9,7 +9,6 @@ use std::process;
 use std::mem;
 use std::ptr::{self, Unique};
 use std::fmt;
-use std::fmt::Write;
 use std::str::FromStr;
 use std::slice;
 use std::ascii::AsciiExt;
@@ -451,8 +450,6 @@ pub trait Core: Sized {
         self.add_primitive("]", Core::compile);
         self.add_primitive(",", Core::comma);
         self.add_primitive("marker", Core::marker);
-        self.add_primitive("error?", Core::p_error_q);
-        self.add_primitive("handle-error", Core::p_handle_error);
         self.add_primitive("abort", Core::abort);
         self.add_primitive("bye", Core::bye);
         self.add_primitive("jit", Core::jit);
@@ -2115,30 +2112,14 @@ pub trait Core: Sized {
     // Error handlling
     // ----------------
 
-    fn p_error_q(&mut self) {
-        let value = if self.last_error().is_some() {
-            TRUE
-        } else {
-            FALSE
-        };
-        self.push(value);
-    }
-
-    fn p_handle_error(&mut self) {
-        match self.last_error() {
-            Some(e) => {
-                self.clear_stacks();
-                self.reset();
-                match self.output_buffer().as_mut() {
-                    Some(buf) => {
-                        write!(buf, "{} ", e.description()).unwrap();
-                    }
-                    None => {}
-                }
-            }
-            None => {}
-        }
-    }
+fn p_error_q(vm: &mut VM) {
+    let value = if vm.last_error().is_some() {
+        TRUE
+    } else {
+        FALSE
+    };
+    vm.push(value);
+}
 
     /// Clear data and floating point stacks.
     /// Called by VM's client upon Abort.

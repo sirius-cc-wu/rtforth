@@ -13,6 +13,7 @@ pub trait Output: Core {
         self.add_immediate(".(", Output::dot_paren);
         self.add_primitive(".", Output::dot);
         self.add_primitive("f.", Output::fdot);
+        self.add_primitive("flush", Output::p_flush);
         self.references().idx_s_quote = self.find("_s\"").expect("_s\" undefined");
         self.references().idx_type = self.find("type").expect("type undefined");
     }
@@ -162,6 +163,18 @@ pub trait Output: Core {
                 }
             }
             Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+        }
+    }
+
+    fn p_flush(&mut self) {
+        match self.output_buffer().as_mut() {
+            Some(buf) => {
+                if buf.len() > 0 {
+                    println!("{}", buf);
+                    buf.clear();
+                }
+            }
+            None => {}
         }
     }
 }

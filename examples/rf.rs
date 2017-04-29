@@ -2,12 +2,11 @@ extern crate rtforth;
 extern crate getopts;
 extern crate rustyline;
 
-use std::env;
 use std::fmt::Write;
+use std::env;
 use getopts::Options;
 use rtforth::core::{Core, Word, ForwardReferences, Stack, State};
 use rtforth::exception::Exception;
-use rtforth::{FALSE, TRUE};
 use rtforth::output::Output;
 use rtforth::jitmem::DataSpace;
 use rtforth::loader::HasLoader;
@@ -63,10 +62,7 @@ impl VM {
         vm.add_environment();
         vm.add_facility();
         vm.add_float();
-        vm.add_primitive("out", p_out);
         vm.add_primitive("accept", p_accept);
-        vm.add_primitive("error?", p_error_q);
-        vm.add_primitive("handle-error", p_handle_error);
         vm
     }
 }
@@ -218,38 +214,6 @@ fn p_accept(vm: &mut VM) {
     }
 }
 
-fn p_error_q(vm: &mut VM) {
-    let value = if vm.last_error().is_some() {
-        TRUE
-    } else {
-        FALSE
-    };
-    vm.push(value);
-}
-
-fn p_out(vm: &mut VM) {
-    match vm.output_buffer().as_mut() {
-        Some(ref mut buf) => {
-            if buf.len() > 0 {
-                println!("{}", buf);
-                buf.clear();
-            }
-        }
-        None => {}
-    }
-}
-
-fn p_handle_error(vm: &mut VM) {
-    match vm.last_error() {
-        Some(e) => {
-            vm.clear_stacks();
-            vm.reset();
-            println!("{} ", e.description());
-        }
-        None => {}
-    }
-}
-
 fn repl(vm: &mut VM) {
     vm.set_source("
     : EVALUATE
@@ -262,7 +226,7 @@ fn repl(vm: &mut VM) {
         BEGIN ACCEPT EVALUATE
           ERROR?
           IF HANDLE-ERROR ELSE .\"  ok\" THEN
-          OUT
+          FLUSH
         AGAIN ;
     QUIT ");
     vm.evaluate();

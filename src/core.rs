@@ -406,7 +406,7 @@ pub trait Core: Sized {
         // Immediate words
         self.add_immediate("(", Core::imm_paren);
         self.add_immediate("\\", Core::imm_backslash);
-        self.add_immediate("[", Core::interpret);
+        self.add_immediate("[", Core::left_bracket);
         self.add_immediate_and_compile_only("[char]", Core::bracket_char);
         self.add_immediate_and_compile_only(";", Core::semicolon);
         self.add_immediate_and_compile_only("if", Core::imm_if);
@@ -448,7 +448,7 @@ pub trait Core: Sized {
         self.add_primitive("variable", Core::variable);
         self.add_primitive("create", Core::create);
         self.add_primitive("'", Core::tick);
-        self.add_primitive("]", Core::compile);
+        self.add_primitive("]", Core::right_bracket);
         self.add_primitive(",", Core::comma);
         self.add_primitive("marker", Core::marker);
         self.add_primitive("error?", Core::p_error_q);
@@ -587,11 +587,11 @@ pub trait Core: Sized {
     // Evaluation
     // -----------
 
-    fn interpret(&mut self) {
+    fn left_bracket(&mut self) {
         self.state().is_compiling = false;
     }
 
-    fn compile(&mut self) {
+    fn right_bracket(&mut self) {
         self.state().is_compiling = true;
     }
 
@@ -929,7 +929,7 @@ pub trait Core: Sized {
             self.wordlist_mut()[def].set_hidden(true);
             let depth = self.s_stack().len;
             self.set_structure_depth(depth);
-            self.compile();
+            self.right_bracket();
         }
     }
 
@@ -945,7 +945,7 @@ pub trait Core: Sized {
                 self.wordlist_mut()[def].set_hidden(false);
             }
         }
-        self.interpret();
+        self.left_bracket();
     }
 
     fn create(&mut self) {
@@ -2157,7 +2157,7 @@ pub trait Core: Sized {
             buf.clear()
         }
         self.state().source_index = 0;
-        self.interpret();
+        self.left_bracket();
         self.set_error(None);
     }
 

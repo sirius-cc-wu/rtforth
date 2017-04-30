@@ -5,6 +5,7 @@ mod vm {
     use rtforth::jitmem::DataSpace;
     use rtforth::core::{Core, Stack, State, ForwardReferences, Word};
     use rtforth::exception::Exception;
+    use rtforth::bc::BC_HALT;
 
     const BUFFER_SIZE: usize = 0x400;
 
@@ -19,6 +20,7 @@ mod vm {
         current_task: usize,
         tasks: [Task; 2],
         last_error: Option<Exception>,
+        handler: usize,
         structure_depth: usize,
         symbols: Vec<String>,
         last_definition: usize,
@@ -47,6 +49,7 @@ mod vm {
                             f_stk: Stack::with_capacity(16),
                         }],
                 last_error: None,
+                handler: BC_HALT,
                 symbols: vec![],
                 structure_depth: 0,
                 last_definition: 0,
@@ -78,6 +81,12 @@ mod vm {
         }
         fn set_error(&mut self, e: Option<Exception>) {
             self.last_error = e;
+        }
+        fn handler(&self) -> usize {
+            self.handler
+        }
+        fn set_handler(&mut self, h: usize) {
+            self.handler = h;
         }
         fn structure_depth(&self) -> usize {
             self.structure_depth

@@ -23,7 +23,7 @@ pub trait Output: Core {
     /// Put x into output buffer.
     fn emit(&mut self) {
         match self.s_stack().pop() {
-            Err(_) => self.set_error(Some(StackUnderflow)),
+            Err(_) => self.abort_with(StackUnderflow),
             Ok(ch) => {
                 match self.output_buffer().take() {
                     Some(mut buffer) => {
@@ -41,7 +41,7 @@ pub trait Output: Core {
     /// Put the character string specified by c-addr and u into output buffer.
     fn p_type(&mut self) {
         match self.s_stack().pop2() {
-            Err(_) => self.set_error(Some(StackUnderflow)),
+            Err(_) => self.abort_with(StackUnderflow),
             Ok((addr, len)) => {
                 match self.output_buffer().take() {
                     Some(mut buffer) => {
@@ -143,10 +143,10 @@ pub trait Output: Core {
                     self.set_output_buffer(buf);
                 }
                 if invalid_base {
-                    self.set_error(Some(UnsupportedOperation));
+                    self.abort_with(UnsupportedOperation);
                 }
             }
-            Err(_) => self.set_error(Some(StackUnderflow)),
+            Err(_) => self.abort_with(StackUnderflow),
         }
     }
 
@@ -162,7 +162,7 @@ pub trait Output: Core {
                     self.set_output_buffer(buf);
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 

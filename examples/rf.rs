@@ -14,6 +14,7 @@ use rtforth::tools::Tools;
 use rtforth::env::Environment;
 use rtforth::facility::Facility;
 use rtforth::float::Float;
+use rtforth::bc::BC_HALT;
 
 #[cfg(not(test))]
 #[cfg(not(test))]
@@ -22,6 +23,7 @@ use rtforth::float::Float;
 pub struct VM {
     editor: rustyline::Editor<()>,
     last_error: Option<Exception>,
+    handler: usize,
     structure_depth: usize,
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
@@ -42,6 +44,7 @@ impl VM {
         let mut vm = VM {
             editor: rustyline::Editor::<()>::new(),
             last_error: None,
+            handler: BC_HALT,
             structure_depth: 0,
             s_stk: Stack::with_capacity(64),
             r_stk: Stack::with_capacity(64),
@@ -73,6 +76,12 @@ impl Core for VM {
     }
     fn set_error(&mut self, e: Option<Exception>) {
         self.last_error = e;
+    }
+    fn handler(&self) -> usize {
+        self.handler
+    }
+    fn set_handler(&mut self, h: usize) {
+        self.handler = h;
     }
     fn structure_depth(&self) -> usize {
         self.structure_depth
@@ -225,10 +234,10 @@ fn repl(vm: &mut VM) {
     : QUIT
         RESET
         BEGIN ACCEPT EVALUATE
-          ERROR?
-          IF HANDLE-ERROR ELSE .\"  ok\" THEN
-          FLUSH
+          .\"  ok\" FLUSH
         AGAIN ;
+    : (ABORT) HANDLE-ERROR FLUSH QUIT ;
+    ' (ABORT) HANDLER!
     QUIT ");
     vm.evaluate();
     vm.run();

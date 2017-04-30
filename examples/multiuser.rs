@@ -15,10 +15,12 @@ mod vm {
     use rtforth::loader::HasLoader;
     use rtforth::output::Output;
     use rtforth::tools::Tools;
+    use rtforth::bc::BC_HALT;
     use super::BUFFER_SIZE;
 
     struct Task {
         last_error: Option<Exception>,
+        handler: usize,
         state: State,
         s_stk: Stack<isize>,
         r_stk: Stack<isize>,
@@ -49,6 +51,7 @@ mod vm {
                 tasks_used: [false; 3],
                 tasks: [Task {
                             last_error: None,
+                            handler: BC_HALT,
                             state: State::new(),
                             s_stk: Stack::with_capacity(64),
                             r_stk: Stack::with_capacity(64),
@@ -59,6 +62,7 @@ mod vm {
                         },
                         Task {
                             last_error: None,
+                            handler: BC_HALT,
                             state: State::new(),
                             s_stk: Stack::with_capacity(64),
                             r_stk: Stack::with_capacity(64),
@@ -69,6 +73,7 @@ mod vm {
                         },
                         Task {
                             last_error: None,
+                            handler: BC_HALT,
                             state: State::new(),
                             s_stk: Stack::with_capacity(64),
                             r_stk: Stack::with_capacity(64),
@@ -122,6 +127,12 @@ mod vm {
         }
         fn set_error(&mut self, e: Option<Exception>) {
             self.tasks[self.current_task].last_error = e;
+        }
+        fn handler(&self) -> usize {
+            self.tasks[self.current_task].handler
+        }
+        fn set_handler(&mut self, h: usize) {
+            self.tasks[self.current_task].handler = h;
         }
         fn structure_depth(&self) -> usize {
             self.structure_depth
@@ -281,7 +292,7 @@ mod server {
                             let mut outbuf = (*vm).output_buffer().take().unwrap();
                             match vm.last_error() {
                                 Some(e) => {
-                                    writeln!(outbuf, "{:?}", e);
+                                    writeln!(outbuf, "{:?}", e).unwrap();
                                 }
                                 None => {}
                             }

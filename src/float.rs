@@ -45,7 +45,7 @@ pub trait Float: Core {
         let dfa = self.wordlist()[wp].dfa();
         let v = self.data_space().get_f64(dfa);
         match self.f_stack().push(v) {
-            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
             Ok(()) => {}
         }
     }
@@ -61,7 +61,7 @@ pub trait Float: Core {
                 self.define(Float::p_fconst);
                 self.data_space().compile_f64(v);
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -72,11 +72,11 @@ pub trait Float: Core {
             Ok(t) => {
                 let value = self.data_space().get_f64(t as usize);
                 match self.f_stack().push(value) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(StackUnderflow)),
+            Err(_) => self.abort_with(StackUnderflow),
         }
     }
 
@@ -87,10 +87,10 @@ pub trait Float: Core {
                     Ok(n) => {
                         self.data_space().put_f64(n, t as usize);
                     }
-                    Err(_) => self.set_error(Some(StackUnderflow)),
+                    Err(_) => self.abort_with(StackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(StackUnderflow)),
+            Err(_) => self.abort_with(StackUnderflow),
         }
     }
 
@@ -98,11 +98,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.abs()) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -110,11 +110,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.sin()) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -122,11 +122,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.cos()) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -134,11 +134,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.tan()) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -146,11 +146,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.asin()) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -158,11 +158,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.acos()) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -170,11 +170,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.atan()) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -184,14 +184,14 @@ pub trait Float: Core {
                 match self.f_stack().pop() {
                     Ok(n) => {
                         match self.f_stack().push(n.atan2(t)) {
-                            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                            Err(_) => self.abort_with(FloatingPointStackOverflow),
                             Ok(()) => {}
                         }
                     }
-                    Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -199,11 +199,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.sqrt()) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -213,14 +213,14 @@ pub trait Float: Core {
                 match self.f_stack().pop() {
                     Ok(n) => {
                         match self.f_stack().push2(t, n) {
-                            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                            Err(_) => self.abort_with(FloatingPointStackOverflow),
                             Ok(()) => {}
                         }
                     }
-                    Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -230,14 +230,14 @@ pub trait Float: Core {
                 match self.f_stack().pop() {
                     Ok(_) => {
                         match self.f_stack().push(t) {
-                            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                            Err(_) => self.abort_with(FloatingPointStackOverflow),
                             Ok(()) => {}
                         }
                     }
-                    Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -245,18 +245,18 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push2(t, t) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
     fn fdrop(&mut self) {
         match self.f_stack().pop() {
             Ok(_) => {}
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -268,17 +268,17 @@ pub trait Float: Core {
                         match self.f_stack().pop() {
                             Ok(x1) => {
                                 match self.f_stack().push3(x2, x3, x1) {
-                                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                                     Ok(()) => {}
                                 }
                             }
-                            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                            Err(_) => self.abort_with(FloatingPointStackUnderflow),
                         }
                     }
-                    Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -288,14 +288,14 @@ pub trait Float: Core {
                 match self.f_stack().pop() {
                     Ok(n) => {
                         match self.f_stack().push3(n, t, n) {
-                            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                            Err(_) => self.abort_with(FloatingPointStackOverflow),
                             Ok(()) => {}
                         }
                     }
-                    Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -303,11 +303,11 @@ pub trait Float: Core {
         match self.s_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t as f64) {
-                    Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => self.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -317,14 +317,14 @@ pub trait Float: Core {
                 match self.f_stack().pop() {
                     Ok(n) => {
                         match self.f_stack().push(n + t) {
-                            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                            Err(_) => self.abort_with(FloatingPointStackOverflow),
                             Ok(()) => {}
                         }
                     }
-                    Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -334,14 +334,14 @@ pub trait Float: Core {
                 match self.f_stack().pop() {
                     Ok(n) => {
                         match self.f_stack().push(n - t) {
-                            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                            Err(_) => self.abort_with(FloatingPointStackOverflow),
                             Ok(()) => {}
                         }
                     }
-                    Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -351,14 +351,14 @@ pub trait Float: Core {
                 match self.f_stack().pop() {
                     Ok(n) => {
                         match self.f_stack().push(n * t) {
-                            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                            Err(_) => self.abort_with(FloatingPointStackOverflow),
                             Ok(()) => {}
                         }
                     }
-                    Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -368,14 +368,14 @@ pub trait Float: Core {
                 match self.f_stack().pop() {
                     Ok(n) => {
                         match self.f_stack().push(n / t) {
-                            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
+                            Err(_) => self.abort_with(FloatingPointStackOverflow),
                             Ok(()) => {}
                         }
                     }
-                    Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -385,11 +385,11 @@ pub trait Float: Core {
                 if x3 > 0.0 {
                     if let Err(e) = self.s_stack()
                            .push(if (x1 - x2).abs() < x3 { TRUE } else { FALSE }) {
-                        self.set_error(Some(e));
+                        self.abort_with(e);
                     }
                 } else if x3 == 0.0 {
                     if let Err(e) = self.s_stack().push(if x1 == x2 { TRUE } else { FALSE }) {
-                        self.set_error(Some(e));
+                        self.abort_with(e);
                     }
                 } else {
                     if let Err(e) = self.s_stack()
@@ -398,11 +398,11 @@ pub trait Float: Core {
                                  } else {
                                      FALSE
                                  }) {
-                        self.set_error(Some(e));
+                        self.abort_with(e);
                     }
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -411,7 +411,7 @@ pub trait Float: Core {
             Ok(t) => {
                 self.push(if t < 0.0 { TRUE } else { FALSE });
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -420,7 +420,7 @@ pub trait Float: Core {
             Ok(t) => {
                 self.push(if t == 0.0 { TRUE } else { FALSE });
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -431,10 +431,10 @@ pub trait Float: Core {
                     Ok(n) => {
                         self.push(if n < t { TRUE } else { FALSE });
                     }
-                    Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -442,11 +442,11 @@ pub trait Float: Core {
         match self.f_stack().pop2() {
             Ok((t,n)) => {
                 match self.f_stack().push(t.min(n)) {
-                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -454,11 +454,11 @@ pub trait Float: Core {
         match self.f_stack().pop2() {
             Ok((t,n)) => {
                 match self.f_stack().push(t.max(n)) {
-                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -466,11 +466,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.round()) {
-                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -478,11 +478,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.floor()) {
-                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -490,11 +490,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.ceil()) {
-                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 
@@ -502,11 +502,11 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(-t) {
-                    Err(_) => { self.set_error(Some(FloatingPointStackOverflow)); }
+                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
                     Ok(()) => {}
                 }
             }
-            Err(_) => self.set_error(Some(FloatingPointStackUnderflow)),
+            Err(_) => self.abort_with(FloatingPointStackUnderflow),
         }
     }
 }

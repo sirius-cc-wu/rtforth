@@ -35,12 +35,12 @@ pub trait Facility: Core {
             match self.s_stack()
                       .push2(t.bitand(usize::max_value() as u64) as isize,
                              t.shr(usize::max_value().count_ones()) as isize) {
-                Err(_) => self.set_error(Some(StackOverflow)),
+                Err(_) => self.abort_with(StackOverflow),
                 Ok(()) => {}
             }
         } else {
             match self.s_stack().push2(t as isize, 0) {
-                Err(_) => self.set_error(Some(StackOverflow)),
+                Err(_) => self.abort_with(StackOverflow),
                 Ok(()) => {}
             }
         }
@@ -67,12 +67,12 @@ pub trait Facility: Core {
             match self.s_stack()
                       .push2(t.bitand(usize::max_value() as u64) as isize,
                              t.shr(usize::max_value().count_ones()) as isize) {
-                Err(_) => self.set_error(Some(StackOverflow)),
+                Err(_) => self.abort_with(StackOverflow),
                 Ok(()) => {}
             }
         } else {
             match self.s_stack().push2(t as isize, 0) {
-                Err(_) => self.set_error(Some(StackOverflow)),
+                Err(_) => self.abort_with(StackOverflow),
                 Ok(()) => {}
             }
         }

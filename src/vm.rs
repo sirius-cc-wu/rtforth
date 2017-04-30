@@ -15,6 +15,7 @@ use exception::Exception::{self, StackUnderflow, StackOverflow, ReturnStackUnder
 // Virtual machine
 pub struct VM {
     last_error: Option<Exception>,
+    handler: usize,
     structure_depth: usize,
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
@@ -34,6 +35,7 @@ impl VM {
     pub fn new(pages: usize) -> VM {
         let mut vm = VM {
             last_error: None,
+            handler: BC_HALT,
             structure_depth: 0,
             s_stk: Stack::with_capacity(64),
             r_stk: Stack::with_capacity(64),
@@ -64,6 +66,12 @@ impl Core for VM {
     }
     fn set_error(&mut self, e: Option<Exception>) {
         self.last_error = e;
+    }
+    fn handler(&self) -> usize {
+        self.handler
+    }
+    fn set_handler(&mut self, h: usize) {
+        self.handler = h;
     }
     fn structure_depth(&self) -> usize {
         self.structure_depth
@@ -158,7 +166,7 @@ fn switch_threading_run(vm: &mut VM) {
             BC_NOOP => {}
             BC_EXIT => {
                 if vm.r_stack().len == 0 {
-                    vm.set_error(Some(ReturnStackUnderflow));
+                    vm.abort_with(ReturnStackUnderflow);
                 } else {
                     vm.r_stack().len -= 1;
                     unsafe {
@@ -172,7 +180,7 @@ fn switch_threading_run(vm: &mut VM) {
             }
             BC_LIT => {
                 if vm.s_stack().is_full() {
-                    vm.set_error(Some(StackOverflow));
+                    vm.abort_with(StackOverflow);
                 } else {
                     unsafe {
                         let v = vm.data_space().get_i32(ip) as isize;
@@ -185,7 +193,7 @@ fn switch_threading_run(vm: &mut VM) {
             BC_FLIT => {
                 let v = vm.data_space().get_f64(ip);
                 match vm.f_stack().push(v) {
-                    Err(_) => vm.set_error(Some(FloatingPointStackOverflow)),
+                    Err(_) => vm.abort_with(FloatingPointStackOverflow),
                     Ok(()) => {
                             ip += mem::size_of::<f64>();
                         }
@@ -195,7 +203,7 @@ fn switch_threading_run(vm: &mut VM) {
                 let cnt = vm.data_space().get_i32(ip);
                 let addr = ip + mem::size_of::<i32>();
                 match vm.s_stack().push2(addr as isize, cnt as isize) {
-                    Err(_) => vm.set_error(Some(StackOverflow)),
+                    Err(_) => vm.abort_with(StackOverflow),
                     Ok(()) => {
                             ip +=  mem::size_of::<i32>() + cnt as usize;
                         }
@@ -213,12 +221,12 @@ fn switch_threading_run(vm: &mut VM) {
                             ip += mem::size_of::<i32>();
                         }
                     }
-                    Err(_) => vm.set_error(Some(StackUnderflow)),
+                    Err(_) => vm.abort_with(StackUnderflow),
                 }
             }
             BC_DO => {
                 match vm.r_stack().push(ip as isize) {
-                    Err(_) => vm.set_error(Some(ReturnStackOverflow)),
+                    Err(_) => vm.abort_with(ReturnStackOverflow),
                     Ok(()) => {
                             ip += mem::size_of::<i32>();
                             vm.two_to_r();
@@ -230,7 +238,7 @@ fn switch_threading_run(vm: &mut VM) {
                     Ok((rn, rt)) => {
                         if rt + 1 < rn {
                             if let Err(e) = vm.r_stack().push2(rn, rt + 1) {
-                                vm.set_error(Some(e));
+                                vm.abort_with(e);
                                 return;
                             }
                             ip = vm.data_space().get_i32(ip) as usize;
@@ -239,11 +247,11 @@ fn switch_threading_run(vm: &mut VM) {
                                 Ok(_) => {
                                     ip += mem::size_of::<i32>();
                                 }
-                                Err(_) => vm.set_error(Some(ReturnStackUnderflow)),
+                                Err(_) => vm.abort_with(ReturnStackUnderflow),
                             }
                         }
                     }
-                    Err(_) => vm.set_error(Some(ReturnStackUnderflow)),
+                    Err(_) => vm.abort_with(ReturnStackUnderflow),
                 }
             }
             BC_PLUS_LOOP => {
@@ -253,7 +261,7 @@ fn switch_threading_run(vm: &mut VM) {
                             Ok(t) => {
                                 if rt + t < rn {
                                     if let Err(e) = vm.r_stack().push2(rn, rt + t) {
-                                        vm.set_error(Some(e));
+                                        vm.abort_with(e);
                                         return;
                                     }
                                     ip = vm.data_space().get_i32(ip) as usize;
@@ -262,20 +270,20 @@ fn switch_threading_run(vm: &mut VM) {
                                         Ok(_) => {
                                             ip += mem::size_of::<i32>();
                                         }
-                                        Err(_) => vm.set_error(Some(ReturnStackUnderflow)),
+                                        Err(_) => vm.abort_with(ReturnStackUnderflow),
                                     }
                                 }
                             }
-                            Err(_) => vm.set_error(Some(StackUnderflow)),
+                            Err(_) => vm.abort_with(StackUnderflow),
                         }
                     }
-                    Err(_) => vm.set_error(Some(ReturnStackUnderflow)),
+                    Err(_) => vm.abort_with(ReturnStackUnderflow),
                 }
             }
             BC_UNLOOP => {
                 match vm.r_stack().pop3() {
                     Ok(_) => {}
-                    Err(_) => vm.set_error(Some(ReturnStackUnderflow)),
+                    Err(_) => vm.abort_with(ReturnStackUnderflow),
                 }
             }
             BC_LEAVE => {
@@ -283,7 +291,7 @@ fn switch_threading_run(vm: &mut VM) {
                     Ok((third, _, _)) => {
                         ip = vm.data_space().get_i32(third as usize) as usize;
                     }
-                    Err(_) => vm.set_error(Some(ReturnStackUnderflow)),
+                    Err(_) => vm.abort_with(ReturnStackUnderflow),
                 }
             }
             BC_I => {
@@ -291,7 +299,7 @@ fn switch_threading_run(vm: &mut VM) {
                     Some(i) => {
                         vm.push(i);
                     }
-                    None => vm.set_error(Some(ReturnStackUnderflow)),
+                    None => vm.abort_with(ReturnStackUnderflow),
                 }
             }
             BC_J => {
@@ -300,14 +308,14 @@ fn switch_threading_run(vm: &mut VM) {
                     Some(j) => {
                         vm.push(j);
                     }
-                    None => vm.set_error(Some(ReturnStackUnderflow)),
+                    None => vm.abort_with(ReturnStackUnderflow),
                 }
             }
             BC_TO_R => {
                 match vm.s_stack().pop() {
                     Ok(v) => {
                         if vm.r_stack().is_full() {
-                            vm.set_error(Some(ReturnStackOverflow));
+                            vm.abort_with(ReturnStackOverflow);
                         } else {
                             unsafe {
                                 ptr::write(vm.r_stack().inner.offset(vm.r_stack().len as isize), v);
@@ -315,20 +323,20 @@ fn switch_threading_run(vm: &mut VM) {
                             vm.r_stack().len += 1;
                         }
                     }
-                    Err(_) => vm.set_error(Some(StackUnderflow)),
+                    Err(_) => vm.abort_with(StackUnderflow),
                 }
             }
             BC_R_FROM => {
                 if vm.r_stack().len == 0 {
-                    vm.set_error(Some(ReturnStackUnderflow));
+                    vm.abort_with(ReturnStackUnderflow);
                 } else if vm.s_stack().is_full() {
-                    vm.set_error(Some(StackOverflow));
+                    vm.abort_with(StackOverflow);
                 } else {
                     vm.r_stack().len -= 1;
                     unsafe {
                         let r0 = vm.r_stack().inner.offset(vm.r_stack().len as isize);
                         match vm.s_stack().push(ptr::read(r0)) {
-                            Err(e) => vm.set_error(Some(e)),
+                            Err(e) => vm.abort_with(e),
                             Ok(()) => {}
                         }
                     }
@@ -336,16 +344,16 @@ fn switch_threading_run(vm: &mut VM) {
             }
             BC_R_FETCH => {
                 if vm.r_stack().len == 0 {
-                    vm.set_error(Some(ReturnStackUnderflow));
+                    vm.abort_with(ReturnStackUnderflow);
                 } else if vm.s_stack().is_full() {
-                    vm.set_error(Some(StackOverflow));
+                    vm.abort_with(StackOverflow);
                 } else {
                     unsafe {
                         let r1 = vm.r_stack()
                             .inner
                             .offset((vm.r_stack().len - 1) as isize);
                         match vm.s_stack().push(ptr::read(r1)) {
-                            Err(e) => vm.set_error(Some(e)),
+                            Err(e) => vm.abort_with(e),
                             Ok(()) => {}
                         }
                     }
@@ -357,20 +365,20 @@ fn switch_threading_run(vm: &mut VM) {
             BC_TWO_R_FROM => {
                 // TODO: check overflow.
                 if vm.r_stack().len < 2 {
-                    vm.set_error(Some(ReturnStackUnderflow));
+                    vm.abort_with(ReturnStackUnderflow);
                 } else {
                     vm.r_stack().len -= 2;
                     unsafe {
                         let r0 = vm.r_stack().inner.offset(vm.r_stack().len as isize);
                         match vm.s_stack().push(ptr::read(r0)) {
-                            Err(e) => vm.set_error(Some(e)),
+                            Err(e) => vm.abort_with(e),
                             Ok(()) => {}
                         }
                         let r1 = vm.r_stack()
                             .inner
                             .offset((vm.r_stack().len + 1) as isize);
                         match vm.s_stack().push(ptr::read(r1)) {
-                            Err(e) => vm.set_error(Some(e)),
+                            Err(e) => vm.abort_with(e),
                             Ok(()) => {}
                         }
                     }
@@ -378,21 +386,21 @@ fn switch_threading_run(vm: &mut VM) {
             }
             BC_TWO_R_FETCH => {
                 if vm.r_stack().len < 2 {
-                    vm.set_error(Some(ReturnStackUnderflow));
+                    vm.abort_with(ReturnStackUnderflow);
                 } else {
                     unsafe {
                         let r2 = vm.r_stack()
                             .inner
                             .offset((vm.r_stack().len - 2) as isize);
                         match vm.s_stack().push(ptr::read(r2)) {
-                            Err(e) => vm.set_error(Some(e)),
+                            Err(e) => vm.abort_with(e),
                             Ok(()) => {}
                         }
                         let r1 = vm.r_stack()
                             .inner
                             .offset((vm.r_stack().len - 1) as isize);
                         match vm.s_stack().push(ptr::read(r1)) {
-                            Err(e) => vm.set_error(Some(e)),
+                            Err(e) => vm.abort_with(e),
                             Ok(()) => {}
                         }
                     }

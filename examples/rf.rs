@@ -223,6 +223,7 @@ fn repl(vm: &mut VM) {
           COMPILING? IF COMPILE-TOKEN ELSE INTERPRET-TOKEN THEN
         REPEAT ;
     : QUIT
+        RESET
         BEGIN ACCEPT EVALUATE
           ERROR?
           IF HANDLE-ERROR ELSE .\"  ok\" THEN

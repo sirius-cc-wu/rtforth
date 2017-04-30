@@ -453,6 +453,7 @@ pub trait Core: Sized {
         self.add_primitive("marker", Core::marker);
         self.add_primitive("error?", Core::p_error_q);
         self.add_primitive("handle-error", Core::p_handle_error);
+        self.add_primitive("reset", Core::reset);
         self.add_primitive("abort", Core::abort);
         self.add_primitive("bye", Core::bye);
         self.add_primitive("jit", Core::jit);
@@ -2129,7 +2130,7 @@ pub trait Core: Sized {
         match self.last_error() {
             Some(e) => {
                 self.clear_stacks();
-                self.reset();
+                self.set_error(None);
                 match self.output_buffer().as_mut() {
                     Some(buf) => {
                         write!(buf, "{} ", e.description()).unwrap();
@@ -2163,7 +2164,6 @@ pub trait Core: Sized {
     /// Abort the inner loop with an exception, reset VM and clears stacks.
     fn abort_with(&mut self, e: Exception) {
         self.clear_stacks();
-        self.reset();
         self.set_error(Some(e));
     }
 

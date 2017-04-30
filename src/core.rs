@@ -611,27 +611,28 @@ pub trait Core: Sized {
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
     fn parse_word(&mut self) {
-        let mut last_token = self.last_token().take().unwrap();
+        let mut last_token = self.last_token().take().expect("token");
         last_token.clear();
-        let input_buffer = self.input_buffer().take().unwrap();
-        if self.state().source_index < input_buffer.len() {
-            let source = &input_buffer[self.state().source_index..input_buffer.len()];
-            let mut cnt = 0;
-            for ch in source.chars() {
-                cnt = cnt + 1;
-                match ch {
-                    '\t' | '\n' | '\r' | ' ' => {
-                        if !last_token.is_empty() {
-                            break;
+        if let Some(input_buffer) = self.input_buffer().take() {
+            if self.state().source_index < input_buffer.len() {
+                let source = &input_buffer[self.state().source_index..input_buffer.len()];
+                let mut cnt = 0;
+                for ch in source.chars() {
+                    cnt = cnt + 1;
+                    match ch {
+                        '\t' | '\n' | '\r' | ' ' => {
+                            if !last_token.is_empty() {
+                                break;
+                            }
                         }
-                    }
-                    _ => last_token.push(ch),
-                };
+                        _ => last_token.push(ch),
+                    };
+                }
+                self.state().source_index = self.state().source_index + cnt;
             }
-            self.state().source_index = self.state().source_index + cnt;
+            self.set_input_buffer(input_buffer);
         }
         self.set_last_token(last_token);
-        self.set_input_buffer(input_buffer);
     }
 
     /// Run-time: ( "&lt;spaces&gt;name" -- char)
@@ -643,7 +644,7 @@ pub trait Core: Sized {
         if self.last_error().is_some() {
             return;
         }
-        let last_token = self.last_token().take().unwrap();
+        let last_token = self.last_token().take().expect("token");
         match last_token.chars().nth(0) {
             Some(c) => self.push(c as isize),
             None => self.abort_with(UnexpectedEndOfFile),
@@ -676,10 +677,10 @@ pub trait Core: Sized {
     ///
     /// Parse ccc delimited by the delimiter char.
     fn parse(&mut self) {
-        let input_buffer = self.input_buffer().take().unwrap();
+        let input_buffer = self.input_buffer().take().expect("input buffer");
         match self.s_stack().pop() {
             Ok(v) => {
-                let mut last_token = self.last_token().take().unwrap();
+                let mut last_token = self.last_token().take().expect("token");
                 last_token.clear();
                 {
                     let source = &input_buffer[self.state().source_index..input_buffer.len()];
@@ -719,7 +720,7 @@ pub trait Core: Sized {
     }
 
     fn compile_token(&mut self) {
-        let last_token = self.last_token().take().unwrap();
+        let last_token = self.last_token().take().expect("token");
         match self.find(&last_token) {
             Some(found_index) => {
                 self.set_last_token(last_token);

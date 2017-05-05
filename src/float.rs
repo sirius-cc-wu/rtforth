@@ -440,9 +440,11 @@ pub trait Float: Core {
 
     fn fmin(&mut self) {
         match self.f_stack().pop2() {
-            Ok((t,n)) => {
+            Ok((t, n)) => {
                 match self.f_stack().push(t.min(n)) {
-                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
+                    Err(_) => {
+                        self.abort_with(FloatingPointStackOverflow);
+                    }
                     Ok(()) => {}
                 }
             }
@@ -452,9 +454,11 @@ pub trait Float: Core {
 
     fn fmax(&mut self) {
         match self.f_stack().pop2() {
-            Ok((t,n)) => {
+            Ok((t, n)) => {
                 match self.f_stack().push(t.max(n)) {
-                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
+                    Err(_) => {
+                        self.abort_with(FloatingPointStackOverflow);
+                    }
                     Ok(()) => {}
                 }
             }
@@ -466,7 +470,9 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.round()) {
-                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
+                    Err(_) => {
+                        self.abort_with(FloatingPointStackOverflow);
+                    }
                     Ok(()) => {}
                 }
             }
@@ -478,7 +484,9 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.floor()) {
-                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
+                    Err(_) => {
+                        self.abort_with(FloatingPointStackOverflow);
+                    }
                     Ok(()) => {}
                 }
             }
@@ -490,7 +498,9 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(t.ceil()) {
-                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
+                    Err(_) => {
+                        self.abort_with(FloatingPointStackOverflow);
+                    }
                     Ok(()) => {}
                 }
             }
@@ -502,7 +512,9 @@ pub trait Float: Core {
         match self.f_stack().pop() {
             Ok(t) => {
                 match self.f_stack().push(-t) {
-                    Err(_) => { self.abort_with(FloatingPointStackOverflow); }
+                    Err(_) => {
+                        self.abort_with(FloatingPointStackOverflow);
+                    }
                     Ok(()) => {}
                 }
             }

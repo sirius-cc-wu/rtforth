@@ -392,7 +392,6 @@ pub trait Core: Sized {
         self.add_primitive("xor", Core::xor); // j1, Ngaro, jx, eForth
         self.add_primitive("lshift", Core::lshift); // jx, Ngaro
         self.add_primitive("rshift", Core::rshift); // jx
-        self.add_primitive("arshift", Core::arshift); // jx, Ngaro
         self.add_primitive("1+", Core::one_plus); // Ngaro
         self.add_primitive("1-", Core::one_minus); // Ngaro, jx
         self.add_primitive("-", Core::minus); // Ngaro
@@ -1641,19 +1640,6 @@ pub trait Core: Sized {
         }
     }
 
-    /// Run-time: ( x1 u -- x2 )
-    ///
-    /// Perform a arithmetic right shift of `u` bit-places on `x1`, giving `x2`. Put
-    /// zeroes into the most significant bits vacated by the shift. An
-    /// ambiguous condition exists if `u` is greater than or equal to the number
-    /// of bits in a cell.
-    fn arshift(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => self.push(n >> t),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
-    }
-
     /// Interpretation: Interpretation semantics for this word are undefined.
     ///
     /// Execution: ( -- ) ( R: nest-sys -- )
@@ -2567,10 +2553,6 @@ mod tests {
     #[test]
     fn test_abs() {
         let vm = &mut VM::new(16);
-        vm.abs();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
         vm.s_stack().push(-30).unwrap();
         vm.abs();
         assert!(vm.last_error().is_none());
@@ -2859,19 +2841,12 @@ mod tests {
     #[test]
     fn test_and() {
         let vm = &mut VM::new(16);
-        vm.and();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
-        vm.s_stack().push(707).unwrap();
-        vm.and();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
         vm.s_stack().push(707).unwrap();
         vm.s_stack().push(007).unwrap();
         vm.and();
         assert!(vm.last_error().is_none());
+        assert!(!vm.s_stack().overflow());
+        assert!(!vm.s_stack().underflow());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(3));
     }
@@ -2966,32 +2941,6 @@ mod tests {
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert!(vm.s_stack().pop().unwrap() > 0);
-    }
-
-    #[test]
-    fn test_arshift() {
-        let vm = &mut VM::new(16);
-        vm.arshift();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
-        vm.s_stack().push(8).unwrap();
-        vm.arshift();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
-        vm.s_stack().push(8).unwrap();
-        vm.s_stack().push(1).unwrap();
-        vm.arshift();
-        assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(4));
-        vm.s_stack().push(-8).unwrap();
-        vm.s_stack().push(1).unwrap();
-        vm.arshift();
-        assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-4));
     }
 
     #[test]

@@ -813,7 +813,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Ok(0));
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.f_stack().as_slice(), []);
-        vm.s_stack().clear();
+        vm.s_stack().reset();
         vm.set_source("0.1 0.1 0.001 f~   0.1 0.109 0.01 f~   0.1 0.111  0.01 f~");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -822,7 +822,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.f_stack().as_slice(), []);
-        vm.s_stack().clear();
+        vm.s_stack().reset();
         vm.set_source("0.1 0.1 -0.001 f~   0.1 0.109 -0.1 f~   0.1 0.109  -0.01 f~");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -831,7 +831,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         assert_eq!(vm.f_stack().as_slice(), []);
-        vm.s_stack().clear();
+        vm.s_stack().reset();
     }
 
     #[test]

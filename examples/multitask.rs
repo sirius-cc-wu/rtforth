@@ -21,7 +21,7 @@ mod vm {
         tasks: [Task; 2],
         last_error: Option<Exception>,
         handler: usize,
-        structure_depth: usize,
+        structure_depth: u8,
         symbols: Vec<String>,
         last_definition: usize,
         wordlist: Vec<Word<VM>>,
@@ -38,15 +38,15 @@ mod vm {
                 current_task: 0,
                 tasks: [Task {
                             state: State::new(),
-                            s_stk: Stack::with_capacity(64),
-                            r_stk: Stack::with_capacity(64),
-                            f_stk: Stack::with_capacity(16),
+                            s_stk: Stack::new(0x12345678),
+                            r_stk: Stack::new(0x12345678),
+                            f_stk: Stack::new(1.234567890),
                         },
                         Task {
                             state: State::new(),
-                            s_stk: Stack::with_capacity(64),
-                            r_stk: Stack::with_capacity(64),
-                            f_stk: Stack::with_capacity(16),
+                            s_stk: Stack::new(0x12345678),
+                            r_stk: Stack::new(0x12345678),
+                            f_stk: Stack::new(1.234567890),
                         }],
                 last_error: None,
                 handler: BC_HALT,
@@ -88,10 +88,10 @@ mod vm {
         fn set_handler(&mut self, h: usize) {
             self.handler = h;
         }
-        fn structure_depth(&self) -> usize {
+        fn structure_depth(&self) -> u8 {
             self.structure_depth
         }
-        fn set_structure_depth(&mut self, depth: usize) {
+        fn set_structure_depth(&mut self, depth: u8) {
             self.structure_depth = depth
         }
         fn data_space(&mut self) -> &mut DataSpace {

@@ -36,7 +36,7 @@ mod vm {
         tasks_used: [bool; 3],
         tasks: [Task; 3],
         symbols: Vec<String>,
-        structure_depth: usize,
+        structure_depth: u8,
         last_definition: usize,
         wordlist: Vec<Word<VM>>,
         jitmem: DataSpace,
@@ -53,9 +53,9 @@ mod vm {
                             last_error: None,
                             handler: BC_HALT,
                             state: State::new(),
-                            s_stk: Stack::with_capacity(64),
-                            r_stk: Stack::with_capacity(64),
-                            f_stk: Stack::with_capacity(16),
+                            s_stk: Stack::new(0x12345678),
+                            r_stk: Stack::new(0x12345678),
+                            f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
                             outbuf: Some(String::with_capacity(BUFFER_SIZE)),
@@ -64,9 +64,9 @@ mod vm {
                             last_error: None,
                             handler: BC_HALT,
                             state: State::new(),
-                            s_stk: Stack::with_capacity(64),
-                            r_stk: Stack::with_capacity(64),
-                            f_stk: Stack::with_capacity(16),
+                            s_stk: Stack::new(0x12345678),
+                            r_stk: Stack::new(0x12345678),
+                            f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
                             outbuf: Some(String::with_capacity(BUFFER_SIZE)),
@@ -75,9 +75,9 @@ mod vm {
                             last_error: None,
                             handler: BC_HALT,
                             state: State::new(),
-                            s_stk: Stack::with_capacity(64),
-                            r_stk: Stack::with_capacity(64),
-                            f_stk: Stack::with_capacity(16),
+                            s_stk: Stack::new(0x12345678),
+                            r_stk: Stack::new(0x12345678),
+                            f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
                             outbuf: Some(String::with_capacity(BUFFER_SIZE)),
@@ -134,10 +134,10 @@ mod vm {
         fn set_handler(&mut self, h: usize) {
             self.tasks[self.current_task].handler = h;
         }
-        fn structure_depth(&self) -> usize {
+        fn structure_depth(&self) -> u8 {
             self.structure_depth
         }
-        fn set_structure_depth(&mut self, depth: usize) {
+        fn set_structure_depth(&mut self, depth: u8) {
             self.structure_depth = depth
         }
         fn data_space(&mut self) -> &mut DataSpace {

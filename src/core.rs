@@ -1,17 +1,12 @@
 extern crate libc;
 
-extern "C" {
-    fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
-}
-
 use {TRUE, FALSE};
 use std::process;
 use std::mem;
-use std::ptr::{self, Unique};
+use std::ops::{Index, IndexMut};
 use std::fmt;
 use std::fmt::Write;
 use std::str::FromStr;
-use std::slice;
 use std::ascii::AsciiExt;
 use std::result;
 use jitmem::{self, DataSpace};
@@ -81,128 +76,96 @@ impl<Target> Word<Target> {
     }
 }
 
-pub struct Stack<T> {
-    pub inner: Unique<T>,
-    pub cap: usize,
-    pub len: usize,
+pub struct Stack<T: Default> {
+    pub inner: [T; 256],
+    pub len: u8,
+    pub canary: T,
 }
 
-impl<T> Stack<T> {
-    pub fn with_capacity(cap: usize) -> Self {
-        assert!(cap > 0 && cap <= 2048, "Invalid stack capacity");
-        let align = mem::align_of::<isize>();
-        let elem_size = mem::size_of::<isize>();
-        let size_in_bytes = cap * elem_size;
-        unsafe {
-            let mut ptr = mem::uninitialized();
-            libc::posix_memalign(&mut ptr, align, size_in_bytes);
-            if ptr.is_null() {
-                panic!("Cannot allocate memory.");
-            }
-            libc::mprotect(ptr, size_in_bytes, libc::PROT_READ | libc::PROT_WRITE);
-            memset(ptr, 0x00, size_in_bytes);
-            Stack {
-                inner: Unique::new(ptr as *mut _),
-                cap: cap,
-                len: 0,
-            }
+impl<T: Default+Copy+PartialEq> Stack<T> {
+    pub fn new(canary: T) -> Self {
+        let mut result = Stack {
+            inner: [T::default(); 256],
+            len: 0,
+            canary: canary,
+        };
+        result.reset();
+        result
+    }
+
+    pub fn reset(&mut self) {
+        self.len = 0;
+        for i in 32..256 {
+            self.inner[i] = self.canary;
         }
+    }
+
+    pub fn underflow(&self) -> bool {
+        self.inner[255] != self.canary
+    }
+
+    pub fn overflow(&self) -> bool {
+        self.inner[32] != self.canary
     }
 
     pub fn push(&mut self, v: T) -> Result {
-        if self.len >= self.cap {
-            Err(StackOverflow)
-        } else {
-            unsafe {
-                ptr::write(self.inner.offset(self.len as isize), v);
-            }
-            self.len += 1;
-            Ok(())
-        }
+        let len = self.len.wrapping_add(1);
+        self.len = len;
+        self.inner[self.len.wrapping_sub(1) as usize] = v;
+        Ok(())
     }
 
     pub fn pop(&mut self) -> result::Result<T, Exception> {
-        if self.len < 1 {
-            Err(StackUnderflow)
-        } else {
-            self.len -= 1;
-            unsafe { Ok(ptr::read(self.inner.offset(self.len as isize))) }
-        }
+        let result = Ok(self.inner[self.len.wrapping_sub(1) as usize]);
+        self.len = self.len.wrapping_sub(1);
+        result
     }
 
     pub fn push2(&mut self, v1: T, v2: T) -> Result {
-        if self.len + 2 > self.cap {
-            Err(StackOverflow)
-        } else {
-            unsafe {
-                ptr::write(self.inner.offset(self.len as isize), v1);
-                ptr::write(self.inner.offset((self.len + 1) as isize), v2);
-            }
-            self.len += 2;
-            Ok(())
-        }
+        let len = self.len.wrapping_add(2);
+        self.len = len;
+        self.inner[self.len.wrapping_sub(2) as usize] = v1;
+        self.inner[self.len.wrapping_sub(1) as usize] = v2;
+        Ok(())
     }
 
     pub fn push3(&mut self, v1: T, v2: T, v3: T) -> Result {
-        if self.len + 3 > self.cap {
-            Err(StackOverflow)
-        } else {
-            unsafe {
-                ptr::write(self.inner.offset(self.len as isize), v1);
-                ptr::write(self.inner.offset((self.len + 1) as isize), v2);
-                ptr::write(self.inner.offset((self.len + 2) as isize), v3);
-            }
-            self.len += 3;
-            Ok(())
-        }
+        let len = self.len.wrapping_add(3);
+        self.len = len;
+        self.inner[self.len.wrapping_sub(3) as usize] = v1;
+        self.inner[self.len.wrapping_sub(2) as usize] = v2;
+        self.inner[self.len.wrapping_sub(1) as usize] = v3;
+        Ok(())
     }
 
     pub fn pop2(&mut self) -> result::Result<(T, T), Exception> {
-        if self.len < 2 {
-            Err(StackUnderflow)
-        } else {
-            self.len -= 2;
-            unsafe {
-                Ok((ptr::read(self.inner.offset(self.len as isize)),
-                    ptr::read(self.inner.offset((self.len + 1) as isize))))
-            }
-        }
+        let result = Ok((self.inner[self.len.wrapping_sub(2) as usize],
+            self.inner[self.len.wrapping_sub(1) as usize]));
+        self.len = self.len.wrapping_sub(2);
+        result
     }
 
     pub fn pop3(&mut self) -> result::Result<(T, T, T), Exception> {
-        if self.len < 3 {
-            Err(StackUnderflow)
-        } else {
-            self.len -= 3;
-            unsafe {
-                Ok((ptr::read(self.inner.offset(self.len as isize)),
-                    ptr::read(self.inner.offset((self.len + 1) as isize)),
-                    ptr::read(self.inner.offset((self.len + 2) as isize))))
-            }
-        }
+        let result = Ok((self.inner[self.len.wrapping_sub(3) as usize],
+            self.inner[self.len.wrapping_sub(2) as usize],
+            self.inner[self.len.wrapping_sub(1) as usize]));
+        self.len = self.len.wrapping_sub(3);
+        result
     }
 
     pub fn last(&self) -> Option<T> {
-        if self.len == 0 {
-            None
-        } else {
-            unsafe { Some(ptr::read(self.inner.offset((self.len - 1) as isize))) }
-        }
+        Some(self.inner[self.len.wrapping_sub(1) as usize])
     }
 
-    pub fn get(&self, pos: usize) -> Option<T> {
-        if pos >= self.len {
-            None
-        } else {
-            unsafe { Some(ptr::read(self.inner.offset(pos as isize))) }
-        }
+    pub fn get(&self, pos: u8) -> Option<T> {
+        Some(self.inner[pos as usize])
     }
 
     pub fn clear(&mut self) {
         self.len = 0;
     }
 
-    pub fn len(&self) -> usize {
+    pub fn len(&self) -> u8 {
         self.len
     }
 
@@ -210,31 +173,76 @@ impl<T> Stack<T> {
         self.len == 0
     }
 
-    pub fn is_full(&self) -> bool {
-        self.len >= self.cap
-    }
-
-    pub fn space_left(&self) -> usize {
-        self.cap - self.len
-    }
-
     /// # Safety
     /// Because the implementer (me) is still learning Rust, it is uncertain if as_slice is safe.
     pub fn as_slice(&self) -> &[T] {
-        unsafe { slice::from_raw_parts(self.inner.get(), self.len) }
+        & self.inner[..self.len as usize]
     }
 }
 
-impl<T: fmt::Display> fmt::Debug for Stack<T> {
+impl Index<u8> for Stack<isize> {
+    type Output = isize;
+    fn index(&self, index: u8) -> &isize {
+        &self.inner[index as usize]
+    }
+}
+
+impl IndexMut<u8> for Stack<isize> {
+    fn index_mut(&mut self, index: u8) -> &mut isize {
+        &mut self.inner[index as usize]
+    }
+}
+
+impl Index<u8> for Stack<f64> {
+    type Output = f64;
+    fn index(&self, index: u8) -> &f64 {
+        &self.inner[index as usize]
+    }
+}
+
+impl IndexMut<u8> for Stack<f64> {
+    fn index_mut(&mut self, index: u8) -> &mut f64 {
+        &mut self.inner[index as usize]
+    }
+}
+
+impl fmt::Debug for Stack<isize> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match write!(f, "<{}> ", self.len()) {
             Ok(_) => {
-                for i in 0..(self.len() - 1) {
-                    let v = unsafe { ptr::read(self.inner.offset(i as isize)) };
-                    match write!(f, "{} ", v) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            return Err(e);
+                if self.len == 0 {}
+                else {
+                    for i in 0..self.len.wrapping_sub(1) {
+                        let v = self[i];
+                        match write!(f, "{} ", v) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                return Err(e);
+                            }
+                        }
+                    }
+
+                }
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl fmt::Debug for Stack<f64> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match write!(f, "<F {}> ", self.len()) {
+            Ok(_) => {
+                if self.len == 0 {}
+                else {
+                    for i in 0..self.len.wrapping_sub(1) {
+                        let v = self[i];
+                        match write!(f, "{} ", v) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                return Err(e);
+                            }
                         }
                     }
                 }
@@ -330,8 +338,8 @@ pub trait Core: Sized {
     fn set_input_buffer(&mut self, buffer: String);
     fn last_token(&mut self) -> &mut Option<String>;
     fn set_last_token(&mut self, buffer: String);
-    fn structure_depth(&self) -> usize;
-    fn set_structure_depth(&mut self, d: usize);
+    fn structure_depth(&self) -> u8;
+    fn set_structure_depth(&mut self, d: u8);
     fn s_stack(&mut self) -> &mut Stack<isize>;
     fn r_stack(&mut self) -> &mut Stack<isize>;
     fn f_stack(&mut self) -> &mut Stack<f64>;
@@ -882,17 +890,11 @@ pub trait Core: Sized {
     // -----------------------
 
     fn nest(&mut self) {
-        if self.r_stack().is_full() {
-            self.abort_with(ReturnStackOverflow);
-        } else {
-            unsafe {
-                ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize),
-                           self.state().instruction_pointer as isize);
-            }
-            self.r_stack().len += 1;
-            let wp = self.state().word_pointer;
-            self.state().instruction_pointer = self.wordlist()[wp].dfa();
-        }
+        let rlen = self.r_stack().len.wrapping_add(1);
+        self.r_stack().len = rlen;
+        self.r_stack()[rlen.wrapping_sub(1)] = self.state().instruction_pointer as isize;
+        let wp = self.state().word_pointer;
+        self.state().instruction_pointer = self.wordlist()[wp].dfa();
     }
 
     fn p_var(&mut self) {
@@ -1345,33 +1347,21 @@ pub trait Core: Sized {
     }
 
     fn lit(&mut self) {
-        if self.s_stack().is_full() {
-            self.abort_with(StackOverflow);
-        } else {
-            unsafe {
-                let ip = self.state().instruction_pointer;
-                let v = self.data_space().get_i32(ip) as isize;
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len) as isize),
-                           v);
-            }
-            self.s_stack().len += 1;
-            self.state().instruction_pointer = self.state().instruction_pointer +
-                                               mem::size_of::<i32>();
-        }
+        let ip = self.state().instruction_pointer;
+        let v = self.data_space().get_i32(ip) as isize;
+        let slen = self.s_stack().len.wrapping_add(1);
+        self.s_stack()[slen.wrapping_sub(1)] = v;
+        self.state().instruction_pointer = self.state().instruction_pointer +
+                                            mem::size_of::<i32>();
     }
 
     fn flit(&mut self) {
         let ip = self.state().instruction_pointer as usize;
         let v = self.data_space().get_f64(ip);
-        match self.f_stack().push(v) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {
-                self.state().instruction_pointer = self.state().instruction_pointer +
+        let flen = self.f_stack().len.wrapping_add(1);
+        self.f_stack()[flen.wrapping_sub(1)] = v;
+        self.state().instruction_pointer = self.state().instruction_pointer +
                                                    mem::size_of::<f64>();
-            }
-        }
     }
 
     /// Runtime of S"
@@ -1379,216 +1369,82 @@ pub trait Core: Sized {
         let ip = self.state().instruction_pointer;
         let cnt = self.data_space().get_i32(ip);
         let addr = self.state().instruction_pointer + mem::size_of::<i32>();
-        match self.s_stack().push2(addr as isize, cnt as isize) {
-            Err(_) => self.abort_with(StackOverflow),
-            Ok(()) => {
-                self.state().instruction_pointer = self.state().instruction_pointer +
-                                                   mem::size_of::<i32>() +
-                                                   cnt as usize;
-            }
-        }
+        let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
+        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
+        self.state().instruction_pointer = self.state().instruction_pointer +
+                                            mem::size_of::<i32>() +
+                                            cnt as usize;
     }
 
     fn swap(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack()
-                                      .inner
-                                      .offset((self.s_stack().len - 1) as isize));
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 2) as isize)));
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 2) as isize),
-                           t);
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(1)] = n;
+        self.s_stack()[slen.wrapping_sub(2)] = t;
     }
 
     fn dup(&mut self) {
-        if self.s_stack().len < 1 {
-            self.abort_with(StackUnderflow);
-        } else if self.s_stack().is_full() {
-            self.abort_with(StackOverflow);
-        } else {
-            unsafe {
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)));
-                self.s_stack().len += 1;
-            }
-        }
+        let slen = self.s_stack().len.wrapping_add(1);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(2)];
     }
 
     fn p_drop(&mut self) {
-        if self.s_stack().len < 1 {
-            self.abort_with(StackUnderflow);
-        } else {
-            self.s_stack().len -= 1;
-        }
+        let slen = self.s_stack().len.wrapping_sub(1);
+        self.s_stack().len = slen;
     }
 
     fn nip(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len) as isize)));
-            }
-        }
+        let slen = self.s_stack().len.wrapping_sub(1);
+        let t = self.s_stack()[slen];
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = t;
     }
 
     fn over(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else if self.s_stack().is_full() {
-            self.abort_with(StackOverflow);
-        } else {
-            unsafe {
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 2) as isize)));
-                self.s_stack().len += 1;
-            }
-        }
+        let slen = self.s_stack().len.wrapping_add(1);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
     }
 
     fn rot(&mut self) {
-        if self.s_stack().len < 3 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack()
-                                      .inner
-                                      .offset((self.s_stack().len - 1) as isize));
-                let n = ptr::read(self.s_stack()
-                                      .inner
-                                      .offset((self.s_stack().len - 2) as isize));
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 3) as isize)));
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 2) as isize),
-                           t);
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 3) as isize),
-                           n);
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
+        self.s_stack()[slen.wrapping_sub(2)] = t;
+        self.s_stack()[slen.wrapping_sub(3)] = n;
     }
 
     fn two_drop(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else {
-            self.s_stack().len -= 2;
-        }
+        let slen = self.s_stack().len.wrapping_sub(2);
+        self.s_stack().len = slen;
     }
 
     fn two_dup(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else if self.s_stack().len + 2 > self.s_stack().cap {
-            self.abort_with(StackOverflow);
-        } else {
-            unsafe {
-                self.s_stack().len += 2;
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 3) as isize)));
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 2) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 4) as isize)));
-            }
-        }
+        let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
+        self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(4)];
     }
 
     fn two_swap(&mut self) {
-        if self.s_stack().len < 4 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack()
-                                      .inner
-                                      .offset((self.s_stack().len - 1) as isize));
-                let n = ptr::read(self.s_stack()
-                                      .inner
-                                      .offset((self.s_stack().len - 2) as isize));
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 3) as isize)));
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 2) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 4) as isize)));
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 3) as isize),
-                           t);
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 4) as isize),
-                           n);
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
+        self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(4)];
+        self.s_stack()[slen.wrapping_sub(3)] = t;
+        self.s_stack()[slen.wrapping_sub(4)] = n;
     }
 
     fn two_over(&mut self) {
-        if self.s_stack().len < 4 {
-            self.abort_with(StackUnderflow);
-        } else if self.s_stack().len + 2 > self.s_stack().cap {
-            self.abort_with(StackOverflow);
-        } else {
-            unsafe {
-                self.s_stack().len += 2;
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 5) as isize)));
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 2) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 6) as isize)));
-            }
-        }
+        let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(5)];
+        self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(6)];
     }
 
     fn depth(&mut self) {
@@ -1597,153 +1453,63 @@ pub trait Core: Sized {
     }
 
     fn one_plus(&mut self) {
-        if self.s_stack().len < 1 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize))
-                                   .wrapping_add(1));
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        self.s_stack()[slen.wrapping_sub(1)] = t + 1;
     }
 
     fn one_minus(&mut self) {
-        if self.s_stack().len < 1 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) -
-                           1);
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        self.s_stack()[slen.wrapping_sub(1)] = t - 1;
     }
 
     fn plus(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) +
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len) as isize)));
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = n + t;
+        self.s_stack().len = slen.wrapping_sub(1);
     }
 
     fn minus(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) -
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len) as isize)));
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = n - t;
+        self.s_stack().len = slen.wrapping_sub(1);
     }
 
     fn star(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) *
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len) as isize)));
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = n * t;
+        self.s_stack().len = slen.wrapping_sub(1);
     }
 
     fn slash(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) /
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len) as isize)));
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = n / t;
+        self.s_stack().len = slen.wrapping_sub(1);
     }
 
     fn p_mod(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len - 1) as isize)) %
-                           ptr::read(self.s_stack()
-                                         .inner
-                                         .offset((self.s_stack().len) as isize)));
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = n % t;
+        self.s_stack().len = slen.wrapping_sub(1);
     }
 
     fn slash_mod(&mut self) {
-        if self.s_stack().len < 2 {
-            self.abort_with(StackUnderflow);
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack()
-                                      .inner
-                                      .offset((self.s_stack().len - 1) as isize));
-                let n = ptr::read(self.s_stack()
-                                      .inner
-                                      .offset((self.s_stack().len - 2) as isize));
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 2) as isize),
-                           n % t);
-                ptr::write(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize),
-                           n / t);
-            }
-        }
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = n % t;
+        self.s_stack()[slen.wrapping_sub(1)] = n / t;
     }
 
     fn abs(&mut self) {
@@ -1899,15 +1665,9 @@ pub trait Core: Sized {
     ///
     /// TODO: `UNLOOP`
     fn exit(&mut self) {
-        if self.r_stack().len == 0 {
-            self.abort_with(ReturnStackUnderflow);
-        } else {
-            self.r_stack().len -= 1;
-            unsafe {
-                self.state().instruction_pointer =
-                    ptr::read(self.r_stack().inner.offset(self.r_stack().len as isize)) as usize;
-            }
-        }
+        let rlen = self.r_stack().len.wrapping_sub(1);
+        self.state().instruction_pointer = self.r_stack()[rlen] as usize;
+        self.r_stack().len = rlen;
     }
 
     /// Run-time: ( a-addr -- x )
@@ -2033,102 +1793,52 @@ pub trait Core: Sized {
     }
 
     fn p_to_r(&mut self) {
-        match self.s_stack().pop() {
-            Ok(v) => {
-                if self.r_stack().is_full() {
-                    self.abort_with(ReturnStackOverflow);
-                } else {
-                    unsafe {
-                        ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), v);
-                    }
-                    self.r_stack().len += 1;
-                }
-            }
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let slen = self.s_stack().len;
+        let rlen = self.r_stack().len.wrapping_add(1);
+        self.r_stack().len = rlen;
+        self.r_stack()[rlen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(1)];
+        self.s_stack().len = slen.wrapping_sub(1);
     }
 
     fn r_from(&mut self) {
-        if self.r_stack().len == 0 {
-            self.abort_with(ReturnStackUnderflow);
-        } else if self.s_stack().is_full() {
-            self.abort_with(StackOverflow);
-        } else {
-            self.r_stack().len -= 1;
-            unsafe {
-                let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-                self.push(ptr::read(r0));
-            }
-        }
+        let slen = self.s_stack().len.wrapping_add(1);
+        let rlen = self.r_stack().len;
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.r_stack()[rlen.wrapping_sub(1)];
+        self.r_stack().len = rlen.wrapping_sub(1);
     }
 
     fn r_fetch(&mut self) {
-        if self.r_stack().len == 0 {
-            self.abort_with(ReturnStackUnderflow);
-        } else if self.s_stack().is_full() {
-            self.abort_with(StackOverflow);
-        } else {
-            unsafe {
-                let r1 = self.r_stack()
-                    .inner
-                    .offset((self.r_stack().len - 1) as isize);
-                self.push(ptr::read(r1));
-            }
-        }
+        let slen = self.s_stack().len.wrapping_add(1);
+        let rlen = self.r_stack().len;
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.r_stack()[rlen.wrapping_sub(1)];
     }
 
     fn two_to_r(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                if self.r_stack().space_left() < 2 {
-                    self.abort_with(ReturnStackOverflow);
-                } else {
-                    unsafe {
-                        ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), n);
-                        ptr::write(self.r_stack()
-                                       .inner
-                                       .offset((self.r_stack().len + 1) as isize),
-                                   t);
-                    }
-                    self.r_stack().len += 2;
-                }
-            }
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let slen = self.s_stack().len;
+        let rlen = self.r_stack().len.wrapping_add(2);
+        self.r_stack().len = rlen;
+        self.r_stack()[rlen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(2)];
+        self.r_stack()[rlen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(1)];
+        self.s_stack().len = slen.wrapping_sub(2);
     }
 
     fn two_r_from(&mut self) {
-        // TODO: check overflow.
-        if self.r_stack().len < 2 {
-            self.abort_with(ReturnStackUnderflow);
-        } else {
-            self.r_stack().len -= 2;
-            unsafe {
-                let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-                self.push(ptr::read(r0));
-                let r1 = self.r_stack()
-                    .inner
-                    .offset((self.r_stack().len + 1) as isize);
-                self.push(ptr::read(r1));
-            }
-        }
+        let slen = self.s_stack().len.wrapping_add(2);
+        let rlen = self.r_stack().len;
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(2)] = self.r_stack()[rlen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(1)] = self.r_stack()[rlen.wrapping_sub(1)];
+        self.r_stack().len = rlen.wrapping_sub(2);
     }
 
     fn two_r_fetch(&mut self) {
-        if self.r_stack().len < 2 {
-            self.abort_with(ReturnStackUnderflow);
-        } else {
-            unsafe {
-                let r2 = self.r_stack()
-                    .inner
-                    .offset((self.r_stack().len - 2) as isize);
-                self.push(ptr::read(r2));
-                let r1 = self.r_stack()
-                    .inner
-                    .offset((self.r_stack().len - 1) as isize);
-                self.push(ptr::read(r1));
-            }
-        }
+        let slen = self.s_stack().len.wrapping_add(2);
+        let rlen = self.r_stack().len;
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(2)] = self.r_stack()[rlen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(1)] = self.r_stack()[rlen.wrapping_sub(1)];
     }
 
     // ----------------

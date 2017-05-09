@@ -202,7 +202,7 @@ impl CodeSpace {
 
             memset(ptr, 0xc3, size);
         }
-        let mut result = CodeSpace {
+        let result = CodeSpace {
             inner: unsafe { Unique::new(ptr as *mut u8) },
             cap: size,
             len: 0,

@@ -24,7 +24,7 @@ pub struct VM {
     editor: rustyline::Editor<()>,
     last_error: Option<Exception>,
     handler: usize,
-    structure_depth: usize,
+    structure_depth: u8,
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
     f_stk: Stack<f64>,
@@ -46,9 +46,9 @@ impl VM {
             last_error: None,
             handler: BC_HALT,
             structure_depth: 0,
-            s_stk: Stack::with_capacity(64),
-            r_stk: Stack::with_capacity(64),
-            f_stk: Stack::with_capacity(16),
+            s_stk: Stack::new(0x12345678),
+            r_stk: Stack::new(0x12345678),
+            f_stk: Stack::new(1.234567890),
             symbols: vec![],
             last_definition: 0,
             wordlist: vec![],
@@ -83,10 +83,10 @@ impl Core for VM {
     fn set_handler(&mut self, h: usize) {
         self.handler = h;
     }
-    fn structure_depth(&self) -> usize {
+    fn structure_depth(&self) -> u8 {
         self.structure_depth
     }
-    fn set_structure_depth(&mut self, depth: usize) {
+    fn set_structure_depth(&mut self, depth: u8) {
         self.structure_depth = depth
     }
     fn data_space(&mut self) -> &mut DataSpace {

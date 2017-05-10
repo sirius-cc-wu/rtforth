@@ -4,7 +4,7 @@ use {TRUE, FALSE};
 use std::process;
 use std::mem;
 use std::ops::{Index, IndexMut};
-use std::fmt;
+use std::fmt::{self, Display};
 use std::fmt::Write;
 use std::str::FromStr;
 use std::ascii::AsciiExt;
@@ -82,7 +82,7 @@ pub struct Stack<T: Default> {
     pub canary: T,
 }
 
-impl<T: Default+Copy+PartialEq> Stack<T> {
+impl<T: Default+Copy+PartialEq+Display> Stack<T> {
     pub fn new(canary: T) -> Self {
         let mut result = Stack {
             inner: [T::default(); 256],
@@ -113,7 +113,7 @@ impl<T: Default+Copy+PartialEq> Stack<T> {
     pub fn push(&mut self, v: T) -> Result {
         let len = self.len.wrapping_add(1);
         self.len = len;
-        self.inner[self.len.wrapping_sub(1) as usize] = v;
+        self.inner[len.wrapping_sub(1) as usize] = v;
         Ok(())
     }
 
@@ -1350,7 +1350,9 @@ pub trait Core: Sized {
     /// `n2` is the size in address units of `n1` characters.
     fn chars(&mut self) {
         match self.s_stack().pop() {
-            Ok(v) => self.push(v * mem::size_of::<u8>() as isize),
+            Ok(v) => {
+                self.push(v * mem::size_of::<u8>() as isize);
+            }
             Err(_) => self.abort_with(StackUnderflow),
         }
     }
@@ -2837,17 +2839,20 @@ mod tests {
     fn test_between() {
         let vm = &mut VM::new(16);
         vm.between();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1).unwrap();
         vm.between();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1).unwrap();
         vm.s_stack().push(1).unwrap();
         vm.between();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
@@ -2855,6 +2860,7 @@ mod tests {
         vm.s_stack().push(1).unwrap();
         vm.s_stack().push(2).unwrap();
         vm.between();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
@@ -2862,6 +2868,7 @@ mod tests {
         vm.s_stack().push(0).unwrap();
         vm.s_stack().push(1).unwrap();
         vm.between();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
@@ -2869,6 +2876,7 @@ mod tests {
         vm.s_stack().push(1).unwrap();
         vm.s_stack().push(2).unwrap();
         vm.between();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
@@ -2876,6 +2884,7 @@ mod tests {
         vm.s_stack().push(1).unwrap();
         vm.s_stack().push(2).unwrap();
         vm.between();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
@@ -3096,7 +3105,8 @@ mod tests {
         // constant x
         vm.set_source("constant");
         vm.evaluate();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        // Note: cannot detect underflow.
+        // assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         // 5 constant x x x
@@ -3142,10 +3152,13 @@ mod tests {
     fn test_char_plus_and_chars() {
         let vm = &mut VM::new(16);
         vm.char_plus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.chars();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.check_stacks();
+        // Note: Cannot detecht underflow because size of char is 1.
+        // assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         // 2 char+  9 chars
         vm.set_source("2 char+  9 chars");
@@ -3158,9 +3171,11 @@ mod tests {
     fn test_cell_plus_and_cells() {
         let vm = &mut VM::new(16);
         vm.cell_plus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.cells();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.set_source("2 cell+  9 cells");

@@ -12,7 +12,7 @@ use std::result;
 use jitmem::{self, DataSpace};
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
-                           FloatingPointStackOverflow, UnsupportedOperation,
+                           FloatingPointStackOverflow, FloatingPointStackUnderflow, UnsupportedOperation,
                            InterpretingACompileOnlyWord, ControlStructureMismatch};
 
 pub type Result = result::Result<(), Exception>;
@@ -210,7 +210,7 @@ impl fmt::Debug for Stack<isize> {
             Ok(_) => {
                 if self.len == 0 {}
                 else {
-                    for i in 0..self.len.wrapping_sub(1) {
+                    for i in 0..self.len {
                         let v = self[i];
                         match write!(f, "{} ", v) {
                             Ok(_) => {}
@@ -234,7 +234,7 @@ impl fmt::Debug for Stack<f64> {
             Ok(_) => {
                 if self.len == 0 {}
                 else {
-                    for i in 0..self.len.wrapping_sub(1) {
+                    for i in 0..self.len {
                         let v = self[i];
                         match write!(f, "{} ", v) {
                             Ok(_) => {}
@@ -336,10 +336,9 @@ pub trait Core: Sized {
     fn set_input_buffer(&mut self, buffer: String);
     fn last_token(&mut self) -> &mut Option<String>;
     fn set_last_token(&mut self, buffer: String);
-    fn structure_depth(&self) -> u8;
-    fn set_structure_depth(&mut self, d: u8);
     fn s_stack(&mut self) -> &mut Stack<isize>;
     fn r_stack(&mut self) -> &mut Stack<isize>;
+    fn c_stack(&mut self) -> &mut Stack<usize>;
     fn f_stack(&mut self) -> &mut Stack<f64>;
     fn symbols_mut(&mut self) -> &mut Vec<String>;
     fn symbols(&self) -> &Vec<String>;
@@ -383,6 +382,7 @@ pub trait Core: Sized {
         self.add_primitive("over", Core::over); // j1, jx, eForth
         self.add_primitive("nip", Core::nip); // j1, jx
         self.add_primitive("depth", Core::depth); // j1, jx
+        self.add_primitive("?stacks", Core::check_stacks); // j1, jx
         self.add_primitive("0<", Core::zero_less); // eForth
         self.add_primitive("=", Core::equals); // j1, jx
         self.add_primitive("<", Core::less_than); // j1, jx
@@ -733,6 +733,7 @@ pub trait Core: Sized {
                     self.compile_word(found_index);
                 } else {
                     self.execute_word(found_index);
+                    self.check_stacks();
                 }
             }
             None => {
@@ -772,6 +773,7 @@ pub trait Core: Sized {
                     self.abort_with(InterpretingACompileOnlyWord);
                 } else {
                     self.execute_word(found_index);
+                    self.check_stacks();
                 }
             }
             None => {
@@ -832,8 +834,14 @@ pub trait Core: Sized {
             }
             if self.state().is_compiling {
                 self.compile_token();
+                if self.last_error().is_some() {
+                    break;
+                }
             } else {
                 self.interpret_token();
+                if self.last_error().is_some() {
+                    break;
+                }
             }
             self.run();
             if self.last_error().is_some() {
@@ -944,16 +952,13 @@ pub trait Core: Sized {
         if self.last_error().is_none() {
             let def = self.last_definition();
             self.wordlist_mut()[def].set_hidden(true);
-            let depth = self.s_stack().len;
-            self.set_structure_depth(depth);
             self.right_bracket();
         }
     }
 
     fn semicolon(&mut self) {
         if self.last_definition() != 0 {
-            let depth = self.s_stack().len;
-            if depth != self.structure_depth() {
+            if self.c_stack().len != 0  {
                 self.abort_with(ControlStructureMismatch);
             } else {
                 let idx = self.references().idx_exit as i32;
@@ -1151,69 +1156,88 @@ pub trait Core: Sized {
         let idx = self.references().idx_zero_branch as i32;
         self.data_space().compile_i32(idx);
         self.data_space().compile_i32(0);
-        self.here();
+        let here = self.data_space().len();
+        self.c_stack().push(here).unwrap();
     }
 
     fn imm_else(&mut self) {
-        match self.s_stack().pop() {
+        match self.c_stack().pop() {
             Ok(if_part) => {
-                let idx = self.references().idx_branch as i32;
-                self.data_space().compile_i32(idx);
-                self.data_space().compile_i32(0);
-                self.here();
-                let here = self.data_space().len();
-                self.data_space()
-                    .put_i32(here as i32,
-                             (if_part - mem::size_of::<i32>() as isize) as usize);
+                if self.c_stack().underflow() {
+                    self.abort_with(ControlStructureMismatch);
+                } else {
+                    let idx = self.references().idx_branch as i32;
+                    self.data_space().compile_i32(idx);
+                    self.data_space().compile_i32(0);
+                    let here = self.data_space().len();
+                    self.c_stack().push(here).unwrap();
+                    self.data_space()
+                        .put_i32(here as i32,
+                                (if_part - mem::size_of::<i32>()));
+                }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
         }
     }
 
     fn imm_then(&mut self) {
-        match self.s_stack().pop() {
+        match self.c_stack().pop() {
             Ok(branch_part) => {
-                let here = self.data_space().len();
-                self.data_space()
-                    .put_i32(here as i32,
-                             (branch_part - mem::size_of::<i32>() as isize) as usize);
+                if self.c_stack().underflow() {
+                    self.abort_with(ControlStructureMismatch);
+                } else {
+                    let here = self.data_space().len();
+                    self.data_space()
+                        .put_i32(here as i32,
+                                (branch_part - mem::size_of::<i32>()));
+                }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
         }
     }
 
     fn imm_begin(&mut self) {
-        self.here();
+        let here = self.data_space().len();
+        self.c_stack().push(here).unwrap();
     }
 
     fn imm_while(&mut self) {
         let idx = self.references().idx_zero_branch as i32;
         self.data_space().compile_i32(idx);
         self.data_space().compile_i32(0);
-        self.here();
+        let here = self.data_space().len();
+        self.c_stack().push(here).unwrap();
     }
 
     fn imm_repeat(&mut self) {
-        match self.s_stack().pop2() {
+        match self.c_stack().pop2() {
             Ok((begin_part, while_part)) => {
-                let idx = self.references().idx_branch as i32;
-                self.data_space().compile_i32(idx);
-                self.data_space().compile_i32(begin_part as i32);
-                let here = self.data_space().len();
-                self.data_space()
-                    .put_i32(here as i32,
-                             (while_part - mem::size_of::<i32>() as isize) as usize);
+                if self.c_stack().underflow() {
+                    self.abort_with(ControlStructureMismatch);
+                } else {
+                    let idx = self.references().idx_branch as i32;
+                    self.data_space().compile_i32(idx);
+                    self.data_space().compile_i32(begin_part as i32);
+                    let here = self.data_space().len();
+                    self.data_space()
+                        .put_i32(here as i32,
+                                (while_part - mem::size_of::<i32>()));
+                }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
         }
     }
 
     fn imm_again(&mut self) {
-        match self.s_stack().pop() {
+        match self.c_stack().pop() {
             Ok(begin_part) => {
-                let idx = self.references().idx_branch as i32;
-                self.data_space().compile_i32(idx);
-                self.data_space().compile_i32(begin_part as i32);
+                if self.c_stack().underflow() {
+                    self.abort_with(ControlStructureMismatch);
+                } else {
+                    let idx = self.references().idx_branch as i32;
+                    self.data_space().compile_i32(idx);
+                    self.data_space().compile_i32(begin_part as i32);
+                }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
         }
@@ -1232,7 +1256,8 @@ pub trait Core: Sized {
         let idx = self.references().idx_do as i32;
         self.data_space().compile_i32(idx);
         self.data_space().compile_i32(0);
-        self.here();
+        let here = self.data_space().len();
+        self.c_stack().push(here).unwrap();
     }
 
     /// Run-time: ( a-addr -- )
@@ -1242,15 +1267,19 @@ pub trait Core: Sized {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the `LOOP`.
     fn imm_loop(&mut self) {
-        match self.s_stack().pop() {
+        match self.c_stack().pop() {
             Ok(do_part) => {
-                let idx = self.references().idx_loop as i32;
-                self.data_space().compile_i32(idx);
-                self.data_space().compile_i32(do_part as i32);
-                let here = self.data_space().len();
-                self.data_space()
-                    .put_i32(here as i32,
-                             (do_part - mem::size_of::<i32>() as isize) as usize);
+                if self.c_stack().underflow() {
+                    self.abort_with(ControlStructureMismatch);
+                } else {
+                    let idx = self.references().idx_loop as i32;
+                    self.data_space().compile_i32(idx);
+                    self.data_space().compile_i32(do_part as i32);
+                    let here = self.data_space().len();
+                    self.data_space()
+                        .put_i32(here as i32,
+                                (do_part - mem::size_of::<i32>()) as usize);
+                }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
         }
@@ -1263,15 +1292,19 @@ pub trait Core: Sized {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
     fn imm_plus_loop(&mut self) {
-        match self.s_stack().pop() {
+        match self.c_stack().pop() {
             Ok(do_part) => {
-                let idx = self.references().idx_plus_loop as i32;
-                self.data_space().compile_i32(idx);
-                self.data_space().compile_i32(do_part as i32);
-                let here = self.data_space().len();
-                self.data_space()
-                    .put_i32(here as i32,
-                             (do_part - mem::size_of::<i32>() as isize) as usize);
+                if self.c_stack().underflow() {
+                    self.abort_with(ControlStructureMismatch);
+                } else {
+                    let idx = self.references().idx_plus_loop as i32;
+                    self.data_space().compile_i32(idx);
+                    self.data_space().compile_i32(do_part as i32);
+                    let here = self.data_space().len();
+                    self.data_space()
+                        .put_i32(here as i32,
+                                (do_part - mem::size_of::<i32>()) as usize);
+                }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
         }
@@ -1347,6 +1380,7 @@ pub trait Core: Sized {
         let ip = self.state().instruction_pointer;
         let v = self.data_space().get_i32(ip) as isize;
         let slen = self.s_stack().len.wrapping_add(1);
+        self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = v;
         self.state().instruction_pointer = self.state().instruction_pointer +
                                             mem::size_of::<i32>();
@@ -1356,6 +1390,7 @@ pub trait Core: Sized {
         let ip = self.state().instruction_pointer as usize;
         let v = self.data_space().get_f64(ip);
         let flen = self.f_stack().len.wrapping_add(1);
+        self.f_stack().len = flen;
         self.f_stack()[flen.wrapping_sub(1)] = v;
         self.state().instruction_pointer = self.state().instruction_pointer +
                                                    mem::size_of::<f64>();
@@ -1367,6 +1402,7 @@ pub trait Core: Sized {
         let cnt = self.data_space().get_i32(ip);
         let addr = self.state().instruction_pointer + mem::size_of::<i32>();
         let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
         self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
         self.state().instruction_pointer = self.state().instruction_pointer +
@@ -1829,6 +1865,26 @@ pub trait Core: Sized {
     // Error handlling
     // ----------------
 
+    fn check_stacks(&mut self) {
+        if self.s_stack().overflow() {
+            self.abort_with(StackOverflow);
+        } else if self.s_stack().underflow() {
+            self.abort_with(StackUnderflow);
+        } else if self.r_stack().overflow() {
+            self.abort_with(ReturnStackOverflow);
+        } else if self.r_stack().underflow() {
+            self.abort_with(ReturnStackUnderflow);
+        } else if self.c_stack().overflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else if self.f_stack().overflow() {
+            self.abort_with(FloatingPointStackOverflow);
+        } else if self.f_stack().underflow() {
+            self.abort_with(FloatingPointStackUnderflow);
+        }
+    }
+
     fn handler_store(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
@@ -1876,6 +1932,7 @@ pub trait Core: Sized {
     /// Called by VM's client upon Quit.
     fn reset(&mut self) {
         self.r_stack().len = 0;
+        self.c_stack().len = 0;
         if let Some(ref mut buf) = *self.input_buffer() {
             buf.clear()
         }

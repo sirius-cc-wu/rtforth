@@ -24,6 +24,7 @@ mod vm {
         state: State,
         s_stk: Stack<isize>,
         r_stk: Stack<isize>,
+        c_stk: Stack<usize>,
         f_stk: Stack<f64>,
         inbuf: Option<String>,
         tkn: Option<String>,
@@ -36,7 +37,6 @@ mod vm {
         tasks_used: [bool; 3],
         tasks: [Task; 3],
         symbols: Vec<String>,
-        structure_depth: u8,
         last_definition: usize,
         wordlist: Vec<Word<VM>>,
         jitmem: DataSpace,
@@ -55,6 +55,7 @@ mod vm {
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(0x12345678),
                             f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
@@ -66,6 +67,7 @@ mod vm {
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(0x12345678),
                             f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
@@ -77,13 +79,13 @@ mod vm {
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(0x12345678),
                             f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
                             outbuf: Some(String::with_capacity(BUFFER_SIZE)),
                         }],
                 symbols: vec![],
-                structure_depth: 0,
                 last_definition: 0,
                 wordlist: vec![],
                 jitmem: DataSpace::new(pages),
@@ -134,12 +136,6 @@ mod vm {
         fn set_handler(&mut self, h: usize) {
             self.tasks[self.current_task].handler = h;
         }
-        fn structure_depth(&self) -> u8 {
-            self.structure_depth
-        }
-        fn set_structure_depth(&mut self, depth: u8) {
-            self.structure_depth = depth
-        }
         fn data_space(&mut self) -> &mut DataSpace {
             &mut self.jitmem
         }
@@ -169,6 +165,9 @@ mod vm {
         }
         fn r_stack(&mut self) -> &mut Stack<isize> {
             &mut self.tasks[self.current_task].r_stk
+        }
+        fn c_stack(&mut self) -> &mut Stack<usize> {
+            &mut self.tasks[self.current_task].c_stk
         }
         fn f_stack(&mut self) -> &mut Stack<f64> {
             &mut self.tasks[self.current_task].f_stk

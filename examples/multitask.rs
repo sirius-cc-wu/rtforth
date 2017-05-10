@@ -13,6 +13,7 @@ mod vm {
         state: State,
         s_stk: Stack<isize>,
         r_stk: Stack<isize>,
+        c_stk: Stack<usize>,
         f_stk: Stack<f64>,
     }
 
@@ -21,7 +22,6 @@ mod vm {
         tasks: [Task; 2],
         last_error: Option<Exception>,
         handler: usize,
-        structure_depth: u8,
         symbols: Vec<String>,
         last_definition: usize,
         wordlist: Vec<Word<VM>>,
@@ -40,18 +40,19 @@ mod vm {
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(0x12345678),
                             f_stk: Stack::new(1.234567890),
                         },
                         Task {
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(0x12345678),
                             f_stk: Stack::new(1.234567890),
                         }],
                 last_error: None,
                 handler: BC_HALT,
                 symbols: vec![],
-                structure_depth: 0,
                 last_definition: 0,
                 wordlist: vec![],
                 data_space: DataSpace::new(pages),
@@ -88,12 +89,6 @@ mod vm {
         fn set_handler(&mut self, h: usize) {
             self.handler = h;
         }
-        fn structure_depth(&self) -> u8 {
-            self.structure_depth
-        }
-        fn set_structure_depth(&mut self, depth: u8) {
-            self.structure_depth = depth
-        }
         fn data_space(&mut self) -> &mut DataSpace {
             &mut self.data_space
         }
@@ -123,6 +118,9 @@ mod vm {
         }
         fn r_stack(&mut self) -> &mut Stack<isize> {
             &mut self.tasks[self.current_task].r_stk
+        }
+        fn c_stack(&mut self) -> &mut Stack<usize> {
+            &mut self.tasks[self.current_task].c_stk
         }
         fn f_stack(&mut self) -> &mut Stack<f64> {
             &mut self.tasks[self.current_task].f_stk

@@ -7,16 +7,15 @@ use env::Environment;
 use facility::Facility;
 use float::Float;
 use bc::*;
-use exception::Exception::{self, StackUnderflow, StackOverflow, ReturnStackUnderflow,
-                           ReturnStackOverflow, FloatingPointStackOverflow};
+use exception::Exception;
 
 // Virtual machine
 pub struct VM {
     last_error: Option<Exception>,
     handler: usize,
-    structure_depth: u8,
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
+    c_stk: Stack<usize>,
     f_stk: Stack<f64>,
     symbols: Vec<String>,
     last_definition: usize,
@@ -34,9 +33,9 @@ impl VM {
         let mut vm = VM {
             last_error: None,
             handler: BC_HALT,
-            structure_depth: 0,
             s_stk: Stack::new(0x12345678),
             r_stk: Stack::new(0x12345678),
+            c_stk: Stack::new(0x12345678),
             f_stk: Stack::new(1.234567890),
             symbols: vec![],
             last_definition: 0,
@@ -71,12 +70,6 @@ impl Core for VM {
     fn set_handler(&mut self, h: usize) {
         self.handler = h;
     }
-    fn structure_depth(&self) -> u8 {
-        self.structure_depth
-    }
-    fn set_structure_depth(&mut self, depth: u8) {
-        self.structure_depth = depth
-    }
     fn data_space(&mut self) -> &mut DataSpace {
         &mut self.data_space
     }
@@ -106,6 +99,9 @@ impl Core for VM {
     }
     fn r_stack(&mut self) -> &mut Stack<isize> {
         &mut self.r_stk
+    }
+    fn c_stack(&mut self) -> &mut Stack<usize> {
+        &mut self.c_stk
     }
     fn f_stack(&mut self) -> &mut Stack<f64> {
         &mut self.f_stk

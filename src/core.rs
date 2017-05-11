@@ -12,8 +12,9 @@ use std::result;
 use jitmem::{self, DataSpace};
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
-                           FloatingPointStackOverflow, FloatingPointStackUnderflow, UnsupportedOperation,
-                           InterpretingACompileOnlyWord, ControlStructureMismatch};
+                           FloatingPointStackOverflow, FloatingPointStackUnderflow,
+                           UnsupportedOperation, InterpretingACompileOnlyWord,
+                           ControlStructureMismatch, InvalidMemoryAddress, DivisionByZero};
 
 pub type Result = result::Result<(), Exception>;
 
@@ -82,7 +83,7 @@ pub struct Stack<T: Default> {
     pub canary: T,
 }
 
-impl<T: Default+Copy+PartialEq+Display> Stack<T> {
+impl<T: Default + Copy + PartialEq + Display> Stack<T> {
     pub fn new(canary: T) -> Self {
         let mut result = Stack {
             inner: [T::default(); 256],
@@ -101,13 +102,11 @@ impl<T: Default+Copy+PartialEq+Display> Stack<T> {
     }
 
     pub fn underflow(&self) -> bool {
-        (self.inner[255] != self.canary) ||
-        (self.len > 128)
+        (self.inner[255] != self.canary) || (self.len > 128)
     }
 
     pub fn overflow(&self) -> bool {
-        (self.inner[32] != self.canary) ||
-        (self.len > 32 && self.len <= 128)
+        (self.inner[32] != self.canary) || (self.len > 32 && self.len <= 128)
     }
 
     pub fn push(&mut self, v: T) -> Result {
@@ -142,15 +141,15 @@ impl<T: Default+Copy+PartialEq+Display> Stack<T> {
 
     pub fn pop2(&mut self) -> result::Result<(T, T), Exception> {
         let result = Ok((self.inner[self.len.wrapping_sub(2) as usize],
-            self.inner[self.len.wrapping_sub(1) as usize]));
+                         self.inner[self.len.wrapping_sub(1) as usize]));
         self.len = self.len.wrapping_sub(2);
         result
     }
 
     pub fn pop3(&mut self) -> result::Result<(T, T, T), Exception> {
         let result = Ok((self.inner[self.len.wrapping_sub(3) as usize],
-            self.inner[self.len.wrapping_sub(2) as usize],
-            self.inner[self.len.wrapping_sub(1) as usize]));
+                         self.inner[self.len.wrapping_sub(2) as usize],
+                         self.inner[self.len.wrapping_sub(1) as usize]));
         self.len = self.len.wrapping_sub(3);
         result
     }
@@ -174,7 +173,7 @@ impl<T: Default+Copy+PartialEq+Display> Stack<T> {
     /// # Safety
     /// Because the implementer (me) is still learning Rust, it is uncertain if as_slice is safe.
     pub fn as_slice(&self) -> &[T] {
-        & self.inner[..self.len as usize]
+        &self.inner[..self.len as usize]
     }
 }
 
@@ -208,8 +207,8 @@ impl fmt::Debug for Stack<isize> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match write!(f, "<{}> ", self.len()) {
             Ok(_) => {
-                if self.len == 0 {}
-                else {
+                if self.len == 0 {
+                } else {
                     for i in 0..self.len {
                         let v = self[i];
                         match write!(f, "{} ", v) {
@@ -232,8 +231,8 @@ impl fmt::Debug for Stack<f64> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match write!(f, "<F {}> ", self.len()) {
             Ok(_) => {
-                if self.len == 0 {}
-                else {
+                if self.len == 0 {
+                } else {
                     for i in 0..self.len {
                         let v = self[i];
                         match write!(f, "{} ", v) {
@@ -961,7 +960,7 @@ pub trait Core: Sized {
 
     fn semicolon(&mut self) {
         if self.last_definition() != 0 {
-            if self.c_stack().len != 0  {
+            if self.c_stack().len != 0 {
                 self.abort_with(ControlStructureMismatch);
             } else {
                 let idx = self.references().idx_exit as i32;
@@ -1179,8 +1178,7 @@ pub trait Core: Sized {
                     let here = self.data_space().len();
                     self.c_stack().push(here).unwrap();
                     self.data_space()
-                        .put_i32(here as i32,
-                                (if_part - mem::size_of::<i32>()));
+                        .put_i32(here as i32, (if_part - mem::size_of::<i32>()));
                 }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
@@ -1195,8 +1193,7 @@ pub trait Core: Sized {
                 } else {
                     let here = self.data_space().len();
                     self.data_space()
-                        .put_i32(here as i32,
-                                (branch_part - mem::size_of::<i32>()));
+                        .put_i32(here as i32, (branch_part - mem::size_of::<i32>()));
                 }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
@@ -1227,8 +1224,7 @@ pub trait Core: Sized {
                     self.data_space().compile_i32(begin_part as i32);
                     let here = self.data_space().len();
                     self.data_space()
-                        .put_i32(here as i32,
-                                (while_part - mem::size_of::<i32>()));
+                        .put_i32(here as i32, (while_part - mem::size_of::<i32>()));
                 }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
@@ -1284,8 +1280,7 @@ pub trait Core: Sized {
                     self.data_space().compile_i32(do_part as i32);
                     let here = self.data_space().len();
                     self.data_space()
-                        .put_i32(here as i32,
-                                (do_part - mem::size_of::<i32>()) as usize);
+                        .put_i32(here as i32, (do_part - mem::size_of::<i32>()) as usize);
                 }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
@@ -1309,8 +1304,7 @@ pub trait Core: Sized {
                     self.data_space().compile_i32(do_part as i32);
                     let here = self.data_space().len();
                     self.data_space()
-                        .put_i32(here as i32,
-                                (do_part - mem::size_of::<i32>()) as usize);
+                        .put_i32(here as i32, (do_part - mem::size_of::<i32>()) as usize);
                 }
             }
             Err(_) => self.abort_with(ControlStructureMismatch),
@@ -1391,8 +1385,7 @@ pub trait Core: Sized {
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = v;
-        self.state().instruction_pointer = self.state().instruction_pointer +
-                                            mem::size_of::<i32>();
+        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>();
     }
 
     fn flit(&mut self) {
@@ -1401,8 +1394,7 @@ pub trait Core: Sized {
         let flen = self.f_stack().len.wrapping_add(1);
         self.f_stack().len = flen;
         self.f_stack()[flen.wrapping_sub(1)] = v;
-        self.state().instruction_pointer = self.state().instruction_pointer +
-                                                   mem::size_of::<f64>();
+        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<f64>();
     }
 
     /// Runtime of S"
@@ -1414,9 +1406,8 @@ pub trait Core: Sized {
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
         self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
-        self.state().instruction_pointer = self.state().instruction_pointer +
-                                            mem::size_of::<i32>() +
-                                            cnt as usize;
+        self.state().instruction_pointer =
+            self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
     }
 
     fn swap(&mut self) {
@@ -1497,20 +1488,20 @@ pub trait Core: Sized {
     fn one_plus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
-        self.s_stack()[slen.wrapping_sub(1)] = t + 1;
+        self.s_stack()[slen.wrapping_sub(1)] = t.wrapping_add(1);
     }
 
     fn one_minus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
-        self.s_stack()[slen.wrapping_sub(1)] = t - 1;
+        self.s_stack()[slen.wrapping_sub(1)] = t.wrapping_sub(1);
     }
 
     fn plus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
-        self.s_stack()[slen.wrapping_sub(2)] = n + t;
+        self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_add(t);
         self.s_stack().len = slen.wrapping_sub(1);
     }
 
@@ -1518,7 +1509,7 @@ pub trait Core: Sized {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
-        self.s_stack()[slen.wrapping_sub(2)] = n - t;
+        self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_sub(t);
         self.s_stack().len = slen.wrapping_sub(1);
     }
 
@@ -1534,36 +1525,48 @@ pub trait Core: Sized {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
-        self.s_stack()[slen.wrapping_sub(2)] = n / t;
-        self.s_stack().len = slen.wrapping_sub(1);
+        if t == 0 {
+            self.abort_with(DivisionByZero);
+        } else {
+            self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_div(t);
+            self.s_stack().len = slen.wrapping_sub(1);
+        }
     }
 
     fn p_mod(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
-        self.s_stack()[slen.wrapping_sub(2)] = n % t;
-        self.s_stack().len = slen.wrapping_sub(1);
+        if t == 0 {
+            self.abort_with(DivisionByZero);
+        } else {
+            self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_rem(t);
+            self.s_stack().len = slen.wrapping_sub(1);
+        }
     }
 
     fn slash_mod(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
-        self.s_stack()[slen.wrapping_sub(2)] = n % t;
-        self.s_stack()[slen.wrapping_sub(1)] = n / t;
+        if t == 0 {
+            self.abort_with(DivisionByZero);
+        } else {
+            self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_rem(t);
+            self.s_stack()[slen.wrapping_sub(1)] = n.wrapping_div(t);
+        }
     }
 
     fn abs(&mut self) {
         match self.s_stack().pop() {
-            Ok(t) => self.push(t.abs()),
+            Ok(t) => self.push(t.wrapping_abs()),
             Err(_) => self.abort_with(StackUnderflow),
         }
     }
 
     fn negate(&mut self) {
         match self.s_stack().pop() {
-            Ok(t) => self.push(-t),
+            Ok(t) => self.push(t.wrapping_neg()),
             Err(_) => self.abort_with(StackUnderflow),
         }
     }
@@ -1705,8 +1708,12 @@ pub trait Core: Sized {
     fn fetch(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
-                let value = self.data_space().get_i32(t as usize) as isize;
-                self.push(value);
+                if (t as usize + mem::size_of::<i32>()) <= self.data_space().capacity() {
+                    let value = self.data_space().get_i32(t as usize) as isize;
+                    self.push(value);
+                } else {
+                    self.abort_with(InvalidMemoryAddress);
+                }
             }
             Err(_) => self.abort_with(StackUnderflow),
         }
@@ -1718,7 +1725,11 @@ pub trait Core: Sized {
     fn store(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
-                self.data_space().put_i32(n as i32, t as usize);
+                if (t as usize + mem::size_of::<i32>()) <= self.data_space().capacity() {
+                    self.data_space().put_i32(n as i32, t as usize);
+                } else {
+                    self.abort_with(InvalidMemoryAddress);
+                }
             }
             Err(_) => self.abort_with(StackUnderflow),
         }
@@ -1731,8 +1742,12 @@ pub trait Core: Sized {
     fn c_fetch(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
-                let value = self.data_space().get_u8(t as usize) as isize;
-                self.push(value);
+                if (t as usize + mem::size_of::<u8>()) <= self.data_space().capacity() {
+                    let value = self.data_space().get_u8(t as usize) as isize;
+                    self.push(value);
+                } else {
+                    self.abort_with(InvalidMemoryAddress);
+                }
             }
             Err(_) => self.abort_with(StackUnderflow),
         }
@@ -1746,7 +1761,11 @@ pub trait Core: Sized {
     fn c_store(&mut self) {
         match self.s_stack().pop2() {
             Ok((n, t)) => {
-                self.data_space().put_u8(n as u8, t as usize);
+                if (t as usize + mem::size_of::<u8>()) <= self.data_space().capacity() {
+                    self.data_space().put_u8(n as u8, t as usize);
+                } else {
+                    self.abort_with(InvalidMemoryAddress);
+                }
             }
             Err(_) => self.abort_with(StackUnderflow),
         }
@@ -1988,7 +2007,8 @@ mod tests {
     use self::test::Bencher;
     use std::mem;
     use exception::Exception::{Abort, StackUnderflow, InterpretingACompileOnlyWord, UndefinedWord,
-                               UnexpectedEndOfFile, ControlStructureMismatch, ReturnStackUnderflow};
+                               UnexpectedEndOfFile, ControlStructureMismatch,
+                               ReturnStackUnderflow, InvalidMemoryAddress};
     use loader::HasLoader;
 
     #[bench]
@@ -2138,8 +2158,8 @@ mod tests {
         let vm = &mut VM::new(16);
         vm.dup();
         vm.check_stacks();
-// check_stacks can not detect this underflow();
-//        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        // check_stacks can not detect this underflow();
+        //        assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1).unwrap();
@@ -2694,16 +2714,19 @@ mod tests {
     fn test_zero_less() {
         let vm = &mut VM::new(16);
         vm.zero_less();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(-1).unwrap();
         vm.zero_less();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         vm.s_stack().push(0).unwrap();
         vm.zero_less();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
@@ -2713,21 +2736,25 @@ mod tests {
     fn test_zero_equals() {
         let vm = &mut VM::new(16);
         vm.zero_equals();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0).unwrap();
         vm.zero_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         vm.s_stack().push(-1).unwrap();
         vm.zero_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
         vm.s_stack().push(1).unwrap();
         vm.zero_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
@@ -2737,16 +2764,19 @@ mod tests {
     fn test_zero_greater() {
         let vm = &mut VM::new(16);
         vm.zero_greater();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1).unwrap();
         vm.zero_greater();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         vm.s_stack().push(0).unwrap();
         vm.zero_greater();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
@@ -2756,21 +2786,25 @@ mod tests {
     fn test_zero_not_equals() {
         let vm = &mut VM::new(16);
         vm.zero_not_equals();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0).unwrap();
         vm.zero_not_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(0));
         vm.s_stack().push(-1).unwrap();
         vm.zero_not_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
         vm.s_stack().push(1).unwrap();
         vm.zero_not_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), Ok(-1));
@@ -3216,13 +3250,13 @@ mod tests {
         // @
         vm.set_source("@");
         vm.evaluate();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(InvalidMemoryAddress));
         vm.reset();
         vm.clear_stacks();
         // !
         vm.set_source("!");
         vm.evaluate();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(InvalidMemoryAddress));
         vm.reset();
         vm.clear_stacks();
         // variable x x !

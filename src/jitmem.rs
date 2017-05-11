@@ -63,6 +63,10 @@ impl DataSpace {
         unsafe { &mut *(self.inner.offset(0) as *mut SystemVariables) }
     }
 
+    pub fn capacity(&self) -> usize {
+        self.cap
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }

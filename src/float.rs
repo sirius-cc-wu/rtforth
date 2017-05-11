@@ -1,6 +1,8 @@
+use std::mem;
 use {TRUE, FALSE};
 use core::Core;
-use exception::Exception::{StackUnderflow, FloatingPointStackOverflow, FloatingPointStackUnderflow};
+use exception::Exception::{StackUnderflow, FloatingPointStackOverflow,
+                           FloatingPointStackUnderflow, InvalidMemoryAddress};
 
 pub trait Float: Core {
     fn add_float(&mut self) {
@@ -70,10 +72,14 @@ pub trait Float: Core {
     fn ffetch(&mut self) {
         match self.s_stack().pop() {
             Ok(t) => {
-                let value = self.data_space().get_f64(t as usize);
-                match self.f_stack().push(value) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
+                if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
+                    let value = self.data_space().get_f64(t as usize);
+                    match self.f_stack().push(value) {
+                        Err(_) => self.abort_with(FloatingPointStackOverflow),
+                        Ok(()) => {}
+                    }
+                } else {
+                    self.abort_with(InvalidMemoryAddress);
                 }
             }
             Err(_) => self.abort_with(StackUnderflow),
@@ -85,7 +91,11 @@ pub trait Float: Core {
             Ok(t) => {
                 match self.f_stack().pop() {
                     Ok(n) => {
-                        self.data_space().put_f64(n, t as usize);
+                        if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
+                            self.data_space().put_f64(n, t as usize);
+                        } else {
+                            self.abort_with(InvalidMemoryAddress);
+                        }
                     }
                     Err(_) => self.abort_with(StackUnderflow),
                 }

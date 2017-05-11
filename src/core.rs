@@ -733,7 +733,6 @@ pub trait Core: Sized {
                     self.compile_word(found_index);
                 } else {
                     self.execute_word(found_index);
-                    self.check_stacks();
                 }
             }
             None => {
@@ -773,7 +772,6 @@ pub trait Core: Sized {
                     self.abort_with(InterpretingACompileOnlyWord);
                 } else {
                     self.execute_word(found_index);
-                    self.check_stacks();
                 }
             }
             None => {
@@ -844,6 +842,7 @@ pub trait Core: Sized {
                 }
             }
             self.run();
+            self.check_stacks();
             if self.last_error().is_some() {
                 break;
             }

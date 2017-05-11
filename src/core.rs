@@ -1129,6 +1129,10 @@ pub trait Core: Sized {
     fn leave(&mut self) {
         match self.r_stack().pop3() {
             Ok((third, _, _)) => {
+                if self.r_stack().underflow() {
+                    self.abort_with(ReturnStackUnderflow);
+                    return;
+                }
                 self.state().instruction_pointer = self.data_space().get_i32(third as usize) as
                                                    usize;
             }

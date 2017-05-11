@@ -524,7 +524,11 @@ pub trait Core: Sized {
     /// Execute word at position `i`.
     fn execute_word(&mut self, i: usize) {
         self.state().word_pointer = i;
-        (self.wordlist()[i].action())(self);
+        if i < self.wordlist().len() {
+            (self.wordlist()[i].action())(self);
+        } else {
+            self.abort_with(UndefinedWord);
+        }
     }
 
     /// Find the word with name `name`.

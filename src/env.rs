@@ -34,8 +34,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         match vm.s_stack().pop() {
-            Ok(t) => assert_eq!(t, -1),
-            Err(_) => assert!(false),
+            t => assert_eq!(t, -1),
         }
     }
     #[test]
@@ -46,8 +45,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         match vm.s_stack().pop() {
-            Ok(t) => assert_eq!(t, 0),
-            Err(_) => assert!(false),
+            t => assert_eq!(t, 0),
         }
     }
 }

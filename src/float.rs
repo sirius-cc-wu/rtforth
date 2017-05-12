@@ -1,8 +1,8 @@
 use std::mem;
 use {TRUE, FALSE};
 use core::Core;
-use exception::Exception::{StackUnderflow, FloatingPointStackOverflow,
-                           FloatingPointStackUnderflow, InvalidMemoryAddress};
+use exception::Exception::{FloatingPointStackOverflow, FloatingPointStackUnderflow,
+                           InvalidMemoryAddress};
 
 pub trait Float: Core {
     fn add_float(&mut self) {
@@ -58,334 +58,199 @@ pub trait Float: Core {
     }
 
     fn fconstant(&mut self) {
-        match self.f_stack().pop() {
-            Ok(v) => {
-                self.define(Float::p_fconst);
-                self.data_space().compile_f64(v);
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
-        }
+        let v = self.f_stack().pop();
+        self.define(Float::p_fconst);
+        self.data_space().compile_f64(v);
     }
 
     // Floating point primitives
 
     fn ffetch(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
-                    let value = self.data_space().get_f64(t as usize);
-                    match self.f_stack().push(value) {
-                        Err(_) => self.abort_with(FloatingPointStackOverflow),
-                        Ok(()) => {}
-                    }
-                } else {
-                    self.abort_with(InvalidMemoryAddress);
-                }
+        let t = self.s_stack().pop();
+        if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
+            let value = self.data_space().get_f64(t as usize);
+            match self.f_stack().push(value) {
+                Err(_) => self.abort_with(FloatingPointStackOverflow),
+                Ok(()) => {}
             }
-            Err(_) => self.abort_with(StackUnderflow),
+        } else {
+            self.abort_with(InvalidMemoryAddress);
         }
     }
 
     fn fstore(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().pop() {
-                    Ok(n) => {
-                        if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
-                            self.data_space().put_f64(n, t as usize);
-                        } else {
-                            self.abort_with(InvalidMemoryAddress);
-                        }
-                    }
-                    Err(_) => self.abort_with(StackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(StackUnderflow),
+        let t = self.s_stack().pop();
+        let n = self.f_stack().pop();
+        if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
+            self.data_space().put_f64(n, t as usize);
+        } else {
+            self.abort_with(InvalidMemoryAddress);
         }
     }
 
     fn fabs(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.abs()) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.abs()) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fsin(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.sin()) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.sin()) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fcos(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.cos()) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.cos()) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn ftan(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.tan()) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.tan()) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fasin(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.asin()) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.asin()) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn facos(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.acos()) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.acos()) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fatan(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.atan()) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.atan()) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fatan2(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().pop() {
-                    Ok(n) => {
-                        match self.f_stack().push(n.atan2(t)) {
-                            Err(_) => self.abort_with(FloatingPointStackOverflow),
-                            Ok(()) => {}
-                        }
-                    }
-                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        let n = self.f_stack().pop();
+        match self.f_stack().push(n.atan2(t)) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fsqrt(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.sqrt()) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.sqrt()) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fswap(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().pop() {
-                    Ok(n) => {
-                        match self.f_stack().push2(t, n) {
-                            Err(_) => self.abort_with(FloatingPointStackOverflow),
-                            Ok(()) => {}
-                        }
-                    }
-                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        let n = self.f_stack().pop();
+        match self.f_stack().push2(t, n) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fnip(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().pop() {
-                    Ok(_) => {
-                        match self.f_stack().push(t) {
-                            Err(_) => self.abort_with(FloatingPointStackOverflow),
-                            Ok(()) => {}
-                        }
-                    }
-                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        let _ = self.f_stack().pop();
+        match self.f_stack().push(t) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fdup(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push2(t, t) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        match self.f_stack().push2(t, t) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fdrop(&mut self) {
-        match self.f_stack().pop() {
-            Ok(_) => {}
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
-        }
+        let _ = self.f_stack().pop();
     }
 
     fn frot(&mut self) {
-        match self.f_stack().pop() {
-            Ok(x3) => {
-                match self.f_stack().pop() {
-                    Ok(x2) => {
-                        match self.f_stack().pop() {
-                            Ok(x1) => {
-                                match self.f_stack().push3(x2, x3, x1) {
-                                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                                    Ok(()) => {}
-                                }
-                            }
-                            Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                        }
-                    }
-                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let x3 = self.f_stack().pop();
+        let x2 = self.f_stack().pop();
+        let x1 = self.f_stack().pop();
+        match self.f_stack().push3(x2, x3, x1) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fover(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().pop() {
-                    Ok(n) => {
-                        match self.f_stack().push3(n, t, n) {
-                            Err(_) => self.abort_with(FloatingPointStackOverflow),
-                            Ok(()) => {}
-                        }
-                    }
-                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        let n = self.f_stack().pop();
+        match self.f_stack().push3(n, t, n) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn n_to_f(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t as f64) {
-                    Err(_) => self.abort_with(FloatingPointStackOverflow),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.s_stack().pop();
+        match self.f_stack().push(t as f64) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fplus(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().pop() {
-                    Ok(n) => {
-                        match self.f_stack().push(n + t) {
-                            Err(_) => self.abort_with(FloatingPointStackOverflow),
-                            Ok(()) => {}
-                        }
-                    }
-                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        let n = self.f_stack().pop();
+        match self.f_stack().push(n + t) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fminus(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().pop() {
-                    Ok(n) => {
-                        match self.f_stack().push(n - t) {
-                            Err(_) => self.abort_with(FloatingPointStackOverflow),
-                            Ok(()) => {}
-                        }
-                    }
-                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        let n = self.f_stack().pop();
+        match self.f_stack().push(n - t) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fstar(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().pop() {
-                    Ok(n) => {
-                        match self.f_stack().push(n * t) {
-                            Err(_) => self.abort_with(FloatingPointStackOverflow),
-                            Ok(()) => {}
-                        }
-                    }
-                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        let n = self.f_stack().pop();
+        match self.f_stack().push(n * t) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
     fn fslash(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().pop() {
-                    Ok(n) => {
-                        match self.f_stack().push(n / t) {
-                            Err(_) => self.abort_with(FloatingPointStackOverflow),
-                            Ok(()) => {}
-                        }
-                    }
-                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let t = self.f_stack().pop();
+        let n = self.f_stack().pop();
+        match self.f_stack().push(n / t) {
+            Err(_) => self.abort_with(FloatingPointStackOverflow),
+            Ok(()) => {}
         }
     }
 
@@ -417,35 +282,19 @@ pub trait Float: Core {
     }
 
     fn f_zero_less_than(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                self.push(if t < 0.0 { TRUE } else { FALSE });
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
-        }
+        let t = self.f_stack().pop();
+        self.push(if t < 0.0 { TRUE } else { FALSE });
     }
 
     fn f_zero_equals(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                self.push(if t == 0.0 { TRUE } else { FALSE });
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
-        }
+        let t = self.f_stack().pop();
+        self.push(if t == 0.0 { TRUE } else { FALSE });
     }
 
     fn f_less_than(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().pop() {
-                    Ok(n) => {
-                        self.push(if n < t { TRUE } else { FALSE });
-                    }
-                    Err(_) => self.abort_with(FloatingPointStackUnderflow),
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
-        }
+        let t = self.f_stack().pop();
+        let n = self.f_stack().pop();
+        self.push(if n < t { TRUE } else { FALSE });
     }
 
     fn fmin(&mut self) {
@@ -477,58 +326,42 @@ pub trait Float: Core {
     }
 
     fn fround(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.round()) {
-                    Err(_) => {
-                        self.abort_with(FloatingPointStackOverflow);
-                    }
-                    Ok(()) => {}
-                }
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.round()) {
+            Err(_) => {
+                self.abort_with(FloatingPointStackOverflow);
             }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+            Ok(()) => {}
         }
     }
 
     fn floor(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.floor()) {
-                    Err(_) => {
-                        self.abort_with(FloatingPointStackOverflow);
-                    }
-                    Ok(()) => {}
-                }
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.floor()) {
+            Err(_) => {
+                self.abort_with(FloatingPointStackOverflow);
             }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+            Ok(()) => {}
         }
     }
 
     fn fceil(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(t.ceil()) {
-                    Err(_) => {
-                        self.abort_with(FloatingPointStackOverflow);
-                    }
-                    Ok(()) => {}
-                }
+        let t = self.f_stack().pop();
+        match self.f_stack().push(t.ceil()) {
+            Err(_) => {
+                self.abort_with(FloatingPointStackOverflow);
             }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+            Ok(()) => {}
         }
     }
 
     fn fnegate(&mut self) {
-        match self.f_stack().pop() {
-            Ok(t) => {
-                match self.f_stack().push(-t) {
-                    Err(_) => {
-                        self.abort_with(FloatingPointStackOverflow);
-                    }
-                    Ok(()) => {}
-                }
+        let t = self.f_stack().pop();
+        match self.f_stack().push(-t) {
+            Err(_) => {
+                self.abort_with(FloatingPointStackOverflow);
             }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+            Ok(()) => {}
         }
     }
 }
@@ -578,8 +411,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    Ok(t) => t > 3.13999 && t < 3.14001,
-                    Err(_) => false,
+                    t => t > 3.13999 && t < 3.14001,
                 });
     }
 
@@ -591,8 +423,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    Ok(t) => t > 0.0015925 && t < 0.0015927,
-                    Err(_) => false,
+                    t => t > 0.0015925 && t < 0.0015927,
                 });
     }
 
@@ -604,8 +435,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    Ok(t) => t > -0.989993 && t < -0.989991,
-                    Err(_) => false,
+                    t => t > -0.989993 && t < -0.989991,
                 });
     }
 
@@ -617,8 +447,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    Ok(t) => t > -0.142547 && t < -0.142545,
-                    Err(_) => false,
+                    t => t > -0.142547 && t < -0.142545,
                 });
     }
 
@@ -630,8 +459,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    Ok(t) => t > 0.304691 && t < 0.304693,
-                    Err(_) => false,
+                    t => t > 0.304691 && t < 0.304693,
                 });
     }
 
@@ -643,8 +471,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    Ok(t) => t > 1.266102 && t < 1.266104,
-                    Err(_) => false,
+                    t => t > 1.266102 && t < 1.266104,
                 });
     }
 
@@ -656,8 +483,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    Ok(t) => t > 0.291455 && t < 0.291457,
-                    Err(_) => false,
+                    t => t > 0.291455 && t < 0.291457,
                 });
     }
 
@@ -669,8 +495,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    Ok(t) => t > 0.643500 && t < 0.643502,
-                    Err(_) => false,
+                    t => t > 0.643500 && t < 0.643502,
                 });
     }
 
@@ -682,8 +507,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    Ok(t) => t > 0.547721 && t < 0.547723,
-                    Err(_) => false,
+                    t => t > 0.547721 && t < 0.547723,
                 });
     }
 
@@ -769,9 +593,10 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    Ok(t) => t > 7.384614 && t < 7.384616,
-                    Err(_) => false,
+                    t => t > 7.384614 && t < 7.384616,
                 });
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
     }
 
     #[test]
@@ -781,10 +606,12 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), -1);
+        assert_eq!(vm.s_stack().pop(), 0);
+        assert_eq!(vm.s_stack().pop(), 0);
         assert_eq!(vm.f_stack().as_slice(), []);
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
     }
 
     #[test]
@@ -794,10 +621,12 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), 0);
+        assert_eq!(vm.s_stack().pop(), 0);
+        assert_eq!(vm.s_stack().pop(), -1);
         assert_eq!(vm.f_stack().as_slice(), []);
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
     }
 
     #[test]
@@ -807,10 +636,12 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), -1);
+        assert_eq!(vm.s_stack().pop(), 0);
+        assert_eq!(vm.s_stack().pop(), 0);
         assert_eq!(vm.f_stack().as_slice(), []);
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
     }
 
     #[test]
@@ -820,27 +651,33 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 2);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), 0);
+        assert_eq!(vm.s_stack().pop(), -1);
         assert_eq!(vm.f_stack().as_slice(), []);
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
         vm.s_stack().reset();
         vm.set_source("0.1 0.1 0.001 f~   0.1 0.109 0.01 f~   0.1 0.111  0.01 f~");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), 0);
+        assert_eq!(vm.s_stack().pop(), -1);
+        assert_eq!(vm.s_stack().pop(), -1);
         assert_eq!(vm.f_stack().as_slice(), []);
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
         vm.s_stack().reset();
         vm.set_source("0.1 0.1 -0.001 f~   0.1 0.109 -0.1 f~   0.1 0.109  -0.01 f~");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), 0);
+        assert_eq!(vm.s_stack().pop(), -1);
+        assert_eq!(vm.s_stack().pop(), -1);
         assert_eq!(vm.f_stack().as_slice(), []);
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
         vm.s_stack().reset();
     }
 

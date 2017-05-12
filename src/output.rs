@@ -1,6 +1,6 @@
 use std::fmt::Write;
 use core::Core;
-use exception::Exception::{StackUnderflow, FloatingPointStackUnderflow, UnsupportedOperation};
+use exception::Exception::{StackUnderflow, UnsupportedOperation};
 
 /// Types that can output to console.
 pub trait Output: Core {
@@ -22,17 +22,13 @@ pub trait Output: Core {
     ///
     /// Put x into output buffer.
     fn emit(&mut self) {
-        match self.s_stack().pop() {
-            Err(_) => self.abort_with(StackUnderflow),
-            Ok(ch) => {
-                match self.output_buffer().take() {
-                    Some(mut buffer) => {
-                        buffer.push(ch as u8 as char);
-                        self.set_output_buffer(buffer);
-                    }
-                    None => {}
-                }
+        let ch = self.s_stack().pop();
+        match self.output_buffer().take() {
+            Some(mut buffer) => {
+                buffer.push(ch as u8 as char);
+                self.set_output_buffer(buffer);
             }
+            None => {}
         }
     }
 
@@ -120,33 +116,29 @@ pub trait Output: Core {
         let base_addr = self.data_space().system_variables().base_addr();
         let base = self.data_space().get_isize(base_addr);
         let mut invalid_base = false;
-        match self.s_stack().pop() {
-            Ok(n) => {
-                if let Some(mut buf) = self.output_buffer().take() {
-                    match base {
-                        2 => {
-                            write!(buf, "{:b}", n).unwrap();
-                        }
-                        8 => {
-                            write!(buf, "{:o}", n).unwrap();
-                        }
-                        10 => {
-                            write!(buf, "{} ", n).unwrap();
-                        }
-                        16 => {
-                            write!(buf, "{:X}", n).unwrap();
-                        }
-                        _ => {
-                            invalid_base = true;
-                        }
-                    }
-                    self.set_output_buffer(buf);
+        let n = self.s_stack().pop();
+        if let Some(mut buf) = self.output_buffer().take() {
+            match base {
+                2 => {
+                    write!(buf, "{:b}", n).unwrap();
                 }
-                if invalid_base {
-                    self.abort_with(UnsupportedOperation);
+                8 => {
+                    write!(buf, "{:o}", n).unwrap();
+                }
+                10 => {
+                    write!(buf, "{} ", n).unwrap();
+                }
+                16 => {
+                    write!(buf, "{:X}", n).unwrap();
+                }
+                _ => {
+                    invalid_base = true;
                 }
             }
-            Err(_) => self.abort_with(StackUnderflow),
+            self.set_output_buffer(buf);
+        }
+        if invalid_base {
+            self.abort_with(UnsupportedOperation);
         }
     }
 
@@ -155,14 +147,10 @@ pub trait Output: Core {
     /// Display, with a trailing space, the top number on the floating-point
     /// stack using fixed-point notation.
     fn fdot(&mut self) {
-        match self.f_stack().pop() {
-            Ok(r) => {
-                if let Some(mut buf) = self.output_buffer().take() {
-                    write!(buf, "{} ", r).unwrap();
-                    self.set_output_buffer(buf);
-                }
-            }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        let r = self.f_stack().pop();
+        if let Some(mut buf) = self.output_buffer().take() {
+            write!(buf, "{} ", r).unwrap();
+            self.set_output_buffer(buf);
         }
     }
 

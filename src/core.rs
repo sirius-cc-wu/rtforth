@@ -176,12 +176,14 @@ impl<T: Default + Copy + PartialEq + Display> Stack<T> {
 
 impl Index<u8> for Stack<isize> {
     type Output = isize;
+    #[inline(always)]
     fn index(&self, index: u8) -> &isize {
         &self.inner[index as usize]
     }
 }
 
 impl IndexMut<u8> for Stack<isize> {
+    #[inline(always)]
     fn index_mut(&mut self, index: u8) -> &mut isize {
         &mut self.inner[index as usize]
     }
@@ -189,12 +191,14 @@ impl IndexMut<u8> for Stack<isize> {
 
 impl Index<u8> for Stack<f64> {
     type Output = f64;
+    #[inline(always)]
     fn index(&self, index: u8) -> &f64 {
         &self.inner[index as usize]
     }
 }
 
 impl IndexMut<u8> for Stack<f64> {
+    #[inline(always)]
     fn index_mut(&mut self, index: u8) -> &mut f64 {
         &mut self.inner[index as usize]
     }

@@ -36,20 +36,20 @@ pub trait Output: Core {
     ///
     /// Put the character string specified by c-addr and u into output buffer.
     fn p_type(&mut self) {
-        match self.s_stack().pop2() {
-            Err(_) => self.abort_with(StackUnderflow),
-            Ok((addr, len)) => {
-                match self.output_buffer().take() {
-                    Some(mut buffer) => {
-                        {
-                            let s = &self.data_space().get_str(addr as usize, len as usize);
-                            buffer.push_str(s);
-                        }
-                        self.set_output_buffer(buffer);
-                    }
-                    None => {}
+        let (addr, len) = self.s_stack().pop2();
+        if self.s_stack().underflow() {
+            self.abort_with(StackUnderflow);
+            return;
+        }
+        match self.output_buffer().take() {
+            Some(mut buffer) => {
+                {
+                    let s = &self.data_space().get_str(addr as usize, len as usize);
+                    buffer.push_str(s);
                 }
+                self.set_output_buffer(buffer);
             }
+            None => {}
         }
     }
 

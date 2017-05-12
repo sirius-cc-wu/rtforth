@@ -1,7 +1,7 @@
 use std::mem;
 use {TRUE, FALSE};
 use core::Core;
-use exception::Exception::{FloatingPointStackOverflow, FloatingPointStackUnderflow,
+use exception::Exception::{FloatingPointStackOverflow,
                            InvalidMemoryAddress};
 
 pub trait Float: Core {
@@ -255,29 +255,25 @@ pub trait Float: Core {
     }
 
     fn fproximate(&mut self) {
-        match self.f_stack().pop3() {
-            Ok((x1, x2, x3)) => {
-                if x3 > 0.0 {
-                    if let Err(e) = self.s_stack()
-                           .push(if (x1 - x2).abs() < x3 { TRUE } else { FALSE }) {
-                        self.abort_with(e);
-                    }
-                } else if x3 == 0.0 {
-                    if let Err(e) = self.s_stack().push(if x1 == x2 { TRUE } else { FALSE }) {
-                        self.abort_with(e);
-                    }
-                } else {
-                    if let Err(e) = self.s_stack()
-                           .push(if (x1 - x2).abs() < (x3.abs() * (x1.abs() + x2.abs())) {
-                                     TRUE
-                                 } else {
-                                     FALSE
-                                 }) {
-                        self.abort_with(e);
-                    }
-                }
+        let (x1, x2, x3) = self.f_stack().pop3();
+        if x3 > 0.0 {
+            if let Err(e) = self.s_stack()
+                    .push(if (x1 - x2).abs() < x3 { TRUE } else { FALSE }) {
+                self.abort_with(e);
             }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+        } else if x3 == 0.0 {
+            if let Err(e) = self.s_stack().push(if x1 == x2 { TRUE } else { FALSE }) {
+                self.abort_with(e);
+            }
+        } else {
+            if let Err(e) = self.s_stack()
+                    .push(if (x1 - x2).abs() < (x3.abs() * (x1.abs() + x2.abs())) {
+                                TRUE
+                            } else {
+                                FALSE
+                            }) {
+                self.abort_with(e);
+            }
         }
     }
 
@@ -298,30 +294,22 @@ pub trait Float: Core {
     }
 
     fn fmin(&mut self) {
-        match self.f_stack().pop2() {
-            Ok((t, n)) => {
-                match self.f_stack().push(t.min(n)) {
-                    Err(_) => {
-                        self.abort_with(FloatingPointStackOverflow);
-                    }
-                    Ok(()) => {}
-                }
+        let (n, t) = self.f_stack().pop2();
+        match self.f_stack().push(t.min(n)) {
+            Err(_) => {
+                self.abort_with(FloatingPointStackOverflow);
             }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+            Ok(()) => {}
         }
     }
 
     fn fmax(&mut self) {
-        match self.f_stack().pop2() {
-            Ok((t, n)) => {
-                match self.f_stack().push(t.max(n)) {
-                    Err(_) => {
-                        self.abort_with(FloatingPointStackOverflow);
-                    }
-                    Ok(()) => {}
-                }
+        let (n, t) = self.f_stack().pop2();
+        match self.f_stack().push(t.max(n)) {
+            Err(_) => {
+                self.abort_with(FloatingPointStackOverflow);
             }
-            Err(_) => self.abort_with(FloatingPointStackUnderflow),
+            Ok(()) => {}
         }
     }
 

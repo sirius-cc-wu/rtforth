@@ -139,17 +139,17 @@ impl<T: Default + Copy + PartialEq + Display> Stack<T> {
         Ok(())
     }
 
-    pub fn pop2(&mut self) -> result::Result<(T, T), Exception> {
-        let result = Ok((self.inner[self.len.wrapping_sub(2) as usize],
-                         self.inner[self.len.wrapping_sub(1) as usize]));
+    pub fn pop2(&mut self) -> (T, T) {
+        let result = (self.inner[self.len.wrapping_sub(2) as usize],
+                         self.inner[self.len.wrapping_sub(1) as usize]);
         self.len = self.len.wrapping_sub(2);
         result
     }
 
-    pub fn pop3(&mut self) -> result::Result<(T, T, T), Exception> {
-        let result = Ok((self.inner[self.len.wrapping_sub(3) as usize],
+    pub fn pop3(&mut self) -> (T, T, T) {
+        let result = (self.inner[self.len.wrapping_sub(3) as usize],
                          self.inner[self.len.wrapping_sub(2) as usize],
-                         self.inner[self.len.wrapping_sub(1) as usize]));
+                         self.inner[self.len.wrapping_sub(1) as usize]);
         self.len = self.len.wrapping_sub(3);
         result
     }
@@ -1045,20 +1045,16 @@ pub trait Core: Sized {
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
     fn p_loop(&mut self) {
-        match self.r_stack().pop2() {
-            Ok((rn, rt)) => {
-                if rt + 1 < rn {
-                    if let Err(e) = self.r_stack().push2(rn, rt + 1) {
-                        self.abort_with(e);
-                        return;
-                    }
-                    self.branch();
-                } else {
-                    let _ = self.r_stack().pop();
-                    self.state().instruction_pointer += mem::size_of::<i32>();
-                }
+        let (rn, rt) = self.r_stack().pop2();
+        if rt + 1 < rn {
+            if let Err(e) = self.r_stack().push2(rn, rt + 1) {
+                self.abort_with(e);
+                return;
             }
-            Err(_) => self.abort_with(ReturnStackUnderflow),
+            self.branch();
+        } else {
+            let _ = self.r_stack().pop();
+            self.state().instruction_pointer += mem::size_of::<i32>();
         }
     }
 
@@ -1071,21 +1067,17 @@ pub trait Core: Sized {
     /// current loop control parameters and continue execution immediately
     /// following the loop.
     fn p_plus_loop(&mut self) {
-        match self.r_stack().pop2() {
-            Ok((rn, rt)) => {
-                let t = self.s_stack().pop();
-                if rt + t < rn {
-                    if let Err(e) = self.r_stack().push2(rn, rt + t) {
-                        self.abort_with(e);
-                        return;
-                    }
-                    self.branch();
-                } else {
-                    let _ = self.r_stack().pop();
-                    self.state().instruction_pointer += mem::size_of::<i32>();
-                }
+        let (rn, rt) = self.r_stack().pop2();
+        let t = self.s_stack().pop();
+        if rt + t < rn {
+            if let Err(e) = self.r_stack().push2(rn, rt + t) {
+                self.abort_with(e);
+                return;
             }
-            Err(_) => self.abort_with(ReturnStackUnderflow),
+            self.branch();
+        } else {
+            let _ = self.r_stack().pop();
+            self.state().instruction_pointer += mem::size_of::<i32>();
         }
     }
 
@@ -1096,24 +1088,16 @@ pub trait Core: Sized {
     /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
     fn unloop(&mut self) {
-        match self.r_stack().pop3() {
-            Ok(_) => {}
-            Err(_) => self.abort_with(ReturnStackUnderflow),
-        }
+        let _ = self.r_stack().pop3();
     }
 
     fn leave(&mut self) {
-        match self.r_stack().pop3() {
-            Ok((third, _, _)) => {
-                if self.r_stack().underflow() {
-                    self.abort_with(ReturnStackUnderflow);
-                    return;
-                }
-                self.state().instruction_pointer = self.data_space().get_i32(third as usize) as
-                                                   usize;
-            }
-            Err(_) => self.abort_with(ReturnStackUnderflow),
+        let (third, _, _) = self.r_stack().pop3();
+        if self.r_stack().underflow() {
+            self.abort_with(ReturnStackUnderflow);
+            return;
         }
+        self.state().instruction_pointer = self.data_space().get_i32(third as usize) as usize;
     }
 
     fn p_i(&mut self) {
@@ -1179,20 +1163,16 @@ pub trait Core: Sized {
     }
 
     fn imm_repeat(&mut self) {
-        match self.c_stack().pop2() {
-            Ok((begin_part, while_part)) => {
-                if self.c_stack().underflow() {
-                    self.abort_with(ControlStructureMismatch);
-                } else {
-                    let idx = self.references().idx_branch as i32;
-                    self.data_space().compile_i32(idx);
-                    self.data_space().compile_i32(begin_part as i32);
-                    let here = self.data_space().len();
-                    self.data_space()
-                        .put_i32(here as i32, (while_part - mem::size_of::<i32>()));
-                }
-            }
-            Err(_) => self.abort_with(ControlStructureMismatch),
+        let (begin_part, while_part) = self.c_stack().pop2();
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_branch as i32;
+            self.data_space().compile_i32(idx);
+            self.data_space().compile_i32(begin_part as i32);
+            let here = self.data_space().len();
+            self.data_space()
+                .put_i32(here as i32, (while_part - mem::size_of::<i32>()));
         }
     }
 
@@ -1531,38 +1511,28 @@ pub trait Core: Sized {
     }
 
     fn equals(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => self.push(if t == n { TRUE } else { FALSE }),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let (n, t) = self.s_stack().pop2();
+        self.push(if t == n { TRUE } else { FALSE });
     }
 
     fn less_than(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => self.push(if n < t { TRUE } else { FALSE }),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let (n, t) = self.s_stack().pop2();
+        self.push(if n < t { TRUE } else { FALSE });
     }
 
     fn greater_than(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => self.push(if n > t { TRUE } else { FALSE }),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let (n, t) = self.s_stack().pop2();
+        self.push(if n > t { TRUE } else { FALSE });
     }
 
     fn not_equals(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => self.push(if n == t { FALSE } else { TRUE }),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let (n, t) = self.s_stack().pop2();
+        self.push(if n == t { FALSE } else { TRUE });
     }
 
     fn between(&mut self) {
-        match self.s_stack().pop3() {
-            Ok((x1, x2, x3)) => self.push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE }),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let (x1, x2, x3) = self.s_stack().pop3();
+        self.push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE });
     }
 
     fn invert(&mut self) {
@@ -1571,24 +1541,18 @@ pub trait Core: Sized {
     }
 
     fn and(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => self.push(t & n),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let (n, t) = self.s_stack().pop2();
+        self.push(t & n);
     }
 
     fn or(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => self.push(t | n),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let (n, t) = self.s_stack().pop2();
+        self.push(t | n);
     }
 
     fn xor(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => self.push(t ^ n),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let (n, t) = self.s_stack().pop2();
+        self.push(t ^ n);
     }
 
     /// Run-time: ( x1 u -- x2 )
@@ -1598,10 +1562,8 @@ pub trait Core: Sized {
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
     fn lshift(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => self.push(n.wrapping_shl(t as u32)),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let (n, t) = self.s_stack().pop2();
+        self.push(n.wrapping_shl(t as u32));
     }
 
     /// Run-time: ( x1 u -- x2 )
@@ -1611,10 +1573,8 @@ pub trait Core: Sized {
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
     fn rshift(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => self.push(((n as usize).wrapping_shr(t as u32)) as isize),
-            Err(_) => self.abort_with(StackUnderflow),
-        }
+        let (n, t) = self.s_stack().pop2();
+        self.push(((n as usize).wrapping_shr(t as u32)) as isize);
     }
 
     /// Interpretation: Interpretation semantics for this word are undefined.
@@ -1648,15 +1608,11 @@ pub trait Core: Sized {
     ///
     /// Store `x` at `a-addr`.
     fn store(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                if (t as usize + mem::size_of::<i32>()) <= self.data_space().capacity() {
-                    self.data_space().put_i32(n as i32, t as usize);
-                } else {
-                    self.abort_with(InvalidMemoryAddress);
-                }
-            }
-            Err(_) => self.abort_with(StackUnderflow),
+        let (n, t) = self.s_stack().pop2();
+        if (t as usize + mem::size_of::<i32>()) <= self.data_space().capacity() {
+            self.data_space().put_i32(n as i32, t as usize);
+        } else {
+            self.abort_with(InvalidMemoryAddress);
         }
     }
 
@@ -1680,15 +1636,11 @@ pub trait Core: Sized {
     /// only the number of low-order bits corresponding to character size are
     /// transferred.
     fn c_store(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                if (t as usize + mem::size_of::<u8>()) <= self.data_space().capacity() {
-                    self.data_space().put_u8(n as u8, t as usize);
-                } else {
-                    self.abort_with(InvalidMemoryAddress);
-                }
-            }
-            Err(_) => self.abort_with(StackUnderflow),
+        let (n, t) = self.s_stack().pop2();
+        if (t as usize + mem::size_of::<u8>()) <= self.data_space().capacity() {
+            self.data_space().put_u8(n as u8, t as usize);
+        } else {
+            self.abort_with(InvalidMemoryAddress);
         }
     }
 
@@ -3293,14 +3245,9 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
-        match vm.s_stack().pop2() {
-            Ok((n, t)) => {
-                assert_eq!(t - n, 4 * mem::size_of::<u32>() as isize);
-            }
-            Err(_) => {
-                assert!(false);
-            }
-        }
+        let (n, t) = vm.s_stack().pop2();
+        assert!(!vm.s_stack().underflow());
+        assert_eq!(t - n, 4 * mem::size_of::<u32>() as isize);
         let idx_halt = vm.find("halt").expect("halt undefined");
         assert_eq!(vm.data_space().get_i32(0), idx_halt as i32);
         assert_eq!(vm.data_space().get_i32(here + 0), 1);
@@ -3582,7 +3529,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 2);
-        assert_eq!(vm.s_stack().pop2(), Ok((88, 9)));
+        assert_eq!(vm.s_stack().pop2(), (88, 9));
     }
 
     #[test]
@@ -3593,7 +3540,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop3(), Ok((0, 1, 2)));
+        assert_eq!(vm.s_stack().pop3(), (0, 1, 2));
     }
 
     #[test]

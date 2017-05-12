@@ -1,8 +1,7 @@
 use std::mem;
 use {TRUE, FALSE};
 use core::Core;
-use exception::Exception::{FloatingPointStackOverflow,
-                           InvalidMemoryAddress};
+use exception::Exception::InvalidMemoryAddress;
 
 pub trait Float: Core {
     fn add_float(&mut self) {
@@ -46,10 +45,7 @@ pub trait Float: Core {
         let wp = self.state().word_pointer();
         let dfa = self.wordlist()[wp].dfa();
         let v = self.data_space().get_f64(dfa);
-        match self.f_stack().push(v) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(v);
     }
 
     fn fvariable(&mut self) {
@@ -69,10 +65,7 @@ pub trait Float: Core {
         let t = self.s_stack().pop();
         if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
             let value = self.data_space().get_f64(t as usize);
-            match self.f_stack().push(value) {
-                Err(_) => self.abort_with(FloatingPointStackOverflow),
-                Ok(()) => {}
-            }
+            self.f_stack().push(value);
         } else {
             self.abort_with(InvalidMemoryAddress);
         }
@@ -90,101 +83,65 @@ pub trait Float: Core {
 
     fn fabs(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.abs()) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.abs());
     }
 
     fn fsin(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.sin()) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.sin());
     }
 
     fn fcos(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.cos()) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.cos());
     }
 
     fn ftan(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.tan()) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.tan());
     }
 
     fn fasin(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.asin()) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.asin());
     }
 
     fn facos(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.acos()) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.acos());
     }
 
     fn fatan(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.atan()) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.atan());
     }
 
     fn fatan2(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
-        match self.f_stack().push(n.atan2(t)) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(n.atan2(t));
     }
 
     fn fsqrt(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.sqrt()) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.sqrt());
     }
 
     fn fswap(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
-        match self.f_stack().push2(t, n) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push2(t, n);
     }
 
     fn fnip(&mut self) {
         let t = self.f_stack().pop();
         let _ = self.f_stack().pop();
-        match self.f_stack().push(t) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(t);
     }
 
     fn fdup(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push2(t, t) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push2(t, t);
     }
 
     fn fdrop(&mut self) {
@@ -195,162 +152,105 @@ pub trait Float: Core {
         let x3 = self.f_stack().pop();
         let x2 = self.f_stack().pop();
         let x1 = self.f_stack().pop();
-        match self.f_stack().push3(x2, x3, x1) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push3(x2, x3, x1);
     }
 
     fn fover(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
-        match self.f_stack().push3(n, t, n) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push3(n, t, n);
     }
 
     fn n_to_f(&mut self) {
         let t = self.s_stack().pop();
-        match self.f_stack().push(t as f64) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(t as f64);
     }
 
     fn fplus(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
-        match self.f_stack().push(n + t) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(n + t);
     }
 
     fn fminus(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
-        match self.f_stack().push(n - t) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(n - t);
     }
 
     fn fstar(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
-        match self.f_stack().push(n * t) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(n * t);
     }
 
     fn fslash(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
-        match self.f_stack().push(n / t) {
-            Err(_) => self.abort_with(FloatingPointStackOverflow),
-            Ok(()) => {}
-        }
+        self.f_stack().push(n / t);
     }
 
     fn fproximate(&mut self) {
         let (x1, x2, x3) = self.f_stack().pop3();
         if x3 > 0.0 {
-            if let Err(e) = self.s_stack()
-                    .push(if (x1 - x2).abs() < x3 { TRUE } else { FALSE }) {
-                self.abort_with(e);
-            }
+            self.s_stack()
+                .push(if (x1 - x2).abs() < x3 { TRUE } else { FALSE });
         } else if x3 == 0.0 {
-            if let Err(e) = self.s_stack().push(if x1 == x2 { TRUE } else { FALSE }) {
-                self.abort_with(e);
-            }
+            self.s_stack().push(if x1 == x2 { TRUE } else { FALSE });
         } else {
-            if let Err(e) = self.s_stack()
-                    .push(if (x1 - x2).abs() < (x3.abs() * (x1.abs() + x2.abs())) {
-                                TRUE
-                            } else {
-                                FALSE
-                            }) {
-                self.abort_with(e);
-            }
+            self.s_stack()
+                .push(if (x1 - x2).abs() < (x3.abs() * (x1.abs() + x2.abs())) {
+                          TRUE
+                      } else {
+                          FALSE
+                      });
         }
     }
 
     fn f_zero_less_than(&mut self) {
         let t = self.f_stack().pop();
-        self.push(if t < 0.0 { TRUE } else { FALSE });
+        self.s_stack().push(if t < 0.0 { TRUE } else { FALSE });
     }
 
     fn f_zero_equals(&mut self) {
         let t = self.f_stack().pop();
-        self.push(if t == 0.0 { TRUE } else { FALSE });
+        self.s_stack().push(if t == 0.0 { TRUE } else { FALSE });
     }
 
     fn f_less_than(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
-        self.push(if n < t { TRUE } else { FALSE });
+        self.s_stack().push(if n < t { TRUE } else { FALSE });
     }
 
     fn fmin(&mut self) {
         let (n, t) = self.f_stack().pop2();
-        match self.f_stack().push(t.min(n)) {
-            Err(_) => {
-                self.abort_with(FloatingPointStackOverflow);
-            }
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.min(n));
     }
 
     fn fmax(&mut self) {
         let (n, t) = self.f_stack().pop2();
-        match self.f_stack().push(t.max(n)) {
-            Err(_) => {
-                self.abort_with(FloatingPointStackOverflow);
-            }
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.max(n));
     }
 
     fn fround(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.round()) {
-            Err(_) => {
-                self.abort_with(FloatingPointStackOverflow);
-            }
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.round());
     }
 
     fn floor(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.floor()) {
-            Err(_) => {
-                self.abort_with(FloatingPointStackOverflow);
-            }
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.floor());
     }
 
     fn fceil(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(t.ceil()) {
-            Err(_) => {
-                self.abort_with(FloatingPointStackOverflow);
-            }
-            Ok(()) => {}
-        }
+        self.f_stack().push(t.ceil());
     }
 
     fn fnegate(&mut self) {
         let t = self.f_stack().pop();
-        match self.f_stack().push(-t) {
-            Err(_) => {
-                self.abort_with(FloatingPointStackOverflow);
-            }
-            Ok(()) => {}
-        }
+        self.f_stack().push(-t);
     }
 }
 
@@ -502,10 +402,7 @@ mod tests {
     #[test]
     fn test_fdrop() {
         let vm = &mut VM::new(16);
-        match vm.f_stack().push(1.0) {
-            Err(_) => assert!(true, "Floating point stack overflow"),
-            Ok(()) => {}
-        }
+        vm.f_stack().push(1.0);
         vm.fdrop();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), []);
@@ -514,7 +411,8 @@ mod tests {
     #[test]
     fn test_fnip() {
         let vm = &mut VM::new(16);
-        vm.f_stack().push2(1.0, 2.0).unwrap();
+        vm.f_stack().push2(1.0, 2.0);
+        vm.check_stacks();
         match vm.last_error() {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
@@ -527,7 +425,8 @@ mod tests {
     #[test]
     fn test_fswap() {
         let vm = &mut VM::new(16);
-        vm.f_stack().push2(1.0, 2.0).unwrap();
+        vm.f_stack().push2(1.0, 2.0);
+        vm.check_stacks();
         match vm.last_error() {
             Some(_) => assert!(true, "Floating point stack overflow"),
             None => {}
@@ -540,11 +439,9 @@ mod tests {
     #[test]
     fn test_fdup() {
         let vm = &mut VM::new(16);
-        match vm.f_stack().push(1.0) {
-            Err(_) => assert!(true, "Floating point stack overflow"),
-            Ok(()) => {}
-        };
+        vm.f_stack().push(1.0);
         vm.fdup();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [1.0, 1.0]);
     }
@@ -552,11 +449,9 @@ mod tests {
     #[test]
     fn test_fover() {
         let vm = &mut VM::new(16);
-        match vm.f_stack().push2(1.0, 2.0) {
-            Err(_) => assert!(true, "Floating point stack overflow"),
-            Ok(()) => {}
-        };
+        vm.f_stack().push2(1.0, 2.0);
         vm.fover();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [1.0, 2.0, 1.0]);
     }
@@ -564,11 +459,9 @@ mod tests {
     #[test]
     fn test_frot() {
         let vm = &mut VM::new(16);
-        match vm.f_stack().push3(1.0, 2.0, 3.0) {
-            Err(_) => assert!(true, "Floating point stack overflow"),
-            Ok(()) => {}
-        };
+        vm.f_stack().push3(1.0, 2.0, 3.0);
         vm.frot();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [2.0, 3.0, 1.0]);
     }

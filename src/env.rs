@@ -11,14 +11,14 @@ pub trait Environment: Core {
     ///
     /// Largest usable signed integer
     fn max_n(&mut self) {
-        self.push(isize::max_value());
+        self.s_stack().push(isize::max_value());
     }
 
     /// Run-time: ( -- u )
     ///
     /// Largest usable unsigned integer
     fn max_u(&mut self) {
-        self.push(usize::max_value() as isize);
+        self.s_stack().push(usize::max_value() as isize);
     }
 }
 

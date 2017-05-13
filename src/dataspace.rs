@@ -1,7 +1,6 @@
 extern crate libc;
 
 use std::mem;
-use std::ptr::Unique;
 use std::slice;
 use std::marker;
 
@@ -24,7 +23,7 @@ impl SystemVariables {
 
 #[allow(dead_code)]
 pub struct DataSpace {
-    pub inner: Unique<u8>,
+    pub inner: *mut u8,
     cap: usize,
     len: usize,
     marker: marker::PhantomData<SystemVariables>,
@@ -42,7 +41,7 @@ impl DataSpace {
             memset(ptr, 0x00, size);
         }
         let mut result = DataSpace {
-            inner: unsafe { Unique::new(ptr as *mut u8) },
+            inner: ptr as *mut u8,
             cap: size,
             len: mem::size_of::<SystemVariables>(),
             marker: marker::PhantomData,

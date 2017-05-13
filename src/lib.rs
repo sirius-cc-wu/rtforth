@@ -1,5 +1,4 @@
 #![feature(libc)]
-#![feature(unique)]
 #![feature(test)]
 
 extern crate byteorder;

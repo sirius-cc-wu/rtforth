@@ -1,6 +1,6 @@
 [root]
 name = "rtforth"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -9,7 +9,7 @@ use std::fmt::Write;
 use std::str::FromStr;
 use std::ascii::AsciiExt;
 use std::result;
-use jitmem::{self, DataSpace};
+use dataspace::DataSpace;
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
                            FloatingPointStackOverflow, FloatingPointStackUnderflow,
@@ -464,7 +464,6 @@ pub trait Core: Sized {
         self.add_primitive("reset", Core::reset);
         self.add_primitive("abort", Core::abort);
         self.add_primitive("bye", Core::bye);
-        self.add_primitive("jit", Core::jit);
         self.add_primitive("compiling?", Core::p_compiling);
         self.add_primitive("token-empty?", Core::p_token_empty);
         self.add_primitive("compile-token", Core::compile_token);
@@ -1823,10 +1822,6 @@ pub trait Core: Sized {
         process::exit(0);
     }
 
-    /// Jit
-    fn jit(&mut self) {
-        self.s_stack().push(jitmem::jit_3()() as isize);
-    }
 }
 
 #[cfg(test)]

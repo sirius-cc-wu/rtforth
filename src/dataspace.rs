@@ -4,7 +4,6 @@ use std::mem;
 use std::ptr::Unique;
 use std::slice;
 use std::marker;
-use std::ops::{Index, IndexMut};
 
 extern "C" {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
@@ -183,70 +182,4 @@ impl DataSpace {
     pub fn truncate(&mut self, i: usize) {
         self.len = i;
     }
-}
-
-
-pub struct CodeSpace {
-    pub inner: Unique<u8>,
-    cap: usize,
-    len: usize,
-}
-
-impl CodeSpace {
-    #[cfg(target_arch = "x86")]
-    pub fn new(num_pages: usize) -> CodeSpace {
-        let mut ptr: *mut libc::c_void;
-        let size = num_pages * PAGE_SIZE;
-        unsafe {
-            ptr = mem::uninitialized();
-            libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(ptr,
-                           size,
-                           libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE);
-
-            memset(ptr, 0xc3, size);
-        }
-        let result = CodeSpace {
-            inner: unsafe { Unique::new(ptr as *mut u8) },
-            cap: size,
-            len: 0,
-        };
-        result
-    }
-
-    #[cfg(target_arch = "arm")]
-    pub fn new(num_pages: usize) -> CodeSpace {
-        unimplemented!()
-    }
-}
-
-impl Index<usize> for CodeSpace {
-    type Output = u8;
-
-    fn index(&self, _index: usize) -> &u8 {
-        unsafe { &*self.inner.offset(_index as isize) }
-    }
-}
-
-impl IndexMut<usize> for CodeSpace {
-    fn index_mut(&mut self, _index: usize) -> &mut u8 {
-        unsafe { &mut *self.inner.offset(_index as isize) }
-    }
-}
-
-#[cfg(target_arch = "x86")]
-pub fn jit_3() -> (fn() -> i32) {
-    let mut jit = CodeSpace::new(1);
-    jit[0] = 0x31; // xor %eax, %eax
-    jit[1] = 0xc0;
-    jit[2] = 0x40; // inc %eax
-    jit[3] = 0x40; // inc %eax
-    jit[4] = 0x40; // inc %eax
-
-    unsafe { mem::transmute(jit.inner.offset(0)) }
-}
-
-#[cfg(target_arch = "arm")]
-pub fn jit_3() -> (fn() -> i32) {
-    unimplemented!()
 }

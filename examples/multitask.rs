@@ -2,7 +2,7 @@ extern crate rtforth;
 
 mod vm {
     use rtforth::output::Output;
-    use rtforth::jitmem::DataSpace;
+    use rtforth::dataspace::DataSpace;
     use rtforth::core::{Core, Stack, State, ForwardReferences, Word};
     use rtforth::exception::Exception;
     use rtforth::bc::BC_HALT;

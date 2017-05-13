@@ -1,6 +1,6 @@
 use output::Output;
 use core::{Core, Word, ForwardReferences, Stack, State};
-use jitmem::DataSpace;
+use dataspace::DataSpace;
 use loader::HasLoader;
 use tools::Tools;
 use env::Environment;

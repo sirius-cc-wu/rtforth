@@ -12,7 +12,7 @@ pub mod tools;
 pub mod env;
 pub mod facility;
 pub mod float;
-pub mod jitmem;
+pub mod dataspace;
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;

@@ -7,7 +7,7 @@ const BUFFER_SIZE: usize = 0x400;
 
 mod vm {
     use rtforth::core::{Core, Stack, State, ForwardReferences, Word};
-    use rtforth::jitmem::DataSpace;
+    use rtforth::dataspace::DataSpace;
     use rtforth::float::Float;
     use rtforth::env::Environment;
     use rtforth::exception::Exception;

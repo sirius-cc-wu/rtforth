@@ -8,7 +8,7 @@ use getopts::Options;
 use rtforth::core::{Core, Word, ForwardReferences, Stack, State};
 use rtforth::exception::Exception;
 use rtforth::output::Output;
-use rtforth::jitmem::DataSpace;
+use rtforth::dataspace::DataSpace;
 use rtforth::loader::HasLoader;
 use rtforth::tools::Tools;
 use rtforth::env::Environment;

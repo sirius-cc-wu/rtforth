@@ -573,15 +573,15 @@ pub trait Core: Sized {
 
     /// Compile integer `i`.
     fn compile_integer(&mut self, i: isize) {
-        let idx = self.references().idx_lit as i32;
-        self.data_space().compile_i32(idx);
+        let idx = self.references().idx_lit;
+        self.compile_word(idx);
         self.data_space().compile_i32(i as i32);
     }
 
     /// Compile float 'f'.
     fn compile_float(&mut self, f: f64) {
         let idx_flit = self.references().idx_flit;
-        self.data_space().compile_i32(idx_flit as i32);
+        self.compile_word(idx_flit);
         self.data_space().compile_f64(f);
     }
 
@@ -939,8 +939,8 @@ pub trait Core: Sized {
             if self.c_stack().len != 0 {
                 self.abort_with(ControlStructureMismatch);
             } else {
-                let idx = self.references().idx_exit as i32;
-                self.data_space().compile_i32(idx);
+                let idx = self.references().idx_exit;
+                self.compile_word(idx);
                 let def = self.last_definition();
                 self.wordlist_mut()[def].set_hidden(false);
             }
@@ -1089,8 +1089,8 @@ pub trait Core: Sized {
     }
 
     fn imm_if(&mut self) {
-        let idx = self.references().idx_zero_branch as i32;
-        self.data_space().compile_i32(idx);
+        let idx = self.references().idx_zero_branch;
+        self.compile_word(idx);
         self.data_space().compile_i32(0);
         let here = self.data_space().len();
         self.c_stack().push(here);
@@ -1101,8 +1101,8 @@ pub trait Core: Sized {
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch as i32;
-            self.data_space().compile_i32(idx);
+            let idx = self.references().idx_branch;
+            self.compile_word(idx);
             self.data_space().compile_i32(0);
             let here = self.data_space().len();
             self.c_stack().push(here);
@@ -1128,8 +1128,8 @@ pub trait Core: Sized {
     }
 
     fn imm_while(&mut self) {
-        let idx = self.references().idx_zero_branch as i32;
-        self.data_space().compile_i32(idx);
+        let idx = self.references().idx_zero_branch;
+        self.compile_word(idx);
         self.data_space().compile_i32(0);
         let here = self.data_space().len();
         self.c_stack().push(here);
@@ -1140,8 +1140,8 @@ pub trait Core: Sized {
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch as i32;
-            self.data_space().compile_i32(idx);
+            let idx = self.references().idx_branch;
+            self.compile_word(idx);
             self.data_space().compile_i32(begin_part as i32);
             let here = self.data_space().len();
             self.data_space()
@@ -1154,15 +1154,15 @@ pub trait Core: Sized {
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch as i32;
-            self.data_space().compile_i32(idx);
+            let idx = self.references().idx_branch;
+            self.compile_word(idx);
             self.data_space().compile_i32(begin_part as i32);
         }
     }
 
     fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;
-        self.data_space().compile_u32(last as u32);
+        self.compile_word(last);
     }
 
     /// Execution: ( -- a-ddr )
@@ -1170,8 +1170,8 @@ pub trait Core: Sized {
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
     fn imm_do(&mut self) {
-        let idx = self.references().idx_do as i32;
-        self.data_space().compile_i32(idx);
+        let idx = self.references().idx_do;
+        self.compile_word(idx);
         self.data_space().compile_i32(0);
         let here = self.data_space().len();
         self.c_stack().push(here);
@@ -1188,8 +1188,8 @@ pub trait Core: Sized {
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_loop as i32;
-            self.data_space().compile_i32(idx);
+            let idx = self.references().idx_loop;
+            self.compile_word(idx);
             self.data_space().compile_i32(do_part as i32);
             let here = self.data_space().len();
             self.data_space()
@@ -1208,8 +1208,8 @@ pub trait Core: Sized {
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_plus_loop as i32;
-            self.data_space().compile_i32(idx);
+            let idx = self.references().idx_plus_loop;
+            self.compile_word(idx);
             self.data_space().compile_i32(do_part as i32);
             let here = self.data_space().len();
             self.data_space()

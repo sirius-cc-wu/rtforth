@@ -72,8 +72,8 @@ pub trait Output: Core {
                 }
                 None => (source, source.len()),
             };
-            let idx = self.references().idx_s_quote as i32;
-            self.data_space().compile_i32(idx);
+            let idx = self.references().idx_s_quote;
+            self.compile_word(idx);
             self.data_space().compile_i32(cnt as i32);
             self.data_space().compile_str(s);
             // ignore the space following S"

@@ -477,8 +477,6 @@ pub trait Core: Sized {
         self.references().idx_do = self.find("_do").expect("_do undefined");
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
-        let idx_halt = self.find("halt").expect("halt undefined");
-        self.data_space().put_u32(idx_halt as u32, 0);
     }
 
     /// Add a primitive word to word list.
@@ -3221,8 +3219,6 @@ mod tests {
         let (n, t) = vm.s_stack().pop2();
         assert!(!vm.s_stack().underflow());
         assert_eq!(t - n, 4 * mem::size_of::<u32>() as isize);
-        let idx_halt = vm.find("halt").expect("halt undefined");
-        assert_eq!(vm.data_space().get_i32(0), idx_halt as i32);
         assert_eq!(vm.data_space().get_i32(here + 0), 1);
         assert_eq!(vm.data_space().get_i32(here + 4), 2);
         assert_eq!(vm.data_space().get_i32(here + 8),

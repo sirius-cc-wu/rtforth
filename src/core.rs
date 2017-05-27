@@ -26,10 +26,11 @@ pub struct Word<Target> {
     hidden: bool,
     dfa: usize,
     action: fn(&mut Target),
+    compilation_semantics: fn(&mut Target, usize),
 }
 
 impl<Target> Word<Target> {
-    pub fn new(symbol: Symbol, action: fn(&mut Target), dfa: usize) -> Word<Target> {
+    pub fn new(symbol: Symbol, action: fn(&mut Target), compilation_semantics: fn(&mut Target, usize), dfa: usize) -> Word<Target> {
         Word {
             symbol: symbol,
             is_immediate: false,
@@ -37,6 +38,7 @@ impl<Target> Word<Target> {
             hidden: false,
             dfa: dfa,
             action: action,
+            compilation_semantics: compilation_semantics,
         }
     }
 
@@ -482,7 +484,7 @@ pub trait Core: Sized {
     /// Add a primitive word to word list.
     fn add_primitive(&mut self, name: &str, action: fn(&mut Self)) {
         let symbol = self.new_symbol(name);
-        let word = Word::new(symbol, action, self.data_space().len());
+        let word = Word::new(symbol, action, Core::compile_word, self.data_space().len());
         let len = self.wordlist().len();
         self.set_last_definition(len);
         self.wordlist_mut().push(word);
@@ -710,8 +712,9 @@ pub trait Core: Sized {
         match self.find(&last_token) {
             Some(found_index) => {
                 self.set_last_token(last_token);
+                let compilation_semantics = self.wordlist()[found_index].compilation_semantics;
                 if !self.wordlist()[found_index].is_immediate() {
-                    self.compile_word(found_index);
+                    compilation_semantics(self, found_index);
                 } else {
                     self.execute_word(found_index);
                 }
@@ -899,7 +902,7 @@ pub trait Core: Sized {
         self.s_stack().push(dfa);
     }
 
-    fn define(&mut self, action: fn(&mut Self)) {
+    fn define(&mut self, action: fn(&mut Self), compilation_semantics: fn(&mut Self, usize)) {
         self.parse_word();
         let mut last_token = self.last_token().take().expect("last token");
         last_token.make_ascii_lowercase();
@@ -917,7 +920,7 @@ pub trait Core: Sized {
             self.abort_with(UnexpectedEndOfFile);
         } else {
             let symbol = self.new_symbol(&last_token);
-            let word = Word::new(symbol, action, self.data_space().len());
+            let word = Word::new(symbol, action, compilation_semantics, self.data_space().len());
             let len = self.wordlist().len();
             self.set_last_definition(len);
             self.wordlist_mut().push(word);
@@ -926,7 +929,7 @@ pub trait Core: Sized {
     }
 
     fn colon(&mut self) {
-        self.define(Core::nest);
+        self.define(Core::nest, Core::compile_word);
         if self.last_error().is_none() {
             let def = self.last_definition();
             self.wordlist_mut()[def].set_hidden(true);
@@ -949,11 +952,11 @@ pub trait Core: Sized {
     }
 
     fn create(&mut self) {
-        self.define(Core::p_var);
+        self.define(Core::p_var, Core::compile_word);
     }
 
     fn variable(&mut self) {
-        self.define(Core::p_var);
+        self.define(Core::p_var, Core::compile_word);
         if self.last_error().is_none() {
             self.data_space().compile_i32(0);
         }
@@ -961,7 +964,7 @@ pub trait Core: Sized {
 
     fn constant(&mut self) {
         let v = self.s_stack().pop();
-        self.define(Core::p_const);
+        self.define(Core::p_const, Core::compile_word);
         if self.last_error().is_none() {
             self.data_space().compile_i32(v as i32);
         }
@@ -982,7 +985,7 @@ pub trait Core: Sized {
     }
 
     fn marker(&mut self) {
-        self.define(Core::unmark);
+        self.define(Core::unmark, Core::compile_word);
     }
 
     // --------

@@ -49,13 +49,13 @@ pub trait Float: Core {
     }
 
     fn fvariable(&mut self) {
-        self.define(Core::p_fvar);
+        self.define(Core::p_fvar, Core::compile_word);
         self.data_space().compile_f64(0.0);
     }
 
     fn fconstant(&mut self) {
         let v = self.f_stack().pop();
-        self.define(Float::p_fconst);
+        self.define(Float::p_fconst, Core::compile_word);
         self.data_space().compile_f64(v);
     }
 

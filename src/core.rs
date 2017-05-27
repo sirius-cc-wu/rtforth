@@ -300,10 +300,6 @@ impl State {
         }
     }
 
-    /// Idle is the result of new and reset, means that VM has nothing to do.
-    fn is_idle(&self) -> bool {
-        self.instruction_pointer == 0
-    }
     pub fn word_pointer(&self) -> usize {
         self.word_pointer
     }
@@ -558,9 +554,9 @@ pub trait Core: Sized {
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while 0 < ip && ip < self.data_space().len() {
-            let w = self.data_space().get_i32(ip) as usize;
+            let w: fn(&mut Self) = unsafe{ mem::transmute(self.data_space().get_i32(ip)) };
             self.state().instruction_pointer += mem::size_of::<i32>();
-            self.execute_word(w);
+            w(self);
             ip = self.state().instruction_pointer;
         }
     }
@@ -570,7 +566,8 @@ pub trait Core: Sized {
     // ---------
 
     fn compile_word(&mut self, word_index: usize) {
-        self.data_space().compile_i32(word_index as i32);
+        let w = self.wordlist()[word_index].action as u32;
+        self.data_space().compile_u32(w);
     }
 
     /// Compile integer `i`.
@@ -883,10 +880,39 @@ pub trait Core: Sized {
         self.state().instruction_pointer = self.wordlist()[wp].dfa();
     }
 
+    fn nest_next(&mut self) {
+        let mut ip = self.state().instruction_pointer;
+        let dfa = self.data_space().get_u32(ip) as usize;
+        ip += mem::size_of::<i32>();
+        let rlen = self.r_stack().len.wrapping_add(1);
+        self.r_stack().len = rlen;
+        self.r_stack()[rlen.wrapping_sub(1)] = ip as isize;
+        self.state().instruction_pointer = dfa;
+    }
+
+    fn compile_nest(&mut self, word_index: usize) {
+        self.data_space().compile_u32(Self::nest_next as u32);
+        let dfa = self.wordlist()[word_index].dfa();
+        self.data_space().compile_u32(dfa as u32);
+    }
+
     fn p_var(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa() as isize;
         self.s_stack().push(dfa);
+    }
+
+    fn p_var_next(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let dfa = self.data_space().get_u32(ip) as isize;
+        self.state().instruction_pointer = ip + mem::size_of::<i32>();
+        self.s_stack().push(dfa);
+    }
+
+    fn compile_var(&mut self, word_index: usize) {
+        self.data_space().compile_u32(Self::p_var_next as u32);
+        let dfa = self.wordlist()[word_index].dfa();
+        self.data_space().compile_u32(dfa as u32);
     }
 
     fn p_const(&mut self) {
@@ -896,10 +922,18 @@ pub trait Core: Sized {
         self.s_stack().push(value);
     }
 
-    fn p_fvar(&mut self) {
-        let wp = self.state().word_pointer;
-        let dfa = self.wordlist()[wp].dfa() as isize;
-        self.s_stack().push(dfa);
+    fn p_const_next(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let value = self.data_space().get_i32(ip) as isize;
+        self.state().instruction_pointer = ip + mem::size_of::<i32>();
+        self.s_stack().push(value);
+    }
+
+    fn compile_const(&mut self, word_index: usize) {
+        self.data_space().compile_u32(Self::p_const_next as u32);
+        let dfa = self.wordlist()[word_index].dfa();
+        let value = self.data_space().get_i32(dfa);
+        self.data_space().compile_i32(value);
     }
 
     fn define(&mut self, action: fn(&mut Self), compilation_semantics: fn(&mut Self, usize)) {
@@ -929,7 +963,7 @@ pub trait Core: Sized {
     }
 
     fn colon(&mut self) {
-        self.define(Core::nest, Core::compile_word);
+        self.define(Core::nest, Core::compile_nest);
         if self.last_error().is_none() {
             let def = self.last_definition();
             self.wordlist_mut()[def].set_hidden(true);
@@ -952,11 +986,11 @@ pub trait Core: Sized {
     }
 
     fn create(&mut self) {
-        self.define(Core::p_var, Core::compile_word);
+        self.define(Core::p_var, Core::compile_var);
     }
 
     fn variable(&mut self) {
-        self.define(Core::p_var, Core::compile_word);
+        self.define(Core::p_var, Core::compile_var);
         if self.last_error().is_none() {
             self.data_space().compile_i32(0);
         }
@@ -964,7 +998,7 @@ pub trait Core: Sized {
 
     fn constant(&mut self) {
         let v = self.s_stack().pop();
-        self.define(Core::p_const, Core::compile_word);
+        self.define(Core::p_const, Core::compile_const);
         if self.last_error().is_none() {
             self.data_space().compile_i32(v as i32);
         }
@@ -984,8 +1018,29 @@ pub trait Core: Sized {
         self.symbols_mut().truncate(symbol.id);
     }
 
+    fn unmark_next(&mut self) {
+        let ip = self.state().instruction_pointer;
+        self.state().instruction_pointer = ip + mem::size_of::<u32>();
+        let wp = self.data_space().get_u32(ip) as usize;
+        let dfa;
+        let symbol;
+        {
+            let w = &self.wordlist()[wp];
+            dfa = w.dfa();
+            symbol = w.symbol();
+        }
+        self.data_space().truncate(dfa);
+        self.wordlist_mut().truncate(wp);
+        self.symbols_mut().truncate(symbol.id);
+    }
+
+    fn compile_unmark(&mut self, wp: usize) {
+        self.data_space().compile_u32(Self::unmark_next as u32);
+        self.data_space().compile_u32(wp as u32);
+    }
+
     fn marker(&mut self) {
-        self.define(Core::unmark, Core::compile_word);
+        self.define(Core::unmark, Core::compile_unmark);
     }
 
     // --------
@@ -1165,7 +1220,7 @@ pub trait Core: Sized {
 
     fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;
-        self.compile_word(last);
+        self.compile_nest(last);
     }
 
     /// Execution: ( -- a-ddr )
@@ -1867,6 +1922,26 @@ mod tests {
     fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16);
         b.iter(|| vm.find("bye"));
+    }
+
+    #[test]
+    fn test_inner_interpreter_without_nest() {
+        let vm = &mut VM::new(16);
+        let ip = vm.data_space().len();
+        let noop_idx = vm.find("noop").expect("noop not exists");
+        let true_idx = vm.find("true").expect("true not exists");
+        let dup_idx = vm.find("dup").expect("dup not exists");
+        let halt_idx = vm.find("halt").expect("halt not exists");
+        let plus_idx = vm.find("+").expect("+ not exists");
+        vm.compile_word(noop_idx);
+        vm.compile_word(true_idx);
+        vm.compile_word(dup_idx);
+        vm.compile_word(plus_idx);
+        vm.compile_word(halt_idx);
+        vm.state().instruction_pointer = ip;
+        vm.run();
+        assert_eq!(vm.state().instruction_pointer, 0);
+        assert_eq!(vm.s_stack().pop(), -2);
     }
 
     #[bench]
@@ -3079,6 +3154,18 @@ mod tests {
     }
 
     #[test]
+    fn test_constant_in_colon() {
+        let vm = &mut VM::new(16);
+        // 77 constant x
+        // : 2x  x 2 * ;  2x
+        vm.set_source("77 constant x  : 2x x 2 * ;  2x");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.s_stack().pop(), 154);
+        assert_eq!(vm.s_stack().len, 0);
+    }
+
+    #[test]
     fn test_variable_and_store_fetch() {
         let vm = &mut VM::new(16);
         // @
@@ -3106,6 +3193,31 @@ mod tests {
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), 3);
         assert_eq!(vm.s_stack().pop(), 0);
+    }
+
+    #[test]
+    fn test_variable_and_fetch_in_colon() {
+        let vm = &mut VM::new(16);
+        // variable x
+        // 7 x !
+        // : x@ x @ ; x@
+        vm.set_source("variable x  7 x !  : x@ x @ ;  x@");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.s_stack().pop(), 7);
+        assert_eq!(vm.s_stack().len, 0);
+    }
+
+    #[test]
+    fn test_create_in_colon() {
+        let vm = &mut VM::new(16);
+        // create x 7 ,
+        // : x@ x @ ; x@
+        vm.set_source("create x 7 ,  : x@ x @ ;  x@");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.s_stack().pop(), 7);
+        assert_eq!(vm.s_stack().len, 0);
     }
 
     #[test]
@@ -3224,10 +3336,12 @@ mod tests {
         assert_eq!(t - n, 4 * mem::size_of::<u32>() as isize);
         assert_eq!(vm.data_space().get_i32(here + 0), 1);
         assert_eq!(vm.data_space().get_i32(here + 4), 2);
-        assert_eq!(vm.data_space().get_i32(here + 8),
-                   vm.references().idx_lit as i32);
-        assert_eq!(vm.data_space().get_i32(here + 12),
-                   vm.references().idx_exit as i32);
+        let idx_lit = vm.references().idx_lit;
+        let idx_exit = vm.references().idx_exit;
+        assert_eq!(vm.data_space().get_u32(here + 8),
+                   vm.wordlist()[idx_lit].action as u32);
+        assert_eq!(vm.data_space().get_u32(here + 12),
+                   vm.wordlist()[idx_exit].action as u32);
     }
 
     #[test]
@@ -3401,6 +3515,23 @@ mod tests {
         let symbols_len = vm.symbols().len();
         let wordlist_len = vm.wordlist().len();
         vm.set_source("here marker empty empty here =");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), -1);
+        assert_eq!(vm.symbols().len(), symbols_len);
+        assert_eq!(vm.wordlist().len(), wordlist_len);
+    }
+
+    #[test]
+    fn test_marker_in_colon() {
+        let vm = &mut VM::new(16);
+        let symbols_len = vm.symbols().len();
+        let wordlist_len = vm.wordlist().len();
+        // here marker empty
+        // : test empty ;
+        // test here = 
+        vm.set_source("here marker empty  : test empty ;  test here =");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);

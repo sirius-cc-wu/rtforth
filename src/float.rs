@@ -48,14 +48,28 @@ pub trait Float: Core {
         self.f_stack().push(v);
     }
 
+    fn p_fconst_next(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let value = self.data_space().get_f64(ip);
+        self.state().instruction_pointer = ip + mem::size_of::<f64>();
+        self.f_stack().push(value);
+    }
+
+    fn compile_fconst(&mut self, word_index: usize) {
+        self.data_space().compile_u32(Self::p_fconst_next as u32);
+        let dfa = self.wordlist()[word_index].dfa();
+        let value = self.data_space().get_f64(dfa);
+        self.data_space().compile_f64(value);
+    }
+
     fn fvariable(&mut self) {
-        self.define(Core::p_fvar, Core::compile_word);
+        self.define(Core::p_var, Core::compile_var);
         self.data_space().compile_f64(0.0);
     }
 
     fn fconstant(&mut self) {
         let v = self.f_stack().pop();
-        self.define(Float::p_fconst, Core::compile_word);
+        self.define(Float::p_fconst, Float::compile_fconst);
         self.data_space().compile_f64(v);
     }
 
@@ -283,12 +297,36 @@ mod tests {
     }
 
     #[test]
+    fn test_fconstant_in_colon() {
+        let vm = &mut VM::new(16);
+        // 1.1 fconstant x
+        // : 2x  x 2.0 f* ; 2x
+        vm.set_source("1.1 fconstant x  : 2x  x 2.0 f* ;  2x");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().as_slice(), [1.1*2.0]);
+    }
+
+    #[test]
     fn test_fvariable_and_fstore_ffetch() {
         let vm = &mut VM::new(16);
         vm.set_source("fvariable fx  fx f@  3.3 fx f!  fx f@");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [0.0, 3.3]);
+    }
+
+    #[test]
+    fn test_fvariable_and_ffetch_in_colon() {
+        let vm = &mut VM::new(16);
+        // fvariable fx  3.3 fx f!
+        // : fx@  fx f@ ;  fx@
+        vm.set_source("fvariable fx  3.3 fx f!  : fx@  fx f@ ;  fx@");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().as_slice(), [3.3]);
     }
 
     #[test]

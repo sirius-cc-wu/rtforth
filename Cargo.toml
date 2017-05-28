@@ -20,3 +20,8 @@ getopts = "0.2"
 rustyline = "1.0.0"
 futures = "*"
 tokio-core = "*"
+
+[features]
+default = []
+primitive-centric = []
+subroutine-threaded = []

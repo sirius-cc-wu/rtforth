@@ -41,25 +41,13 @@ pub trait Float: Core {
         self.add_primitive("fnegate", Float::fnegate);
     }
 
+    // Defining words
+
     fn p_fconst(&mut self) {
         let wp = self.state().word_pointer();
         let dfa = self.wordlist()[wp].dfa();
         let v = self.data_space().get_f64(dfa);
         self.f_stack().push(v);
-    }
-
-    fn p_fconst_next(&mut self) {
-        let ip = self.state().instruction_pointer;
-        let value = self.data_space().get_f64(ip);
-        self.state().instruction_pointer = ip + mem::size_of::<f64>();
-        self.f_stack().push(value);
-    }
-
-    fn compile_fconst(&mut self, word_index: usize) {
-        self.data_space().compile_u32(Self::p_fconst_next as u32);
-        let dfa = self.wordlist()[word_index].dfa();
-        let value = self.data_space().get_f64(dfa);
-        self.data_space().compile_f64(value);
     }
 
     fn fvariable(&mut self) {
@@ -69,7 +57,7 @@ pub trait Float: Core {
 
     fn fconstant(&mut self) {
         let v = self.f_stack().pop();
-        self.define(Float::p_fconst, Float::compile_fconst);
+        self.define(Float::p_fconst, Core::compile_fconst);
         self.data_space().compile_f64(v);
     }
 
@@ -297,6 +285,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "primitive-centric")]
     fn test_fconstant_in_colon() {
         let vm = &mut VM::new(16);
         // 1.1 fconstant x
@@ -318,6 +307,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "primitive-centric")]
     fn test_fvariable_and_ffetch_in_colon() {
         let vm = &mut VM::new(16);
         // fvariable fx  3.3 fx f!

@@ -69,11 +69,6 @@ impl DataSpace {
         self.len
     }
 
-    #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool {
-        self.len == mem::align_of::<usize>()
-    }
-
     pub fn get_u8(&self, addr: usize) -> u8 {
         unsafe { *(self.inner.offset(addr as isize) as *mut u8) }
     }

@@ -14,7 +14,6 @@ use rtforth::tools::Tools;
 use rtforth::env::Environment;
 use rtforth::facility::Facility;
 use rtforth::float::Float;
-use rtforth::bc::BC_HALT;
 
 #[cfg(not(test))]
 #[cfg(not(test))]
@@ -44,7 +43,7 @@ impl VM {
         let mut vm = VM {
             editor: rustyline::Editor::<()>::new(),
             last_error: None,
-            handler: BC_HALT,
+            handler: 0,
             s_stk: Stack::new(0x12345678),
             r_stk: Stack::new(0x12345678),
             c_stk: Stack::new(0x12345678),

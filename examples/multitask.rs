@@ -5,7 +5,6 @@ mod vm {
     use rtforth::dataspace::DataSpace;
     use rtforth::core::{Core, Stack, State, ForwardReferences, Word};
     use rtforth::exception::Exception;
-    use rtforth::bc::BC_HALT;
 
     const BUFFER_SIZE: usize = 0x400;
 
@@ -51,7 +50,7 @@ mod vm {
                             f_stk: Stack::new(1.234567890),
                         }],
                 last_error: None,
-                handler: BC_HALT,
+                handler: 0,
                 symbols: vec![],
                 last_definition: 0,
                 wordlist: vec![],

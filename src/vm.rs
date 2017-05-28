@@ -6,7 +6,6 @@ use tools::Tools;
 use env::Environment;
 use facility::Facility;
 use float::Float;
-use bc::*;
 use exception::Exception;
 
 // Virtual machine
@@ -32,7 +31,7 @@ impl VM {
     pub fn new(pages: usize) -> VM {
         let mut vm = VM {
             last_error: None,
-            handler: BC_HALT,
+            handler: 0,
             s_stk: Stack::new(0x12345678),
             r_stk: Stack::new(0x12345678),
             c_stk: Stack::new(0x12345678),

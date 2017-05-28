@@ -15,7 +15,6 @@ mod vm {
     use rtforth::loader::HasLoader;
     use rtforth::output::Output;
     use rtforth::tools::Tools;
-    use rtforth::bc::BC_HALT;
     use super::BUFFER_SIZE;
 
     struct Task {
@@ -51,7 +50,7 @@ mod vm {
                 tasks_used: [false; 3],
                 tasks: [Task {
                             last_error: None,
-                            handler: BC_HALT,
+                            handler: 0,
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
@@ -63,7 +62,7 @@ mod vm {
                         },
                         Task {
                             last_error: None,
-                            handler: BC_HALT,
+                            handler: 0,
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
@@ -75,7 +74,7 @@ mod vm {
                         },
                         Task {
                             last_error: None,
-                            handler: BC_HALT,
+                            handler: 0,
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),

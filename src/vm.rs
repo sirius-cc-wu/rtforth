@@ -1,6 +1,7 @@
 use output::Output;
 use core::{Core, Word, ForwardReferences, Stack, State};
 use dataspace::DataSpace;
+use codespace::CodeSpace;
 use loader::HasLoader;
 use tools::Tools;
 use env::Environment;
@@ -20,6 +21,7 @@ pub struct VM {
     last_definition: usize,
     wordlist: Vec<Word<VM>>,
     data_space: DataSpace,
+    code_space: CodeSpace,
     inbuf: Option<String>,
     tkn: Option<String>,
     outbuf: Option<String>,
@@ -28,7 +30,7 @@ pub struct VM {
 }
 
 impl VM {
-    pub fn new(pages: usize) -> VM {
+    pub fn new(data_pages: usize, code_pages: usize) -> VM {
         let mut vm = VM {
             last_error: None,
             handler: 0,
@@ -39,7 +41,8 @@ impl VM {
             symbols: vec![],
             last_definition: 0,
             wordlist: vec![],
-            data_space: DataSpace::new(pages),
+            data_space: DataSpace::new(data_pages),
+            code_space: CodeSpace::new(code_pages),
             inbuf: Some(String::with_capacity(128)),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
@@ -74,6 +77,12 @@ impl Core for VM {
     }
     fn data_space_const(&self) -> &DataSpace {
         &self.data_space
+    }
+    fn code_space(&mut self) -> &mut CodeSpace {
+        &mut self.code_space
+    }
+    fn code_space_const(&self) -> &CodeSpace {
+        &self.code_space
     }
     fn output_buffer(&mut self) -> &mut Option<String> {
         &mut self.outbuf

@@ -10,6 +10,7 @@ use std::str::FromStr;
 use std::ascii::AsciiExt;
 use std::result;
 use dataspace::DataSpace;
+use codespace::CodeSpace;
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
                            FloatingPointStackOverflow, FloatingPointStackUnderflow,
@@ -324,6 +325,8 @@ pub trait Core: Sized {
     fn set_handler(&mut self, h: usize);
     fn data_space(&mut self) -> &mut DataSpace;
     fn data_space_const(&self) -> &DataSpace;
+    fn code_space(&mut self) -> &mut CodeSpace;
+    fn code_space_const(&self) -> &CodeSpace;
     /// Get `output_buffer`.
     fn output_buffer(&mut self) -> &mut Option<String>;
     /// Set `output_buffer` to `Some(buffer)`.
@@ -551,7 +554,7 @@ pub trait Core: Sized {
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.
     #[inline(never)]
-    #[cfg(not(feature = "primitive-centric"))]
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while 0 < ip && ip < self.data_space().len() {
@@ -562,32 +565,37 @@ pub trait Core: Sized {
         }
     }
 
-    #[cfg(not(feature = "primitive-centric"))]
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     fn compile_word(&mut self, word_index: usize) {
         self.data_space().compile_u32(word_index as u32);
     }
 
-    #[cfg(not(feature = "primitive-centric"))]
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     fn compile_nest(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "primitive-centric"))]
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    fn compile_nest_code(&mut self, word_index: usize) {
+        // Do nothing.
+    }
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     fn compile_var(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "primitive-centric"))]
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     fn compile_const(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "primitive-centric"))]
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     fn compile_unmark(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "primitive-centric"))]
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     fn compile_fconst(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
@@ -632,6 +640,11 @@ pub trait Core: Sized {
         self.data_space().compile_u32(Self::nest_next as u32);
         let dfa = self.wordlist()[word_index].dfa();
         self.data_space().compile_u32(dfa as u32);
+    }
+
+    #[cfg(feature = "primitive-centric")]
+    fn compile_nest_code(&mut self, word_index: usize) {
+        // Do nothing.
     }
 
     #[cfg(feature = "primitive-centric")]
@@ -702,6 +715,71 @@ pub trait Core: Sized {
         let dfa = self.wordlist()[word_index].dfa();
         let value = self.data_space().get_f64(dfa);
         self.data_space().compile_f64(value);
+    }
+
+    // -------------------------------
+    // Subroutine threaded code
+    // -------------------------------
+
+    /// Evaluate a compiled program following self.state().instruction_pointer.
+    /// Any exception causes termination of inner loop.
+    #[inline(never)]
+    #[cfg(feature = "subroutine-threaded")]
+    fn run(&mut self) {
+        // Do nothing.
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_word(&mut self, word_index: usize) {
+        // 89 34 24         mov    %esi,(%esp)
+        // e8 xx xx xx xx   call   self.wordlist()[word_index].action
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0x34);
+        self.code_space().compile_u8(0x24);
+        self.code_space().compile_u8(0xe8);
+        let w = self.wordlist()[word_index].action as usize;
+        self.code_space().compile_relative(w);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_nest(&mut self, word_index: usize) {
+        self.compile_word(word_index);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_nest_code(&mut self, word_index: usize) {
+        self.wordlist_mut()[word_index].action = unsafe{ mem::transmute(self.code_space().here()) };
+        // 55               push   %ebp
+        // 89 e5            mov    %esp,%ebp
+        // 56               push   %esi
+        // 8b 75 08         mov    0x8(%ebp),%esi
+        self.code_space().compile_u8(0x55);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xe5);
+        self.code_space().compile_u8(0x56);
+        self.code_space().compile_u8(0x8b);
+        self.code_space().compile_u8(0x75);
+        self.code_space().compile_u8(0x08);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_var(&mut self, word_index: usize) {
+        // self.compile_word(word_index);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_const(&mut self, word_index: usize) {
+        // self.compile_word(word_index);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_unmark(&mut self, word_index: usize) {
+        // self.compile_word(word_index);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_fconst(&mut self, word_index: usize) {
+        // self.compile_word(word_index);
     }
 
     // ---------
@@ -1061,6 +1139,7 @@ pub trait Core: Sized {
         self.define(Core::nest, Core::compile_nest);
         if self.last_error().is_none() {
             let def = self.last_definition();
+            self.compile_nest_code(def);
             self.wordlist_mut()[def].set_hidden(true);
             self.right_bracket();
         }
@@ -1968,13 +2047,13 @@ mod tests {
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| vm.noop());
     }
 
     #[test]
     fn test_find() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         assert!(vm.find("").is_none());
         assert!(vm.find("word-not-exist").is_none());
         vm.find("noop").expect("noop not found");
@@ -1982,25 +2061,25 @@ mod tests {
 
     #[bench]
     fn bench_find_word_not_exist(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| vm.find("unknown"));
     }
 
     #[bench]
     fn bench_find_word_at_beginning_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| vm.find("noop"));
     }
 
     #[bench]
     fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| vm.find("bye"));
     }
 
     #[bench]
     fn bench_inner_interpreter_without_nest(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         let ip = vm.data_space().len();
         let idx = vm.find("noop").expect("noop not exists");
         vm.compile_word(idx);
@@ -2018,7 +2097,7 @@ mod tests {
 
     #[test]
     fn test_drop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.p_drop();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2033,7 +2112,7 @@ mod tests {
 
     #[bench]
     fn bench_drop(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         b.iter(|| {
                    vm.p_drop();
@@ -2043,7 +2122,7 @@ mod tests {
 
     #[test]
     fn test_nip() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.nip();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2066,7 +2145,7 @@ mod tests {
 
     #[bench]
     fn bench_nip(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         vm.s_stack().push(1);
         b.iter(|| {
@@ -2077,7 +2156,7 @@ mod tests {
 
     #[test]
     fn test_swap() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.swap();
         vm.check_stacks();
         // check_stacks() cannot detect this kind of underflow.
@@ -2104,7 +2183,7 @@ mod tests {
 
     #[bench]
     fn bench_swap(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         b.iter(|| vm.swap());
@@ -2112,7 +2191,7 @@ mod tests {
 
     #[test]
     fn test_dup() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.dup();
         vm.check_stacks();
         // check_stacks can not detect this underflow();
@@ -2132,7 +2211,7 @@ mod tests {
 
     #[bench]
     fn bench_dup(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         b.iter(|| {
                    vm.dup();
@@ -2142,7 +2221,7 @@ mod tests {
 
     #[test]
     fn test_over() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.over();
         vm.check_stacks();
         // check_stacks() cannot detect stack underflow of over().
@@ -2171,7 +2250,7 @@ mod tests {
 
     #[bench]
     fn bench_over(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         b.iter(|| {
@@ -2182,7 +2261,7 @@ mod tests {
 
     #[test]
     fn test_rot() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.rot();
         vm.check_stacks();
         // check_stacks() cannot detect this kind of stack underflow of over().
@@ -2218,7 +2297,7 @@ mod tests {
 
     #[bench]
     fn bench_rot(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.s_stack().push(3);
@@ -2227,7 +2306,7 @@ mod tests {
 
     #[test]
     fn test_2drop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.two_drop();
         assert!(vm.s_stack().underflow());
         vm.reset();
@@ -2248,7 +2327,7 @@ mod tests {
 
     #[bench]
     fn bench_2drop(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| {
                    vm.s_stack().push(1);
                    vm.s_stack().push(2);
@@ -2258,7 +2337,7 @@ mod tests {
 
     #[test]
     fn test_2dup() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.two_dup();
         assert!(!vm.s_stack().underflow());
         vm.reset();
@@ -2283,7 +2362,7 @@ mod tests {
 
     #[bench]
     fn bench_2dup(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         b.iter(|| {
@@ -2294,7 +2373,7 @@ mod tests {
 
     #[test]
     fn test_2swap() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.two_swap();
         assert!(!vm.s_stack().underflow());
         vm.reset();
@@ -2333,7 +2412,7 @@ mod tests {
 
     #[bench]
     fn bench_2swap(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.s_stack().push(3);
@@ -2343,7 +2422,7 @@ mod tests {
 
     #[test]
     fn test_2over() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.two_over();
         assert!(!vm.s_stack().underflow());
         vm.reset();
@@ -2380,7 +2459,7 @@ mod tests {
 
     #[bench]
     fn bench_2over(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.s_stack().push(3);
@@ -2393,7 +2472,7 @@ mod tests {
 
     #[test]
     fn test_depth() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.depth();
         vm.depth();
         vm.depth();
@@ -2402,7 +2481,7 @@ mod tests {
 
     #[test]
     fn test_one_plus() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.one_plus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2418,14 +2497,14 @@ mod tests {
 
     #[bench]
     fn bench_one_plus(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(0);
         b.iter(|| { vm.one_plus(); });
     }
 
     #[test]
     fn test_one_minus() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.one_minus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2441,14 +2520,14 @@ mod tests {
 
     #[bench]
     fn bench_one_minus(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(0);
         b.iter(|| { vm.one_minus(); });
     }
 
     #[test]
     fn test_minus() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.minus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2471,7 +2550,7 @@ mod tests {
 
     #[bench]
     fn bench_minus(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(0);
         b.iter(|| {
                    vm.dup();
@@ -2481,7 +2560,7 @@ mod tests {
 
     #[test]
     fn test_plus() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.plus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2504,7 +2583,7 @@ mod tests {
 
     #[bench]
     fn bench_plus(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         b.iter(|| {
                    vm.dup();
@@ -2514,7 +2593,7 @@ mod tests {
 
     #[test]
     fn test_star() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.star();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2537,7 +2616,7 @@ mod tests {
 
     #[bench]
     fn bench_star(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         b.iter(|| {
                    vm.dup();
@@ -2547,7 +2626,7 @@ mod tests {
 
     #[test]
     fn test_slash() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.slash();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2570,7 +2649,7 @@ mod tests {
 
     #[bench]
     fn bench_slash(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         b.iter(|| {
                    vm.dup();
@@ -2580,7 +2659,7 @@ mod tests {
 
     #[test]
     fn test_mod() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.p_mod();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2603,7 +2682,7 @@ mod tests {
 
     #[bench]
     fn bench_mod(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         b.iter(|| {
@@ -2614,7 +2693,7 @@ mod tests {
 
     #[test]
     fn test_slash_mod() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.slash_mod();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2638,7 +2717,7 @@ mod tests {
 
     #[bench]
     fn bench_slash_mod(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push2(1, 2);
         b.iter(|| {
                    vm.slash_mod();
@@ -2649,7 +2728,7 @@ mod tests {
 
     #[test]
     fn test_abs() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(-30);
         vm.abs();
         assert!(vm.last_error().is_none());
@@ -2659,7 +2738,7 @@ mod tests {
 
     #[test]
     fn test_negate() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.negate();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2675,7 +2754,7 @@ mod tests {
 
     #[test]
     fn test_zero_less() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.zero_less();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2697,7 +2776,7 @@ mod tests {
 
     #[test]
     fn test_zero_equals() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.zero_equals();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2725,7 +2804,7 @@ mod tests {
 
     #[test]
     fn test_zero_greater() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.zero_greater();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2747,7 +2826,7 @@ mod tests {
 
     #[test]
     fn test_zero_not_equals() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.zero_not_equals();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2775,7 +2854,7 @@ mod tests {
 
     #[test]
     fn test_less_than() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.less_than();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2805,7 +2884,7 @@ mod tests {
 
     #[test]
     fn test_equals() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.equals();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2842,7 +2921,7 @@ mod tests {
 
     #[test]
     fn test_greater_than() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.greater_than();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2872,7 +2951,7 @@ mod tests {
 
     #[test]
     fn test_not_equals() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.not_equals();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2909,7 +2988,7 @@ mod tests {
 
     #[test]
     fn test_between() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.between();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2964,7 +3043,7 @@ mod tests {
 
     #[test]
     fn test_invert() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.invert();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -2980,7 +3059,7 @@ mod tests {
 
     #[test]
     fn test_and() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(707);
         vm.s_stack().push(007);
         vm.and();
@@ -2994,7 +3073,7 @@ mod tests {
 
     #[test]
     fn test_or() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.or();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3017,7 +3096,7 @@ mod tests {
 
     #[test]
     fn test_xor() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.xor();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3040,7 +3119,7 @@ mod tests {
 
     #[test]
     fn test_lshift() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.lshift();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3070,7 +3149,7 @@ mod tests {
 
     #[test]
     fn test_rshift() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.rshift();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3100,7 +3179,7 @@ mod tests {
 
     #[test]
     fn test_parse_word() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source("hello world\t\r\n\"");
         vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "hello");
@@ -3114,7 +3193,7 @@ mod tests {
 
     #[test]
     fn test_evaluate() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // >r
         vm.set_source(">r");
         vm.evaluate();
@@ -3153,7 +3232,7 @@ mod tests {
 
     #[bench]
     fn bench_compile_words_at_beginning_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| {
             vm.set_source("marker empty : main noop noop noop noop noop noop noop noop ; empty");
             vm.evaluate();
@@ -3163,7 +3242,7 @@ mod tests {
 
     #[bench]
     fn bench_compile_words_at_end_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| {
                    vm.set_source("marker empty : main bye bye bye bye bye bye bye bye ; empty");
                    vm.evaluate();
@@ -3173,7 +3252,7 @@ mod tests {
 
     #[test]
     fn test_colon_and_semi_colon() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // :
         vm.set_source(":");
         vm.evaluate();
@@ -3190,7 +3269,7 @@ mod tests {
 
     #[test]
     fn test_constant() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // constant x
         vm.set_source("constant");
         vm.evaluate();
@@ -3209,7 +3288,7 @@ mod tests {
 
     #[test]
     fn test_variable_and_store_fetch() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // @
         vm.set_source("@");
         vm.evaluate();
@@ -3239,7 +3318,7 @@ mod tests {
 
     #[test]
     fn test_char_plus_and_chars() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.char_plus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3258,7 +3337,7 @@ mod tests {
 
     #[test]
     fn test_cell_plus_and_cells() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.cell_plus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3275,7 +3354,7 @@ mod tests {
 
     #[test]
     fn test_tick() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // '
         vm.tick();
         assert_eq!(vm.last_error(), Some(UnexpectedEndOfFile));
@@ -3295,7 +3374,7 @@ mod tests {
 
     #[test]
     fn test_execute() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // execute
         vm.execute();
         vm.check_stacks();
@@ -3321,7 +3400,7 @@ mod tests {
 
     #[test]
     fn test_here_allot() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // allot
         vm.allot();
         vm.check_stacks();
@@ -3337,7 +3416,7 @@ mod tests {
 
     #[test]
     fn test_to_r_r_fetch_r_from() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
         vm.evaluate();
         assert!(vm.last_error().is_none());
@@ -3347,7 +3426,7 @@ mod tests {
 
     #[bench]
     fn bench_to_r_r_fetch_r_from(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": main 3 >r r@ drop r> drop ;");
         vm.evaluate();
         vm.set_source("' main");
@@ -3361,7 +3440,7 @@ mod tests {
 
     #[test]
     fn test_two_to_r_two_r_fetch_two_r_from() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
         vm.evaluate();
         assert!(vm.last_error().is_none());
@@ -3371,7 +3450,7 @@ mod tests {
 
     #[bench]
     fn bench_two_to_r_two_r_fetch_two_r_from(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": main 1 2 2>r 2r@ 2drop 2r> 2drop ;");
         vm.evaluate();
         vm.set_source("' main");
@@ -3385,7 +3464,7 @@ mod tests {
 
     #[test]
     fn test_if_else_then() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t5 if ; t5
         vm.set_source(": t5 if ;");
         vm.evaluate();
@@ -3420,7 +3499,7 @@ mod tests {
 
     #[test]
     fn test_begin_again() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t3 begin ;
         vm.set_source(": t3 begin ;");
         vm.evaluate();
@@ -3443,7 +3522,7 @@ mod tests {
 
     #[test]
     fn test_begin_while_repeat() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t1 begin ;
         vm.set_source(": t1 begin ;");
         vm.evaluate();
@@ -3490,7 +3569,7 @@ mod tests {
 
     #[test]
     fn test_backslash() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source("1 2 3 \\ 5 6 7");
         vm.evaluate();
         assert!(vm.last_error().is_none());
@@ -3502,7 +3581,7 @@ mod tests {
 
     #[test]
     fn test_marker_unmark() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         let symbols_len = vm.symbols().len();
         let wordlist_len = vm.wordlist().len();
         vm.set_source("here marker empty empty here =");
@@ -3516,7 +3595,7 @@ mod tests {
 
     #[test]
     fn test_abort() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source("1 2 3 abort 5 6 7");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(Abort));
@@ -3525,7 +3604,7 @@ mod tests {
 
     #[test]
     fn test_do_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t1 do ;
         vm.set_source(": t1 do ;");
         vm.evaluate();
@@ -3548,7 +3627,7 @@ mod tests {
 
     #[test]
     fn test_do_unloop_exit_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t1 unloop ;
         vm.set_source(": t1 unloop ; t1");
         vm.evaluate();
@@ -3565,7 +3644,7 @@ mod tests {
 
     #[test]
     fn test_do_plus_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t1 +loop ;
         vm.set_source(": t1 +loop ;");
         vm.evaluate();
@@ -3594,7 +3673,7 @@ mod tests {
 
     #[test]
     fn test_do_leave_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t1 leave ;
         vm.set_source(": t1 leave ;  t1");
         vm.evaluate();
@@ -3611,7 +3690,7 @@ mod tests {
 
     #[test]
     fn test_do_i_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : main 3 0 do i loop ;  main
         vm.set_source(": main 3 0 do i loop ;  main");
         vm.evaluate();
@@ -3622,7 +3701,7 @@ mod tests {
 
     #[test]
     fn test_do_i_j_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -3632,7 +3711,7 @@ mod tests {
 
     #[bench]
     fn bench_fib(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": fib dup 2 < if drop 1 else dup 1- recurse swap 2 - recurse + then ;");
         vm.evaluate();
         assert!(vm.last_error().is_none());
@@ -3653,7 +3732,7 @@ mod tests {
 
     #[bench]
     fn bench_repeat(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": bench 0 begin over over > while 1 + repeat drop drop ;");
         vm.evaluate();
         vm.set_source(": main 8000 bench ;");
@@ -3673,7 +3752,7 @@ mod tests {
 
     #[bench]
     fn bench_sieve(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.load("./lib.fs");
         assert_eq!(vm.last_error(), None);
         vm.set_source("CREATE FLAGS 8190 ALLOT   VARIABLE EFLAG");
@@ -3718,9 +3797,9 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "primitive-centric"))]
+    #[cfg(not(any(feature = "primitive-centric", feature="subroutine-threaded")))]
     fn test_here_comma_compile_interpret() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.comma();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3745,7 +3824,7 @@ mod tests {
     #[test]
     #[cfg(feature = "primitive-centric")]
     fn test_constant_in_colon() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // 77 constant x
         // : 2x  x 2 * ;  2x
         vm.set_source("77 constant x  : 2x x 2 * ;  2x");
@@ -3758,7 +3837,7 @@ mod tests {
     #[test]
     #[cfg(feature = "primitive-centric")]
     fn test_inner_interpreter_without_nest() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         let ip = vm.data_space().len();
         let noop_idx = vm.find("noop").expect("noop not exists");
         let true_idx = vm.find("true").expect("true not exists");
@@ -3779,7 +3858,7 @@ mod tests {
     #[test]
     #[cfg(feature = "primitive-centric")]
     fn test_variable_and_fetch_in_colon() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // variable x
         // 7 x !
         // : x@ x @ ; x@
@@ -3793,7 +3872,7 @@ mod tests {
     #[test]
     #[cfg(feature = "primitive-centric")]
     fn test_create_in_colon() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // create x 7 ,
         // : x@ x @ ; x@
         vm.set_source("create x 7 ,  : x@ x @ ;  x@");
@@ -3806,7 +3885,7 @@ mod tests {
     #[test]
     #[cfg(feature = "primitive-centric")]
     fn test_here_comma_compile_interpret() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.comma();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3833,7 +3912,7 @@ mod tests {
     #[test]
     #[cfg(feature = "primitive-centric")]
     fn test_marker_in_colon() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         let symbols_len = vm.symbols().len();
         let wordlist_len = vm.wordlist().len();
         // here marker empty
@@ -3846,6 +3925,35 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), -1);
         assert_eq!(vm.symbols().len(), symbols_len);
         assert_eq!(vm.wordlist().len(), wordlist_len);
+    }
+
+    #[test]
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    fn test_subroutine_threaded_colon_and_semi_colon() {
+        let vm = &mut VM::new(16, 16);
+        // : nop ;
+        // 55               push   %ebp
+        // 89 e5            mov    %esp,%ebp
+        // 56               push   %esi
+        // 8b 75 08         mov    0x8(%ebp),%esi
+        // 5e               pop    %esi
+        // 5d               pop    %ebp
+        // c3               ret
+        let action = vm.code_space().here();
+        vm.set_source(": nop ;");
+        vm.evaluate();
+        let w = vm.last_definition();
+        assert_eq!(vm.wordlist()[w].action as usize, action);
+        assert_eq!(vm.code_space().get_u8(0), 0x55);
+        assert_eq!(vm.code_space().get_u8(1), 0x89);
+        assert_eq!(vm.code_space().get_u8(2), 0xe5);
+        assert_eq!(vm.code_space().get_u8(3), 0x56);
+        assert_eq!(vm.code_space().get_u8(4), 0x8b);
+        assert_eq!(vm.code_space().get_u8(5), 0x75);
+        assert_eq!(vm.code_space().get_u8(6), 0x08);
+        assert_eq!(vm.code_space().get_u8(7), 0x5e);
+        assert_eq!(vm.code_space().get_u8(8), 0x5d);
+        assert_eq!(vm.code_space().get_u8(9), 0xc3);
     }
 
 }

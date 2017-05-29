@@ -4,7 +4,7 @@ use rtforth::core::Core;
 
 // Evaluate "1 ."
 fn main() {
-    let vm = &mut VM::new(65536);
+    let vm = &mut VM::new(100, 100);
     vm.set_source("1 .");
     vm.evaluate();
     match vm.last_error() {

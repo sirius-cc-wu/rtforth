@@ -3,6 +3,7 @@ extern crate rtforth;
 mod vm {
     use rtforth::output::Output;
     use rtforth::dataspace::DataSpace;
+    use rtforth::codespace::CodeSpace;
     use rtforth::core::{Core, Stack, State, ForwardReferences, Word};
     use rtforth::exception::Exception;
 
@@ -25,6 +26,7 @@ mod vm {
         last_definition: usize,
         wordlist: Vec<Word<VM>>,
         data_space: DataSpace,
+        code_space: CodeSpace,
         inbuf: Option<String>,
         tkn: Option<String>,
         outbuf: Option<String>,
@@ -32,7 +34,7 @@ mod vm {
     }
 
     impl VM {
-        pub fn new(pages: usize) -> VM {
+        pub fn new(data_pages: usize, code_pages: usize) -> VM {
             let mut vm = VM {
                 current_task: 0,
                 tasks: [Task {
@@ -54,7 +56,8 @@ mod vm {
                 symbols: vec![],
                 last_definition: 0,
                 wordlist: vec![],
-                data_space: DataSpace::new(pages),
+                data_space: DataSpace::new(data_pages),
+                code_space: CodeSpace::new(code_pages),
                 inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                 tkn: Some(String::with_capacity(64)),
                 outbuf: Some(String::with_capacity(BUFFER_SIZE)),
@@ -93,6 +96,12 @@ mod vm {
         }
         fn data_space_const(&self) -> &DataSpace {
             &self.data_space
+        }
+        fn code_space(&mut self) -> &mut CodeSpace {
+            &mut self.code_space
+        }
+        fn code_space_const(&self) -> &CodeSpace {
+            &self.code_space
         }
         fn output_buffer(&mut self) -> &mut Option<String> {
             &mut self.outbuf
@@ -157,7 +166,7 @@ use vm::VM;
 use rtforth::core::Core;
 
 fn main() {
-    let mut vm = VM::new(0x100);
+    let mut vm = VM::new(0x100, 0x100);
 
     vm.set_source(": stars   5 0 do 42 emit pause loop ;");
     vm.evaluate();

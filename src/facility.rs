@@ -23,7 +23,7 @@ pub trait Facility: Core {
     /// use rtforth::core::Core;
     /// use rtforth::facility::Facility;
     /// use rtforth::tools::Tools;
-    /// let vm = &mut VM::new(16);
+    /// let vm = &mut VM::new(16, 16);
     /// vm.set_source("ntime .s");
     /// vm.evaluate();
     /// ```
@@ -49,7 +49,7 @@ pub trait Facility: Core {
     /// use rtforth::core::Core;
     /// use rtforth::facility::Facility;
     /// use rtforth::tools::Tools;
-    /// let vm = &mut VM::new(16);
+    /// let vm = &mut VM::new(16, 16);
     /// vm.set_source("utime .s");
     /// vm.evaluate();
     /// ```

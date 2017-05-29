@@ -8,6 +8,7 @@ const BUFFER_SIZE: usize = 0x400;
 mod vm {
     use rtforth::core::{Core, Stack, State, ForwardReferences, Word};
     use rtforth::dataspace::DataSpace;
+    use rtforth::codespace::CodeSpace;
     use rtforth::float::Float;
     use rtforth::env::Environment;
     use rtforth::exception::Exception;
@@ -38,13 +39,14 @@ mod vm {
         symbols: Vec<String>,
         last_definition: usize,
         wordlist: Vec<Word<VM>>,
-        jitmem: DataSpace,
+        data_space: DataSpace,
+        code_space: CodeSpace,
         references: ForwardReferences,
         // Evalution limit for tasks[1]
     }
 
     impl VM {
-        pub fn new(pages: usize) -> VM {
+        pub fn new(data_pages: usize, code_pages: usize) -> VM {
             let mut vm = VM {
                 current_task: 0,
                 tasks_used: [false; 3],
@@ -87,7 +89,8 @@ mod vm {
                 symbols: vec![],
                 last_definition: 0,
                 wordlist: vec![],
-                jitmem: DataSpace::new(pages),
+                data_space: DataSpace::new(data_pages),
+                code_space: CodeSpace::new(code_pages),
                 references: ForwardReferences::new(),
             };
             vm.add_core();
@@ -136,10 +139,16 @@ mod vm {
             self.tasks[self.current_task].handler = h;
         }
         fn data_space(&mut self) -> &mut DataSpace {
-            &mut self.jitmem
+            &mut self.data_space
         }
         fn data_space_const(&self) -> &DataSpace {
-            &self.jitmem
+            &self.data_space
+        }
+        fn code_space(&mut self) -> &mut CodeSpace {
+            &mut self.code_space
+        }
+        fn code_space_const(&self) -> &CodeSpace {
+            &self.code_space
         }
         fn output_buffer(&mut self) -> &mut Option<String> {
             &mut self.tasks[self.current_task].outbuf
@@ -328,7 +337,7 @@ fn main() {
     let addr = "127.0.0.1:12345".parse().unwrap();
     let sock = TcpListener::bind(&addr, &handle).unwrap();
 
-    let vm = Arc::new(Mutex::new(VM::new(0x100)));
+    let vm = Arc::new(Mutex::new(VM::new(0x100, 0x100)));
 
     let server = sock.incoming()
         .for_each(|(sock, _)| {

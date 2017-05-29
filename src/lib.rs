@@ -12,6 +12,7 @@ pub mod env;
 pub mod facility;
 pub mod float;
 pub mod dataspace;
+pub mod codespace;
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;

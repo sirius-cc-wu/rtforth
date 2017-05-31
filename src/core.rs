@@ -749,6 +749,14 @@ pub trait Core: Sized {
         self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<f64>();
     }
 
+    /// Compile float 'f'.
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn compile_float(&mut self, f: f64) {
+        let idx_flit = self.references().idx_flit;
+        self.compile_word(idx_flit);
+        self.data_space().compile_f64(f);
+    }
+
     /// Runtime of S"
     #[cfg(not(feature = "subroutine-threaded"))]
     fn p_s_quote(&mut self) {
@@ -880,43 +888,24 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     fn flit(&mut self) {
-        let ip = self.state().instruction_pointer as usize;
-        let v = self.data_space().get_f64(ip);
-        let flen = self.f_stack().len.wrapping_add(1);
-        self.f_stack().len = flen;
-        self.f_stack()[flen.wrapping_sub(1)] = v;
-        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<f64>();
+        // TODO
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_float(&mut self, f: f64) {
+        // TODO
     }
 
     /// Runtime of S"
     #[cfg(feature = "subroutine-threaded")]
     fn p_s_quote(&mut self) {
-        let ip = self.state().instruction_pointer;
-        let cnt = self.data_space().get_i32(ip);
-        let addr = self.state().instruction_pointer + mem::size_of::<i32>();
-        let slen = self.s_stack().len.wrapping_add(2);
-        self.s_stack().len = slen;
-        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
-        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
-        self.state().instruction_pointer =
-            self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
+        // TODO
     }
 
     #[cfg(feature = "subroutine-threaded")]
     fn patch_compilation_semanticses(&mut self) {
         let idx_exit = self.find("exit").expect("exit");
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_exit;
-    }
-
-    // ---------
-    // Compiler
-    // ---------
-
-    /// Compile float 'f'.
-    fn compile_float(&mut self, f: f64) {
-        let idx_flit = self.references().idx_flit;
-        self.compile_word(idx_flit);
-        self.data_space().compile_f64(f);
     }
 
     // -----------
@@ -1419,6 +1408,7 @@ pub trait Core: Sized {
         }
     }
 
+    // TODO: subroutine-threaded version
     fn imm_if(&mut self) {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
@@ -1427,6 +1417,7 @@ pub trait Core: Sized {
         self.c_stack().push(here);
     }
 
+    // TODO: subroutine-threaded version
     fn imm_else(&mut self) {
         let if_part = self.c_stack().pop();
         if self.c_stack().underflow() {
@@ -1442,6 +1433,7 @@ pub trait Core: Sized {
         }
     }
 
+    // TODO: subroutine-threaded version
     fn imm_then(&mut self) {
         let branch_part = self.c_stack().pop();
         if self.c_stack().underflow() {
@@ -1453,11 +1445,13 @@ pub trait Core: Sized {
         }
     }
 
+    // TODO: subroutine-threaded version
     fn imm_begin(&mut self) {
         let here = self.data_space().len();
         self.c_stack().push(here);
     }
 
+    // TODO: subroutine-threaded version
     fn imm_while(&mut self) {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
@@ -1466,6 +1460,7 @@ pub trait Core: Sized {
         self.c_stack().push(here);
     }
 
+    // TODO: subroutine-threaded version
     fn imm_repeat(&mut self) {
         let (begin_part, while_part) = self.c_stack().pop2();
         if self.c_stack().underflow() {
@@ -1480,6 +1475,7 @@ pub trait Core: Sized {
         }
     }
 
+    // TODO: subroutine-threaded version
     fn imm_again(&mut self) {
         let begin_part = self.c_stack().pop();
         if self.c_stack().underflow() {
@@ -1491,6 +1487,7 @@ pub trait Core: Sized {
         }
     }
 
+    // TODO: subroutine-threaded version
     fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;
         self.compile_nest(last);
@@ -1500,6 +1497,7 @@ pub trait Core: Sized {
     ///
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
+    // TODO: subroutine-threaded version
     fn imm_do(&mut self) {
         let idx = self.references().idx_do;
         self.compile_word(idx);
@@ -1514,6 +1512,7 @@ pub trait Core: Sized {
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the `LOOP`.
+    // TODO: subroutine-threaded version
     fn imm_loop(&mut self) {
         let do_part = self.c_stack().pop();
         if self.c_stack().underflow() {
@@ -1534,6 +1533,7 @@ pub trait Core: Sized {
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
+    // TODO: subroutine-threaded version
     fn imm_plus_loop(&mut self) {
         let do_part = self.c_stack().pop();
         if self.c_stack().underflow() {
@@ -2088,6 +2088,7 @@ pub trait Core: Sized {
 
     /// Reset VM, do not clear data stack and floating point stack.
     /// Called by VM's client upon Quit.
+    // TODO: subroutine-threaded version
     fn reset(&mut self) {
         self.r_stack().len = 0;
         self.c_stack().len = 0;
@@ -2100,6 +2101,7 @@ pub trait Core: Sized {
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
+    // TODO: subroutine-threaded version
     fn abort_with(&mut self, e: Exception) {
         self.clear_stacks();
         self.set_error(Some(e));
@@ -2108,10 +2110,12 @@ pub trait Core: Sized {
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
+    // TODO: subroutine-threaded version
     fn abort(&mut self) {
         self.abort_with(Abort);
     }
 
+    // TODO: subroutine-threaded version
     fn halt(&mut self) {
         self.state().instruction_pointer = 0;
     }

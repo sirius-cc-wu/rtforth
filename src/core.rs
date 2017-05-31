@@ -832,12 +832,19 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     fn compile_var(&mut self, word_index: usize) {
-        // self.compile_word(word_index);
+        let idx = self.references().idx_lit;
+        self.compile_word(idx);
+        let dfa = self.wordlist()[word_index].dfa();
+        self.code_space().compile_u32(dfa as u32);
     }
 
     #[cfg(feature = "subroutine-threaded")]
     fn compile_const(&mut self, word_index: usize) {
-        // self.compile_word(word_index);
+        let idx = self.references().idx_lit;
+        self.compile_word(idx);
+        let dfa = self.wordlist()[word_index].dfa();
+        let value = self.data_space().get_i32(dfa);
+        self.code_space().compile_i32(value);
     }
 
     #[cfg(feature = "subroutine-threaded")]
@@ -3369,6 +3376,18 @@ mod tests {
     }
 
     #[test]
+    fn test_constant_in_colon() {
+        let vm = &mut VM::new(16, 16);
+        // 77 constant x
+        // : 2x  x 2 * ;  2x
+        vm.set_source("77 constant x  : 2x x 2 * ;  2x");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.s_stack().pop(), 154);
+        assert_eq!(vm.s_stack().len, 0);
+    }
+
+    #[test]
     fn test_variable_and_store_fetch() {
         let vm = &mut VM::new(16, 16);
         // @
@@ -3396,6 +3415,31 @@ mod tests {
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), 3);
         assert_eq!(vm.s_stack().pop(), 0);
+    }
+
+    #[test]
+    fn test_variable_and_fetch_in_colon() {
+        let vm = &mut VM::new(16, 16);
+        // variable x
+        // 7 x !
+        // : x@ x @ ; x@
+        vm.set_source("variable x  7 x !  : x@ x @ ;  x@");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.s_stack().pop(), 7);
+        assert_eq!(vm.s_stack().len, 0);
+    }
+
+    #[test]
+    fn test_create_in_colon() {
+        let vm = &mut VM::new(16, 16);
+        // create x 7 ,
+        // : x@ x @ ; x@
+        vm.set_source("create x 7 ,  : x@ x @ ;  x@");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.s_stack().pop(), 7);
+        assert_eq!(vm.s_stack().len, 0);
     }
 
     #[test]
@@ -3905,19 +3949,6 @@ mod tests {
 
     #[test]
     #[cfg(feature = "primitive-centric")]
-    fn test_constant_in_colon() {
-        let vm = &mut VM::new(16, 16);
-        // 77 constant x
-        // : 2x  x 2 * ;  2x
-        vm.set_source("77 constant x  : 2x x 2 * ;  2x");
-        vm.evaluate();
-        vm.run();
-        assert_eq!(vm.s_stack().pop(), 154);
-        assert_eq!(vm.s_stack().len, 0);
-    }
-
-    #[test]
-    #[cfg(feature = "primitive-centric")]
     fn test_inner_interpreter_without_nest() {
         let vm = &mut VM::new(16, 16);
         let ip = vm.data_space().len();
@@ -3935,33 +3966,6 @@ mod tests {
         vm.run();
         assert_eq!(vm.state().instruction_pointer, 0);
         assert_eq!(vm.s_stack().pop(), -2);
-    }
-
-    #[test]
-    #[cfg(feature = "primitive-centric")]
-    fn test_variable_and_fetch_in_colon() {
-        let vm = &mut VM::new(16, 16);
-        // variable x
-        // 7 x !
-        // : x@ x @ ; x@
-        vm.set_source("variable x  7 x !  : x@ x @ ;  x@");
-        vm.evaluate();
-        vm.run();
-        assert_eq!(vm.s_stack().pop(), 7);
-        assert_eq!(vm.s_stack().len, 0);
-    }
-
-    #[test]
-    #[cfg(feature = "primitive-centric")]
-    fn test_create_in_colon() {
-        let vm = &mut VM::new(16, 16);
-        // create x 7 ,
-        // : x@ x @ ; x@
-        vm.set_source("create x 7 ,  : x@ x @ ;  x@");
-        vm.evaluate();
-        vm.run();
-        assert_eq!(vm.s_stack().pop(), 7);
-        assert_eq!(vm.s_stack().len, 0);
     }
 
     #[test]

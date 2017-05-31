@@ -576,7 +576,7 @@ pub trait Core: Sized {
     }
 
     #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
-    fn compile_nest_code(&mut self, word_index: usize) {
+    fn compile_nest_code(&mut self, _: usize) {
         // Do nothing.
     }
 
@@ -643,7 +643,7 @@ pub trait Core: Sized {
     }
 
     #[cfg(feature = "primitive-centric")]
-    fn compile_nest_code(&mut self, word_index: usize) {
+    fn compile_nest_code(&mut self, _: usize) {
         // Do nothing.
     }
 
@@ -717,6 +717,56 @@ pub trait Core: Sized {
         self.data_space().compile_f64(value);
     }
 
+    // --------------------------------------------------
+    // Token threaded and primitive-centric threaded code
+    // --------------------------------------------------
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn lit(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let v = self.data_space().get_i32(ip) as isize;
+        let slen = self.s_stack().len.wrapping_add(1);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = v;
+        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>();
+    }
+
+    /// Compile integer `i`.
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn compile_integer(&mut self, i: isize) {
+        let idx = self.references().idx_lit;
+        self.compile_word(idx);
+        self.data_space().compile_i32(i as i32);
+    }
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn flit(&mut self) {
+        let ip = self.state().instruction_pointer as usize;
+        let v = self.data_space().get_f64(ip);
+        let flen = self.f_stack().len.wrapping_add(1);
+        self.f_stack().len = flen;
+        self.f_stack()[flen.wrapping_sub(1)] = v;
+        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<f64>();
+    }
+
+    /// Runtime of S"
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn p_s_quote(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let cnt = self.data_space().get_i32(ip);
+        let addr = self.state().instruction_pointer + mem::size_of::<i32>();
+        let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
+        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
+        self.state().instruction_pointer =
+            self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
+    }
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn patch_compilation_semanticses(&mut self) {
+    }
+
     // -------------------------------
     // Subroutine threaded code
     // -------------------------------
@@ -753,6 +803,7 @@ pub trait Core: Sized {
         // 89 e5            mov    %esp,%ebp
         // 56               push   %esi
         // 8b 75 08         mov    0x8(%ebp),%esi
+        // 83 ec 10         sub    $0x10,%esp
         self.code_space().compile_u8(0x55);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xe5);
@@ -760,6 +811,23 @@ pub trait Core: Sized {
         self.code_space().compile_u8(0x8b);
         self.code_space().compile_u8(0x75);
         self.code_space().compile_u8(0x08);
+        self.code_space().compile_u8(0x83);
+        self.code_space().compile_u8(0xec);
+        self.code_space().compile_u8(0x10);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_exit(&mut self, word_index: usize) {
+        // 83 c4 10         add    $0x10,%esp
+        // 5e               pop    %esi
+        // 5d               pop    %ebp
+        // c3               ret
+        self.code_space().compile_u8(0x83);
+        self.code_space().compile_u8(0xc4);
+        self.code_space().compile_u8(0x10);
+        self.code_space().compile_u8(0x5e);
+        self.code_space().compile_u8(0x5d);
+        self.code_space().compile_u8(0xc3);
     }
 
     #[cfg(feature = "subroutine-threaded")]
@@ -782,16 +850,60 @@ pub trait Core: Sized {
         // self.compile_word(word_index);
     }
 
-    // ---------
-    // Compiler
-    // ---------
+    #[cfg(feature = "subroutine-threaded")]
+    fn lit(&mut self) {
+        let slen = self.s_stack().len.wrapping_add(1);
+        self.s_stack().len = slen;
+        let c: usize;
+        unsafe{
+            asm!("mov 0x4(%ebp), %edx; add $$0x4, %edx; mov %edx, 0x4(%ebp); mov -4(%edx), $0;"
+                 : "={edx}"(c)
+            );
+        }
+        self.s_stack()[slen.wrapping_sub(1)] = c as isize;
+    }
 
     /// Compile integer `i`.
+    #[cfg(feature = "subroutine-threaded")]
     fn compile_integer(&mut self, i: isize) {
         let idx = self.references().idx_lit;
         self.compile_word(idx);
-        self.data_space().compile_i32(i as i32);
+        self.code_space().compile_i32(i as i32);
     }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn flit(&mut self) {
+        let ip = self.state().instruction_pointer as usize;
+        let v = self.data_space().get_f64(ip);
+        let flen = self.f_stack().len.wrapping_add(1);
+        self.f_stack().len = flen;
+        self.f_stack()[flen.wrapping_sub(1)] = v;
+        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<f64>();
+    }
+
+    /// Runtime of S"
+    #[cfg(feature = "subroutine-threaded")]
+    fn p_s_quote(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let cnt = self.data_space().get_i32(ip);
+        let addr = self.state().instruction_pointer + mem::size_of::<i32>();
+        let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
+        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
+        self.state().instruction_pointer =
+            self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn patch_compilation_semanticses(&mut self) {
+        let idx_exit = self.find("exit").expect("exit");
+        self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_exit;
+    }
+
+    // ---------
+    // Compiler
+    // ---------
 
     /// Compile float 'f'.
     fn compile_float(&mut self, f: f64) {
@@ -1151,7 +1263,8 @@ pub trait Core: Sized {
                 self.abort_with(ControlStructureMismatch);
             } else {
                 let idx = self.references().idx_exit;
-                self.compile_word(idx);
+                let compile = self.wordlist()[idx].compilation_semantics;
+                compile(self, idx);
                 let def = self.last_definition();
                 self.wordlist_mut()[def].set_hidden(false);
             }
@@ -1484,37 +1597,6 @@ pub trait Core: Sized {
     fn cells(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v * mem::size_of::<i32>() as isize);
-    }
-
-    fn lit(&mut self) {
-        let ip = self.state().instruction_pointer;
-        let v = self.data_space().get_i32(ip) as isize;
-        let slen = self.s_stack().len.wrapping_add(1);
-        self.s_stack().len = slen;
-        self.s_stack()[slen.wrapping_sub(1)] = v;
-        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>();
-    }
-
-    fn flit(&mut self) {
-        let ip = self.state().instruction_pointer as usize;
-        let v = self.data_space().get_f64(ip);
-        let flen = self.f_stack().len.wrapping_add(1);
-        self.f_stack().len = flen;
-        self.f_stack()[flen.wrapping_sub(1)] = v;
-        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<f64>();
-    }
-
-    /// Runtime of S"
-    fn p_s_quote(&mut self) {
-        let ip = self.state().instruction_pointer;
-        let cnt = self.data_space().get_i32(ip);
-        let addr = self.state().instruction_pointer + mem::size_of::<i32>();
-        let slen = self.s_stack().len.wrapping_add(2);
-        self.s_stack().len = slen;
-        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
-        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
-        self.state().instruction_pointer =
-            self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
     }
 
     fn swap(&mut self) {
@@ -3936,11 +4018,13 @@ mod tests {
         // 89 e5            mov    %esp,%ebp
         // 56               push   %esi
         // 8b 75 08         mov    0x8(%ebp),%esi
+        // 83 ec 10         sub    $0x10,%esp
+        // 83 c4 10         add    $0x10,%esp
         // 5e               pop    %esi
         // 5d               pop    %ebp
         // c3               ret
         let action = vm.code_space().here();
-        vm.set_source(": nop ;");
+        vm.set_source(": nop ; nop");
         vm.evaluate();
         let w = vm.last_definition();
         assert_eq!(vm.wordlist()[w].action as usize, action);
@@ -3951,9 +4035,44 @@ mod tests {
         assert_eq!(vm.code_space().get_u8(4), 0x8b);
         assert_eq!(vm.code_space().get_u8(5), 0x75);
         assert_eq!(vm.code_space().get_u8(6), 0x08);
-        assert_eq!(vm.code_space().get_u8(7), 0x5e);
-        assert_eq!(vm.code_space().get_u8(8), 0x5d);
-        assert_eq!(vm.code_space().get_u8(9), 0xc3);
+        assert_eq!(vm.code_space().get_u8(7), 0x83);
+        assert_eq!(vm.code_space().get_u8(8), 0xec);
+        assert_eq!(vm.code_space().get_u8(9), 0x10);
+        assert_eq!(vm.code_space().get_u8(10), 0x83);
+        assert_eq!(vm.code_space().get_u8(11), 0xc4);
+        assert_eq!(vm.code_space().get_u8(12), 0x10);
+        assert_eq!(vm.code_space().get_u8(13), 0x5e);
+        assert_eq!(vm.code_space().get_u8(14), 0x5d);
+        assert_eq!(vm.code_space().get_u8(15), 0xc3);
+    }
+
+    #[test]
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    fn test_subroutine_threaded_lit_and_plus() {
+        let vm = &mut VM::new(16, 16);
+        // : 2+3 2 3 + ;
+        vm.set_source(": 2+3 2 3 + ;");
+        vm.evaluate();
+        /*
+        for i in 0..8 {
+            println!("{:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x}",
+                vm.code_space().get_u8(0+i*8),
+                vm.code_space().get_u8(1+i*8),
+                vm.code_space().get_u8(2+i*8),
+                vm.code_space().get_u8(3+i*8),
+                vm.code_space().get_u8(4+i*8),
+                vm.code_space().get_u8(5+i*8),
+                vm.code_space().get_u8(6+i*8),
+                vm.code_space().get_u8(7+i*8),
+            );
+        }
+        */
+        // 2+3
+        vm.set_source("2+3");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), 5);
     }
 
 }

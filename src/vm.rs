@@ -55,6 +55,7 @@ impl VM {
         vm.add_environment();
         vm.add_facility();
         vm.add_float();
+        vm.patch_compilation_semanticses();
         vm
     }
 }

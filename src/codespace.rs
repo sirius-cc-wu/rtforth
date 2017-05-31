@@ -159,7 +159,7 @@ impl CodeSpace {
 
     pub fn compile_relative(&mut self, f: usize) {
         let len = self.len;
-        let here = unsafe{ self.inner.offset(len as isize) as usize };
+        let here = unsafe{ self.inner.offset((len + mem::size_of::<u32>()) as isize) as usize };
         let diff = f.wrapping_sub(here) as u32;
         self.compile_u32(diff);
     }

@@ -199,7 +199,7 @@ fn print_version() {
     println!("rtForth v0.1.19, Copyright (C) 2016 Mapacode Inc.");
 }
 
-fn p_accept(vm: &mut VM) {
+extern "fastcall" fn p_accept(vm: &mut VM) {
     match vm.editor.readline("rf> ") {
         Ok(line) => {
             vm.editor.add_history_entry(&line);

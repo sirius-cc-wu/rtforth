@@ -70,7 +70,7 @@ mod vm {
             self.current_task = i;
         }
 
-        fn pause(&mut self) {
+        extern "fastcall" fn pause(&mut self) {
             self.current_task = (self.current_task + 1) % 2;
         }
     }

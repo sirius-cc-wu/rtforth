@@ -11,7 +11,7 @@ pub trait Tools: Output {
     /// Run-time: ( -- )
     ///
     /// Display values on the data stack.
-    fn dot_s(&mut self) {
+    extern "fastcall" fn dot_s(&mut self) {
         let mut buf = self.output_buffer().take().unwrap();
         write!(buf, "TODO: .s").unwrap();
         //        write!(buf, "<{}> ", self.s_stack().len()).unwrap();
@@ -24,7 +24,7 @@ pub trait Tools: Output {
     /// Run-time: ( -- )
     ///
     /// List definition names in word list.
-    fn words(&mut self) {
+    extern "fastcall" fn words(&mut self) {
         let mut buf = self.output_buffer().take().unwrap();
         writeln!(buf, "").unwrap();
         for w in self.wordlist().iter().rev() {

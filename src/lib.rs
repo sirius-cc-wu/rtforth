@@ -1,6 +1,5 @@
 #![feature(libc)]
 #![feature(test)]
-#![feature(asm)]
 
 extern crate byteorder;
 pub mod vm;

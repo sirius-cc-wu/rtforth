@@ -603,7 +603,7 @@ pub trait Core: Sized {
     extern "fastcall" fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while 0 < ip && ip < self.data_space().len() {
-            let w: fn(&mut Self) = unsafe{ mem::transmute(self.data_space().get_i32(ip)) };
+            let w: extern "fastcall" fn(&mut Self) = unsafe{ mem::transmute(self.data_space().get_i32(ip)) };
             self.state().instruction_pointer += mem::size_of::<i32>();
             w(self);
             ip = self.state().instruction_pointer;

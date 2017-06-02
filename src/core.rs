@@ -867,23 +867,32 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     fn lit(&mut self) {
+        // Do nothing.
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn lit_integer(&mut self, i: isize) {
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
-        let c: usize;
-        unsafe{
-            asm!("mov 0x4(%ebp), %edx; add $$0x4, %edx; mov %edx, 0x4(%ebp); mov -4(%edx), $0;"
-                 : "={edx}"(c)
-            );
-        }
-        self.s_stack()[slen.wrapping_sub(1)] = c as isize;
+        self.s_stack()[slen.wrapping_sub(1)] = i;
     }
 
     /// Compile integer `i`.
     #[cfg(feature = "subroutine-threaded")]
+    #[inline(never)]
     fn compile_integer(&mut self, i: isize) {
-        let idx = self.references().idx_lit;
-        self.compile_word(idx);
+        // 68 nn nn nn nn          push   $0xnnnn
+        // 56                      push   %esi
+        // e8 xx xx xx xx          call   xxxx
+        // 83 c4 08                add    $0x8,%esp
+        self.code_space().compile_u8(0x68);
         self.code_space().compile_i32(i as i32);
+        self.code_space().compile_u8(0x56);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::lit_integer as usize);
+        self.code_space().compile_u8(0x83);
+        self.code_space().compile_u8(0xc4);
+        self.code_space().compile_u8(0x08);
     }
 
     #[cfg(feature = "subroutine-threaded")]

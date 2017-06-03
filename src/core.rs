@@ -26,12 +26,12 @@ pub struct Word<Target> {
     is_compile_only: bool,
     hidden: bool,
     dfa: usize,
-    action: fn(&mut Target),
+    action: extern "fastcall" fn(&mut Target),
     compilation_semantics: fn(&mut Target, usize),
 }
 
 impl<Target> Word<Target> {
-    pub fn new(symbol: Symbol, action: fn(&mut Target), compilation_semantics: fn(&mut Target, usize), dfa: usize) -> Word<Target> {
+    pub fn new(symbol: Symbol, action: extern "fastcall" fn(&mut Target), compilation_semantics: fn(&mut Target, usize), dfa: usize) -> Word<Target> {
         Word {
             symbol: symbol,
             is_immediate: false,
@@ -75,7 +75,7 @@ impl<Target> Word<Target> {
         self.dfa
     }
 
-    pub fn action(&self) -> fn(&mut Target) {
+    pub fn action(&self) -> extern "fastcall" fn(&mut Target) {
         self.action
     }
 }
@@ -481,7 +481,7 @@ pub trait Core: Sized {
     }
 
     /// Add a primitive word to word list.
-    fn add_primitive(&mut self, name: &str, action: fn(&mut Self)) {
+    fn add_primitive(&mut self, name: &str, action: extern "fastcall" fn(&mut Self)) {
         let symbol = self.new_symbol(name);
         let word = Word::new(symbol, action, Core::compile_word, self.data_space().len());
         let len = self.wordlist().len();
@@ -490,21 +490,21 @@ pub trait Core: Sized {
     }
 
     /// Add an immediate word to word list.
-    fn add_immediate(&mut self, name: &str, action: fn(&mut Self)) {
+    fn add_immediate(&mut self, name: &str, action: extern "fastcall" fn(&mut Self)) {
         self.add_primitive(name, action);
         let def = self.last_definition();
         self.wordlist_mut()[def].set_immediate(true);
     }
 
     /// Add a compile-only word to word list.
-    fn add_compile_only(&mut self, name: &str, action: fn(&mut Self)) {
+    fn add_compile_only(&mut self, name: &str, action: extern "fastcall" fn(&mut Self)) {
         self.add_primitive(name, action);
         let def = self.last_definition();
         self.wordlist_mut()[def].set_compile_only(true);
     }
 
     /// Add an immediate and compile-only word to word list.
-    fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(&mut Self)) {
+    fn add_immediate_and_compile_only(&mut self, name: &str, action: extern "fastcall" fn(&mut Self)) {
         self.add_primitive(name, action);
         let def = self.last_definition();
         let w = &mut self.wordlist_mut()[def];
@@ -608,10 +608,10 @@ pub trait Core: Sized {
     /// Any exception causes termination of inner loop.
     #[inline(never)]
     #[cfg(feature = "primitive-centric")]
-    fn run(&mut self) {
+    extern "fastcall" fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while 0 < ip && ip < self.data_space().len() {
-            let w: fn(&mut Self) = unsafe{ mem::transmute(self.data_space().get_i32(ip)) };
+            let w: extern "fastcall" fn(&mut Self) = unsafe{ mem::transmute(self.data_space().get_i32(ip)) };
             self.state().instruction_pointer += mem::size_of::<i32>();
             w(self);
             ip = self.state().instruction_pointer;
@@ -625,7 +625,7 @@ pub trait Core: Sized {
     }
 
     #[cfg(feature = "primitive-centric")]
-    fn nest_next(&mut self) {
+    extern "fastcall" fn nest_next(&mut self) {
         let mut ip = self.state().instruction_pointer;
         let dfa = self.data_space().get_u32(ip) as usize;
         ip += mem::size_of::<i32>();
@@ -648,7 +648,7 @@ pub trait Core: Sized {
     }
 
     #[cfg(feature = "primitive-centric")]
-    fn p_var_next(&mut self) {
+    extern "fastcall" fn p_var_next(&mut self) {
         let ip = self.state().instruction_pointer;
         let dfa = self.data_space().get_u32(ip) as isize;
         self.state().instruction_pointer = ip + mem::size_of::<i32>();
@@ -663,7 +663,7 @@ pub trait Core: Sized {
     }
 
     #[cfg(feature = "primitive-centric")]
-    fn p_const_next(&mut self) {
+    extern "fastcall" fn p_const_next(&mut self) {
         let ip = self.state().instruction_pointer;
         let value = self.data_space().get_i32(ip) as isize;
         self.state().instruction_pointer = ip + mem::size_of::<i32>();
@@ -679,7 +679,7 @@ pub trait Core: Sized {
     }
 
     #[cfg(feature = "primitive-centric")]
-    fn unmark_next(&mut self) {
+    extern "fastcall" fn unmark_next(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = ip + mem::size_of::<u32>();
         let wp = self.data_space().get_u32(ip) as usize;
@@ -702,7 +702,7 @@ pub trait Core: Sized {
     }
 
     #[cfg(feature = "primitive-centric")]
-    fn p_fconst_next(&mut self) {
+    extern "fastcall" fn p_fconst_next(&mut self) {
         let ip = self.state().instruction_pointer;
         let value = self.data_space().get_f64(ip);
         self.state().instruction_pointer = ip + mem::size_of::<f64>();
@@ -722,7 +722,7 @@ pub trait Core: Sized {
     // --------------------------------------------------
 
     #[cfg(not(feature = "subroutine-threaded"))]
-    fn lit(&mut self) {
+    extern "fastcall" fn lit(&mut self) {
         let ip = self.state().instruction_pointer;
         let v = self.data_space().get_i32(ip) as isize;
         let slen = self.s_stack().len.wrapping_add(1);
@@ -740,7 +740,7 @@ pub trait Core: Sized {
     }
 
     #[cfg(not(feature = "subroutine-threaded"))]
-    fn flit(&mut self) {
+    extern "fastcall" fn flit(&mut self) {
         let ip = self.state().instruction_pointer as usize;
         let v = self.data_space().get_f64(ip);
         let flen = self.f_stack().len.wrapping_add(1);
@@ -759,7 +759,7 @@ pub trait Core: Sized {
 
     /// Runtime of S"
     #[cfg(not(feature = "subroutine-threaded"))]
-    fn p_s_quote(&mut self) {
+    extern "fastcall" fn p_s_quote(&mut self) {
         let ip = self.state().instruction_pointer;
         let cnt = self.data_space().get_i32(ip);
         let addr = self.state().instruction_pointer + mem::size_of::<i32>();
@@ -789,11 +789,10 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     fn compile_word(&mut self, word_index: usize) {
-        // 89 34 24         mov    %esi,(%esp)
+        // 89 f1            mov    %esi,%ecx
         // e8 xx xx xx xx   call   self.wordlist()[word_index].action
         self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0x34);
-        self.code_space().compile_u8(0x24);
+        self.code_space().compile_u8(0xf1);
         self.code_space().compile_u8(0xe8);
         let w = self.wordlist()[word_index].action as usize;
         self.code_space().compile_relative(w);
@@ -809,30 +808,22 @@ pub trait Core: Sized {
         self.wordlist_mut()[word_index].action = unsafe{ mem::transmute(self.code_space().here()) };
         // 55               push   %ebp
         // 89 e5            mov    %esp,%ebp
+        // ; make a copy of vm in %esi because %ecx may be destropyed by subroutine call.
         // 56               push   %esi
-        // 8b 75 08         mov    0x8(%ebp),%esi
-        // 83 ec 10         sub    $0x10,%esp
+        // 89 ce            mov    %ecx,%esi
         self.code_space().compile_u8(0x55);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xe5);
         self.code_space().compile_u8(0x56);
-        self.code_space().compile_u8(0x8b);
-        self.code_space().compile_u8(0x75);
-        self.code_space().compile_u8(0x08);
-        self.code_space().compile_u8(0x83);
-        self.code_space().compile_u8(0xec);
-        self.code_space().compile_u8(0x10);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xce);
     }
 
     #[cfg(feature = "subroutine-threaded")]
     fn compile_exit(&mut self, word_index: usize) {
-        // 83 c4 10         add    $0x10,%esp
         // 5e               pop    %esi
         // 5d               pop    %ebp
         // c3               ret
-        self.code_space().compile_u8(0x83);
-        self.code_space().compile_u8(0xc4);
-        self.code_space().compile_u8(0x10);
         self.code_space().compile_u8(0x5e);
         self.code_space().compile_u8(0x5d);
         self.code_space().compile_u8(0xc3);
@@ -840,19 +831,15 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     fn compile_var(&mut self, word_index: usize) {
-        let idx = self.references().idx_lit;
-        self.compile_word(idx);
         let dfa = self.wordlist()[word_index].dfa();
-        self.code_space().compile_u32(dfa as u32);
+        self.compile_integer(dfa as isize);
     }
 
     #[cfg(feature = "subroutine-threaded")]
     fn compile_const(&mut self, word_index: usize) {
-        let idx = self.references().idx_lit;
-        self.compile_word(idx);
         let dfa = self.wordlist()[word_index].dfa();
-        let value = self.data_space().get_i32(dfa);
-        self.code_space().compile_i32(value);
+        let value = self.data_space().get_i32(dfa) as isize;
+        self.compile_integer(value);
     }
 
     #[cfg(feature = "subroutine-threaded")]
@@ -866,12 +853,12 @@ pub trait Core: Sized {
     }
 
     #[cfg(feature = "subroutine-threaded")]
-    fn lit(&mut self) {
+    extern "fastcall" fn lit(&mut self) {
         // Do nothing.
     }
 
     #[cfg(feature = "subroutine-threaded")]
-    fn lit_integer(&mut self, i: isize) {
+    extern "fastcall" fn lit_integer(&mut self, i: isize) {
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = i;
@@ -881,22 +868,19 @@ pub trait Core: Sized {
     #[cfg(feature = "subroutine-threaded")]
     #[inline(never)]
     fn compile_integer(&mut self, i: isize) {
-        // 68 nn nn nn nn          push   $0xnnnn
-        // 56                      push   %esi
-        // e8 xx xx xx xx          call   xxxx
-        // 83 c4 08                add    $0x8,%esp
-        self.code_space().compile_u8(0x68);
+        // ba nn nn nn nn   mov    $0xnnnn,%edx
+        // 89 f1            mov    %esi,%ecx
+        // e8 xx xx xx xx   call   lit_integer
+        self.code_space().compile_u8(0xba);
         self.code_space().compile_i32(i as i32);
-        self.code_space().compile_u8(0x56);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
         self.code_space().compile_u8(0xe8);
         self.code_space().compile_relative(Self::lit_integer as usize);
-        self.code_space().compile_u8(0x83);
-        self.code_space().compile_u8(0xc4);
-        self.code_space().compile_u8(0x08);
     }
 
     #[cfg(feature = "subroutine-threaded")]
-    fn flit(&mut self) {
+    extern "fastcall" fn flit(&mut self) {
         // TODO
     }
 
@@ -907,7 +891,7 @@ pub trait Core: Sized {
 
     /// Runtime of S"
     #[cfg(feature = "subroutine-threaded")]
-    fn p_s_quote(&mut self) {
+    extern "fastcall" fn p_s_quote(&mut self) {
         // TODO
     }
 
@@ -921,11 +905,11 @@ pub trait Core: Sized {
     // Evaluation
     // -----------
 
-    fn left_bracket(&mut self) {
+    extern "fastcall" fn left_bracket(&mut self) {
         self.state().is_compiling = false;
     }
 
-    fn right_bracket(&mut self) {
+    extern "fastcall" fn right_bracket(&mut self) {
         self.state().is_compiling = true;
     }
 
@@ -941,7 +925,7 @@ pub trait Core: Sized {
     /// Run-time: ( "ccc" -- )
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
-    fn parse_word(&mut self) {
+    extern "fastcall" fn parse_word(&mut self) {
         let mut last_token = self.last_token().take().expect("token");
         last_token.clear();
         if let Some(input_buffer) = self.input_buffer().take() {
@@ -970,7 +954,7 @@ pub trait Core: Sized {
     ///
     /// Skip leading space delimiters. Parse name delimited by a space.
     /// Put the value of its first character onto the stack.
-    fn char(&mut self) {
+    extern "fastcall" fn char(&mut self) {
         self.parse_word();
         if self.last_error().is_some() {
             return;
@@ -991,7 +975,7 @@ pub trait Core: Sized {
     /// Run-time: ( -- char )
     ///
     /// Place `char`, the value of the first character of name, on the stack.
-    fn bracket_char(&mut self) {
+    extern "fastcall" fn bracket_char(&mut self) {
         self.char();
         if self.last_error().is_some() {
             return;
@@ -1003,7 +987,7 @@ pub trait Core: Sized {
     /// Run-time: ( char "ccc&lt;char&gt;" -- )
     ///
     /// Parse ccc delimited by the delimiter char.
-    fn parse(&mut self) {
+    extern "fastcall" fn parse(&mut self) {
         let input_buffer = self.input_buffer().take().expect("input buffer");
         let v = self.s_stack().pop();
         let mut last_token = self.last_token().take().expect("token");
@@ -1025,19 +1009,19 @@ pub trait Core: Sized {
         self.set_input_buffer(input_buffer);
     }
 
-    fn imm_paren(&mut self) {
+    extern "fastcall" fn imm_paren(&mut self) {
         self.s_stack().push(')' as isize);
         self.parse();
     }
 
-    fn imm_backslash(&mut self) {
+    extern "fastcall" fn imm_backslash(&mut self) {
         self.state().source_index = match *self.input_buffer() {
             Some(ref buf) => buf.len(),
             None => 0,
         };
     }
 
-    fn compile_token(&mut self) {
+    extern "fastcall" fn compile_token(&mut self) {
         let last_token = self.last_token().take().expect("token");
         match self.find(&last_token) {
             Some(found_index) => {
@@ -1077,7 +1061,7 @@ pub trait Core: Sized {
         }
     }
 
-    fn interpret_token(&mut self) {
+    extern "fastcall" fn interpret_token(&mut self) {
         let last_token = self.last_token().take().expect("last token");
         match self.find(&last_token) {
             Some(found_index) => {
@@ -1116,7 +1100,7 @@ pub trait Core: Sized {
         }
     }
 
-    fn p_compiling(&mut self) {
+    extern "fastcall" fn p_compiling(&mut self) {
         let value = if self.state().is_compiling {
             TRUE
         } else {
@@ -1125,7 +1109,7 @@ pub trait Core: Sized {
         self.s_stack().push(value);
     }
 
-    fn p_token_empty(&mut self) {
+    extern "fastcall" fn p_token_empty(&mut self) {
         let value = match self.last_token().as_ref() {
             Some(ref t) => if t.is_empty() { TRUE } else { FALSE },
             None => TRUE,
@@ -1133,7 +1117,7 @@ pub trait Core: Sized {
         self.s_stack().push(value);
     }
 
-    fn evaluate(&mut self) {
+    extern "fastcall" fn evaluate(&mut self) {
         loop {
             self.parse_word();
             match self.last_token().as_ref() {
@@ -1163,7 +1147,7 @@ pub trait Core: Sized {
         }
     }
 
-    fn base(&mut self) {
+    extern "fastcall" fn base(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
         self.s_stack().push(base_addr as isize);
     }
@@ -1205,7 +1189,7 @@ pub trait Core: Sized {
     // High level definitions
     // -----------------------
 
-    fn nest(&mut self) {
+    extern "fastcall" fn nest(&mut self) {
         let rlen = self.r_stack().len.wrapping_add(1);
         self.r_stack().len = rlen;
         self.r_stack()[rlen.wrapping_sub(1)] = self.state().instruction_pointer as isize;
@@ -1213,20 +1197,20 @@ pub trait Core: Sized {
         self.state().instruction_pointer = self.wordlist()[wp].dfa();
     }
 
-    fn p_var(&mut self) {
+    extern "fastcall" fn p_var(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa() as isize;
         self.s_stack().push(dfa);
     }
 
-    fn p_const(&mut self) {
+    extern "fastcall" fn p_const(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
         let value = self.data_space().get_i32(dfa) as isize;
         self.s_stack().push(value);
     }
 
-    fn define(&mut self, action: fn(&mut Self), compilation_semantics: fn(&mut Self, usize)) {
+    fn define(&mut self, action: extern "fastcall" fn(&mut Self), compilation_semantics: fn(&mut Self, usize)) {
         self.parse_word();
         let mut last_token = self.last_token().take().expect("last token");
         last_token.make_ascii_lowercase();
@@ -1252,7 +1236,7 @@ pub trait Core: Sized {
         }
     }
 
-    fn colon(&mut self) {
+    extern "fastcall" fn colon(&mut self) {
         self.define(Core::nest, Core::compile_nest);
         if self.last_error().is_none() {
             let def = self.last_definition();
@@ -1262,7 +1246,7 @@ pub trait Core: Sized {
         }
     }
 
-    fn semicolon(&mut self) {
+    extern "fastcall" fn semicolon(&mut self) {
         if self.last_definition() != 0 {
             if self.c_stack().len != 0 {
                 self.abort_with(ControlStructureMismatch);
@@ -1277,18 +1261,18 @@ pub trait Core: Sized {
         self.left_bracket();
     }
 
-    fn create(&mut self) {
+    extern "fastcall" fn create(&mut self) {
         self.define(Core::p_var, Core::compile_var);
     }
 
-    fn variable(&mut self) {
+    extern "fastcall" fn variable(&mut self) {
         self.define(Core::p_var, Core::compile_var);
         if self.last_error().is_none() {
             self.data_space().compile_i32(0);
         }
     }
 
-    fn constant(&mut self) {
+    extern "fastcall" fn constant(&mut self) {
         let v = self.s_stack().pop();
         self.define(Core::p_const, Core::compile_const);
         if self.last_error().is_none() {
@@ -1296,7 +1280,7 @@ pub trait Core: Sized {
         }
     }
 
-    fn unmark(&mut self) {
+    extern "fastcall" fn unmark(&mut self) {
         let wp = self.state().word_pointer;
         let dfa;
         let symbol;
@@ -1310,7 +1294,7 @@ pub trait Core: Sized {
         self.symbols_mut().truncate(symbol.id);
     }
 
-    fn marker(&mut self) {
+    extern "fastcall" fn marker(&mut self) {
         self.define(Core::unmark, Core::compile_unmark);
     }
 
@@ -1318,12 +1302,12 @@ pub trait Core: Sized {
     // Control
     // --------)
 
-    fn branch(&mut self) {
+    extern "fastcall" fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = self.data_space().get_i32(ip) as usize;
     }
 
-    fn zero_branch(&mut self) {
+    extern "fastcall" fn zero_branch(&mut self) {
         let v = self.s_stack().pop();
         if v == 0 {
             self.branch();
@@ -1338,7 +1322,7 @@ pub trait Core: Sized {
     /// ambiguous condition exists if `n1`|`u1` and `n2`|`u2` are not both the same
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded.
-    fn _do(&mut self) {
+    extern "fastcall" fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
         self.state().instruction_pointer += mem::size_of::<i32>();
@@ -1352,7 +1336,7 @@ pub trait Core: Sized {
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
-    fn p_loop(&mut self) {
+    extern "fastcall" fn p_loop(&mut self) {
         let (rn, rt) = self.r_stack().pop2();
         if rt + 1 < rn {
             self.r_stack().push2(rn, rt + 1);
@@ -1371,7 +1355,7 @@ pub trait Core: Sized {
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
     /// following the loop.
-    fn p_plus_loop(&mut self) {
+    extern "fastcall" fn p_plus_loop(&mut self) {
         let (rn, rt) = self.r_stack().pop2();
         let t = self.s_stack().pop();
         if rt + t < rn {
@@ -1389,11 +1373,11 @@ pub trait Core: Sized {
     /// `UNLOOP` is required for each nesting level before the definition may be
     /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
-    fn unloop(&mut self) {
+    extern "fastcall" fn unloop(&mut self) {
         let _ = self.r_stack().pop3();
     }
 
-    fn leave(&mut self) {
+    extern "fastcall" fn leave(&mut self) {
         let (third, _, _) = self.r_stack().pop3();
         if self.r_stack().underflow() {
             self.abort_with(ReturnStackUnderflow);
@@ -1402,14 +1386,14 @@ pub trait Core: Sized {
         self.state().instruction_pointer = self.data_space().get_i32(third as usize) as usize;
     }
 
-    fn p_i(&mut self) {
+    extern "fastcall" fn p_i(&mut self) {
         match self.r_stack().last() {
             Some(i) => self.s_stack().push(i),
             None => self.abort_with(ReturnStackUnderflow),
         }
     }
 
-    fn p_j(&mut self) {
+    extern "fastcall" fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         match self.r_stack().get(pos) {
             Some(j) => self.s_stack().push(j),
@@ -1418,7 +1402,7 @@ pub trait Core: Sized {
     }
 
     // TODO: subroutine-threaded version
-    fn imm_if(&mut self) {
+    extern "fastcall" fn imm_if(&mut self) {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
         self.data_space().compile_i32(0);
@@ -1427,7 +1411,7 @@ pub trait Core: Sized {
     }
 
     // TODO: subroutine-threaded version
-    fn imm_else(&mut self) {
+    extern "fastcall" fn imm_else(&mut self) {
         let if_part = self.c_stack().pop();
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
@@ -1443,7 +1427,7 @@ pub trait Core: Sized {
     }
 
     // TODO: subroutine-threaded version
-    fn imm_then(&mut self) {
+    extern "fastcall" fn imm_then(&mut self) {
         let branch_part = self.c_stack().pop();
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
@@ -1455,13 +1439,13 @@ pub trait Core: Sized {
     }
 
     // TODO: subroutine-threaded version
-    fn imm_begin(&mut self) {
+    extern "fastcall" fn imm_begin(&mut self) {
         let here = self.data_space().len();
         self.c_stack().push(here);
     }
 
     // TODO: subroutine-threaded version
-    fn imm_while(&mut self) {
+    extern "fastcall" fn imm_while(&mut self) {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
         self.data_space().compile_i32(0);
@@ -1470,7 +1454,7 @@ pub trait Core: Sized {
     }
 
     // TODO: subroutine-threaded version
-    fn imm_repeat(&mut self) {
+    extern "fastcall" fn imm_repeat(&mut self) {
         let (begin_part, while_part) = self.c_stack().pop2();
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
@@ -1485,7 +1469,7 @@ pub trait Core: Sized {
     }
 
     // TODO: subroutine-threaded version
-    fn imm_again(&mut self) {
+    extern "fastcall" fn imm_again(&mut self) {
         let begin_part = self.c_stack().pop();
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
@@ -1497,7 +1481,7 @@ pub trait Core: Sized {
     }
 
     // TODO: subroutine-threaded version
-    fn imm_recurse(&mut self) {
+    extern "fastcall" fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;
         self.compile_nest(last);
     }
@@ -1507,7 +1491,7 @@ pub trait Core: Sized {
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
     // TODO: subroutine-threaded version
-    fn imm_do(&mut self) {
+    extern "fastcall" fn imm_do(&mut self) {
         let idx = self.references().idx_do;
         self.compile_word(idx);
         self.data_space().compile_i32(0);
@@ -1522,7 +1506,7 @@ pub trait Core: Sized {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the `LOOP`.
     // TODO: subroutine-threaded version
-    fn imm_loop(&mut self) {
+    extern "fastcall" fn imm_loop(&mut self) {
         let do_part = self.c_stack().pop();
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
@@ -1543,7 +1527,7 @@ pub trait Core: Sized {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
     // TODO: subroutine-threaded version
-    fn imm_plus_loop(&mut self) {
+    extern "fastcall" fn imm_plus_loop(&mut self) {
         let do_part = self.c_stack().pop();
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
@@ -1564,28 +1548,28 @@ pub trait Core: Sized {
     /// Run-time: ( -- )
     ///
     /// No operation
-    fn noop(&mut self) {
+    extern "fastcall" fn noop(&mut self) {
         // Do nothing
     }
 
     /// Run-time: ( -- true )
     ///
     /// Return a true flag, a single-cell value with all bits set.
-    fn p_true(&mut self) {
+    extern "fastcall" fn p_true(&mut self) {
         self.s_stack().push(TRUE);
     }
 
     /// Run-time: ( -- false )
     ///
     /// Return a false flag.
-    fn p_false(&mut self) {
+    extern "fastcall" fn p_false(&mut self) {
         self.s_stack().push(FALSE);
     }
 
     /// Run-time: (c-addr1 -- c-addr2 )
     ///
     ///Add the size in address units of a character to `c-addr1`, giving `c-addr2`.
-    fn char_plus(&mut self) {
+    extern "fastcall" fn char_plus(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v + mem::size_of::<u8>() as isize);
     }
@@ -1593,7 +1577,7 @@ pub trait Core: Sized {
     /// Run-time: (n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` characters.
-    fn chars(&mut self) {
+    extern "fastcall" fn chars(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v * mem::size_of::<u8>() as isize);
     }
@@ -1602,7 +1586,7 @@ pub trait Core: Sized {
     /// Run-time: (a-addr1 -- a-addr2 )
     ///
     /// Add the size in address units of a cell to `a-addr1`, giving `a-addr2`.
-    fn cell_plus(&mut self) {
+    extern "fastcall" fn cell_plus(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v + mem::size_of::<i32>() as isize);
     }
@@ -1610,12 +1594,12 @@ pub trait Core: Sized {
     /// Run-time: (n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` cells.
-    fn cells(&mut self) {
+    extern "fastcall" fn cells(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v * mem::size_of::<i32>() as isize);
     }
 
-    fn swap(&mut self) {
+    extern "fastcall" fn swap(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -1623,31 +1607,31 @@ pub trait Core: Sized {
         self.s_stack()[slen.wrapping_sub(2)] = t;
     }
 
-    fn dup(&mut self) {
+    extern "fastcall" fn dup(&mut self) {
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(2)];
     }
 
-    fn p_drop(&mut self) {
+    extern "fastcall" fn p_drop(&mut self) {
         let slen = self.s_stack().len.wrapping_sub(1);
         self.s_stack().len = slen;
     }
 
-    fn nip(&mut self) {
+    extern "fastcall" fn nip(&mut self) {
         let slen = self.s_stack().len.wrapping_sub(1);
         let t = self.s_stack()[slen];
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = t;
     }
 
-    fn over(&mut self) {
+    extern "fastcall" fn over(&mut self) {
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
     }
 
-    fn rot(&mut self) {
+    extern "fastcall" fn rot(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -1656,19 +1640,19 @@ pub trait Core: Sized {
         self.s_stack()[slen.wrapping_sub(3)] = n;
     }
 
-    fn two_drop(&mut self) {
+    extern "fastcall" fn two_drop(&mut self) {
         let slen = self.s_stack().len.wrapping_sub(2);
         self.s_stack().len = slen;
     }
 
-    fn two_dup(&mut self) {
+    extern "fastcall" fn two_dup(&mut self) {
         let slen = self.s_stack().len.wrapping_add(2);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
         self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(4)];
     }
 
-    fn two_swap(&mut self) {
+    extern "fastcall" fn two_swap(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -1678,31 +1662,31 @@ pub trait Core: Sized {
         self.s_stack()[slen.wrapping_sub(4)] = n;
     }
 
-    fn two_over(&mut self) {
+    extern "fastcall" fn two_over(&mut self) {
         let slen = self.s_stack().len.wrapping_add(2);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(5)];
         self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(6)];
     }
 
-    fn depth(&mut self) {
+    extern "fastcall" fn depth(&mut self) {
         let len = self.s_stack().len;
         self.s_stack().push(len as isize);
     }
 
-    fn one_plus(&mut self) {
+    extern "fastcall" fn one_plus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         self.s_stack()[slen.wrapping_sub(1)] = t.wrapping_add(1);
     }
 
-    fn one_minus(&mut self) {
+    extern "fastcall" fn one_minus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         self.s_stack()[slen.wrapping_sub(1)] = t.wrapping_sub(1);
     }
 
-    fn plus(&mut self) {
+    extern "fastcall" fn plus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -1710,7 +1694,7 @@ pub trait Core: Sized {
         self.s_stack().len = slen.wrapping_sub(1);
     }
 
-    fn minus(&mut self) {
+    extern "fastcall" fn minus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -1718,7 +1702,7 @@ pub trait Core: Sized {
         self.s_stack().len = slen.wrapping_sub(1);
     }
 
-    fn star(&mut self) {
+    extern "fastcall" fn star(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -1726,7 +1710,7 @@ pub trait Core: Sized {
         self.s_stack().len = slen.wrapping_sub(1);
     }
 
-    fn slash(&mut self) {
+    extern "fastcall" fn slash(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -1738,7 +1722,7 @@ pub trait Core: Sized {
         }
     }
 
-    fn p_mod(&mut self) {
+    extern "fastcall" fn p_mod(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -1750,7 +1734,7 @@ pub trait Core: Sized {
         }
     }
 
-    fn slash_mod(&mut self) {
+    extern "fastcall" fn slash_mod(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -1762,78 +1746,78 @@ pub trait Core: Sized {
         }
     }
 
-    fn abs(&mut self) {
+    extern "fastcall" fn abs(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(t.wrapping_abs());
     }
 
-    fn negate(&mut self) {
+    extern "fastcall" fn negate(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(t.wrapping_neg());
     }
 
-    fn zero_less(&mut self) {
+    extern "fastcall" fn zero_less(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(if t < 0 { TRUE } else { FALSE });
     }
 
-    fn zero_equals(&mut self) {
+    extern "fastcall" fn zero_equals(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(if t == 0 { TRUE } else { FALSE });
     }
 
-    fn zero_greater(&mut self) {
+    extern "fastcall" fn zero_greater(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(if t > 0 { TRUE } else { FALSE });
     }
 
-    fn zero_not_equals(&mut self) {
+    extern "fastcall" fn zero_not_equals(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(if t == 0 { FALSE } else { TRUE });
     }
 
-    fn equals(&mut self) {
+    extern "fastcall" fn equals(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(if t == n { TRUE } else { FALSE });
     }
 
-    fn less_than(&mut self) {
+    extern "fastcall" fn less_than(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(if n < t { TRUE } else { FALSE });
     }
 
-    fn greater_than(&mut self) {
+    extern "fastcall" fn greater_than(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(if n > t { TRUE } else { FALSE });
     }
 
-    fn not_equals(&mut self) {
+    extern "fastcall" fn not_equals(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(if n == t { FALSE } else { TRUE });
     }
 
-    fn between(&mut self) {
+    extern "fastcall" fn between(&mut self) {
         let (x1, x2, x3) = self.s_stack().pop3();
         self.s_stack()
             .push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE });
     }
 
-    fn invert(&mut self) {
+    extern "fastcall" fn invert(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(!t);
     }
 
-    fn and(&mut self) {
+    extern "fastcall" fn and(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(t & n);
     }
 
-    fn or(&mut self) {
+    extern "fastcall" fn or(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(t | n);
     }
 
-    fn xor(&mut self) {
+    extern "fastcall" fn xor(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(t ^ n);
     }
@@ -1844,7 +1828,7 @@ pub trait Core: Sized {
     /// zeroes into the least significant bits vacated by the shift. An
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
-    fn lshift(&mut self) {
+    extern "fastcall" fn lshift(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(n.wrapping_shl(t as u32));
     }
@@ -1855,7 +1839,7 @@ pub trait Core: Sized {
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
-    fn rshift(&mut self) {
+    extern "fastcall" fn rshift(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack()
             .push(((n as usize).wrapping_shr(t as u32)) as isize);
@@ -1869,7 +1853,7 @@ pub trait Core: Sized {
     /// loop-control parameters by executing `UNLOOP`.
     ///
     /// TODO: `UNLOOP`
-    fn exit(&mut self) {
+    extern "fastcall" fn exit(&mut self) {
         let rlen = self.r_stack().len.wrapping_sub(1);
         self.state().instruction_pointer = self.r_stack()[rlen] as usize;
         self.r_stack().len = rlen;
@@ -1878,7 +1862,7 @@ pub trait Core: Sized {
     /// Run-time: ( a-addr -- x )
     ///
     /// `x` is the value stored at `a-addr`.
-    fn fetch(&mut self) {
+    extern "fastcall" fn fetch(&mut self) {
         let t = self.s_stack().pop();
         if (t as usize + mem::size_of::<i32>()) <= self.data_space().capacity() {
             let value = self.data_space().get_i32(t as usize) as isize;
@@ -1891,7 +1875,7 @@ pub trait Core: Sized {
     /// Run-time: ( x a-addr -- )
     ///
     /// Store `x` at `a-addr`.
-    fn store(&mut self) {
+    extern "fastcall" fn store(&mut self) {
         let (n, t) = self.s_stack().pop2();
         if (t as usize + mem::size_of::<i32>()) <= self.data_space().capacity() {
             self.data_space().put_i32(n as i32, t as usize);
@@ -1904,7 +1888,7 @@ pub trait Core: Sized {
     ///
     /// Fetch the character stored at `c-addr`. When the cell size is greater than
     /// character size, the unused high-order bits are all zeroes.
-    fn c_fetch(&mut self) {
+    extern "fastcall" fn c_fetch(&mut self) {
         let t = self.s_stack().pop();
         if (t as usize + mem::size_of::<u8>()) <= self.data_space().capacity() {
             let value = self.data_space().get_u8(t as usize) as isize;
@@ -1919,7 +1903,7 @@ pub trait Core: Sized {
     /// Store `char` at `c-addr`. When character size is smaller than cell size,
     /// only the number of low-order bits corresponding to character size are
     /// transferred.
-    fn c_store(&mut self) {
+    extern "fastcall" fn c_store(&mut self) {
         let (n, t) = self.s_stack().pop2();
         if (t as usize + mem::size_of::<u8>()) <= self.data_space().capacity() {
             self.data_space().put_u8(n as u8, t as usize);
@@ -1933,7 +1917,7 @@ pub trait Core: Sized {
     /// Skip leading space delimiters. Parse name delimited by a space. Find
     /// `name` and return `xt`, the execution token for name. An ambiguous
     /// condition exists if name is not found.
-    fn tick(&mut self) {
+    extern "fastcall" fn tick(&mut self) {
         self.parse_word();
         let last_token = self.last_token().take().expect("last token");
         if last_token.is_empty() {
@@ -1951,7 +1935,7 @@ pub trait Core: Sized {
     ///
     /// Remove `xt` from the stack and perform the semantics identified by it.
     /// Other stack effects are due to the word `EXECUTE`d.
-    fn execute(&mut self) {
+    extern "fastcall" fn execute(&mut self) {
         let t = self.s_stack().pop();
         self.execute_word(t as usize);
     }
@@ -1959,7 +1943,7 @@ pub trait Core: Sized {
     /// Run-time: ( -- addr )
     ///
     /// `addr` is the data-space pointer.
-    fn here(&mut self) {
+    extern "fastcall" fn here(&mut self) {
         let len = self.data_space().len() as isize;
         self.s_stack().push(len);
     }
@@ -1969,7 +1953,7 @@ pub trait Core: Sized {
     /// If `n` is greater than zero, reserve n address units of data space. If `n`
     /// is less than zero, release `|n|` address units of data space. If `n` is
     /// zero, leave the data-space pointer unchanged.
-    fn allot(&mut self) {
+    extern "fastcall" fn allot(&mut self) {
         let v = self.s_stack().pop();
         self.data_space().allot(v);
     }
@@ -1980,12 +1964,12 @@ pub trait Core: Sized {
     /// data-space pointer is aligned when `,` begins execution, it will remain
     /// aligned when `,` finishes execution. An ambiguous condition exists if the
     /// data-space pointer is not aligned prior to execution of `,`.
-    fn comma(&mut self) {
+    extern "fastcall" fn comma(&mut self) {
         let v = self.s_stack().pop();
         self.data_space().compile_i32(v as i32);
     }
 
-    fn p_to_r(&mut self) {
+    extern "fastcall" fn p_to_r(&mut self) {
         let slen = self.s_stack().len;
         let rlen = self.r_stack().len.wrapping_add(1);
         self.r_stack().len = rlen;
@@ -1993,7 +1977,7 @@ pub trait Core: Sized {
         self.s_stack().len = slen.wrapping_sub(1);
     }
 
-    fn r_from(&mut self) {
+    extern "fastcall" fn r_from(&mut self) {
         let slen = self.s_stack().len.wrapping_add(1);
         let rlen = self.r_stack().len;
         self.s_stack().len = slen;
@@ -2001,14 +1985,14 @@ pub trait Core: Sized {
         self.r_stack().len = rlen.wrapping_sub(1);
     }
 
-    fn r_fetch(&mut self) {
+    extern "fastcall" fn r_fetch(&mut self) {
         let slen = self.s_stack().len.wrapping_add(1);
         let rlen = self.r_stack().len;
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = self.r_stack()[rlen.wrapping_sub(1)];
     }
 
-    fn two_to_r(&mut self) {
+    extern "fastcall" fn two_to_r(&mut self) {
         let slen = self.s_stack().len;
         let rlen = self.r_stack().len.wrapping_add(2);
         self.r_stack().len = rlen;
@@ -2017,7 +2001,7 @@ pub trait Core: Sized {
         self.s_stack().len = slen.wrapping_sub(2);
     }
 
-    fn two_r_from(&mut self) {
+    extern "fastcall" fn two_r_from(&mut self) {
         let slen = self.s_stack().len.wrapping_add(2);
         let rlen = self.r_stack().len;
         self.s_stack().len = slen;
@@ -2026,7 +2010,7 @@ pub trait Core: Sized {
         self.r_stack().len = rlen.wrapping_sub(2);
     }
 
-    fn two_r_fetch(&mut self) {
+    extern "fastcall" fn two_r_fetch(&mut self) {
         let slen = self.s_stack().len.wrapping_add(2);
         let rlen = self.r_stack().len;
         self.s_stack().len = slen;
@@ -2038,7 +2022,7 @@ pub trait Core: Sized {
     // Error handlling
     // ----------------
 
-    fn check_stacks(&mut self) {
+    extern "fastcall" fn check_stacks(&mut self) {
         if self.s_stack().overflow() {
             self.abort_with(StackOverflow);
         } else if self.s_stack().underflow() {
@@ -2058,12 +2042,12 @@ pub trait Core: Sized {
         }
     }
 
-    fn handler_store(&mut self) {
+    extern "fastcall" fn handler_store(&mut self) {
         let t = self.s_stack().pop();
         self.set_handler(t as usize);
     }
 
-    fn p_error_q(&mut self) {
+    extern "fastcall" fn p_error_q(&mut self) {
         let value = if self.last_error().is_some() {
             TRUE
         } else {
@@ -2072,7 +2056,7 @@ pub trait Core: Sized {
         self.s_stack().push(value);
     }
 
-    fn p_handle_error(&mut self) {
+    extern "fastcall" fn p_handle_error(&mut self) {
         match self.last_error() {
             Some(e) => {
                 self.clear_stacks();
@@ -2090,7 +2074,7 @@ pub trait Core: Sized {
 
     /// Clear data and floating point stacks.
     /// Called by VM's client upon Abort.
-    fn clear_stacks(&mut self) {
+    extern "fastcall" fn clear_stacks(&mut self) {
         self.s_stack().reset();
         self.f_stack().reset();
     }
@@ -2098,7 +2082,7 @@ pub trait Core: Sized {
     /// Reset VM, do not clear data stack and floating point stack.
     /// Called by VM's client upon Quit.
     // TODO: subroutine-threaded version
-    fn reset(&mut self) {
+    extern "fastcall" fn reset(&mut self) {
         self.r_stack().len = 0;
         self.c_stack().len = 0;
         if let Some(ref mut buf) = *self.input_buffer() {
@@ -2120,16 +2104,16 @@ pub trait Core: Sized {
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
     // TODO: subroutine-threaded version
-    fn abort(&mut self) {
+    extern "fastcall" fn abort(&mut self) {
         self.abort_with(Abort);
     }
 
     // TODO: subroutine-threaded version
-    fn halt(&mut self) {
+    extern "fastcall" fn halt(&mut self) {
         self.state().instruction_pointer = 0;
     }
 
-    fn bye(&mut self) {
+    extern "fastcall" fn bye(&mut self) {
         process::exit(0);
     }
 
@@ -4034,9 +4018,8 @@ mod tests {
         // 55               push   %ebp
         // 89 e5            mov    %esp,%ebp
         // 56               push   %esi
-        // 8b 75 08         mov    0x8(%ebp),%esi
-        // 83 ec 10         sub    $0x10,%esp
-        // 83 c4 10         add    $0x10,%esp
+        // 89 ce            mov    %ecx,%esi
+        //
         // 5e               pop    %esi
         // 5d               pop    %ebp
         // c3               ret
@@ -4049,18 +4032,12 @@ mod tests {
         assert_eq!(vm.code_space().get_u8(1), 0x89);
         assert_eq!(vm.code_space().get_u8(2), 0xe5);
         assert_eq!(vm.code_space().get_u8(3), 0x56);
-        assert_eq!(vm.code_space().get_u8(4), 0x8b);
-        assert_eq!(vm.code_space().get_u8(5), 0x75);
-        assert_eq!(vm.code_space().get_u8(6), 0x08);
-        assert_eq!(vm.code_space().get_u8(7), 0x83);
-        assert_eq!(vm.code_space().get_u8(8), 0xec);
-        assert_eq!(vm.code_space().get_u8(9), 0x10);
-        assert_eq!(vm.code_space().get_u8(10), 0x83);
-        assert_eq!(vm.code_space().get_u8(11), 0xc4);
-        assert_eq!(vm.code_space().get_u8(12), 0x10);
-        assert_eq!(vm.code_space().get_u8(13), 0x5e);
-        assert_eq!(vm.code_space().get_u8(14), 0x5d);
-        assert_eq!(vm.code_space().get_u8(15), 0xc3);
+        assert_eq!(vm.code_space().get_u8(4), 0x89);
+        assert_eq!(vm.code_space().get_u8(5), 0xce);
+
+        assert_eq!(vm.code_space().get_u8(6), 0x5e);
+        assert_eq!(vm.code_space().get_u8(7), 0x5d);
+        assert_eq!(vm.code_space().get_u8(8), 0xc3);
     }
 
     #[test]

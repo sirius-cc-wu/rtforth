@@ -1,7 +1,7 @@
 [package]
 
 name = "rtforth"
-version = "0.1.35"
+version = "0.1.36"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 keywords = ["forth", "real-time"]
 description = "Forth implemented in Rust for realtime application"

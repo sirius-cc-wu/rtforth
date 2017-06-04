@@ -69,6 +69,11 @@ impl DataSpace {
         self.len
     }
 
+    pub fn here(&mut self) -> usize {
+        let len = self.len;
+        unsafe{ self.inner.offset(len as isize) as usize }
+    }
+
     pub fn get_u8(&self, addr: usize) -> u8 {
         unsafe { *(self.inner.offset(addr as isize) as *mut u8) }
     }
@@ -165,6 +170,11 @@ impl DataSpace {
 
     pub fn align(&mut self) {
         let align = mem::align_of::<usize>();
+        self.len = (self.len + align - 1) & align.wrapping_neg();
+    }
+
+    pub fn align_f64(&mut self) {
+        let align = mem::align_of::<f64>();
         self.len = (self.len + align - 1) & align.wrapping_neg();
     }
 

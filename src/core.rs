@@ -866,7 +866,6 @@ pub trait Core: Sized {
 
     /// Compile integer `i`.
     #[cfg(feature = "subroutine-threaded")]
-    #[inline(never)]
     fn compile_integer(&mut self, i: isize) {
         // ba nn nn nn nn   mov    $0xnnnn,%edx
         // 89 f1            mov    %esi,%ecx
@@ -885,8 +884,41 @@ pub trait Core: Sized {
     }
 
     #[cfg(feature = "subroutine-threaded")]
+    extern "fastcall" fn lit_float(&mut self, f: f64) {
+        let flen = self.f_stack().len.wrapping_add(1);
+        self.f_stack().len = flen;
+        self.f_stack()[flen.wrapping_sub(1)] = f;
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
     fn compile_float(&mut self, f: f64) {
-        // TODO
+        // ba nn nn nn nn   mov    <addr of f>, %edx
+        // 83 ec 08         sub    $0x08,%esp
+        // f2 0f 10 02      movsd  (%edx), %xmm0
+        // 89 f1            mov    %esi, %ecx
+        // f2 0f 11 04 24   movsd  %xmm0,(%esp)
+        // e8 xx xx xx xx   call   lit_float
+        self.data_space().align_f64();
+        let data_addr = self.data_space().here();
+        self.data_space().compile_f64(f);
+        self.code_space().compile_u8(0xba);
+        self.code_space().compile_u32(data_addr as u32);
+        self.code_space().compile_u8(0x83);
+        self.code_space().compile_u8(0xec);
+        self.code_space().compile_u8(0x08);
+        self.code_space().compile_u8(0xf2);
+        self.code_space().compile_u8(0x0f);
+        self.code_space().compile_u8(0x10);
+        self.code_space().compile_u8(0x02);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xf2);
+        self.code_space().compile_u8(0x0f);
+        self.code_space().compile_u8(0x11);
+        self.code_space().compile_u8(0x04);
+        self.code_space().compile_u8(0x24);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::lit_float as usize);
     }
 
     /// Runtime of S"

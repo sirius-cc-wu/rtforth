@@ -27,7 +27,7 @@ pub struct Word<Target> {
     hidden: bool,
     dfa: usize,
     action: extern "fastcall" fn(&mut Target),
-    compilation_semantics: fn(&mut Target, usize),
+    pub compilation_semantics: fn(&mut Target, usize),
 }
 
 impl<Target> Word<Target> {
@@ -924,13 +924,46 @@ pub trait Core: Sized {
     /// Runtime of S"
     #[cfg(feature = "subroutine-threaded")]
     extern "fastcall" fn p_s_quote(&mut self) {
-        // TODO
+        // Do nothing.
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    extern "fastcall" fn lit_counted_string(&mut self, idx: usize) {
+        let cnt = self.data_space().get_i32(idx);
+        let addr = idx + mem::size_of::<i32>();
+        // FIXME
+        // 加下一行會造成 cargo test test_s_quote_and_type --features="subroutine-threaded"
+        // 時 invalid memory reference 。但如果列印的方式改為 {} 就 ok。
+        // 懷疑是 compile_s_quote 設計有問題。或是 println 改變了 calling convension。
+        // 但奇怪的是，無法用 objdump -d 找到 compile_s_quote 以及 lit_counted_string，以致於無法
+        // 理解。
+        // println!("lit_counted_string: addr: {:x}!", addr);
+        let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
+        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_s_quote(&mut self, _: usize) {
+        // ba nn nn nn nn   mov    <index of counted string>, %edx
+        // 89 f1            mov    %esi, %ecx
+        // e8 xx xx xx xx   call   lit_counted_string
+        let data_idx = self.data_space().len();
+        self.code_space().compile_u8(0xba);
+        self.code_space().compile_u32(data_idx as u32);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::lit_counted_string as usize);
     }
 
     #[cfg(feature = "subroutine-threaded")]
     fn patch_compilation_semanticses(&mut self) {
         let idx_exit = self.find("exit").expect("exit");
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_exit;
+        let idx_s_quote = self.find("_s\"").expect("_s\"");
+        self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_s_quote;
     }
 
     // -----------

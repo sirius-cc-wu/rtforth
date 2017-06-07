@@ -1,3 +1,4 @@
+#[macro_use(primitive)]
 extern crate rtforth;
 extern crate getopts;
 extern crate rustyline;
@@ -199,7 +200,7 @@ fn print_version() {
     println!("rtForth v0.1.19, Copyright (C) 2016 Mapacode Inc.");
 }
 
-extern "fastcall" fn p_accept(vm: &mut VM) {
+primitive!{fn p_accept(vm: &mut VM) {
     match vm.editor.readline("rf> ") {
         Ok(line) => {
             vm.editor.add_history_entry(&line);
@@ -217,7 +218,7 @@ extern "fastcall" fn p_accept(vm: &mut VM) {
             }
         }
     }
-}
+}}
 
 fn repl(vm: &mut VM) {
     vm.set_source("

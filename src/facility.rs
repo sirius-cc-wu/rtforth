@@ -27,7 +27,7 @@ pub trait Facility: Core {
     /// vm.set_source("ntime .s");
     /// vm.evaluate();
     /// ```
-    extern "fastcall" fn ntime(&mut self) {
+    primitive!{fn ntime(&mut self) {
         let t = time::precise_time_ns();
         if t > usize::max_value() as u64 {
             self.s_stack()
@@ -36,7 +36,7 @@ pub trait Facility: Core {
         } else {
             self.s_stack().push2(t as isize, 0);
         }
-    }
+    }}
 
     /// Run-time: ( -- ud )
     ///
@@ -53,7 +53,7 @@ pub trait Facility: Core {
     /// vm.set_source("utime .s");
     /// vm.evaluate();
     /// ```
-    extern "fastcall" fn utime(&mut self) {
+    primitive!{fn utime(&mut self) {
         let t = time::precise_time_ns() / 1000;
         if t > usize::max_value() as u64 {
             self.s_stack()
@@ -62,5 +62,5 @@ pub trait Facility: Core {
         } else {
             self.s_stack().push2(t as isize, 0);
         }
-    }
+    }}
 }

@@ -1,6 +1,20 @@
 #![feature(libc)]
 #![feature(test)]
 
+#[cfg(target_arch = "arm")]
+#[macro_export]
+macro_rules! primitive {
+    (fn $args:tt) => { fn $args };
+    (fn $f:ident $args:tt $body:tt) => { fn $f $args $body };
+}
+
+#[cfg(target_arch = "x86")]
+#[macro_export]
+macro_rules! primitive {
+    (fn $args:tt) => { extern "fastcall" fn $args };
+    (fn $f:ident $args:tt $body:tt) => { extern "fastcall" fn $f $args $body };
+}
+
 extern crate byteorder;
 pub mod vm;
 pub mod core;

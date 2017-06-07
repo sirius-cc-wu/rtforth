@@ -21,7 +21,7 @@ pub trait Output: Core {
     /// Run-time: ( x -- )
     ///
     /// Put x into output buffer.
-    extern "fastcall" fn emit(&mut self) {
+    primitive!{fn emit(&mut self) {
         let ch = self.s_stack().pop();
         match self.output_buffer().take() {
             Some(mut buffer) => {
@@ -30,12 +30,12 @@ pub trait Output: Core {
             }
             None => {}
         }
-    }
+    }}
 
     /// Run-time: ( c-addr u -- )
     ///
     /// Put the character string specified by c-addr and u into output buffer.
-    extern "fastcall" fn p_type(&mut self) {
+    primitive!{fn p_type(&mut self) {
         let (addr, len) = self.s_stack().pop2();
         if self.s_stack().underflow() {
             self.abort_with(StackUnderflow);
@@ -51,7 +51,7 @@ pub trait Output: Core {
             }
             None => {}
         }
-    }
+    }}
 
     /// Compilation: ( "ccc<quote>" -- )
     ///
@@ -62,7 +62,7 @@ pub trait Output: Core {
     ///
     /// Return c-addr and u describing a string consisting of the characters ccc. A program
     /// shall not alter the returned string.
-    extern "fastcall" fn s_quote(&mut self) {
+    primitive!{fn s_quote(&mut self) {
         let input_buffer = self.input_buffer().take().unwrap();
         {
             let source = &input_buffer[self.state().source_index..input_buffer.len()];
@@ -81,7 +81,7 @@ pub trait Output: Core {
             self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;
         }
         self.set_input_buffer(input_buffer);
-    }
+    }}
 
     /// Compilation: ( "ccc<quote>" -- )
     ///
@@ -91,16 +91,16 @@ pub trait Output: Core {
     /// Run-time: ( -- )
     ///
     /// Display ccc.
-    extern "fastcall" fn dot_quote(&mut self) {
+    primitive!{fn dot_quote(&mut self) {
         self.s_quote();
         let idx_type = self.references().idx_type;
         self.compile_word(idx_type);
-    }
+    }}
 
     /// Execution: ( "ccc&lt;paren&gt;" -- )
     ///
     /// Parse and display ccc delimited by ) (right parenthesis). .( is an immediate word.
-    extern "fastcall" fn dot_paren(&mut self) {
+    primitive!{fn dot_paren(&mut self) {
         self.s_stack().push(')' as isize);
         self.parse();
         let last_token = self.last_token().take().unwrap();
@@ -108,12 +108,12 @@ pub trait Output: Core {
             buffer.extend(last_token.chars());
         }
         self.set_last_token(last_token);
-    }
+    }}
 
     /// Run-time: ( n -- )
     ///
     /// Display n in free field format.
-    extern "fastcall" fn dot(&mut self) {
+    primitive!{fn dot(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
         let base = self.data_space().get_isize(base_addr);
         let mut invalid_base = false;
@@ -141,21 +141,21 @@ pub trait Output: Core {
         if invalid_base {
             self.abort_with(UnsupportedOperation);
         }
-    }
+    }}
 
     /// Run-time: ( -- ) ( F: r -- )
     ///
     /// Display, with a trailing space, the top number on the floating-point
     /// stack using fixed-point notation.
-    extern "fastcall" fn fdot(&mut self) {
+    primitive!{fn fdot(&mut self) {
         let r = self.f_stack().pop();
         if let Some(mut buf) = self.output_buffer().take() {
             write!(buf, "{} ", r).unwrap();
             self.set_output_buffer(buf);
         }
-    }
+    }}
 
-    extern "fastcall" fn p_flush(&mut self) {
+    primitive!{fn p_flush(&mut self) {
         match self.output_buffer().as_mut() {
             Some(buf) => {
                 if buf.len() > 0 {
@@ -165,7 +165,7 @@ pub trait Output: Core {
             }
             None => {}
         }
-    }
+    }}
 }
 
 #[cfg(test)]

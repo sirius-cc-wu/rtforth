@@ -1,3 +1,4 @@
+#[macro_use(primitive)]
 extern crate rtforth;
 
 mod vm {
@@ -73,9 +74,9 @@ mod vm {
             self.current_task = i;
         }
 
-        extern "fastcall" fn pause(&mut self) {
+        primitive!{fn pause(&mut self) {
             self.current_task = (self.current_task + 1) % 2;
-        }
+        }}
     }
 
     impl Core for VM {

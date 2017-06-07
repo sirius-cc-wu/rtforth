@@ -43,27 +43,27 @@ pub trait Float: Core {
 
     // Defining words
 
-    extern "fastcall" fn p_fconst(&mut self) {
+    primitive!{fn p_fconst(&mut self) {
         let wp = self.state().word_pointer();
         let dfa = self.wordlist()[wp].dfa();
         let v = self.data_space().get_f64(dfa);
         self.f_stack().push(v);
-    }
+    }}
 
-    extern "fastcall" fn fvariable(&mut self) {
+    primitive!{fn fvariable(&mut self) {
         self.define(Core::p_var, Core::compile_var);
         self.data_space().compile_f64(0.0);
-    }
+    }}
 
-    extern "fastcall" fn fconstant(&mut self) {
+    primitive!{fn fconstant(&mut self) {
         let v = self.f_stack().pop();
         self.define(Float::p_fconst, Core::compile_fconst);
         self.data_space().compile_f64(v);
-    }
+    }}
 
     // Floating point primitives
 
-    extern "fastcall" fn ffetch(&mut self) {
+    primitive!{fn ffetch(&mut self) {
         let t = self.s_stack().pop();
         if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
             let value = self.data_space().get_f64(t as usize);
@@ -71,9 +71,9 @@ pub trait Float: Core {
         } else {
             self.abort_with(InvalidMemoryAddress);
         }
-    }
+    }}
 
-    extern "fastcall" fn fstore(&mut self) {
+    primitive!{fn fstore(&mut self) {
         let t = self.s_stack().pop();
         let n = self.f_stack().pop();
         if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
@@ -81,118 +81,118 @@ pub trait Float: Core {
         } else {
             self.abort_with(InvalidMemoryAddress);
         }
-    }
+    }}
 
-    extern "fastcall" fn fabs(&mut self) {
+    primitive!{fn fabs(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.abs());
-    }
+    }}
 
-    extern "fastcall" fn fsin(&mut self) {
+    primitive!{fn fsin(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.sin());
-    }
+    }}
 
-    extern "fastcall" fn fcos(&mut self) {
+    primitive!{fn fcos(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.cos());
-    }
+    }}
 
-    extern "fastcall" fn ftan(&mut self) {
+    primitive!{fn ftan(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.tan());
-    }
+    }}
 
-    extern "fastcall" fn fasin(&mut self) {
+    primitive!{fn fasin(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.asin());
-    }
+    }}
 
-    extern "fastcall" fn facos(&mut self) {
+    primitive!{fn facos(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.acos());
-    }
+    }}
 
-    extern "fastcall" fn fatan(&mut self) {
+    primitive!{fn fatan(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.atan());
-    }
+    }}
 
-    extern "fastcall" fn fatan2(&mut self) {
+    primitive!{fn fatan2(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n.atan2(t));
-    }
+    }}
 
-    extern "fastcall" fn fsqrt(&mut self) {
+    primitive!{fn fsqrt(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.sqrt());
-    }
+    }}
 
-    extern "fastcall" fn fswap(&mut self) {
+    primitive!{fn fswap(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push2(t, n);
-    }
+    }}
 
-    extern "fastcall" fn fnip(&mut self) {
+    primitive!{fn fnip(&mut self) {
         let t = self.f_stack().pop();
         let _ = self.f_stack().pop();
         self.f_stack().push(t);
-    }
+    }}
 
-    extern "fastcall" fn fdup(&mut self) {
+    primitive!{fn fdup(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push2(t, t);
-    }
+    }}
 
-    extern "fastcall" fn fdrop(&mut self) {
+    primitive!{fn fdrop(&mut self) {
         let _ = self.f_stack().pop();
-    }
+    }}
 
-    extern "fastcall" fn frot(&mut self) {
+    primitive!{fn frot(&mut self) {
         let x3 = self.f_stack().pop();
         let x2 = self.f_stack().pop();
         let x1 = self.f_stack().pop();
         self.f_stack().push3(x2, x3, x1);
-    }
+    }}
 
-    extern "fastcall" fn fover(&mut self) {
+    primitive!{fn fover(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push3(n, t, n);
-    }
+    }}
 
-    extern "fastcall" fn n_to_f(&mut self) {
+    primitive!{fn n_to_f(&mut self) {
         let t = self.s_stack().pop();
         self.f_stack().push(t as f64);
-    }
+    }}
 
-    extern "fastcall" fn fplus(&mut self) {
+    primitive!{fn fplus(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n + t);
-    }
+    }}
 
-    extern "fastcall" fn fminus(&mut self) {
+    primitive!{fn fminus(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n - t);
-    }
+    }}
 
-    extern "fastcall" fn fstar(&mut self) {
+    primitive!{fn fstar(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n * t);
-    }
+    }}
 
-    extern "fastcall" fn fslash(&mut self) {
+    primitive!{fn fslash(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n / t);
-    }
+    }}
 
-    extern "fastcall" fn fproximate(&mut self) {
+    primitive!{fn fproximate(&mut self) {
         let (x1, x2, x3) = self.f_stack().pop3();
         if x3 > 0.0 {
             self.s_stack()
@@ -207,53 +207,53 @@ pub trait Float: Core {
                           FALSE
                       });
         }
-    }
+    }}
 
-    extern "fastcall" fn f_zero_less_than(&mut self) {
+    primitive!{fn f_zero_less_than(&mut self) {
         let t = self.f_stack().pop();
         self.s_stack().push(if t < 0.0 { TRUE } else { FALSE });
-    }
+    }}
 
-    extern "fastcall" fn f_zero_equals(&mut self) {
+    primitive!{fn f_zero_equals(&mut self) {
         let t = self.f_stack().pop();
         self.s_stack().push(if t == 0.0 { TRUE } else { FALSE });
-    }
+    }}
 
-    extern "fastcall" fn f_less_than(&mut self) {
+    primitive!{fn f_less_than(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.s_stack().push(if n < t { TRUE } else { FALSE });
-    }
+    }}
 
-    extern "fastcall" fn fmin(&mut self) {
+    primitive!{fn fmin(&mut self) {
         let (n, t) = self.f_stack().pop2();
         self.f_stack().push(t.min(n));
-    }
+    }}
 
-    extern "fastcall" fn fmax(&mut self) {
+    primitive!{fn fmax(&mut self) {
         let (n, t) = self.f_stack().pop2();
         self.f_stack().push(t.max(n));
-    }
+    }}
 
-    extern "fastcall" fn fround(&mut self) {
+    primitive!{fn fround(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.round());
-    }
+    }}
 
-    extern "fastcall" fn floor(&mut self) {
+    primitive!{fn floor(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.floor());
-    }
+    }}
 
-    extern "fastcall" fn fceil(&mut self) {
+    primitive!{fn fceil(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.ceil());
-    }
+    }}
 
-    extern "fastcall" fn fnegate(&mut self) {
+    primitive!{fn fnegate(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(-t);
-    }
+    }}
 }
 
 #[cfg(test)]

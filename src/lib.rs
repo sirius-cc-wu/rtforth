@@ -6,6 +6,7 @@
 macro_rules! primitive {
     (fn $args:tt) => { fn $args };
     (fn $f:ident $args:tt $body:tt) => { fn $f $args $body };
+    (fn $f:ident $args:tt -> isize $body:tt) => { fn $f $args -> isize $body };
 }
 
 #[cfg(target_arch = "x86")]
@@ -13,6 +14,7 @@ macro_rules! primitive {
 macro_rules! primitive {
     (fn $args:tt) => { extern "fastcall" fn $args };
     (fn $f:ident $args:tt $body:tt) => { extern "fastcall" fn $f $args $body };
+    (fn $f:ident $args:tt -> isize $body:tt) => { extern "fastcall" fn $f $args -> isize $body };
 }
 
 extern crate byteorder;

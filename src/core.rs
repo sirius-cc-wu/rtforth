@@ -821,7 +821,7 @@ pub trait Core: Sized {
     }
 
     #[cfg(feature = "subroutine-threaded")]
-    fn compile_exit(&mut self, word_index: usize) {
+    fn compile_exit(&mut self, _: usize) {
         // 5e               pop    %esi
         // 5d               pop    %ebp
         // c3               ret
@@ -881,7 +881,7 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn flit(&mut self) {
-        // TODO
+        // Do nothing.
     }}
 
     #[cfg(feature = "subroutine-threaded")]
@@ -1368,11 +1368,27 @@ pub trait Core: Sized {
     // Control
     // --------)
 
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = self.data_space().get_i32(ip) as usize;
     }}
 
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn branch(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_branch(&mut self, destination: usize) -> usize {
+        // e9 xx xx xx xx      jmp xxxx
+        let here = self.code_space().here();
+        self.code_space().compile_u8(0xe9);
+        self.code_space().compile_relative(destination);
+        here
+    }
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn zero_branch(&mut self) {
         let v = self.s_stack().pop();
         if v == 0 {
@@ -1381,6 +1397,30 @@ pub trait Core: Sized {
             self.state().instruction_pointer += mem::size_of::<i32>();
         }
     }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn zero_branch(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_zero_branch(&mut self, destination: usize) -> usize {
+        // 89 f1                mov    %esi,%ecx
+        // e8 xx xx xx xx       call   pop_stack ; pop value into %eax.
+        // 85 c0                test   %eax, %eax
+        // 0f 84 yy yy yy yy    je     yyyy
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::pop_s_stack as usize);
+        self.code_space().compile_u8(0x85);
+        self.code_space().compile_u8(0xc0);
+        let here = self.code_space().here();
+        self.code_space().compile_u8(0x0f);
+        self.code_space().compile_u8(0x84);
+        self.code_space().compile_relative(destination);
+        here
+    }
 
     /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
     ///
@@ -1467,7 +1507,7 @@ pub trait Core: Sized {
         }
     }}
 
-    // TODO: subroutine-threaded version
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn imm_if(&mut self) {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
@@ -1476,7 +1516,13 @@ pub trait Core: Sized {
         self.c_stack().push(here);
     }}
 
-    // TODO: subroutine-threaded version
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_if(&mut self) {
+        let here = self.compile_zero_branch(0);
+        self.c_stack().push(here);
+    }}
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn imm_else(&mut self) {
         let if_part = self.c_stack().pop();
         if self.c_stack().underflow() {
@@ -1492,7 +1538,22 @@ pub trait Core: Sized {
         }
     }}
 
-    // TODO: subroutine-threaded version
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_else(&mut self) {
+        let if_part = self.c_stack().pop();
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let else_part = self.compile_branch(0);
+            self.c_stack().push(else_part);
+            // if_part: 0f 84 yy yy yy yy    je yyyy 
+            let here = self.code_space().here();
+            self.code_space()
+                .put_i32((here - (if_part + 2 + mem::size_of::<i32>())) as i32, (if_part + 2));
+        }
+    }}
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn imm_then(&mut self) {
         let branch_part = self.c_stack().pop();
         if self.c_stack().underflow() {
@@ -1504,11 +1565,42 @@ pub trait Core: Sized {
         }
     }}
 
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_then(&mut self) {
+        let branch_part = self.c_stack().pop();
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            // branch_part:
+            //      0f 84 yy yy yy yy   je yyyy 
+            // or
+            //      e9 xx xx xx xx      jmp xxxx
+            let here = self.code_space().here();
+            let c = self.code_space().get_u8(branch_part);
+            if c == 0x0f {
+                self.code_space()
+                    .put_i32((here - (branch_part + 2 + mem::size_of::<i32>())) as i32, (branch_part + 2));
+            } else {
+                self.code_space()
+                    .put_i32((here - (branch_part + 1 + mem::size_of::<i32>())) as i32, (branch_part + 1));
+            }
+        }
+    }}
+
     // TODO: subroutine-threaded version
+//    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn imm_begin(&mut self) {
         let here = self.data_space().len();
         self.c_stack().push(here);
     }}
+
+/*
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_begin(&mut self) {
+        let here = self.code_space().here();
+        self.c_stack().push(here);
+    }}
+*/
 
     // TODO: subroutine-threaded version
     primitive!{fn imm_while(&mut self) {
@@ -1535,6 +1627,7 @@ pub trait Core: Sized {
     }}
 
     // TODO: subroutine-threaded version
+//    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn imm_again(&mut self) {
         let begin_part = self.c_stack().pop();
         if self.c_stack().underflow() {
@@ -1545,7 +1638,17 @@ pub trait Core: Sized {
             self.data_space().compile_i32(begin_part as i32);
         }
     }}
-
+/*
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_again(&mut self) {
+        let begin_part = self.c_stack().pop();
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            self.compile_branch(begin_part);
+        }
+    }}
+*/
     // TODO: subroutine-threaded version
     primitive!{fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;
@@ -1682,6 +1785,13 @@ pub trait Core: Sized {
     primitive!{fn p_drop(&mut self) {
         let slen = self.s_stack().len.wrapping_sub(1);
         self.s_stack().len = slen;
+    }}
+
+    primitive!{fn pop_s_stack(&mut self) -> isize {
+        let slen = self.s_stack().len.wrapping_sub(1);
+        let t = self.s_stack()[slen];
+        self.s_stack().len = slen;
+        t
     }}
 
     primitive!{fn nip(&mut self) {
@@ -3652,16 +3762,10 @@ mod tests {
     }
 
     #[test]
-    fn test_if_else_then() {
+    fn test_if_then() {
         let vm = &mut VM::new(16, 16);
         // : t5 if ; t5
         vm.set_source(": t5 if ;");
-        vm.evaluate();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.reset();
-        vm.clear_stacks();
-        // : t3 else then ; t3
-        vm.set_source(": t3 else then ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
@@ -3672,9 +3776,36 @@ mod tests {
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
+        // : t1 false dup if drop true then ; t1
+        vm.set_source(": t1 0 dup if drop -1 then ; t1");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), 0);
+        vm.reset();
+        vm.clear_stacks();
+        // : t2 true dup if drop false then ; t1
+        vm.set_source(": t1 -1 dup if drop -1 then ; t1");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), -1);
+    }
+
+    #[test]
+    fn test_if_else_then() {
+        let vm = &mut VM::new(16, 16);
+        // : t3 else then ; t3
+        vm.set_source(": t3 else then ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.reset();
+        vm.clear_stacks();
         // : t1 0 if true else false then ; t1
+        // let action = vm.code_space().here();
         vm.set_source(": t1 0 if true else false then ; t1");
         vm.evaluate();
+        // dump(vm, action);
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 0);
@@ -4094,16 +4225,32 @@ mod tests {
         vm.evaluate();
         let w = vm.last_definition();
         assert_eq!(vm.wordlist()[w].action as usize, action);
-        assert_eq!(vm.code_space().get_u8(0), 0x55);
-        assert_eq!(vm.code_space().get_u8(1), 0x89);
-        assert_eq!(vm.code_space().get_u8(2), 0xe5);
-        assert_eq!(vm.code_space().get_u8(3), 0x56);
-        assert_eq!(vm.code_space().get_u8(4), 0x89);
-        assert_eq!(vm.code_space().get_u8(5), 0xce);
+        assert_eq!(vm.code_space().get_u8(action + 0), 0x55);
+        assert_eq!(vm.code_space().get_u8(action + 1), 0x89);
+        assert_eq!(vm.code_space().get_u8(action + 2), 0xe5);
+        assert_eq!(vm.code_space().get_u8(action + 3), 0x56);
+        assert_eq!(vm.code_space().get_u8(action + 4), 0x89);
+        assert_eq!(vm.code_space().get_u8(action + 5), 0xce);
 
-        assert_eq!(vm.code_space().get_u8(6), 0x5e);
-        assert_eq!(vm.code_space().get_u8(7), 0x5d);
-        assert_eq!(vm.code_space().get_u8(8), 0xc3);
+        assert_eq!(vm.code_space().get_u8(action + 6), 0x5e);
+        assert_eq!(vm.code_space().get_u8(action + 7), 0x5d);
+        assert_eq!(vm.code_space().get_u8(action + 8), 0xc3);
+    }
+
+    // TODO: added a dump forth word.
+    fn dump(vm: &mut VM, addr: usize) {
+        for i in 0..8 {
+            println!("{:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x}",
+                vm.code_space().get_u8(addr+0+i*8),
+                vm.code_space().get_u8(addr+1+i*8),
+                vm.code_space().get_u8(addr+2+i*8),
+                vm.code_space().get_u8(addr+3+i*8),
+                vm.code_space().get_u8(addr+4+i*8),
+                vm.code_space().get_u8(addr+5+i*8),
+                vm.code_space().get_u8(addr+6+i*8),
+                vm.code_space().get_u8(addr+7+i*8),
+            );
+        }
     }
 
     #[test]
@@ -4111,28 +4258,56 @@ mod tests {
     fn test_subroutine_threaded_lit_and_plus() {
         let vm = &mut VM::new(16, 16);
         // : 2+3 2 3 + ;
+        // let action = vm.code_space().here();
         vm.set_source(": 2+3 2 3 + ;");
         vm.evaluate();
-        /*
-        for i in 0..8 {
-            println!("{:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x}",
-                vm.code_space().get_u8(0+i*8),
-                vm.code_space().get_u8(1+i*8),
-                vm.code_space().get_u8(2+i*8),
-                vm.code_space().get_u8(3+i*8),
-                vm.code_space().get_u8(4+i*8),
-                vm.code_space().get_u8(5+i*8),
-                vm.code_space().get_u8(6+i*8),
-                vm.code_space().get_u8(7+i*8),
-            );
-        }
-        */
+        // dump(vm, action);
         // 2+3
         vm.set_source("2+3");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 5);
+    }
+
+    #[test]
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    fn test_subroutine_threaded_if_then() {
+        let vm = &mut VM::new(16, 16);
+        // : t5 if ; t5
+        vm.set_source(": t5 if ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.reset();
+        vm.clear_stacks();
+        // : t4 then ; t4
+        vm.set_source(": t4 then ; t4");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.reset();
+        vm.clear_stacks();
+        // let action = vm.code_space().here();
+        // : tx dup drop ;
+        vm.set_source(": tx dup drop ;");
+        vm.evaluate();
+        // dump(vm, action);
+        // println!("**** t1 ****");
+        // let action = vm.code_space().here();
+        // : t1 0 dup if drop -1 then ; t1
+        vm.set_source(": t1 0 dup if drop -1 then ; t1");
+        vm.evaluate();
+        // dump(vm, action);
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), 0);
+        vm.reset();
+        vm.clear_stacks();
+        // : t2 -1 dup if drop 0 then ; t1
+        vm.set_source(": t2 -1 dup if drop -1 then ; t2");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), -1);
     }
 
 }

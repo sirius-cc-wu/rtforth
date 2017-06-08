@@ -64,103 +64,85 @@ impl CodeSpace {
     }
 
     pub fn get_u8(&self, addr: usize) -> u8 {
-        unsafe { *(self.inner.offset(addr as isize) as *mut u8) }
+        unsafe { *(addr as *mut u8) }
     }
 
     #[allow(dead_code)]
     pub fn get_u32(&self, addr: usize) -> u32 {
-        unsafe { *(self.inner.offset(addr as isize) as *mut u32) }
+        unsafe { *(addr as *mut u32) }
     }
 
     pub fn get_i32(&self, addr: usize) -> i32 {
-        unsafe { *(self.inner.offset(addr as isize) as *mut i32) }
+        unsafe { *(addr as *mut i32) }
     }
 
     pub fn get_isize(&self, addr: usize) -> isize {
-        unsafe { *(self.inner.offset(addr as isize) as *mut isize) }
+        unsafe { *(addr as *mut isize) }
     }
 
     pub fn get_f64(&self, addr: usize) -> f64 {
-        unsafe { *(self.inner.offset(addr as isize) as *mut f64) }
+        unsafe { *(addr as *mut f64) }
     }
 
     pub fn get_str(&self, addr: usize, len: usize) -> &str {
         unsafe {
-            mem::transmute(slice::from_raw_parts::<u8>(self.inner.offset(addr as isize), len))
+            mem::transmute(slice::from_raw_parts::<u8>(addr as *mut u8, len))
         }
     }
 
     // Basic operations
 
     pub fn put_u8(&mut self, v: u8, pos: usize) {
-        unsafe {
-            let v1 = self.inner.offset(pos as isize) as *mut u8;
-            *v1 = v;
-        }
+        unsafe { *(pos as *mut u8) = v; }
     }
 
     #[allow(dead_code)]
     pub fn compile_u8(&mut self, v: u8) {
-        let len = self.len;
-        self.put_u8(v, len);
+        let here = self.here();
+        self.put_u8(v, here);
         self.len += mem::size_of::<u8>();
     }
 
     pub fn put_u32(&mut self, v: u32, pos: usize) {
-        unsafe {
-            let v1 = self.inner.offset(pos as isize) as *mut u32;
-            *v1 = v;
-        }
+        unsafe { *(pos as *mut u32) = v; }
     }
 
     pub fn compile_u32(&mut self, v: u32) {
-        let len = self.len;
-        self.put_u32(v, len);
+        let here = self.here();
+        self.put_u32(v, here);
         self.len += mem::size_of::<u32>();
     }
 
     pub fn put_i32(&mut self, v: i32, pos: usize) {
-        unsafe {
-            let v1 = self.inner.offset(pos as isize) as *mut i32;
-            *v1 = v;
-        }
+        unsafe { *(pos as *mut i32) = v; }
     }
 
     pub fn compile_i32(&mut self, v: i32) {
-        let len = self.len;
-        self.put_i32(v, len);
+        let here = self.here();
+        self.put_i32(v, here);
         self.len += mem::size_of::<i32>();
     }
 
     pub fn put_f64(&mut self, v: f64, pos: usize) {
-        unsafe {
-            let v1 = self.inner.offset(pos as isize) as *mut f64;
-            *v1 = v;
-        }
+        unsafe { *(pos as *mut f64) = v; }
     }
 
     pub fn compile_f64(&mut self, v: f64) {
-        let len = self.len;
-        self.put_f64(v, len);
+        let here = self.here();
+        self.put_f64(v, here);
         self.len += mem::size_of::<f64>();
     }
 
     pub fn compile_str(&mut self, s: &str) {
-        let mut len = self.len;
         let bytes = s.as_bytes();
-        unsafe {
-            for byte in bytes {
-                *self.inner.offset(len as isize) = *byte;
-                len += mem::size_of::<u8>();
-            }
+        for byte in bytes {
+            self.compile_u8(*byte);
         }
-        self.len += bytes.len();
     }
 
     pub fn compile_relative(&mut self, f: usize) {
-        let len = self.len;
-        let here = unsafe{ self.inner.offset((len + mem::size_of::<u32>()) as isize) as usize };
-        let diff = f.wrapping_sub(here) as u32;
+        let there = self.here() + mem::size_of::<u32>();
+        let diff = f.wrapping_sub(there) as u32;
         self.compile_u32(diff);
     }
 

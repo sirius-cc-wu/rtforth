@@ -1591,22 +1591,19 @@ pub trait Core: Sized {
         }
     }}
 
-    // TODO: subroutine-threaded version
-//    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn imm_begin(&mut self) {
         let here = self.data_space().len();
         self.c_stack().push(here);
     }}
 
-/*
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_begin(&mut self) {
         let here = self.code_space().here();
         self.c_stack().push(here);
     }}
-*/
 
-    // TODO: subroutine-threaded version
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn imm_while(&mut self) {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
@@ -1615,7 +1612,13 @@ pub trait Core: Sized {
         self.c_stack().push(here);
     }}
 
-    // TODO: subroutine-threaded version
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_while(&mut self) {
+        let while_part = self.compile_zero_branch(0);
+        self.c_stack().push(while_part);
+    }}
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn imm_repeat(&mut self) {
         let (begin_part, while_part) = self.c_stack().pop2();
         if self.c_stack().underflow() {
@@ -1630,8 +1633,23 @@ pub trait Core: Sized {
         }
     }}
 
-    // TODO: subroutine-threaded version
-//    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_repeat(&mut self) {
+        let (begin_part, while_part) = self.c_stack().pop2();
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let _ = self.compile_branch(begin_part);
+            // while_part: 0f 84 yy yy yy yy    je yyyy 
+            let here = self.code_space().here();
+            unsafe{
+                self.code_space()
+                    .put_i32((here - (while_part + 2 + mem::size_of::<i32>())) as i32, (while_part + 2));
+            }
+        }
+    }}
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     primitive!{fn imm_again(&mut self) {
         let begin_part = self.c_stack().pop();
         if self.c_stack().underflow() {
@@ -1642,17 +1660,17 @@ pub trait Core: Sized {
             self.data_space().compile_i32(begin_part as i32);
         }
     }}
-/*
+
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_again(&mut self) {
         let begin_part = self.c_stack().pop();
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            self.compile_branch(begin_part);
+            let _ = self.compile_branch(begin_part);
         }
     }}
-*/
+
     // TODO: subroutine-threaded version
     primitive!{fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;

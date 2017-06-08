@@ -1548,8 +1548,10 @@ pub trait Core: Sized {
             self.c_stack().push(else_part);
             // if_part: 0f 84 yy yy yy yy    je yyyy 
             let here = self.code_space().here();
-            self.code_space()
-                .put_i32((here - (if_part + 2 + mem::size_of::<i32>())) as i32, (if_part + 2));
+            unsafe{
+                self.code_space()
+                    .put_i32((here - (if_part + 2 + mem::size_of::<i32>())) as i32, (if_part + 2));
+            }
         }
     }}
 
@@ -1576,13 +1578,15 @@ pub trait Core: Sized {
             // or
             //      e9 xx xx xx xx      jmp xxxx
             let here = self.code_space().here();
-            let c = self.code_space().get_u8(branch_part);
-            if c == 0x0f {
-                self.code_space()
-                    .put_i32((here - (branch_part + 2 + mem::size_of::<i32>())) as i32, (branch_part + 2));
-            } else {
-                self.code_space()
-                    .put_i32((here - (branch_part + 1 + mem::size_of::<i32>())) as i32, (branch_part + 1));
+            unsafe{
+                let c = self.code_space().get_u8(branch_part);
+                if c == 0x0f {
+                    self.code_space()
+                        .put_i32((here - (branch_part + 2 + mem::size_of::<i32>())) as i32, (branch_part + 2));
+                } else {
+                    self.code_space()
+                        .put_i32((here - (branch_part + 1 + mem::size_of::<i32>())) as i32, (branch_part + 1));
+                }
             }
         }
     }}
@@ -4225,31 +4229,43 @@ mod tests {
         vm.evaluate();
         let w = vm.last_definition();
         assert_eq!(vm.wordlist()[w].action as usize, action);
-        assert_eq!(vm.code_space().get_u8(action + 0), 0x55);
-        assert_eq!(vm.code_space().get_u8(action + 1), 0x89);
-        assert_eq!(vm.code_space().get_u8(action + 2), 0xe5);
-        assert_eq!(vm.code_space().get_u8(action + 3), 0x56);
-        assert_eq!(vm.code_space().get_u8(action + 4), 0x89);
-        assert_eq!(vm.code_space().get_u8(action + 5), 0xce);
+        unsafe{
+            assert_eq!(vm.code_space().get_u8(action + 0), 0x55);
+            assert_eq!(vm.code_space().get_u8(action + 1), 0x89);
+            assert_eq!(vm.code_space().get_u8(action + 2), 0xe5);
+            assert_eq!(vm.code_space().get_u8(action + 3), 0x56);
+            assert_eq!(vm.code_space().get_u8(action + 4), 0x89);
+            assert_eq!(vm.code_space().get_u8(action + 5), 0xce);
 
-        assert_eq!(vm.code_space().get_u8(action + 6), 0x5e);
-        assert_eq!(vm.code_space().get_u8(action + 7), 0x5d);
-        assert_eq!(vm.code_space().get_u8(action + 8), 0xc3);
+            assert_eq!(vm.code_space().get_u8(action + 6), 0x5e);
+            assert_eq!(vm.code_space().get_u8(action + 7), 0x5d);
+            assert_eq!(vm.code_space().get_u8(action + 8), 0xc3);
+        }
     }
 
     // TODO: added a dump forth word.
     fn dump(vm: &mut VM, addr: usize) {
-        for i in 0..8 {
-            println!("{:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x}",
-                vm.code_space().get_u8(addr+0+i*8),
-                vm.code_space().get_u8(addr+1+i*8),
-                vm.code_space().get_u8(addr+2+i*8),
-                vm.code_space().get_u8(addr+3+i*8),
-                vm.code_space().get_u8(addr+4+i*8),
-                vm.code_space().get_u8(addr+5+i*8),
-                vm.code_space().get_u8(addr+6+i*8),
-                vm.code_space().get_u8(addr+7+i*8),
-            );
+        if vm.code_space().has(addr) {
+            for i in 0..8 {
+                if vm.code_space().has(addr+7+i*8) {
+                    unsafe{
+                        println!("{:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x}",
+                            vm.code_space().get_u8(addr+0+i*8),
+                            vm.code_space().get_u8(addr+1+i*8),
+                            vm.code_space().get_u8(addr+2+i*8),
+                            vm.code_space().get_u8(addr+3+i*8),
+                            vm.code_space().get_u8(addr+4+i*8),
+                            vm.code_space().get_u8(addr+5+i*8),
+                            vm.code_space().get_u8(addr+6+i*8),
+                            vm.code_space().get_u8(addr+7+i*8),
+                        );
+                    }
+                } else {
+                    panic!("Error: invaild dump address.");
+                }
+            }
+        } else {
+            panic!("Error: invaild dump address.");
         }
     }
 

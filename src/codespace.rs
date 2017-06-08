@@ -63,80 +63,104 @@ impl CodeSpace {
         self.len
     }
 
-    pub fn get_u8(&self, addr: usize) -> u8 {
-        unsafe { *(addr as *mut u8) }
+    pub fn has(&self, pos: usize) -> bool {
+        let lower_bound = unsafe{ self.inner.offset(0) as usize };
+        let upper_bound = unsafe{ self.inner.offset(self.cap as isize) as usize };
+        (lower_bound <= pos) & (pos < upper_bound)
+    }
+
+    pub unsafe fn get_u8(&self, addr: usize) -> u8 {
+        *(addr as *mut u8)
     }
 
     #[allow(dead_code)]
-    pub fn get_u32(&self, addr: usize) -> u32 {
-        unsafe { *(addr as *mut u32) }
+    pub unsafe fn get_u32(&self, addr: usize) -> u32 {
+        *(addr as *mut u32)
     }
 
-    pub fn get_i32(&self, addr: usize) -> i32 {
-        unsafe { *(addr as *mut i32) }
+    pub unsafe fn get_i32(&self, addr: usize) -> i32 {
+        *(addr as *mut i32)
     }
 
-    pub fn get_isize(&self, addr: usize) -> isize {
-        unsafe { *(addr as *mut isize) }
+    pub unsafe fn get_isize(&self, addr: usize) -> isize {
+        *(addr as *mut isize)
     }
 
-    pub fn get_f64(&self, addr: usize) -> f64 {
-        unsafe { *(addr as *mut f64) }
+    pub unsafe fn get_f64(&self, addr: usize) -> f64 {
+        *(addr as *mut f64)
     }
 
-    pub fn get_str(&self, addr: usize, len: usize) -> &str {
-        unsafe {
-            mem::transmute(slice::from_raw_parts::<u8>(addr as *mut u8, len))
-        }
+    pub unsafe fn get_str(&self, addr: usize, len: usize) -> &str {
+        mem::transmute(slice::from_raw_parts::<u8>(addr as *mut u8, len))
     }
 
     // Basic operations
 
-    pub fn put_u8(&mut self, v: u8, pos: usize) {
-        unsafe { *(pos as *mut u8) = v; }
+    pub unsafe fn put_u8(&mut self, v: u8, pos: usize) {
+        *(pos as *mut u8) = v;
     }
 
     #[allow(dead_code)]
     pub fn compile_u8(&mut self, v: u8) {
-        let here = self.here();
-        self.put_u8(v, here);
-        self.len += mem::size_of::<u8>();
+        if self.len + mem::size_of::<u8>() <= self.cap {
+            let here = self.here();
+            unsafe{ self.put_u8(v, here); }
+            self.len += mem::size_of::<u8>();
+        } else {
+            panic!("Error: compile_u8 while code space is full.");
+        }
     }
 
-    pub fn put_u32(&mut self, v: u32, pos: usize) {
-        unsafe { *(pos as *mut u32) = v; }
+    pub unsafe fn put_u32(&mut self, v: u32, pos: usize) {
+        *(pos as *mut u32) = v;
     }
 
     pub fn compile_u32(&mut self, v: u32) {
-        let here = self.here();
-        self.put_u32(v, here);
-        self.len += mem::size_of::<u32>();
+        if self.len + mem::size_of::<u32>() <= self.cap {
+            let here = self.here();
+            unsafe{ self.put_u32(v, here); }
+            self.len += mem::size_of::<u32>();
+        } else {
+            panic!("Error: compile_u32 while code space is full.");
+        }
     }
 
-    pub fn put_i32(&mut self, v: i32, pos: usize) {
-        unsafe { *(pos as *mut i32) = v; }
+    pub unsafe fn put_i32(&mut self, v: i32, pos: usize) {
+        *(pos as *mut i32) = v;
     }
 
     pub fn compile_i32(&mut self, v: i32) {
-        let here = self.here();
-        self.put_i32(v, here);
-        self.len += mem::size_of::<i32>();
+        if self.len + mem::size_of::<i32>() <= self.cap {
+            let here = self.here();
+            unsafe{ self.put_i32(v, here); }
+            self.len += mem::size_of::<i32>();
+        } else {
+            panic!("Error: compile_i32 while code space is full.");
+        }
     }
 
-    pub fn put_f64(&mut self, v: f64, pos: usize) {
-        unsafe { *(pos as *mut f64) = v; }
+    pub unsafe fn put_f64(&mut self, v: f64, pos: usize) {
+        *(pos as *mut f64) = v;
     }
 
     pub fn compile_f64(&mut self, v: f64) {
-        let here = self.here();
-        self.put_f64(v, here);
-        self.len += mem::size_of::<f64>();
+        if self.len + mem::size_of::<f64>() <= self.cap {
+            let here = self.here();
+            unsafe{ self.put_f64(v, here); }
+            self.len += mem::size_of::<f64>();
+        } else {
+            panic!("Error: compile_f64 while code space is full.");
+        }
     }
 
     pub fn compile_str(&mut self, s: &str) {
         let bytes = s.as_bytes();
-        for byte in bytes {
-            self.compile_u8(*byte);
+        if self.len + bytes.len() <= self.cap {
+            for byte in bytes {
+                self.compile_u8(*byte);
+            }
+        } else {
+            panic!("Error: compile_str while code space is full.");
         }
     }
 

@@ -6,7 +6,7 @@ extern crate tokio_core;
 const BUFFER_SIZE: usize = 0x400;
 
 mod vm {
-    use rtforth::core::{Core, Stack, State, ForwardReferences, Word};
+    use rtforth::core::{Core, Stack, State, ForwardReferences, Word, Control};
     use rtforth::dataspace::DataSpace;
     use rtforth::float::Float;
     use rtforth::env::Environment;
@@ -23,7 +23,7 @@ mod vm {
         state: State,
         s_stk: Stack<isize>,
         r_stk: Stack<isize>,
-        c_stk: Stack<usize>,
+        c_stk: Stack<Control>,
         f_stk: Stack<f64>,
         inbuf: Option<String>,
         tkn: Option<String>,
@@ -54,7 +54,7 @@ mod vm {
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
-                            c_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(Control::Default),
                             f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
@@ -66,7 +66,7 @@ mod vm {
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
-                            c_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(Control::Default),
                             f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
@@ -78,7 +78,7 @@ mod vm {
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
-                            c_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(Control::Default),
                             f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
@@ -165,7 +165,7 @@ mod vm {
         fn r_stack(&mut self) -> &mut Stack<isize> {
             &mut self.tasks[self.current_task].r_stk
         }
-        fn c_stack(&mut self) -> &mut Stack<usize> {
+        fn c_stack(&mut self) -> &mut Stack<Control> {
             &mut self.tasks[self.current_task].c_stk
         }
         fn f_stack(&mut self) -> &mut Stack<f64> {

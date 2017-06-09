@@ -6,7 +6,7 @@ extern crate rustyline;
 use std::fmt::Write;
 use std::env;
 use getopts::Options;
-use rtforth::core::{Core, Word, ForwardReferences, Stack, State};
+use rtforth::core::{Core, Word, ForwardReferences, Stack, State, Control};
 use rtforth::exception::Exception;
 use rtforth::output::Output;
 use rtforth::dataspace::DataSpace;
@@ -26,7 +26,7 @@ pub struct VM {
     handler: usize,
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
-    c_stk: Stack<usize>,
+    c_stk: Stack<Control>,
     f_stk: Stack<f64>,
     symbols: Vec<String>,
     last_definition: usize,
@@ -47,7 +47,7 @@ impl VM {
             handler: 0,
             s_stk: Stack::new(0x12345678),
             r_stk: Stack::new(0x12345678),
-            c_stk: Stack::new(0x12345678),
+            c_stk: Stack::new(Control::Default),
             f_stk: Stack::new(1.234567890),
             symbols: vec![],
             last_definition: 0,
@@ -113,7 +113,7 @@ impl Core for VM {
     fn r_stack(&mut self) -> &mut Stack<isize> {
         &mut self.r_stk
     }
-    fn c_stack(&mut self) -> &mut Stack<usize> {
+    fn c_stack(&mut self) -> &mut Stack<Control> {
         &mut self.c_stk
     }
     fn f_stack(&mut self) -> &mut Stack<f64> {

@@ -5,7 +5,7 @@ mod vm {
     use rtforth::output::Output;
     use rtforth::dataspace::DataSpace;
     use rtforth::codespace::CodeSpace;
-    use rtforth::core::{Core, Stack, State, ForwardReferences, Word};
+    use rtforth::core::{Core, Stack, State, ForwardReferences, Word, Control};
     use rtforth::exception::Exception;
 
     const BUFFER_SIZE: usize = 0x400;
@@ -14,7 +14,7 @@ mod vm {
         state: State,
         s_stk: Stack<isize>,
         r_stk: Stack<isize>,
-        c_stk: Stack<usize>,
+        c_stk: Stack<Control>,
         f_stk: Stack<f64>,
     }
 
@@ -42,14 +42,14 @@ mod vm {
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
-                            c_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(Control::Default),
                             f_stk: Stack::new(1.234567890),
                         },
                         Task {
                             state: State::new(),
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
-                            c_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(Control::Default),
                             f_stk: Stack::new(1.234567890),
                         }],
                 last_error: None,
@@ -128,7 +128,7 @@ mod vm {
         fn r_stack(&mut self) -> &mut Stack<isize> {
             &mut self.tasks[self.current_task].r_stk
         }
-        fn c_stack(&mut self) -> &mut Stack<usize> {
+        fn c_stack(&mut self) -> &mut Stack<Control> {
             &mut self.tasks[self.current_task].c_stk
         }
         fn f_stack(&mut self) -> &mut Stack<f64> {

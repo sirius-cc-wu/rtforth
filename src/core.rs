@@ -208,6 +208,14 @@ impl IndexMut<u8> for Stack<f64> {
     }
 }
 
+impl Index<u8> for Stack<Control> {
+    type Output = Control;
+    #[inline(always)]
+    fn index(&self, index: u8) -> &Control {
+        &self.inner[index as usize]
+    }
+}
+
 impl fmt::Debug for Stack<isize> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match write!(f, "<{}> ", self.len()) {
@@ -318,6 +326,38 @@ impl Symbol {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum Control {
+    Default,
+    Canary,
+    If(usize),
+    Else(usize),
+    Begin(usize),
+    While(usize),
+    Do(usize),
+}
+
+impl Default for Control {
+    fn default() -> Self {
+        Control::Default
+    }
+}
+
+impl Display for Control {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match *self {
+            Control::Default => "Default",
+            Control::Canary => "Canary",
+            Control::If(_) => "If",
+            Control::Else(_) => "Else",
+            Control::Begin(_) => "Begin",
+            Control::While(_) => "While",
+            Control::Do(_) => "Do",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 pub trait Core: Sized {
     // Functions to access VM.
     fn last_error(&self) -> Option<Exception>;
@@ -340,7 +380,7 @@ pub trait Core: Sized {
     fn set_last_token(&mut self, buffer: String);
     fn s_stack(&mut self) -> &mut Stack<isize>;
     fn r_stack(&mut self) -> &mut Stack<isize>;
-    fn c_stack(&mut self) -> &mut Stack<usize>;
+    fn c_stack(&mut self) -> &mut Stack<Control>;
     fn f_stack(&mut self) -> &mut Stack<f64>;
     fn symbols_mut(&mut self) -> &mut Vec<String>;
     fn symbols(&self) -> &Vec<String>;
@@ -1368,7 +1408,7 @@ pub trait Core: Sized {
     // Control
     // --------)
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = self.data_space().get_i32(ip) as usize;
@@ -1388,7 +1428,7 @@ pub trait Core: Sized {
         here
     }
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn zero_branch(&mut self) {
         let v = self.s_stack().pop();
         if v == 0 {
@@ -1507,24 +1547,30 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_if(&mut self) {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
         self.data_space().compile_i32(0);
         let here = self.data_space().len();
-        self.c_stack().push(here);
+        self.c_stack().push(Control::If(here));
     }}
 
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_if(&mut self) {
         let here = self.compile_zero_branch(0);
-        self.c_stack().push(here);
+        self.c_stack().push(Control::If(here));
     }}
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_else(&mut self) {
-        let if_part = self.c_stack().pop();
+        let if_part = match self.c_stack().pop() {
+            Control::If(if_part) => if_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
@@ -1532,7 +1578,7 @@ pub trait Core: Sized {
             self.compile_word(idx);
             self.data_space().compile_i32(0);
             let here = self.data_space().len();
-            self.c_stack().push(here);
+            self.c_stack().push(Control::Else(here));
             self.data_space()
                 .put_i32(here as i32, (if_part - mem::size_of::<i32>()));
         }
@@ -1540,12 +1586,18 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_else(&mut self) {
-        let if_part = self.c_stack().pop();
+        let if_part = match self.c_stack().pop() {
+            Control::If(if_part) => if_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
             let else_part = self.compile_branch(0);
-            self.c_stack().push(else_part);
+            self.c_stack().push(Control::Else(else_part));
             // if_part: 0f 84 yy yy yy yy    je yyyy 
             let here = self.code_space().here();
             unsafe{
@@ -1555,9 +1607,16 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_then(&mut self) {
-        let branch_part = self.c_stack().pop();
+        let branch_part = match self.c_stack().pop() {
+            Control::If(branch_part) => branch_part,
+            Control::Else(branch_part) => branch_part, 
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
@@ -1569,7 +1628,14 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_then(&mut self) {
-        let branch_part = self.c_stack().pop();
+        let branch_part = match self.c_stack().pop() {
+            Control::If(branch_part) => branch_part,
+            Control::Else(branch_part) => branch_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
@@ -1591,36 +1657,44 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_begin(&mut self) {
         let here = self.data_space().len();
-        self.c_stack().push(here);
+        self.c_stack().push(Control::Begin(here));
     }}
 
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_begin(&mut self) {
         let here = self.code_space().here();
-        self.c_stack().push(here);
+        self.c_stack().push(Control::Begin(here));
     }}
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_while(&mut self) {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
         self.data_space().compile_i32(0);
         let here = self.data_space().len();
-        self.c_stack().push(here);
+        self.c_stack().push(Control::While(here));
     }}
 
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_while(&mut self) {
         let while_part = self.compile_zero_branch(0);
-        self.c_stack().push(while_part);
+        self.c_stack().push(Control::While(while_part));
     }}
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_repeat(&mut self) {
-        let (begin_part, while_part) = self.c_stack().pop2();
+        let (begin_part, while_part) = match self.c_stack().pop2() {
+            (Control::Begin(begin_part), Control::While(while_part)) => {
+                (begin_part, while_part)
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
@@ -1635,7 +1709,13 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_repeat(&mut self) {
-        let (begin_part, while_part) = self.c_stack().pop2();
+        let (begin_part, while_part) = match self.c_stack().pop2() {
+            (Control::Begin(begin_part), Control::While(while_part)) => (begin_part, while_part),
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
@@ -1649,9 +1729,15 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_again(&mut self) {
-        let begin_part = self.c_stack().pop();
+        let begin_part = match self.c_stack().pop() {
+            Control::Begin(begin_part) => begin_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
@@ -1663,7 +1749,13 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_again(&mut self) {
-        let begin_part = self.c_stack().pop();
+        let begin_part = match self.c_stack().pop() {
+            Control::Begin(begin_part) => begin_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
@@ -1687,7 +1779,7 @@ pub trait Core: Sized {
         self.compile_word(idx);
         self.data_space().compile_i32(0);
         let here = self.data_space().len();
-        self.c_stack().push(here);
+        self.c_stack().push(Control::Do(here));
     }}
 
     /// Run-time: ( a-addr -- )
@@ -1698,7 +1790,13 @@ pub trait Core: Sized {
     /// control, to execute the words following the `LOOP`.
     // TODO: subroutine-threaded version
     primitive!{fn imm_loop(&mut self) {
-        let do_part = self.c_stack().pop();
+        let do_part = match self.c_stack().pop() {
+            Control::Do(do_part) => do_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
@@ -1719,7 +1817,13 @@ pub trait Core: Sized {
     /// control, to execute the words following `+LOOP`.
     // TODO: subroutine-threaded version
     primitive!{fn imm_plus_loop(&mut self) {
-        let do_part = self.c_stack().pop();
+        let do_part = match self.c_stack().pop() {
+            Control::Do(do_part) => do_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
@@ -2050,7 +2154,6 @@ pub trait Core: Sized {
     /// Before executing `EXIT` within a do-loop, a program shall discard the
     /// loop-control parameters by executing `UNLOOP`.
     ///
-    /// TODO: `UNLOOP`
     primitive!{fn exit(&mut self) {
         let rlen = self.r_stack().len.wrapping_sub(1);
         self.state().instruction_pointer = self.r_stack()[rlen] as usize;

@@ -11,7 +11,7 @@ const PAGE_SIZE: usize = 4096;
 
 #[allow(dead_code)]
 pub struct CodeSpace {
-    pub inner: *mut u8,
+    pub(crate) inner: *mut u8,
     cap: usize,
     len: usize,
 }
@@ -69,34 +69,34 @@ impl CodeSpace {
         (lower_bound <= pos) & (pos < upper_bound)
     }
 
-    pub unsafe fn get_u8(&self, addr: usize) -> u8 {
+    pub(crate) unsafe fn get_u8(&self, addr: usize) -> u8 {
         *(addr as *mut u8)
     }
 
     #[allow(dead_code)]
-    pub unsafe fn get_u32(&self, addr: usize) -> u32 {
+    pub(crate) unsafe fn get_u32(&self, addr: usize) -> u32 {
         *(addr as *mut u32)
     }
 
-    pub unsafe fn get_i32(&self, addr: usize) -> i32 {
+    pub(crate) unsafe fn get_i32(&self, addr: usize) -> i32 {
         *(addr as *mut i32)
     }
 
-    pub unsafe fn get_isize(&self, addr: usize) -> isize {
+    pub(crate) unsafe fn get_isize(&self, addr: usize) -> isize {
         *(addr as *mut isize)
     }
 
-    pub unsafe fn get_f64(&self, addr: usize) -> f64 {
+    pub(crate) unsafe fn get_f64(&self, addr: usize) -> f64 {
         *(addr as *mut f64)
     }
 
-    pub unsafe fn get_str(&self, addr: usize, len: usize) -> &str {
+    pub(crate) unsafe fn get_str(&self, addr: usize, len: usize) -> &str {
         mem::transmute(slice::from_raw_parts::<u8>(addr as *mut u8, len))
     }
 
     // Basic operations
 
-    pub unsafe fn put_u8(&mut self, v: u8, pos: usize) {
+    pub(crate) unsafe fn put_u8(&mut self, v: u8, pos: usize) {
         *(pos as *mut u8) = v;
     }
 
@@ -111,7 +111,7 @@ impl CodeSpace {
         }
     }
 
-    pub unsafe fn put_u32(&mut self, v: u32, pos: usize) {
+    pub(crate) unsafe fn put_u32(&mut self, v: u32, pos: usize) {
         *(pos as *mut u32) = v;
     }
 
@@ -125,7 +125,7 @@ impl CodeSpace {
         }
     }
 
-    pub unsafe fn put_i32(&mut self, v: i32, pos: usize) {
+    pub(crate) unsafe fn put_i32(&mut self, v: i32, pos: usize) {
         *(pos as *mut i32) = v;
     }
 
@@ -139,7 +139,7 @@ impl CodeSpace {
         }
     }
 
-    pub unsafe fn put_f64(&mut self, v: f64, pos: usize) {
+    pub(crate) unsafe fn put_f64(&mut self, v: f64, pos: usize) {
         *(pos as *mut f64) = v;
     }
 

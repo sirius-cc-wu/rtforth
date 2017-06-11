@@ -814,6 +814,8 @@ pub trait Core: Sized {
 
     #[cfg(not(feature = "subroutine-threaded"))]
     fn patch_compilation_semanticses(&mut self) {
+        let idx_leave = self.find("leave").expect("leave");
+        self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
     }
 
     // -------------------------------
@@ -1587,43 +1589,55 @@ pub trait Core: Sized {
         self.state().instruction_pointer = self.data_space().get_i32(third as usize) as usize;
     }}
 
-    #[cfg(feature = "subroutine-threaded")]
-    primitive!{fn leave(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(feature = "subroutine-threaded")]
-    primitive!{fn _stc_leave(&mut self) {
-        // TODO
-    }}
-
-    #[cfg(feature = "subroutine-threaded")]
-    fn compile_leave(&mut self, _: usize) {
-        // 89 f1                mov    %esi,%ecx
-        // e8 xx xx xx xx       call   unloop
-        // b8 yy yy yy yy       mov    leave_part,%eax
-        // ff 20                jmp    *(%eax)
-        let position = self.c_stack().as_slice().iter().rposition(|&c| {
-            match c {
-                Control::Do(_,_) => true,
-                _ => false
-            }
-        });
-        let leave_part = match position {
-            Some(p) => {
-                match self.c_stack()[p as u8] {
-                    Control::Do(_, leave_part) => leave_part,
-                    _ => {
-                        self.abort_with(ControlStructureMismatch);
-                        return;
-                    }
-                }
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn compile_leave(&mut self, word_idx: usize) {
+        match self.leave_part() {
+            Some(leave_part) => {
+                self.compile_word(word_idx);
             },
             _ => {
                 self.abort_with(ControlStructureMismatch);
                 return;
             }
         };
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn leave(&mut self) {
+        // Do nothing.
+    }}
+
+    fn leave_part(&mut self) -> Option<usize> {
+        let position = self.c_stack().as_slice().iter().rposition(|&c| {
+            match c {
+                Control::Do(_,_) => true,
+                _ => false
+            }
+        });
+        match position {
+            Some(p) => {
+                match self.c_stack()[p as u8] {
+                    Control::Do(_, leave_part) => Some(leave_part),
+                    _ => None
+                }
+            },
+            _ => None
+        }
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_leave(&mut self, _: usize) {
+        let leave_part = match self.leave_part() {
+            Some(leave_part) => leave_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        // 89 f1                mov    %esi,%ecx
+        // e8 xx xx xx xx       call   unloop
+        // b8 yy yy yy yy       mov    leave_part,%eax
+        // ff 20                jmp    *(%eax)
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xf1);
         self.code_space().compile_u8(0xe8);
@@ -1885,7 +1899,6 @@ pub trait Core: Sized {
     ///
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
-    // TODO: subroutine-threaded version
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_do(&mut self) {
         let idx = self.references().idx_do;
@@ -1915,7 +1928,6 @@ pub trait Core: Sized {
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the `LOOP`.
-    // TODO: subroutine-threaded version
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
@@ -1978,7 +1990,6 @@ pub trait Core: Sized {
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
-    // TODO: subroutine-threaded version
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_plus_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
@@ -3815,6 +3826,7 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), 0);
     }
 
+/*
     #[bench]
     fn bench_compile_words_at_beginning_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
@@ -3834,6 +3846,8 @@ mod tests {
                    vm.s_stack().reset();
                });
     }
+
+*/
 
     #[test]
     fn test_colon_and_semi_colon() {

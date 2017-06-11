@@ -334,7 +334,7 @@ pub enum Control {
     Else(usize),
     Begin(usize),
     While(usize),
-    Do(usize),
+    Do(usize, usize),
 }
 
 impl Default for Control {
@@ -352,7 +352,7 @@ impl Display for Control {
             Control::Else(_) => "Else",
             Control::Begin(_) => "Begin",
             Control::While(_) => "While",
-            Control::Do(_) => "Do",
+            Control::Do(_,_) => "Do",
         };
         write!(f, "{}", s)
     }
@@ -1005,6 +1005,8 @@ pub trait Core: Sized {
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_exit;
         let idx_s_quote = self.find("_s\"").expect("_s\"");
         self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_s_quote;
+        let idx_leave = self.find("leave").expect("leave");
+        self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
     }
 
     // -----------
@@ -1598,31 +1600,38 @@ pub trait Core: Sized {
     #[cfg(feature = "subroutine-threaded")]
     fn compile_leave(&mut self, _: usize) {
         // 89 f1                mov    %esi,%ecx
-        // e8 xx xx xx xx       call   _stc_leave
-        // ; Move <data space pointer to end_of_loop> to %eax.
-        // b8 yy yy yy yy       mov    $yyyy,%eax
+        // e8 xx xx xx xx       call   unloop
+        // b8 yy yy yy yy       mov    leave_part,%eax
         // ff 20                jmp    *(%eax)
-        /*
-        let (do_part, leave_part) = match self.c_stack().pop() {
-            Control::Do(do_part) => do_part,
+        let position = self.c_stack().as_slice().iter().rposition(|&c| {
+            match c {
+                Control::Do(_,_) => true,
+                _ => false
+            }
+        });
+        let leave_part = match position {
+            Some(p) => {
+                match self.c_stack()[p as u8] {
+                    Control::Do(_, leave_part) => leave_part,
+                    _ => {
+                        self.abort_with(ControlStructureMismatch);
+                        return;
+                    }
+                }
+            },
             _ => {
                 self.abort_with(ControlStructureMismatch);
                 return;
             }
         };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            self.code_space().compile_u8(0x89);
-            self.code_space().compile_u8(0xf1);
-            self.code_space().compile_u8(0xe8);
-            self.code_space().compile_relative(Self::_stc_leave as usize);
-            self.code_space().compile_u8(0xb8);
-            self.code_space().compile_u32(leave_part);
-            self.code_space().compile_u8(0xff);
-            self.code_space().compile_u8(0x20);
-        }
-        */
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::unloop as usize);
+        self.code_space().compile_u8(0xb8);
+        self.code_space().compile_u32(leave_part as u32);
+        self.code_space().compile_u8(0xff);
+        self.code_space().compile_u8(0x20);
     }
 
     primitive!{fn p_i(&mut self) {
@@ -1895,10 +1904,9 @@ pub trait Core: Sized {
         self.code_space().compile_u8(0xe8);
         self.code_space().compile_relative(Self::_stc_do as usize);
         let here = self.code_space().here();
-//        let leave_part = self.data_space().len();
-//        self.data_space().compile_i32(0);
-//        self.c_stack().push(Control::Do(here, leave_part));
-        self.c_stack().push(Control::Do(here));
+        let leave_part = self.data_space().here();
+        self.data_space().compile_u32(0);
+        self.c_stack().push(Control::Do(here, leave_part));
     }}
 
     /// Run-time: ( a-addr -- )
@@ -1931,8 +1939,8 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_loop(&mut self) {
-        let do_part = match self.c_stack().pop() {
-            Control::Do(do_part) => do_part,
+        let (do_part, leave_part) = match self.c_stack().pop() {
+            Control::Do(do_part, leave_part) => (do_part, leave_part),
             _ => {
                 self.abort_with(ControlStructureMismatch);
                 return;
@@ -1941,11 +1949,12 @@ pub trait Core: Sized {
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            // 89 f1                mov    %esi,%ecx
-            // ba nn nn nn nn       mov    leave_part,%edx
-            // e8 xx xx xx xx       call    _stc_loop
-            // 85 c0                test   %eax,%eax
-            // 0f 84 yy yy yy yy    je     do_part
+            //      89 f1                mov    %esi,%ecx
+            //      ba nn nn nn nn       mov    leave_part,%edx
+            //      e8 xx xx xx xx       call    _stc_loop
+            //      85 c0                test   %eax,%eax
+            //      0f 84 yy yy yy yy    je     do_part
+            // leave_part:
             self.code_space().compile_u8(0x89);
             self.code_space().compile_u8(0xf1);
             self.code_space().compile_u8(0xe8);
@@ -1955,6 +1964,11 @@ pub trait Core: Sized {
             self.code_space().compile_u8(0x0f);
             self.code_space().compile_u8(0x84);
             self.code_space().compile_relative(do_part);
+            // TODO: 目前 data_space() 的 put_u32 和 code_space() 的作法不同。
+            // 未來 data_space() 要改為和 code_space() 作法一樣。雖然 leave_part 在
+            // data space，這兒先使用 code_space() 的作法。
+            let here = self.code_space().here();
+            unsafe{ self.code_space().put_u32(here as u32, leave_part); }
         }
     }}
 
@@ -1988,8 +2002,8 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     primitive!{fn imm_plus_loop(&mut self) {
-        let do_part = match self.c_stack().pop() {
-            Control::Do(do_part) => do_part,
+        let (do_part, leave_part) = match self.c_stack().pop() {
+            Control::Do(do_part, leave_part) => (do_part, leave_part),
             _ => {
                 self.abort_with(ControlStructureMismatch);
                 return;
@@ -1998,10 +2012,11 @@ pub trait Core: Sized {
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            // 89 f1                mov    %esi,%ecx
-            // e8 xx xx xx xx       call    _stc_plus_loop
-            // 85 c0                test   %eax,%eax
-            // 0f 84 yy yy yy yy    je     do_part
+            //      89 f1                mov    %esi,%ecx
+            //      e8 xx xx xx xx       call    _stc_plus_loop
+            //      85 c0                test   %eax,%eax
+            //      0f 84 yy yy yy yy    je     do_part
+            // leave_part:
             self.code_space().compile_u8(0x89);
             self.code_space().compile_u8(0xf1);
             self.code_space().compile_u8(0xe8);
@@ -2011,6 +2026,11 @@ pub trait Core: Sized {
             self.code_space().compile_u8(0x0f);
             self.code_space().compile_u8(0x84);
             self.code_space().compile_relative(do_part);
+            // TODO: 目前 data_space() 的 put_u32 和 code_space() 的作法不同。
+            // 未來 data_space() 要改為和 code_space() 作法一樣。雖然 leave_part 在
+            // data space，這兒先使用 code_space() 的作法。
+            let here = self.code_space().here();
+            unsafe{ self.code_space().put_u32(here as u32, leave_part); }
         }
     }}
 
@@ -4300,7 +4320,7 @@ mod tests {
         // : t1 leave ;
         vm.set_source(": t1 leave ;  t1");
         vm.evaluate();
-        assert_eq!(vm.last_error(), Some(ReturnStackUnderflow));
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main
@@ -4310,6 +4330,18 @@ mod tests {
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop2(), (88, 9));
     }
+
+    #[test]
+    fn test_do_leave_plus_loop() {
+        let vm = &mut VM::new(16, 16);
+        // : main 1 5 0 do 1+ dup 3 = if drop 88 leave then 2 +loop 9 ;  main
+        vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then 2 +loop 9 ;  main");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().len(), 2);
+        assert_eq!(vm.s_stack().pop2(), (88, 9));
+    }
+
 
     #[test]
     fn test_do_i_loop() {

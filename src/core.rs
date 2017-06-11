@@ -404,8 +404,8 @@ pub trait Core: Sized {
         self.add_compile_only("branch", Core::branch); // j1, eForth
         self.add_compile_only("0branch", Core::zero_branch); // j1, eForth
         self.add_compile_only("_do", Core::_do); // jx
-        self.add_compile_only("_loop", Core::p_loop); // jx
-        self.add_compile_only("_+loop", Core::p_plus_loop); // jx
+        self.add_compile_only("_loop", Core::_loop); // jx
+        self.add_compile_only("_+loop", Core::_plus_loop); // jx
         self.add_compile_only("unloop", Core::unloop); // jx
         self.add_compile_only("leave", Core::leave); // jx
         self.add_compile_only("i", Core::p_i); // jx
@@ -1447,7 +1447,7 @@ pub trait Core: Sized {
     fn compile_zero_branch(&mut self, destination: usize) -> usize {
         // 89 f1                mov    %esi,%ecx
         // e8 xx xx xx xx       call   pop_stack ; pop value into %eax.
-        // 85 c0                test   %eax, %eax
+        // 85 c0                test   %eax,%eax
         // 0f 84 yy yy yy yy    je     yyyy
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xf1);
@@ -1468,10 +1468,21 @@ pub trait Core: Sized {
     /// ambiguous condition exists if `n1`|`u1` and `n2`|`u2` are not both the same
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded.
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
         self.state().instruction_pointer += mem::size_of::<i32>();
+        self.two_to_r();
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _do(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _stc_do(&mut self) {
         self.two_to_r();
     }}
 
@@ -1482,7 +1493,8 @@ pub trait Core: Sized {
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
-    primitive!{fn p_loop(&mut self) {
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn _loop(&mut self) {
         let (rn, rt) = self.r_stack().pop2();
         if rt + 1 < rn {
             self.r_stack().push2(rn, rt + 1);
@@ -1490,6 +1502,22 @@ pub trait Core: Sized {
         } else {
             let _ = self.r_stack().pop();
             self.state().instruction_pointer += mem::size_of::<i32>();
+        }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _loop(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _stc_loop(&mut self) -> isize {
+        let (rn, rt) = self.r_stack().pop2();
+        if rt + 1 < rn {
+            self.r_stack().push2(rn, rt + 1);
+            0
+        } else {
+            -1
         }
     }}
 
@@ -1501,7 +1529,8 @@ pub trait Core: Sized {
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
     /// following the loop.
-    primitive!{fn p_plus_loop(&mut self) {
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn _plus_loop(&mut self) {
         let (rn, rt) = self.r_stack().pop2();
         let t = self.s_stack().pop();
         if rt + t < rn {
@@ -1513,16 +1542,40 @@ pub trait Core: Sized {
         }
     }}
 
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _plus_loop(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _stc_plus_loop(&mut self) -> isize {
+        let (rn, rt) = self.r_stack().pop2();
+        let t = self.s_stack().pop();
+        if rt + t < rn {
+            self.r_stack().push2(rn, rt + t);
+            0
+        } else {
+            -1
+        }
+    }}
+
     /// Run-time: ( -- ) ( R: loop-sys -- )
     ///
     /// Discard the loop-control parameters for the current nesting level. An
     /// `UNLOOP` is required for each nesting level before the definition may be
     /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn unloop(&mut self) {
         let _ = self.r_stack().pop3();
     }}
 
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn unloop(&mut self) {
+        let _ = self.r_stack().pop2();
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn leave(&mut self) {
         let (third, _, _) = self.r_stack().pop3();
         if self.r_stack().underflow() {
@@ -1532,6 +1585,46 @@ pub trait Core: Sized {
         self.state().instruction_pointer = self.data_space().get_i32(third as usize) as usize;
     }}
 
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn leave(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _stc_leave(&mut self) {
+        // TODO
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_leave(&mut self, _: usize) {
+        // 89 f1                mov    %esi,%ecx
+        // e8 xx xx xx xx       call   _stc_leave
+        // ; Move <data space pointer to end_of_loop> to %eax.
+        // b8 yy yy yy yy       mov    $yyyy,%eax
+        // ff 20                jmp    *(%eax)
+        /*
+        let (do_part, leave_part) = match self.c_stack().pop() {
+            Control::Do(do_part) => do_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            self.code_space().compile_u8(0x89);
+            self.code_space().compile_u8(0xf1);
+            self.code_space().compile_u8(0xe8);
+            self.code_space().compile_relative(Self::_stc_leave as usize);
+            self.code_space().compile_u8(0xb8);
+            self.code_space().compile_u32(leave_part);
+            self.code_space().compile_u8(0xff);
+            self.code_space().compile_u8(0x20);
+        }
+        */
+    }
+
     primitive!{fn p_i(&mut self) {
         match self.r_stack().last() {
             Some(i) => self.s_stack().push(i),
@@ -1539,8 +1632,18 @@ pub trait Core: Sized {
         }
     }}
 
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
+        match self.r_stack().get(pos) {
+            Some(j) => self.s_stack().push(j),
+            None => self.abort_with(ReturnStackUnderflow),
+        }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn p_j(&mut self) {
+        let pos = self.r_stack().len() - 3;
         match self.r_stack().get(pos) {
             Some(j) => self.s_stack().push(j),
             None => self.abort_with(ReturnStackUnderflow),
@@ -1774,11 +1877,27 @@ pub trait Core: Sized {
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
     // TODO: subroutine-threaded version
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_do(&mut self) {
         let idx = self.references().idx_do;
         self.compile_word(idx);
         self.data_space().compile_i32(0);
         let here = self.data_space().len();
+        self.c_stack().push(Control::Do(here));
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_do(&mut self) {
+        // 89 f1                mov    %esi,%ecx
+        // e8 xx xx xx xx       call   _stc_do
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::_stc_do as usize);
+        let here = self.code_space().here();
+//        let leave_part = self.data_space().len();
+//        self.data_space().compile_i32(0);
+//        self.c_stack().push(Control::Do(here, leave_part));
         self.c_stack().push(Control::Do(here));
     }}
 
@@ -1789,6 +1908,7 @@ pub trait Core: Sized {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the `LOOP`.
     // TODO: subroutine-threaded version
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part) => do_part,
@@ -1809,6 +1929,35 @@ pub trait Core: Sized {
         }
     }}
 
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_loop(&mut self) {
+        let do_part = match self.c_stack().pop() {
+            Control::Do(do_part) => do_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            // 89 f1                mov    %esi,%ecx
+            // ba nn nn nn nn       mov    leave_part,%edx
+            // e8 xx xx xx xx       call    _stc_loop
+            // 85 c0                test   %eax,%eax
+            // 0f 84 yy yy yy yy    je     do_part
+            self.code_space().compile_u8(0x89);
+            self.code_space().compile_u8(0xf1);
+            self.code_space().compile_u8(0xe8);
+            self.code_space().compile_relative(Self::_stc_loop as usize);
+            self.code_space().compile_u8(0x85);
+            self.code_space().compile_u8(0xc0);
+            self.code_space().compile_u8(0x0f);
+            self.code_space().compile_u8(0x84);
+            self.code_space().compile_relative(do_part);
+        }
+    }}
+
     /// Run-time: ( a-addr -- )
     ///
     /// Append the run-time semantics of `_+LOOP` to the current definition.
@@ -1816,6 +1965,7 @@ pub trait Core: Sized {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
     // TODO: subroutine-threaded version
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_plus_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part) => do_part,
@@ -1833,6 +1983,34 @@ pub trait Core: Sized {
             let here = self.data_space().len();
             self.data_space()
                 .put_i32(here as i32, (do_part - mem::size_of::<i32>()) as usize);
+        }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_plus_loop(&mut self) {
+        let do_part = match self.c_stack().pop() {
+            Control::Do(do_part) => do_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            // 89 f1                mov    %esi,%ecx
+            // e8 xx xx xx xx       call    _stc_plus_loop
+            // 85 c0                test   %eax,%eax
+            // 0f 84 yy yy yy yy    je     do_part
+            self.code_space().compile_u8(0x89);
+            self.code_space().compile_u8(0xf1);
+            self.code_space().compile_u8(0xe8);
+            self.code_space().compile_relative(Self::_stc_plus_loop as usize);
+            self.code_space().compile_u8(0x85);
+            self.code_space().compile_u8(0xc0);
+            self.code_space().compile_u8(0x0f);
+            self.code_space().compile_u8(0x84);
+            self.code_space().compile_relative(do_part);
         }
     }}
 

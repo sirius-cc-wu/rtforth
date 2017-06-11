@@ -1892,7 +1892,7 @@ pub trait Core: Sized {
         self.compile_word(idx);
         self.data_space().compile_i32(0);
         let here = self.data_space().len();
-        self.c_stack().push(Control::Do(here));
+        self.c_stack().push(Control::Do(here,here));
     }}
 
     #[cfg(feature = "subroutine-threaded")]
@@ -1919,7 +1919,7 @@ pub trait Core: Sized {
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
-            Control::Do(do_part) => do_part,
+            Control::Do(do_part,_) => do_part,
             _ => {
                 self.abort_with(ControlStructureMismatch);
                 return;
@@ -1982,7 +1982,7 @@ pub trait Core: Sized {
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_plus_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
-            Control::Do(do_part) => do_part,
+            Control::Do(do_part,_) => do_part,
             _ => {
                 self.abort_with(ControlStructureMismatch);
                 return;

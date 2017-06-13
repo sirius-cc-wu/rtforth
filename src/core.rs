@@ -27,18 +27,20 @@ pub struct Word<Target> {
     is_compile_only: bool,
     hidden: bool,
     dfa: usize,
+    cfa: usize,
     action: primitive!{ fn (&mut Target) },
     pub compilation_semantics: fn(&mut Target, usize),
 }
 
 impl<Target> Word<Target> {
-    pub fn new(symbol: Symbol, action: primitive!{fn(&mut Target)}, compilation_semantics: fn(&mut Target, usize), dfa: usize) -> Word<Target> {
+    pub fn new(symbol: Symbol, action: primitive!{fn(&mut Target)}, compilation_semantics: fn(&mut Target, usize), dfa: usize, cfa: usize) -> Word<Target> {
         Word {
             symbol: symbol,
             is_immediate: false,
             is_compile_only: false,
             hidden: false,
             dfa: dfa,
+            cfa: cfa,
             action: action,
             compilation_semantics: compilation_semantics,
         }
@@ -74,6 +76,10 @@ impl<Target> Word<Target> {
 
     pub fn dfa(&self) -> usize {
         self.dfa
+    }
+
+    pub fn cfa(&self) -> usize {
+        self.cfa
     }
 
     pub fn action(&self) -> primitive!{fn(&mut Target)} {
@@ -524,7 +530,7 @@ pub trait Core: Sized {
     /// Add a primitive word to word list.
     fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}) {
         let symbol = self.new_symbol(name);
-        let word = Word::new(symbol, action, Core::compile_word, self.data_space().len());
+        let word = Word::new(symbol, action, Core::compile_word, self.data_space().len(), self.code_space().here());
         let len = self.wordlist().len();
         self.set_last_definition(len);
         self.wordlist_mut().push(word);
@@ -725,13 +731,16 @@ pub trait Core: Sized {
         self.state().instruction_pointer = ip + mem::size_of::<u32>();
         let wp = self.data_space().get_u32(ip) as usize;
         let dfa;
+        let cfa;
         let symbol;
         {
             let w = &self.wordlist()[wp];
             dfa = w.dfa();
+            cfa = w.cfa();
             symbol = w.symbol();
         }
         self.data_space().truncate(dfa);
+        self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
         self.symbols_mut().truncate(symbol.id);
     }}
@@ -1338,7 +1347,7 @@ pub trait Core: Sized {
             self.abort_with(UnexpectedEndOfFile);
         } else {
             let symbol = self.new_symbol(&last_token);
-            let word = Word::new(symbol, action, compilation_semantics, self.data_space().len());
+            let word = Word::new(symbol, action, compilation_semantics, self.data_space().len(), self.code_space().here());
             let len = self.wordlist().len();
             self.set_last_definition(len);
             self.wordlist_mut().push(word);
@@ -1393,13 +1402,16 @@ pub trait Core: Sized {
     primitive!{fn unmark(&mut self) {
         let wp = self.state().word_pointer;
         let dfa;
+        let cfa;
         let symbol;
         {
             let w = &self.wordlist()[wp];
             dfa = w.dfa();
+            cfa = w.cfa();
             symbol = w.symbol();
         }
         self.data_space().truncate(dfa);
+        self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
         self.symbols_mut().truncate(symbol.id);
     }}

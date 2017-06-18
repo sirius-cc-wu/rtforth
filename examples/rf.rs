@@ -25,6 +25,7 @@ pub struct VM {
     editor: rustyline::Editor<()>,
     last_error: Option<Exception>,
     handler: usize,
+    regs: [usize; 2],
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
     c_stk: Stack<Control>,
@@ -47,6 +48,7 @@ impl VM {
             editor: rustyline::Editor::<()>::new(),
             last_error: None,
             handler: 0,
+            regs: [0, 0],
             s_stk: Stack::new(0x12345678),
             r_stk: Stack::new(0x12345678),
             c_stk: Stack::new(Control::Default),
@@ -115,6 +117,9 @@ impl Core for VM {
     }
     fn set_last_token(&mut self, buffer: String) {
         self.tkn = Some(buffer);
+    }
+    fn regs(&mut self) -> &mut [usize; 2] {
+        &mut self.regs
     }
     fn s_stack(&mut self) -> &mut Stack<isize> {
         &mut self.s_stk

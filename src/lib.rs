@@ -17,7 +17,6 @@ macro_rules! primitive {
     (fn $f:ident $args:tt -> isize $body:tt) => { extern "fastcall" fn $f $args -> isize $body };
 }
 
-extern crate byteorder;
 pub mod vm;
 pub mod core;
 pub mod loader;

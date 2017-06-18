@@ -384,6 +384,7 @@ pub trait Core: Sized {
     fn set_input_buffer(&mut self, buffer: String);
     fn last_token(&mut self) -> &mut Option<String>;
     fn set_last_token(&mut self, buffer: String);
+    fn regs(&mut self) -> &mut [usize; 2];
     fn s_stack(&mut self) -> &mut Stack<isize>;
     fn r_stack(&mut self) -> &mut Stack<isize>;
     fn c_stack(&mut self) -> &mut Stack<Control>;
@@ -525,6 +526,8 @@ pub trait Core: Sized {
         self.references().idx_do = self.find("_do").expect("_do undefined");
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
+
+        self.patch_compilation_semanticses();
     }
 
     /// Add a primitive word to word list.
@@ -1018,6 +1021,8 @@ pub trait Core: Sized {
         self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_s_quote;
         let idx_leave = self.find("leave").expect("leave");
         self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
+        let idx_reset = self.find("reset").expect("reset");
+        self.wordlist_mut()[idx_reset].compilation_semantics = Self::compile_reset;
     }
 
     // -----------
@@ -2614,6 +2619,54 @@ pub trait Core: Sized {
         self.left_bracket();
         self.set_error(None);
     }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_reset(&mut self, _: usize) {
+        //      89 f1           mov    %esi,%ecx
+        //      e8 xx xx xx xx  call   regs()
+        //      8b 10           mov    (%eax),%edx
+        //      85 d2           test   %edx,%edx
+        //      74 07           je     set_regs
+        //      ; 重設 %esp 和 %ebp 。
+        //      89 d4           mov    %edx,%esp
+        //      8b 68 04        mov    4(%eax),%ebp
+        //      eb 05           jmp    call_reset
+        // set_regs:
+        //     ; 記住 quit 的 %esp 和 %ebp 。
+        //      89 20           mov %esp, (%eax)
+        //      89 68 04        mov %ebp, 4(%eax)
+        // call_reset:
+        //      89 f1           mov %esi,%ecx
+        //      e8 xx xx xx xx  call reset
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::regs as usize);
+        self.code_space().compile_u8(0x8b);
+        self.code_space().compile_u8(0x10);
+        self.code_space().compile_u8(0x85);
+        self.code_space().compile_u8(0xd2);
+        self.code_space().compile_u8(0x74);
+        self.code_space().compile_u8(0x07);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xd4);
+        self.code_space().compile_u8(0x8b);
+        self.code_space().compile_u8(0x68);
+        self.code_space().compile_u8(0x04);
+        self.code_space().compile_u8(0xeb);
+        self.code_space().compile_u8(0x05);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0x20);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0x68);
+        self.code_space().compile_u8(0x04);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::reset as usize);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::clear_stacks as usize);
+    }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
     // TODO: subroutine-threaded version

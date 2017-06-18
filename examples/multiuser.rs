@@ -22,6 +22,7 @@ mod vm {
         last_error: Option<Exception>,
         handler: usize,
         state: State,
+        regs: [usize; 2],
         s_stk: Stack<isize>,
         r_stk: Stack<isize>,
         c_stk: Stack<Control>,
@@ -54,6 +55,7 @@ mod vm {
                             last_error: None,
                             handler: 0,
                             state: State::new(),
+                            regs: [0, 0],
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
                             c_stk: Stack::new(Control::Default),
@@ -66,6 +68,7 @@ mod vm {
                             last_error: None,
                             handler: 0,
                             state: State::new(),
+                            regs: [0, 0],
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
                             c_stk: Stack::new(Control::Default),
@@ -78,6 +81,7 @@ mod vm {
                             last_error: None,
                             handler: 0,
                             state: State::new(),
+                            regs: [0, 0],
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
                             c_stk: Stack::new(Control::Default),
@@ -167,6 +171,9 @@ mod vm {
         }
         fn set_last_token(&mut self, buffer: String) {
             self.tasks[self.current_task].tkn = Some(buffer);
+        }
+        fn regs(&mut self) -> &mut [usize; 2] {
+            &mut self.tasks[self.current_task].regs
         }
         fn s_stack(&mut self) -> &mut Stack<isize> {
             &mut self.tasks[self.current_task].s_stk

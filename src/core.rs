@@ -866,19 +866,27 @@ pub trait Core: Sized {
         // ; make a copy of vm in %esi because %ecx may be destropyed by subroutine call.
         // 56               push   %esi
         // 89 ce            mov    %ecx,%esi
+        // 83 ec 04         sub    $4,%esp
         self.code_space().compile_u8(0x55);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xe5);
         self.code_space().compile_u8(0x56);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xce);
+        self.code_space().compile_u8(0x83);
+        self.code_space().compile_u8(0xec);
+        self.code_space().compile_u8(0x04);
     }
 
     #[cfg(feature = "subroutine-threaded")]
     fn compile_exit(&mut self, _: usize) {
+        // 83 c4 04         add    $4,%esp
         // 5e               pop    %esi
         // 5d               pop    %ebp
         // c3               ret
+        self.code_space().compile_u8(0x83);
+        self.code_space().compile_u8(0xc4);
+        self.code_space().compile_u8(0x04);
         self.code_space().compile_u8(0x5e);
         self.code_space().compile_u8(0x5d);
         self.code_space().compile_u8(0xc3);
@@ -2622,12 +2630,13 @@ pub trait Core: Sized {
 
     #[cfg(feature = "subroutine-threaded")]
     fn compile_reset(&mut self, _: usize) {
+        //      ; 判斷之前是否執行過 set_regs。
         //      89 f1           mov    %esi,%ecx
         //      e8 xx xx xx xx  call   regs()
         //      8b 10           mov    (%eax),%edx
         //      85 d2           test   %edx,%edx
         //      74 07           je     set_regs
-        //      ; 重設 %esp 和 %ebp 。
+        //      ; 若則執行過，重設 %esp 和 %ebp 。
         //      89 d4           mov    %edx,%esp
         //      8b 68 04        mov    4(%eax),%ebp
         //      eb 05           jmp    call_reset
@@ -4630,7 +4639,9 @@ mod tests {
         // 89 e5            mov    %esp,%ebp
         // 56               push   %esi
         // 89 ce            mov    %ecx,%esi
+        // 83 ec 04         sub    $4,%esp
         //
+        // 83 c4 04         add    $4,%esp
         // 5e               pop    %esi
         // 5d               pop    %ebp
         // c3               ret
@@ -4646,10 +4657,16 @@ mod tests {
             assert_eq!(vm.code_space().get_u8(action + 3), 0x56);
             assert_eq!(vm.code_space().get_u8(action + 4), 0x89);
             assert_eq!(vm.code_space().get_u8(action + 5), 0xce);
+            assert_eq!(vm.code_space().get_u8(action + 6), 0x83);
+            assert_eq!(vm.code_space().get_u8(action + 7), 0xec);
+            assert_eq!(vm.code_space().get_u8(action + 8), 0x04);
 
-            assert_eq!(vm.code_space().get_u8(action + 6), 0x5e);
-            assert_eq!(vm.code_space().get_u8(action + 7), 0x5d);
-            assert_eq!(vm.code_space().get_u8(action + 8), 0xc3);
+            assert_eq!(vm.code_space().get_u8(action + 9), 0x83);
+            assert_eq!(vm.code_space().get_u8(action + 10), 0xc4);
+            assert_eq!(vm.code_space().get_u8(action + 11), 0x04);
+            assert_eq!(vm.code_space().get_u8(action + 12), 0x5e);
+            assert_eq!(vm.code_space().get_u8(action + 13), 0x5d);
+            assert_eq!(vm.code_space().get_u8(action + 14), 0xc3);
         }
     }
 

@@ -234,23 +234,27 @@ primitive!{fn p_accept(vm: &mut VM) {
     }
 }}
 
+#[inline(never)]
 fn repl(vm: &mut VM) {
     vm.set_source("
-    : EVALUATE
-        BEGIN PARSE-WORD
-          TOKEN-EMPTY? NOT  ERROR? NOT  AND
-        WHILE
-          COMPILING? IF COMPILE-TOKEN ?STACKS ELSE INTERPRET-TOKEN ?STACKS THEN
-        REPEAT ;
-    : QUIT
-        RESET
-        BEGIN ACCEPT EVALUATE
-          .\"  ok\" FLUSH
-        AGAIN ;
-    : (ABORT) HANDLE-ERROR FLUSH QUIT ;
-    ' (ABORT) HANDLER!
-    QUIT ");
+        : EVALUATE
+            BEGIN PARSE-WORD
+            TOKEN-EMPTY? NOT  ERROR? NOT  AND
+            WHILE
+            COMPILING? IF COMPILE-TOKEN ?STACKS ELSE INTERPRET-TOKEN ?STACKS THEN
+            REPEAT ;
+        : QUIT
+            RESET
+            BEGIN ACCEPT EVALUATE
+            .\"  ok\" FLUSH
+            AGAIN ;
+        : (ABORT) HANDLE-ERROR FLUSH QUIT ;
+        ' (ABORT) HANDLER!
+    ");
     vm.evaluate();
+    vm.run();
+    let quit = vm.find("QUIT").expect("QUIT");
+    vm.execute_word(quit);
     vm.run();
 }
 

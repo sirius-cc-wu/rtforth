@@ -2628,11 +2628,15 @@ pub trait Core: Sized {
         self.set_error(None);
     }}
 
+    primitive!{fn _regs(&mut self) -> &mut [usize; 2] {
+        self.regs()
+    }}
+
     #[cfg(feature = "subroutine-threaded")]
     fn compile_reset(&mut self, _: usize) {
         //      ; 判斷之前是否執行過 set_regs。
         //      89 f1           mov    %esi,%ecx
-        //      e8 xx xx xx xx  call   regs()
+        //      e8 xx xx xx xx  call   _regs()
         //      8b 10           mov    (%eax),%edx
         //      85 d2           test   %edx,%edx
         //      74 07           je     set_regs
@@ -2647,10 +2651,12 @@ pub trait Core: Sized {
         // call_reset:
         //      89 f1           mov %esi,%ecx
         //      e8 xx xx xx xx  call reset
+        //      89 f1           mov %esi,%ecx
+        //      e8 xx xx xx xx  call clear_stacks
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xf1);
         self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::regs as usize);
+        self.code_space().compile_relative(Self::_regs as usize);
         self.code_space().compile_u8(0x8b);
         self.code_space().compile_u8(0x10);
         self.code_space().compile_u8(0x85);
@@ -2673,6 +2679,8 @@ pub trait Core: Sized {
         self.code_space().compile_u8(0xf1);
         self.code_space().compile_u8(0xe8);
         self.code_space().compile_relative(Self::reset as usize);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
         self.code_space().compile_u8(0xe8);
         self.code_space().compile_relative(Self::clear_stacks as usize);
     }

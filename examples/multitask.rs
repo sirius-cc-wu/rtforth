@@ -12,7 +12,7 @@ mod vm {
 
     pub struct Task {
         state: State,
-        regs: [usize; 1],
+        regs: [usize; 2],
         s_stk: Stack<isize>,
         r_stk: Stack<isize>,
         c_stk: Stack<Control>,
@@ -41,7 +41,7 @@ mod vm {
                 current_task: 0,
                 tasks: [Task {
                             state: State::new(),
-                            regs: [0],
+                            regs: [0, 0],
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
                             c_stk: Stack::new(Control::Default),
@@ -49,7 +49,7 @@ mod vm {
                         },
                         Task {
                             state: State::new(),
-                            regs: [0],
+                            regs: [0, 0],
                             s_stk: Stack::new(0x12345678),
                             r_stk: Stack::new(0x12345678),
                             c_stk: Stack::new(Control::Default),
@@ -125,7 +125,7 @@ mod vm {
         fn set_last_token(&mut self, buffer: String) {
             self.tkn = Some(buffer);
         }
-        fn regs(&mut self) -> &mut [usize; 1] {
+        fn regs(&mut self) -> &mut [usize; 2] {
             &mut self.tasks[self.current_task].regs
         }
         fn s_stack(&mut self) -> &mut Stack<isize> {

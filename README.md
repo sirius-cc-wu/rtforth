@@ -1,22 +1,15 @@
 # rtForth
 
-Simple Forth implemented in Rust
+Forth implemented in Rust, designed for real-time applications.
 
 [![Clippy Linting Result](http://clippy.bashy.io/github/chengchangwu/rtforth/master/badge.svg)](http://clippy.bashy.io/github/chengchangwu/rtforth/master/log)
 
 ## Design decisions:
 
 * Safe first, performance later
-* Token Threaded (Call threading), easy to implement in Rust
-* Exception is handled by applications, not in Forth core.
-
-The performance of current implementation is not well because of token threading.
-But slow colon definitions can be improved with a Just-In-Time compiler.
-After optimization, corresponding slots in word list points to the jitted definitions.
+* Token Threaded + Primitive-centric threaded + Subroutine-threaded (only for x86)
 
 ## Usage
-
-Tested with multirust override nightly-2016-03-24.
 
 Install Rust: 
 
@@ -29,36 +22,50 @@ $ cargo build --example rf
 $ ./target/debug/examples/rf --help         # Display help information.
 $ ./target/debug/examples/rf <file>         # Load forth commands in <file>.
 $ ./target/debug/examples/rf lib.fs <file>  # Load lib.fs before <file>.
-$ cargo build --release --example rf        # Compile optimized rtForth.
+$ cargo build --release --example rf        # Compile optimized token-threaded rtForth.
+$ cargo build --example rf --release --features="primitive-centric"    # Compile optimized primitive-centric-threaded rtForth.
+$ cargo build --example rf --release --features="subroutine-threaded"    # Compile optimized subroutine-threaded rtForth.
 ```
 
 ```
 $ cargo run --examples rf              # Execute debug version of rtForth.
-rtForth v0.1.7, Copyright (C) 2015 Mapacode Inc.
+rtForth v0.1.39, Copyright (C) 2017 Mapacode Inc.
 Type 'bye' or press Ctrl-D to exit.
-: star 42 emit ;  ok
-star * ok
-star star star *** ok
-bye 
+rf> : star 42 emit ;
+ ok
+rf> star
+* ok
+rf> star star star
+*** ok
+rf> bye
 ```
 
-2015/09/4
+## Benchmark 2017/06/22
 
 * ASUS X401A
 * Ubuntu GNOME 14.04 LTS 32-bit
-* rustc 1.4.0-nightly
-* rtForth 0.1.11
-* SwiftForth 3.5.7
-* gforth 0.7.0
-* gforth-fast 0.7.0
+* rustc 1.19.0-nightly
+* rtForth 0.1.39 subroutine-threaded
+* SwiftForth 3.6.2
+* gforth 0.7.2
+* gforth-fast 0.7.2
+
+SwiftForth vs gforth vs rtForth:
 
 benchmark   | SwiftForth | gforth-fast |  gforth  | rtForth
 ----------- | ---------- | ----------- | -------- | -------
-bubble-sort |    1       |     x       |     x    |     x
-fib         |    1       |   5.9       |   9.2    |  40.0
+bubble-sort |    1       |     x       |     x    |     x        
+fib         |    1       |   3.6       |   5.77   |   6.8
 matrix-mult |    1       |     x       |     x    |     x
 mm-rtcg     |    1       |     x       |     x    |     x
-sieve       |    1       |   1.7       |   2.7    |  15.1
+sieve       |    1       |   1.5       |   2.1    |   6.5
 ssieve-a    |    1       |     x       |     x    |     x
-repeat      |    1       |   7.8       |  17.4    |  64.4
+repeat      |    1       |   7.9       |  14.5    |  26.5
 
+rtForth subroutine-threading vs primitive-cnetric-threading vs token-threading:
+
+threading | subroutine | primitive-centric | token
+----------|------------|-------------------|-------
+fib       |     1      |              2.1  |  3.1
+repeat    |     1      |              1.66 |  2.0
+sieve     |     1      |              1.5  |  2.2

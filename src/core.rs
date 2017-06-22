@@ -19,7 +19,6 @@ use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, Stac
 
 pub type Result = result::Result<(), Exception>;
 
-
 // Word
 pub struct Word<Target> {
     symbol: Symbol,
@@ -906,8 +905,8 @@ pub trait Core: Sized {
     }
 
     #[cfg(feature = "subroutine-threaded")]
-    fn compile_unmark(&mut self, word_index: usize) {
-        // self.compile_word(word_index);
+    fn compile_unmark(&mut self, _: usize) {
+        // Do nothing.
     }
 
     #[cfg(feature = "subroutine-threaded")]

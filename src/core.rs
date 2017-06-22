@@ -4637,15 +4637,12 @@ mod tests {
     fn test_subroutine_threaded_colon_and_semi_colon() {
         let vm = &mut VM::new(16, 16);
         // : nop ;
-        // 55               push   %ebp
-        // 89 e5            mov    %esp,%ebp
         // 56               push   %esi
         // 89 ce            mov    %ecx,%esi
-        // 83 ec 04         sub    $4,%esp
+        // 83 ec 08         sub    $8,%esp
         //
-        // 83 c4 04         add    $4,%esp
+        // 83 c4 08         add    $8,%esp
         // 5e               pop    %esi
-        // 5d               pop    %ebp
         // c3               ret
         let action = vm.code_space().here();
         vm.set_source(": nop ; nop");
@@ -4653,22 +4650,18 @@ mod tests {
         let w = vm.last_definition();
         assert_eq!(vm.wordlist()[w].action as usize, action);
         unsafe{
-            assert_eq!(vm.code_space().get_u8(action + 0), 0x55);
+            assert_eq!(vm.code_space().get_u8(action + 0), 0x56);
             assert_eq!(vm.code_space().get_u8(action + 1), 0x89);
-            assert_eq!(vm.code_space().get_u8(action + 2), 0xe5);
-            assert_eq!(vm.code_space().get_u8(action + 3), 0x56);
-            assert_eq!(vm.code_space().get_u8(action + 4), 0x89);
-            assert_eq!(vm.code_space().get_u8(action + 5), 0xce);
-            assert_eq!(vm.code_space().get_u8(action + 6), 0x83);
-            assert_eq!(vm.code_space().get_u8(action + 7), 0xec);
-            assert_eq!(vm.code_space().get_u8(action + 8), 0x04);
+            assert_eq!(vm.code_space().get_u8(action + 2), 0xce);
+            assert_eq!(vm.code_space().get_u8(action + 3), 0x83);
+            assert_eq!(vm.code_space().get_u8(action + 4), 0xec);
+            assert_eq!(vm.code_space().get_u8(action + 5), 0x08);
 
-            assert_eq!(vm.code_space().get_u8(action + 9), 0x83);
-            assert_eq!(vm.code_space().get_u8(action + 10), 0xc4);
-            assert_eq!(vm.code_space().get_u8(action + 11), 0x04);
-            assert_eq!(vm.code_space().get_u8(action + 12), 0x5e);
-            assert_eq!(vm.code_space().get_u8(action + 13), 0x5d);
-            assert_eq!(vm.code_space().get_u8(action + 14), 0xc3);
+            assert_eq!(vm.code_space().get_u8(action + 6), 0x83);
+            assert_eq!(vm.code_space().get_u8(action + 7), 0xc4);
+            assert_eq!(vm.code_space().get_u8(action + 8), 0x08);
+            assert_eq!(vm.code_space().get_u8(action + 9), 0x5e);
+            assert_eq!(vm.code_space().get_u8(action + 10), 0xc3);
         }
     }
 

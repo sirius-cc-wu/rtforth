@@ -29,7 +29,7 @@ pub struct Word<Target> {
     dfa: usize,
     cfa: usize,
     action: primitive!{ fn (&mut Target) },
-    pub compilation_semantics: fn(&mut Target, usize),
+    pub(crate) compilation_semantics: fn(&mut Target, usize),
 }
 
 impl<Target> Word<Target> {
@@ -1088,15 +1088,17 @@ pub trait Core: Sized {
     /// Put the value of its first character onto the stack.
     primitive!{fn char(&mut self) {
         self.parse_word();
-        if self.last_error().is_some() {
-            return;
-        }
         let last_token = self.last_token().take().expect("token");
         match last_token.chars().nth(0) {
-            Some(c) => self.s_stack().push(c as isize),
-            None => self.abort_with(UnexpectedEndOfFile),
+            Some(c) => {
+                self.set_last_token(last_token);
+                self.s_stack().push(c as isize);
+            }
+            None => {
+                self.set_last_token(last_token);
+                self.abort_with(UnexpectedEndOfFile);
+            }
         }
-        self.set_last_token(last_token);
     }}
 
     /// Compilation: ( "&lt;spaces&gt;name" -- )
@@ -1179,16 +1181,18 @@ pub trait Core: Sized {
                         }
                     }
                 }
-                if !done {
+                if done {
+                    self.set_last_token(last_token);
+                } else {
                     match self.output_buffer().as_mut() {
                         Some(buf) => {
                             write!(buf, "{} ", &last_token).expect("write");
                         }
                         None => {}
                     }
+                    self.set_last_token(last_token);
                     self.abort_with(UndefinedWord);
                 }
-                self.set_last_token(last_token);
             }
         }
     }}
@@ -1218,16 +1222,18 @@ pub trait Core: Sized {
                         }
                     }
                 }
-                if !done {
+                if done {
+                    self.set_last_token(last_token);
+                } else {
                     match self.output_buffer().as_mut() {
                         Some(buf) => {
                             write!(buf, "{} ", &last_token).expect("write");
                         }
                         None => {}
                     }
+                    self.set_last_token(last_token);
                     self.abort_with(UndefinedWord);
                 }
-                self.set_last_token(last_token);
             }
         }
     }}
@@ -2456,14 +2462,20 @@ pub trait Core: Sized {
         self.parse_word();
         let last_token = self.last_token().take().expect("last token");
         if last_token.is_empty() {
+            self.set_last_token(last_token);
             self.abort_with(UnexpectedEndOfFile);
         } else {
             match self.find(&last_token) {
-                Some(found_index) => self.s_stack().push(found_index as isize),
-                None => self.abort_with(UndefinedWord),
+                Some(found_index) => {
+                    self.s_stack().push(found_index as isize);
+                    self.set_last_token(last_token);
+                }
+                None => {
+                    self.set_last_token(last_token);
+                    self.abort_with(UndefinedWord);
+                }
             }
         }
-        self.set_last_token(last_token);
     }}
 
     /// Run-time: ( i*x xt -- j*x )
@@ -2686,7 +2698,6 @@ pub trait Core: Sized {
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
-    // TODO: subroutine-threaded version
     fn abort_with(&mut self, e: Exception) {
         self.clear_stacks();
         self.set_error(Some(e));
@@ -2695,7 +2706,6 @@ pub trait Core: Sized {
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
-    // TODO: subroutine-threaded version
     primitive!{fn abort(&mut self) {
         self.abort_with(Abort);
     }}

@@ -2,8 +2,6 @@
 
 Forth implemented in Rust, designed for real-time applications.
 
-[![Clippy Linting Result](http://clippy.bashy.io/github/chengchangwu/rtforth/master/badge.svg)](http://clippy.bashy.io/github/chengchangwu/rtforth/master/log)
-
 ## Design decisions:
 
 * Safe first, performance later

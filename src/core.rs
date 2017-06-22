@@ -860,34 +860,27 @@ pub trait Core: Sized {
     #[cfg(feature = "subroutine-threaded")]
     fn compile_nest_code(&mut self, word_index: usize) {
         self.wordlist_mut()[word_index].action = unsafe{ mem::transmute(self.code_space().here()) };
-        // 55               push   %ebp
-        // 89 e5            mov    %esp,%ebp
         // ; make a copy of vm in %esi because %ecx may be destropyed by subroutine call.
         // 56               push   %esi
         // 89 ce            mov    %ecx,%esi
-        // 83 ec 04         sub    $4,%esp
-        self.code_space().compile_u8(0x55);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xe5);
+        // 83 ec 08         sub    $8,%esp
         self.code_space().compile_u8(0x56);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xce);
         self.code_space().compile_u8(0x83);
         self.code_space().compile_u8(0xec);
-        self.code_space().compile_u8(0x04);
+        self.code_space().compile_u8(0x08);
     }
 
     #[cfg(feature = "subroutine-threaded")]
     fn compile_exit(&mut self, _: usize) {
-        // 83 c4 04         add    $4,%esp
+        // 83 c4 08         add    $8,%esp
         // 5e               pop    %esi
-        // 5d               pop    %ebp
         // c3               ret
         self.code_space().compile_u8(0x83);
         self.code_space().compile_u8(0xc4);
-        self.code_space().compile_u8(0x04);
+        self.code_space().compile_u8(0x08);
         self.code_space().compile_u8(0x5e);
-        self.code_space().compile_u8(0x5d);
         self.code_space().compile_u8(0xc3);
     }
 
@@ -2650,15 +2643,13 @@ pub trait Core: Sized {
         //      e8 xx xx xx xx  call   _regs()
         //      8b 10           mov    (%eax),%edx
         //      85 d2           test   %edx,%edx
-        //      74 07           je     set_regs
-        //      ; 若則執行過，重設 %esp 和 %ebp 。
+        //      74 04           je     set_regs
+        //      ; 若則執行過，重設 %esp 。
         //      89 d4           mov    %edx,%esp
-        //      8b 68 04        mov    4(%eax),%ebp
-        //      eb 05           jmp    call_reset
+        //      eb 02           jmp    call_reset
         // set_regs:
-        //     ; 記住 quit 的 %esp 和 %ebp 。
+        //     ; 記住 quit 的 %esp 。
         //      89 20           mov %esp, (%eax)
-        //      89 68 04        mov %ebp, 4(%eax)
         // call_reset:
         //      89 f1           mov %esi,%ecx
         //      e8 xx xx xx xx  call reset
@@ -2673,19 +2664,13 @@ pub trait Core: Sized {
         self.code_space().compile_u8(0x85);
         self.code_space().compile_u8(0xd2);
         self.code_space().compile_u8(0x74);
-        self.code_space().compile_u8(0x07);
+        self.code_space().compile_u8(0x04);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xd4);
-        self.code_space().compile_u8(0x8b);
-        self.code_space().compile_u8(0x68);
-        self.code_space().compile_u8(0x04);
         self.code_space().compile_u8(0xeb);
-        self.code_space().compile_u8(0x05);
+        self.code_space().compile_u8(0x02);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0x20);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0x68);
-        self.code_space().compile_u8(0x04);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xf1);
         self.code_space().compile_u8(0xe8);

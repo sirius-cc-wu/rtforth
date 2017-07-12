@@ -8,6 +8,7 @@ use tools::Tools;
 use env::Environment;
 use facility::Facility;
 use float::Float;
+use units::Units;
 use bc::*;
 use exception::Exception::{self, StackUnderflow, StackOverflow, ReturnStackUnderflow,
                            ReturnStackOverflow, FloatingPointStackOverflow, InvalidMemoryAddress,
@@ -59,6 +60,7 @@ impl VM {
         vm.add_environment();
         vm.add_facility();
         vm.add_float();
+        vm.add_units();
         vm
     }
 }
@@ -147,6 +149,7 @@ impl Core for VM {
 impl Environment for VM {}
 impl Facility for VM {}
 impl Float for VM {}
+impl Units for VM {}
 impl HasLoader for VM {}
 impl Output for VM {}
 impl Tools for VM {}

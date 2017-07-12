@@ -12,6 +12,7 @@ pub mod tools;
 pub mod env;
 pub mod facility;
 pub mod float;
+pub mod units;
 pub mod jitmem;
 
 pub mod bc {

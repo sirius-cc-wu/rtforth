@@ -1,8 +1,6 @@
 use core::Core;
 use std::ops::BitAnd;
 use std::ops::Shr;
-use exception::Exception::StackOverflow;
-
 extern crate time;
 
 pub trait Facility: Core {
@@ -25,25 +23,20 @@ pub trait Facility: Core {
     /// use rtforth::core::Core;
     /// use rtforth::facility::Facility;
     /// use rtforth::tools::Tools;
-    /// let vm = &mut VM::new(16);
+    /// let vm = &mut VM::new(16, 16);
     /// vm.set_source("ntime .s");
     /// vm.evaluate();
     /// ```
-    fn ntime(&mut self) {
+    primitive!{fn ntime(&mut self) {
         let t = time::precise_time_ns();
         if t > usize::max_value() as u64 {
-            match self.s_stack().push2(t.bitand(usize::max_value() as u64) as isize,
-                                       t.shr(usize::max_value().count_ones()) as isize) {
-                Err(_) => self.set_error(Some(StackOverflow)),
-                Ok(()) => {}
-            }
+            self.s_stack()
+                .push2(t.bitand(usize::max_value() as u64) as isize,
+                       t.shr(usize::max_value().count_ones()) as isize);
         } else {
-            match self.s_stack().push2(t as isize, 0) {
-                Err(_) => self.set_error(Some(StackOverflow)),
-                Ok(()) => {}
-            }
+            self.s_stack().push2(t as isize, 0);
         }
-    }
+    }}
 
     /// Run-time: ( -- ud )
     ///
@@ -56,23 +49,18 @@ pub trait Facility: Core {
     /// use rtforth::core::Core;
     /// use rtforth::facility::Facility;
     /// use rtforth::tools::Tools;
-    /// let vm = &mut VM::new(16);
+    /// let vm = &mut VM::new(16, 16);
     /// vm.set_source("utime .s");
     /// vm.evaluate();
     /// ```
-    fn utime(&mut self) {
+    primitive!{fn utime(&mut self) {
         let t = time::precise_time_ns() / 1000;
         if t > usize::max_value() as u64 {
-            match self.s_stack().push2(t.bitand(usize::max_value() as u64) as isize,
-                                       t.shr(usize::max_value().count_ones()) as isize) {
-                Err(_) => self.set_error(Some(StackOverflow)),
-                Ok(()) => {}
-            }
+            self.s_stack()
+                .push2(t.bitand(usize::max_value() as u64) as isize,
+                       t.shr(usize::max_value().count_ones()) as isize);
         } else {
-            match self.s_stack().push2(t as isize, 0) {
-                Err(_) => self.set_error(Some(StackOverflow)),
-                Ok(()) => {}
-            }
+            self.s_stack().push2(t as isize, 0);
         }
-    }
+    }}
 }

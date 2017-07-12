@@ -5,7 +5,7 @@ use rtforth::tools::Tools;
 
 #[test]
 fn test_primitives() {
-    let vm = &mut VM::new(1024);
+    let vm = &mut VM::new(1024, 1024);
     vm.add_core();
     vm.noop();
     vm.p_false();

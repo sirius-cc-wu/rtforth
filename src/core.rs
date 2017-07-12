@@ -1,24 +1,21 @@
 extern crate libc;
 
-extern "C" {
-    fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
-}
-
+use {TRUE, FALSE};
+use std::process;
 use std::mem;
-use std::ptr::{self, Unique};
-use std::fmt;
-use std::slice;
+use std::ops::{Index, IndexMut};
+use std::fmt::{self, Display};
+use std::fmt::Write;
+use std::str::FromStr;
 use std::ascii::AsciiExt;
 use std::result;
-use jitmem::{self, DataSpace};
+use dataspace::DataSpace;
+use codespace::CodeSpace;
 use exception::Exception::{self, Abort, UnexpectedEndOfFile, UndefinedWord, StackOverflow,
                            StackUnderflow, ReturnStackUnderflow, ReturnStackOverflow,
-                           FloatingPointStackOverflow, UnsupportedOperation,
-                           InterpretingACompileOnlyWord, InvalidMemoryAddress,
-                           ControlStructureMismatch, Quit, Nest, Pause, Bye};
-
-pub const TRUE: isize = -1;
-pub const FALSE: isize = 0;
+                           FloatingPointStackOverflow, FloatingPointStackUnderflow,
+                           UnsupportedOperation, InterpretingACompileOnlyWord,
+                           ControlStructureMismatch, InvalidMemoryAddress, DivisionByZero};
 
 pub type Result = result::Result<(), Exception>;
 
@@ -29,18 +26,22 @@ pub struct Word<Target> {
     is_compile_only: bool,
     hidden: bool,
     dfa: usize,
-    action: fn(&mut Target),
+    cfa: usize,
+    action: primitive!{ fn (&mut Target) },
+    pub(crate) compilation_semantics: fn(&mut Target, usize),
 }
 
 impl<Target> Word<Target> {
-    pub fn new(symbol: Symbol, action: fn(&mut Target), dfa: usize) -> Word<Target> {
+    pub fn new(symbol: Symbol, action: primitive!{fn(&mut Target)}, compilation_semantics: fn(&mut Target, usize), dfa: usize, cfa: usize) -> Word<Target> {
         Word {
             symbol: symbol,
             is_immediate: false,
             is_compile_only: false,
             hidden: false,
             dfa: dfa,
+            cfa: cfa,
             action: action,
+            compilation_semantics: compilation_semantics,
         }
     }
 
@@ -76,133 +77,98 @@ impl<Target> Word<Target> {
         self.dfa
     }
 
-    pub fn action(&self) -> fn(&mut Target) {
+    pub fn cfa(&self) -> usize {
+        self.cfa
+    }
+
+    pub fn action(&self) -> primitive!{fn(&mut Target)} {
         self.action
     }
 }
 
-pub struct Stack<T> {
-    pub inner: Unique<T>,
-    pub cap: usize,
-    pub len: usize,
+pub struct Stack<T: Default> {
+    pub inner: [T; 256],
+    pub len: u8,
+    pub canary: T,
 }
 
-impl<T> Stack<T> {
-    pub fn with_capacity(cap: usize) -> Self {
-        assert!(cap > 0 && cap <= 2048, "Invalid stack capacity");
-        let align = mem::align_of::<isize>();
-        let elem_size = mem::size_of::<isize>();
-        let size_in_bytes = cap * elem_size;
-        unsafe {
-            let mut ptr = mem::uninitialized();
-            libc::posix_memalign(&mut ptr, align, size_in_bytes);
-            if ptr.is_null() {
-                panic!("Cannot allocate memory.");
-            }
-            libc::mprotect(ptr, size_in_bytes, libc::PROT_READ | libc::PROT_WRITE);
-            memset(ptr, 0x00, size_in_bytes);
-            Stack {
-                inner: Unique::new(ptr as *mut _),
-                cap: cap,
-                len: 0,
-            }
+impl<T: Default + Copy + PartialEq + Display> Stack<T> {
+    pub fn new(canary: T) -> Self {
+        let mut result = Stack {
+            inner: [T::default(); 256],
+            len: 0,
+            canary: canary,
+        };
+        result.reset();
+        result
+    }
+
+    pub fn reset(&mut self) {
+        self.len = 0;
+        for i in 32..256 {
+            self.inner[i] = self.canary;
         }
     }
 
-    pub fn push(&mut self, v: T) -> Result {
-        if self.len >= self.cap {
-            Err(StackOverflow)
-        } else {
-            unsafe {
-                ptr::write(self.inner.offset(self.len as isize), v);
-            }
-            self.len += 1;
-            Ok(())
-        }
+    pub fn underflow(&self) -> bool {
+        (self.inner[255] != self.canary) || (self.len > 128)
     }
 
-    pub fn pop(&mut self) -> result::Result<T, Exception> {
-        if self.len < 1 {
-            Err(StackUnderflow)
-        } else {
-            self.len -= 1;
-            unsafe { Ok(ptr::read(self.inner.offset(self.len as isize))) }
-        }
+    pub fn overflow(&self) -> bool {
+        (self.inner[32] != self.canary) || (self.len > 32 && self.len <= 128)
     }
 
-    pub fn push2(&mut self, v1: T, v2: T) -> Result {
-        if self.len + 2 > self.cap {
-            Err(StackOverflow)
-        } else {
-            unsafe {
-                ptr::write(self.inner.offset(self.len as isize), v1);
-                ptr::write(self.inner.offset((self.len + 1) as isize), v2);
-            }
-            self.len += 2;
-            Ok(())
-        }
+    pub fn push(&mut self, v: T) {
+        let len = self.len.wrapping_add(1);
+        self.len = len;
+        self.inner[len.wrapping_sub(1) as usize] = v;
     }
 
-    pub fn push3(&mut self, v1: T, v2: T, v3: T) -> Result {
-        if self.len + 3 > self.cap {
-            Err(StackOverflow)
-        } else {
-            unsafe {
-                ptr::write(self.inner.offset(self.len as isize), v1);
-                ptr::write(self.inner.offset((self.len + 1) as isize), v2);
-                ptr::write(self.inner.offset((self.len + 2) as isize), v3);
-            }
-            self.len += 3;
-            Ok(())
-        }
+    pub fn pop(&mut self) -> T {
+        let result = self.inner[self.len.wrapping_sub(1) as usize];
+        self.len = self.len.wrapping_sub(1);
+        result
     }
 
-    pub fn pop2(&mut self) -> result::Result<(T, T), Exception> {
-        if self.len < 2 {
-            Err(StackUnderflow)
-        } else {
-            self.len -= 2;
-            unsafe {
-                Ok((ptr::read(self.inner.offset(self.len as isize)),
-                    ptr::read(self.inner.offset((self.len + 1) as isize))))
-            }
-        }
+    pub fn push2(&mut self, v1: T, v2: T) {
+        let len = self.len.wrapping_add(2);
+        self.len = len;
+        self.inner[self.len.wrapping_sub(2) as usize] = v1;
+        self.inner[self.len.wrapping_sub(1) as usize] = v2;
     }
 
-    pub fn pop3(&mut self) -> result::Result<(T, T, T), Exception> {
-        if self.len < 3 {
-            Err(StackUnderflow)
-        } else {
-            self.len -= 3;
-            unsafe {
-                Ok((ptr::read(self.inner.offset(self.len as isize)),
-                    ptr::read(self.inner.offset((self.len + 1) as isize)),
-                    ptr::read(self.inner.offset((self.len + 2) as isize))))
-            }
-        }
+    pub fn push3(&mut self, v1: T, v2: T, v3: T) {
+        let len = self.len.wrapping_add(3);
+        self.len = len;
+        self.inner[self.len.wrapping_sub(3) as usize] = v1;
+        self.inner[self.len.wrapping_sub(2) as usize] = v2;
+        self.inner[self.len.wrapping_sub(1) as usize] = v3;
+    }
+
+    pub fn pop2(&mut self) -> (T, T) {
+        let result = (self.inner[self.len.wrapping_sub(2) as usize],
+                      self.inner[self.len.wrapping_sub(1) as usize]);
+        self.len = self.len.wrapping_sub(2);
+        result
+    }
+
+    pub fn pop3(&mut self) -> (T, T, T) {
+        let result = (self.inner[self.len.wrapping_sub(3) as usize],
+                      self.inner[self.len.wrapping_sub(2) as usize],
+                      self.inner[self.len.wrapping_sub(1) as usize]);
+        self.len = self.len.wrapping_sub(3);
+        result
     }
 
     pub fn last(&self) -> Option<T> {
-        if self.len == 0 {
-            None
-        } else {
-            unsafe { Some(ptr::read(self.inner.offset((self.len - 1) as isize))) }
-        }
+        Some(self.inner[self.len.wrapping_sub(1) as usize])
     }
 
-    pub fn get(&self, pos: usize) -> Option<T> {
-        if pos >= self.len {
-            None
-        } else {
-            unsafe { Some(ptr::read(self.inner.offset(pos as isize))) }
-        }
+    pub fn get(&self, pos: u8) -> Option<T> {
+        Some(self.inner[pos as usize])
     }
 
-    pub fn clear(&mut self) {
-        self.len = 0;
-    }
-
-    pub fn len(&self) -> usize {
+    pub fn len(&self) -> u8 {
         self.len
     }
 
@@ -210,31 +176,88 @@ impl<T> Stack<T> {
         self.len == 0
     }
 
-    pub fn is_full(&self) -> bool {
-        self.len >= self.cap
-    }
-
-    pub fn space_left(&self) -> usize {
-        self.cap - self.len
-    }
-
     /// # Safety
     /// Because the implementer (me) is still learning Rust, it is uncertain if as_slice is safe.
     pub fn as_slice(&self) -> &[T] {
-        unsafe { slice::from_raw_parts(self.inner.get(), self.len) }
+        &self.inner[..self.len as usize]
     }
 }
 
-impl<T: fmt::Display> fmt::Debug for Stack<T> {
+impl Index<u8> for Stack<isize> {
+    type Output = isize;
+    #[inline(always)]
+    fn index(&self, index: u8) -> &isize {
+        &self.inner[index as usize]
+    }
+}
+
+impl IndexMut<u8> for Stack<isize> {
+    #[inline(always)]
+    fn index_mut(&mut self, index: u8) -> &mut isize {
+        &mut self.inner[index as usize]
+    }
+}
+
+impl Index<u8> for Stack<f64> {
+    type Output = f64;
+    #[inline(always)]
+    fn index(&self, index: u8) -> &f64 {
+        &self.inner[index as usize]
+    }
+}
+
+impl IndexMut<u8> for Stack<f64> {
+    #[inline(always)]
+    fn index_mut(&mut self, index: u8) -> &mut f64 {
+        &mut self.inner[index as usize]
+    }
+}
+
+impl Index<u8> for Stack<Control> {
+    type Output = Control;
+    #[inline(always)]
+    fn index(&self, index: u8) -> &Control {
+        &self.inner[index as usize]
+    }
+}
+
+impl fmt::Debug for Stack<isize> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match write!(f, "<{}> ", self.len()) {
             Ok(_) => {
-                for i in 0..(self.len() - 1) {
-                    let v = unsafe { ptr::read(self.inner.offset(i as isize)) };
-                    match write!(f, "{} ", v) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            return Err(e);
+                if self.len == 0 {
+                } else {
+                    for i in 0..self.len {
+                        let v = self[i];
+                        match write!(f, "{} ", v) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                return Err(e);
+                            }
+                        }
+                    }
+
+                }
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl fmt::Debug for Stack<f64> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match write!(f, "<F {}> ", self.len()) {
+            Ok(_) => {
+                if self.len == 0 {
+                } else {
+                    for i in 0..self.len {
+                        let v = self[i];
+                        match write!(f, "{} ", v) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                return Err(e);
+                            }
                         }
                     }
                 }
@@ -292,10 +315,6 @@ impl State {
         }
     }
 
-    /// Idle is the result of new and reset, means that VM has nothing to do.
-    fn is_idle(&self) -> bool {
-        self.instruction_pointer == 0
-    }
     pub fn word_pointer(&self) -> usize {
         self.word_pointer
     }
@@ -312,12 +331,48 @@ impl Symbol {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum Control {
+    Default,
+    Canary,
+    If(usize),
+    Else(usize),
+    Begin(usize),
+    While(usize),
+    Do(usize, usize),
+}
+
+impl Default for Control {
+    fn default() -> Self {
+        Control::Default
+    }
+}
+
+impl Display for Control {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match *self {
+            Control::Default => "Default",
+            Control::Canary => "Canary",
+            Control::If(_) => "If",
+            Control::Else(_) => "Else",
+            Control::Begin(_) => "Begin",
+            Control::While(_) => "While",
+            Control::Do(_,_) => "Do",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 pub trait Core: Sized {
     // Functions to access VM.
     fn last_error(&self) -> Option<Exception>;
     fn set_error(&mut self, e: Option<Exception>);
+    fn handler(&self) -> usize;
+    fn set_handler(&mut self, h: usize);
     fn data_space(&mut self) -> &mut DataSpace;
     fn data_space_const(&self) -> &DataSpace;
+    fn code_space(&mut self) -> &mut CodeSpace;
+    fn code_space_const(&self) -> &CodeSpace;
     /// Get `output_buffer`.
     fn output_buffer(&mut self) -> &mut Option<String>;
     /// Set `output_buffer` to `Some(buffer)`.
@@ -328,10 +383,10 @@ pub trait Core: Sized {
     fn set_input_buffer(&mut self, buffer: String);
     fn last_token(&mut self) -> &mut Option<String>;
     fn set_last_token(&mut self, buffer: String);
-    fn structure_depth(&self) -> usize;
-    fn set_structure_depth(&mut self, d: usize);
+    fn regs(&mut self) -> &mut [usize; 2];
     fn s_stack(&mut self) -> &mut Stack<isize>;
     fn r_stack(&mut self) -> &mut Stack<isize>;
+    fn c_stack(&mut self) -> &mut Stack<Control>;
     fn f_stack(&mut self) -> &mut Stack<f64>;
     fn symbols_mut(&mut self) -> &mut Vec<String>;
     fn symbols(&self) -> &Vec<String>;
@@ -342,10 +397,6 @@ pub trait Core: Sized {
     fn wordlist(&self) -> &Vec<Word<Self>>;
     fn state(&mut self) -> &mut State;
     fn references(&mut self) -> &mut ForwardReferences;
-    fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str)>>;
-    fn set_evaluators(&mut self, Vec<fn(&mut Self, token: &str)>);
-    /// Max number of words parsed for an evaluation, =0 if no limit;
-    fn evaluation_limit(&self) -> isize;
 
     /// Add core primitives to self.
     fn add_core(&mut self) {
@@ -359,8 +410,8 @@ pub trait Core: Sized {
         self.add_compile_only("branch", Core::branch); // j1, eForth
         self.add_compile_only("0branch", Core::zero_branch); // j1, eForth
         self.add_compile_only("_do", Core::_do); // jx
-        self.add_compile_only("_loop", Core::p_loop); // jx
-        self.add_compile_only("_+loop", Core::p_plus_loop); // jx
+        self.add_compile_only("_loop", Core::_loop); // jx
+        self.add_compile_only("_+loop", Core::_plus_loop); // jx
         self.add_compile_only("unloop", Core::unloop); // jx
         self.add_compile_only("leave", Core::leave); // jx
         self.add_compile_only("i", Core::p_i); // jx
@@ -379,6 +430,7 @@ pub trait Core: Sized {
         self.add_primitive("over", Core::over); // j1, jx, eForth
         self.add_primitive("nip", Core::nip); // j1, jx
         self.add_primitive("depth", Core::depth); // j1, jx
+        self.add_primitive("?stacks", Core::check_stacks); // j1, jx
         self.add_primitive("0<", Core::zero_less); // eForth
         self.add_primitive("=", Core::equals); // j1, jx
         self.add_primitive("<", Core::less_than); // j1, jx
@@ -388,7 +440,6 @@ pub trait Core: Sized {
         self.add_primitive("xor", Core::xor); // j1, Ngaro, jx, eForth
         self.add_primitive("lshift", Core::lshift); // jx, Ngaro
         self.add_primitive("rshift", Core::rshift); // jx
-        self.add_primitive("arshift", Core::arshift); // jx, Ngaro
         self.add_primitive("1+", Core::one_plus); // Ngaro
         self.add_primitive("1-", Core::one_minus); // Ngaro, jx
         self.add_primitive("-", Core::minus); // Ngaro
@@ -407,16 +458,10 @@ pub trait Core: Sized {
         self.add_primitive("c!", Core::c_store);
         self.add_primitive("base", Core::base);
 
-        // Candidates for bytecodes
-        // Ngaro: LOOP, JUMP, RETURN, IN, OUT, WAIT
-        // j1: U<, RET, IO@, IO!
-        // eForth: UM+, !IO, ?RX, TX!
-        // jx: PICK, U<, UM*, UM/MOD, D+, TX, RX, CATCH, THROW, QUOTE, UP!, UP+, PAUSE,
-
         // Immediate words
         self.add_immediate("(", Core::imm_paren);
         self.add_immediate("\\", Core::imm_backslash);
-        self.add_immediate("[", Core::interpret);
+        self.add_immediate("[", Core::left_bracket);
         self.add_immediate_and_compile_only("[char]", Core::bracket_char);
         self.add_immediate_and_compile_only(";", Core::semicolon);
         self.add_immediate_and_compile_only("if", Core::imm_if);
@@ -430,8 +475,6 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("do", Core::imm_do);
         self.add_immediate_and_compile_only("loop", Core::imm_loop);
         self.add_immediate_and_compile_only("+loop", Core::imm_plus_loop);
-
-        // Compile-only words
 
         // More Primitives
         self.add_primitive("true", Core::p_true);
@@ -447,7 +490,6 @@ pub trait Core: Sized {
         self.add_primitive("2drop", Core::two_drop);
         self.add_primitive("2swap", Core::two_swap);
         self.add_primitive("2over", Core::two_over);
-        self.add_primitive("pause", Core::pause);
         self.add_primitive("/", Core::slash);
         self.add_primitive("mod", Core::p_mod);
         self.add_primitive("abs", Core::abs);
@@ -456,57 +498,62 @@ pub trait Core: Sized {
         self.add_primitive("parse-word", Core::parse_word);
         self.add_primitive("char", Core::char);
         self.add_primitive("parse", Core::parse);
-        self.add_primitive("evaluate", Core::evaluate);
         self.add_primitive(":", Core::colon);
         self.add_primitive("constant", Core::constant);
         self.add_primitive("variable", Core::variable);
         self.add_primitive("create", Core::create);
         self.add_primitive("'", Core::tick);
-        self.add_primitive("]", Core::compile);
+        self.add_primitive("]", Core::right_bracket);
         self.add_primitive(",", Core::comma);
         self.add_primitive("marker", Core::marker);
-        self.add_primitive("quit", Core::quit);
+        self.add_primitive("handler!", Core::handler_store);
+        self.add_primitive("error?", Core::p_error_q);
+        self.add_primitive("handle-error", Core::p_handle_error);
+        self.add_primitive("reset", Core::reset);
         self.add_primitive("abort", Core::abort);
         self.add_primitive("bye", Core::bye);
-        self.add_primitive("jit", Core::jit);
+        self.add_primitive("compiling?", Core::p_compiling);
+        self.add_primitive("token-empty?", Core::p_token_empty);
+        self.add_primitive("compile-token", Core::compile_token);
+        self.add_primitive("interpret-token", Core::interpret_token);
 
         self.references().idx_lit = self.find("lit").expect("lit undefined");
+        self.references().idx_flit = self.find("flit").expect("flit undefined");
         self.references().idx_exit = self.find("exit").expect("exit undefined");
         self.references().idx_zero_branch = self.find("0branch").expect("0branch undefined");
         self.references().idx_branch = self.find("branch").expect("branch undefined");
         self.references().idx_do = self.find("_do").expect("_do undefined");
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
-        let idx_halt = self.find("halt").expect("halt undefined");
-        self.data_space().put_u32(idx_halt as u32, 0);
-        self.extend_evaluator(Core::evaluate_integer);
+
+        self.patch_compilation_semanticses();
     }
 
     /// Add a primitive word to word list.
-    fn add_primitive(&mut self, name: &str, action: fn(&mut Self)) {
+    fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}) {
         let symbol = self.new_symbol(name);
-        let word = Word::new(symbol, action, self.data_space().len());
+        let word = Word::new(symbol, action, Core::compile_word, self.data_space().len(), self.code_space().here());
         let len = self.wordlist().len();
         self.set_last_definition(len);
         self.wordlist_mut().push(word);
     }
 
     /// Add an immediate word to word list.
-    fn add_immediate(&mut self, name: &str, action: fn(&mut Self)) {
+    fn add_immediate(&mut self, name: &str, action: primitive!{fn(&mut Self)}) {
         self.add_primitive(name, action);
         let def = self.last_definition();
         self.wordlist_mut()[def].set_immediate(true);
     }
 
     /// Add a compile-only word to word list.
-    fn add_compile_only(&mut self, name: &str, action: fn(&mut Self)) {
+    fn add_compile_only(&mut self, name: &str, action: primitive!{fn(&mut Self)}) {
         self.add_primitive(name, action);
         let def = self.last_definition();
         self.wordlist_mut()[def].set_compile_only(true);
     }
 
     /// Add an immediate and compile-only word to word list.
-    fn add_immediate_and_compile_only(&mut self, name: &str, action: fn(&mut Self)) {
+    fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&mut Self)}) {
         self.add_primitive(name, action);
         let def = self.last_definition();
         let w = &mut self.wordlist_mut()[def];
@@ -517,23 +564,22 @@ pub trait Core: Sized {
     /// Execute word at position `i`.
     fn execute_word(&mut self, i: usize) {
         self.state().word_pointer = i;
-        (self.wordlist()[i].action())(self);
+        if i < self.wordlist().len() {
+            (self.wordlist()[i].action())(self);
+        } else {
+            self.abort_with(UndefinedWord);
+        }
     }
 
     /// Find the word with name `name`.
     /// If not found returns zero.
     fn find(&mut self, name: &str) -> Option<usize> {
-        match self.find_symbol(name) {
-            Some(symbol) => {
-                for (i, word) in self.wordlist().iter().enumerate() {
-                    if !word.is_hidden() && word.symbol() == symbol {
-                        return Some(i);
-                    }
-                }
-                None
+        for (i, word) in self.wordlist().iter().enumerate().rev() {
+            if !word.is_hidden() && self.symbols()[word.symbol().id].eq_ignore_ascii_case(name) {
+                return Some(i);
             }
-            None => None,
         }
+        None
     }
 
     fn find_symbol(&mut self, s: &str) -> Option<Symbol> {
@@ -550,79 +596,450 @@ pub trait Core: Sized {
         Symbol { id: self.symbols().len() - 1 }
     }
 
-    // ------------------
-    // Inner interpreter
-    // ------------------
+    // -------------------------------
+    // Token threaded code
+    // -------------------------------
 
     /// Evaluate a compiled program following self.state().instruction_pointer.
-    /// Any exception other than Nest causes termination of inner loop.
-    /// Quit is aspecially used for this purpose.
-    /// Never return None and Some(Nest).
+    /// Any exception causes termination of inner loop.
     #[inline(never)]
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while 0 < ip && ip < self.data_space().len() {
             let w = self.data_space().get_i32(ip) as usize;
             self.state().instruction_pointer += mem::size_of::<i32>();
             self.execute_word(w);
-            match self.last_error() {
-                Some(e) => {
-                    match e {
-                        Nest => {
-                            self.set_error(None);
-                        }
-                        _ => {
-                            break;
-                        }
-                    }
-                }
-                None => {}
-            }
             ip = self.state().instruction_pointer;
         }
-        if self.state().instruction_pointer != 0 {
-            match self.last_error() {
-                None => {
-                    self.set_error(Some(InvalidMemoryAddress));
-                }
-                Some(Pause) => {}
-                _ => {
-                    self.state().instruction_pointer = 0;
-                }
-            }
+    }
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    fn compile_word(&mut self, word_index: usize) {
+        self.data_space().compile_u32(word_index as u32);
+    }
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    fn compile_nest(&mut self, word_index: usize) {
+        self.compile_word(word_index);
+    }
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    fn compile_nest_code(&mut self, _: usize) {
+        // Do nothing.
+    }
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    fn compile_var(&mut self, word_index: usize) {
+        self.compile_word(word_index);
+    }
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    fn compile_const(&mut self, word_index: usize) {
+        self.compile_word(word_index);
+    }
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    fn compile_unmark(&mut self, word_index: usize) {
+        self.compile_word(word_index);
+    }
+
+    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    fn compile_fconst(&mut self, word_index: usize) {
+        self.compile_word(word_index);
+    }
+
+    // -------------------------------
+    // Primitive-centric threaded code
+    // -------------------------------
+
+    /// Evaluate a compiled program following self.state().instruction_pointer.
+    /// Any exception causes termination of inner loop.
+    #[inline(never)]
+    #[cfg(feature = "primitive-centric")]
+    fn run(&mut self) {
+        let mut ip = self.state().instruction_pointer;
+        while 0 < ip && ip < self.data_space().len() {
+            let w: primitive!{fn(&mut Self)} = unsafe{ mem::transmute(self.data_space().get_i32(ip)) };
+            self.state().instruction_pointer += mem::size_of::<i32>();
+            w(self);
+            ip = self.state().instruction_pointer;
         }
     }
 
-    // ---------
-    // Compiler
-    // ---------
-
+    #[cfg(feature = "primitive-centric")]
     fn compile_word(&mut self, word_index: usize) {
-        self.data_space().compile_i32(word_index as i32);
+        let w = self.wordlist()[word_index].action as u32;
+        self.data_space().compile_u32(w);
     }
 
+    #[cfg(feature = "primitive-centric")]
+    primitive!{fn nest_next(&mut self) {
+        let mut ip = self.state().instruction_pointer;
+        let dfa = self.data_space().get_u32(ip) as usize;
+        ip += mem::size_of::<i32>();
+        let rlen = self.r_stack().len.wrapping_add(1);
+        self.r_stack().len = rlen;
+        self.r_stack()[rlen.wrapping_sub(1)] = ip as isize;
+        self.state().instruction_pointer = dfa;
+    }}
+
+    #[cfg(feature = "primitive-centric")]
+    fn compile_nest(&mut self, word_index: usize) {
+        self.data_space().compile_u32(Self::nest_next as u32);
+        let dfa = self.wordlist()[word_index].dfa();
+        self.data_space().compile_u32(dfa as u32);
+    }
+
+    #[cfg(feature = "primitive-centric")]
+    fn compile_nest_code(&mut self, _: usize) {
+        // Do nothing.
+    }
+
+    #[cfg(feature = "primitive-centric")]
+    primitive!{fn p_var_next(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let dfa = self.data_space().get_u32(ip) as isize;
+        self.state().instruction_pointer = ip + mem::size_of::<i32>();
+        self.s_stack().push(dfa);
+    }}
+
+    #[cfg(feature = "primitive-centric")]
+    fn compile_var(&mut self, word_index: usize) {
+        self.data_space().compile_u32(Self::p_var_next as u32);
+        let dfa = self.wordlist()[word_index].dfa();
+        self.data_space().compile_u32(dfa as u32);
+    }
+
+    #[cfg(feature = "primitive-centric")]
+    primitive!{fn p_const_next(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let value = self.data_space().get_i32(ip) as isize;
+        self.state().instruction_pointer = ip + mem::size_of::<i32>();
+        self.s_stack().push(value);
+    }}
+
+    #[cfg(feature = "primitive-centric")]
+    fn compile_const(&mut self, word_index: usize) {
+        self.data_space().compile_u32(Self::p_const_next as u32);
+        let dfa = self.wordlist()[word_index].dfa();
+        let value = self.data_space().get_i32(dfa);
+        self.data_space().compile_i32(value);
+    }
+
+    #[cfg(feature = "primitive-centric")]
+    primitive!{fn unmark_next(&mut self) {
+        let ip = self.state().instruction_pointer;
+        self.state().instruction_pointer = ip + mem::size_of::<u32>();
+        let wp = self.data_space().get_u32(ip) as usize;
+        let dfa;
+        let cfa;
+        let symbol;
+        {
+            let w = &self.wordlist()[wp];
+            dfa = w.dfa();
+            cfa = w.cfa();
+            symbol = w.symbol();
+        }
+        self.data_space().truncate(dfa);
+        self.code_space().truncate(cfa);
+        self.wordlist_mut().truncate(wp);
+        self.symbols_mut().truncate(symbol.id);
+    }}
+
+    #[cfg(feature = "primitive-centric")]
+    fn compile_unmark(&mut self, word_index: usize) {
+        self.data_space().compile_u32(Self::unmark_next as u32);
+        self.data_space().compile_u32(word_index as u32);
+    }
+
+    #[cfg(feature = "primitive-centric")]
+    primitive!{fn p_fconst_next(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let value = self.data_space().get_f64(ip);
+        self.state().instruction_pointer = ip + mem::size_of::<f64>();
+        self.f_stack().push(value);
+    }}
+
+    #[cfg(feature = "primitive-centric")]
+    fn compile_fconst(&mut self, word_index: usize) {
+        self.data_space().compile_u32(Self::p_fconst_next as u32);
+        let dfa = self.wordlist()[word_index].dfa();
+        let value = self.data_space().get_f64(dfa);
+        self.data_space().compile_f64(value);
+    }
+
+    // --------------------------------------------------
+    // Token threaded and primitive-centric threaded code
+    // --------------------------------------------------
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn lit(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let v = self.data_space().get_i32(ip) as isize;
+        let slen = self.s_stack().len.wrapping_add(1);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = v;
+        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>();
+    }}
+
     /// Compile integer `i`.
+    #[cfg(not(feature = "subroutine-threaded"))]
     fn compile_integer(&mut self, i: isize) {
-        let idx = self.references().idx_lit as i32;
-        self.data_space().compile_i32(idx);
+        let idx = self.references().idx_lit;
+        self.compile_word(idx);
         self.data_space().compile_i32(i as i32);
+    }
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn flit(&mut self) {
+        let ip = self.state().instruction_pointer as usize;
+        let v = self.data_space().get_f64(ip);
+        let flen = self.f_stack().len.wrapping_add(1);
+        self.f_stack().len = flen;
+        self.f_stack()[flen.wrapping_sub(1)] = v;
+        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<f64>();
+    }}
+
+    /// Compile float 'f'.
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn compile_float(&mut self, f: f64) {
+        let idx_flit = self.references().idx_flit;
+        self.compile_word(idx_flit);
+        self.data_space().compile_f64(f);
+    }
+
+    /// Runtime of S"
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn p_s_quote(&mut self) {
+        let ip = self.state().instruction_pointer;
+        let cnt = self.data_space().get_i32(ip);
+        let addr = self.state().instruction_pointer + mem::size_of::<i32>();
+        let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
+        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
+        self.state().instruction_pointer =
+            self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn patch_compilation_semanticses(&mut self) {
+        let idx_leave = self.find("leave").expect("leave");
+        self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
+    }
+
+    // -------------------------------
+    // Subroutine threaded code
+    // -------------------------------
+
+    /// Evaluate a compiled program following self.state().instruction_pointer.
+    /// Any exception causes termination of inner loop.
+    #[inline(never)]
+    #[cfg(feature = "subroutine-threaded")]
+    fn run(&mut self) {
+        // Do nothing.
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_word(&mut self, word_index: usize) {
+        // 89 f1            mov    %esi,%ecx
+        // e8 xx xx xx xx   call   self.wordlist()[word_index].action
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        let w = self.wordlist()[word_index].action as usize;
+        self.code_space().compile_relative(w);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_nest(&mut self, word_index: usize) {
+        self.compile_word(word_index);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_nest_code(&mut self, word_index: usize) {
+        self.wordlist_mut()[word_index].action = unsafe{ mem::transmute(self.code_space().here()) };
+        // ; make a copy of vm in %esi because %ecx may be destropyed by subroutine call.
+        // 56               push   %esi
+        // 89 ce            mov    %ecx,%esi
+        // 83 ec 08         sub    $8,%esp
+        self.code_space().compile_u8(0x56);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xce);
+        self.code_space().compile_u8(0x83);
+        self.code_space().compile_u8(0xec);
+        self.code_space().compile_u8(0x08);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_exit(&mut self, _: usize) {
+        // 83 c4 08         add    $8,%esp
+        // 5e               pop    %esi
+        // c3               ret
+        self.code_space().compile_u8(0x83);
+        self.code_space().compile_u8(0xc4);
+        self.code_space().compile_u8(0x08);
+        self.code_space().compile_u8(0x5e);
+        self.code_space().compile_u8(0xc3);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_var(&mut self, word_index: usize) {
+        let dfa = self.wordlist()[word_index].dfa();
+        self.compile_integer(dfa as isize);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_const(&mut self, word_index: usize) {
+        let dfa = self.wordlist()[word_index].dfa();
+        let value = self.data_space().get_i32(dfa) as isize;
+        self.compile_integer(value);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_unmark(&mut self, _: usize) {
+        // Do nothing.
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_fconst(&mut self, word_index: usize) {
+        // self.compile_word(word_index);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn lit(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn lit_integer(&mut self, i: isize) {
+        let slen = self.s_stack().len.wrapping_add(1);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = i;
+    }}
+
+    /// Compile integer `i`.
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_integer(&mut self, i: isize) {
+        // ba nn nn nn nn   mov    $0xnnnn,%edx
+        // 89 f1            mov    %esi,%ecx
+        // e8 xx xx xx xx   call   lit_integer
+        self.code_space().compile_u8(0xba);
+        self.code_space().compile_i32(i as i32);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::lit_integer as usize);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn flit(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn lit_float(&mut self, f: f64) {
+        let flen = self.f_stack().len.wrapping_add(1);
+        self.f_stack().len = flen;
+        self.f_stack()[flen.wrapping_sub(1)] = f;
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_float(&mut self, f: f64) {
+        // ba nn nn nn nn   mov    <addr of f>, %edx
+        // 83 ec 08         sub    $0x08,%esp
+        // f2 0f 10 02      movsd  (%edx), %xmm0
+        // 89 f1            mov    %esi, %ecx
+        // f2 0f 11 04 24   movsd  %xmm0,(%esp)
+        // e8 xx xx xx xx   call   lit_float
+        self.data_space().align_f64();
+        let data_addr = self.data_space().here();
+        self.data_space().compile_f64(f);
+        self.code_space().compile_u8(0xba);
+        self.code_space().compile_u32(data_addr as u32);
+        self.code_space().compile_u8(0x83);
+        self.code_space().compile_u8(0xec);
+        self.code_space().compile_u8(0x08);
+        self.code_space().compile_u8(0xf2);
+        self.code_space().compile_u8(0x0f);
+        self.code_space().compile_u8(0x10);
+        self.code_space().compile_u8(0x02);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xf2);
+        self.code_space().compile_u8(0x0f);
+        self.code_space().compile_u8(0x11);
+        self.code_space().compile_u8(0x04);
+        self.code_space().compile_u8(0x24);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::lit_float as usize);
+    }
+
+    /// Runtime of S"
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn p_s_quote(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn lit_counted_string(&mut self, idx: usize) {
+        let cnt = self.data_space().get_i32(idx);
+        let addr = idx + mem::size_of::<i32>();
+        // FIXME
+        // 加下一行會造成 cargo test test_s_quote_and_type --features="subroutine-threaded"
+        // 時 invalid memory reference 。但如果列印的方式改為 {} 就 ok。
+        // 懷疑是 compile_s_quote 設計有問題。或是 println 改變了 calling convension。
+        // 但奇怪的是，無法用 objdump -d 找到 compile_s_quote 以及 lit_counted_string，以致於無法
+        // 理解。
+        // println!("lit_counted_string: addr: {:x}!", addr);
+        let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
+        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_s_quote(&mut self, _: usize) {
+        // ba nn nn nn nn   mov    <index of counted string>, %edx
+        // 89 f1            mov    %esi, %ecx
+        // e8 xx xx xx xx   call   lit_counted_string
+        let data_idx = self.data_space().len();
+        self.code_space().compile_u8(0xba);
+        self.code_space().compile_u32(data_idx as u32);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::lit_counted_string as usize);
+    }
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn patch_compilation_semanticses(&mut self) {
+        let idx_exit = self.find("exit").expect("exit");
+        self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_exit;
+        let idx_s_quote = self.find("_s\"").expect("_s\"");
+        self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_s_quote;
+        let idx_leave = self.find("leave").expect("leave");
+        self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
+        let idx_reset = self.find("reset").expect("reset");
+        self.wordlist_mut()[idx_reset].compilation_semantics = Self::compile_reset;
     }
 
     // -----------
     // Evaluation
     // -----------
 
-    fn interpret(&mut self) {
+    primitive!{fn left_bracket(&mut self) {
         self.state().is_compiling = false;
-    }
+    }}
 
-    fn compile(&mut self) {
+    primitive!{fn right_bracket(&mut self) {
         self.state().is_compiling = true;
-    }
+    }}
 
     /// copy content of `s` to `input_buffer` and set `source_index` to 0.
     fn set_source(&mut self, s: &str) {
-        let mut buffer = self.input_buffer().take().unwrap();
+        let mut buffer = self.input_buffer().take().expect("input buffer");
         buffer.clear();
         buffer.push_str(s);
         self.state().source_index = 0;
@@ -632,51 +1049,49 @@ pub trait Core: Sized {
     /// Run-time: ( "ccc" -- )
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
-    fn parse_word(&mut self) {
-        let mut last_token = self.last_token().take().unwrap();
+    primitive!{fn parse_word(&mut self) {
+        let mut last_token = self.last_token().take().expect("token");
         last_token.clear();
-        let input_buffer = self.input_buffer().take().unwrap();
-        if self.state().source_index < input_buffer.len() {
-            let source = &input_buffer[self.state().source_index..input_buffer.len()];
-            let mut cnt = 0;
-            for ch in source.chars() {
-                cnt = cnt + 1;
-                match ch {
-                    '\t' | '\n' | '\r' | ' ' => {
-                        if !last_token.is_empty() {
-                            break;
+        if let Some(input_buffer) = self.input_buffer().take() {
+            if self.state().source_index < input_buffer.len() {
+                let source = &input_buffer[self.state().source_index..input_buffer.len()];
+                let mut cnt = 0;
+                for ch in source.chars() {
+                    cnt = cnt + 1;
+                    match ch {
+                        '\t' | '\n' | '\r' | ' ' => {
+                            if !last_token.is_empty() {
+                                break;
+                            }
                         }
-                    }
-                    _ => last_token.push(ch),
-                };
+                        _ => last_token.push(ch),
+                    };
+                }
+                self.state().source_index = self.state().source_index + cnt;
             }
-            self.state().source_index = self.state().source_index + cnt;
+            self.set_input_buffer(input_buffer);
         }
         self.set_last_token(last_token);
-        self.set_input_buffer(input_buffer);
-    }
+    }}
 
     /// Run-time: ( "&lt;spaces&gt;name" -- char)
     ///
     /// Skip leading space delimiters. Parse name delimited by a space.
     /// Put the value of its first character onto the stack.
-    fn char(&mut self) {
+    primitive!{fn char(&mut self) {
         self.parse_word();
-        if self.last_error().is_some() {
-            return;
-        }
-        let last_token = self.last_token().take().unwrap();
+        let last_token = self.last_token().take().expect("token");
         match last_token.chars().nth(0) {
             Some(c) => {
-                match self.s_stack().push(c as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
+                self.set_last_token(last_token);
+                self.s_stack().push(c as isize);
             }
-            None => self.set_error(Some(UnexpectedEndOfFile)),
+            None => {
+                self.set_last_token(last_token);
+                self.abort_with(UnexpectedEndOfFile);
+            }
         }
-        self.set_last_token(last_token);
-    }
+    }}
 
     /// Compilation: ( "&lt;spaces&gt;name" -- )
     ///
@@ -686,163 +1101,186 @@ pub trait Core: Sized {
     /// Run-time: ( -- char )
     ///
     /// Place `char`, the value of the first character of name, on the stack.
-    fn bracket_char(&mut self) {
+    primitive!{fn bracket_char(&mut self) {
         self.char();
         if self.last_error().is_some() {
             return;
         }
-        match self.s_stack().pop() {
-            Ok(ch) => {
-                self.compile_integer(ch);
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+        let ch = self.s_stack().pop();
+        self.compile_integer(ch);
+    }}
 
     /// Run-time: ( char "ccc&lt;char&gt;" -- )
     ///
     /// Parse ccc delimited by the delimiter char.
-    fn parse(&mut self) {
-        let input_buffer = self.input_buffer().take().unwrap();
-        match self.s_stack().pop() {
-            Ok(v) => {
-                let mut last_token = self.last_token().take().unwrap();
-                last_token.clear();
-                {
-                    let source = &input_buffer[self.state().source_index..input_buffer.len()];
-                    let mut cnt = 0;
-                    for ch in source.chars() {
-                        cnt = cnt + 1;
-                        if ch as isize == v {
-                            break;
-                        } else {
-                            last_token.push(ch);
-                        }
-                    }
-                    self.state().source_index = self.state().source_index + cnt;
+    primitive!{fn parse(&mut self) {
+        let input_buffer = self.input_buffer().take().expect("input buffer");
+        let v = self.s_stack().pop();
+        let mut last_token = self.last_token().take().expect("token");
+        last_token.clear();
+        {
+            let source = &input_buffer[self.state().source_index..input_buffer.len()];
+            let mut cnt = 0;
+            for ch in source.chars() {
+                cnt = cnt + 1;
+                if ch as isize == v {
+                    break;
+                } else {
+                    last_token.push(ch);
                 }
-                self.set_last_token(last_token);
-                self.set_input_buffer(input_buffer);
             }
-            Err(_) => {
-                self.set_input_buffer(input_buffer);
-                self.set_error(Some(StackUnderflow));
-            }
+            self.state().source_index = self.state().source_index + cnt;
         }
-    }
+        self.set_last_token(last_token);
+        self.set_input_buffer(input_buffer);
+    }}
 
-    fn imm_paren(&mut self) {
-        match self.s_stack().push(')' as isize) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => { self.parse(); }
-        }
-    }
+    primitive!{fn imm_paren(&mut self) {
+        self.s_stack().push(')' as isize);
+        self.parse();
+    }}
 
-    fn imm_backslash(&mut self) {
+    primitive!{fn imm_backslash(&mut self) {
         self.state().source_index = match *self.input_buffer() {
             Some(ref buf) => buf.len(),
             None => 0,
         };
-    }
+    }}
 
-    fn evaluate(&mut self) {
-        let mut last_token;
-        let mut limit = self.evaluation_limit();
-        loop {
-            self.parse_word();
-            if self.last_error().is_some() {
-                return;
-            }
-            last_token = self.last_token().take().unwrap();
-            if last_token.is_empty() {
-                break;
-            }
-            match self.find(&last_token) {
-                Some(found_index) => {
-                    let is_immediate_word;
-                    let is_compile_only_word;
-                    {
-                        let word = &self.wordlist()[found_index];
-                        is_immediate_word = word.is_immediate();
-                        is_compile_only_word = word.is_compile_only();
-                    }
-                    if self.state().is_compiling && !is_immediate_word {
-                        self.compile_word(found_index);
-                    } else if !self.state().is_compiling && is_compile_only_word {
-                        self.set_error(Some(InterpretingACompileOnlyWord));
-                        break;
-                    } else {
-                        self.set_last_token(last_token);
-                        self.execute_word(found_index);
-                        match self.last_error() {
-                            Some(e) => {
-                                last_token = self.last_token().take().unwrap();
-                                match e {
-                                    Nest => {
-                                        self.set_error(None);
-                                        self.run();
-                                        if let Some(e2) = self.last_error() {
-                                            match e2 {
-                                                Quit => {}
-                                                _ => {
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                    Quit => {}
-                                    _ => {
-                                        self.set_error(Some(e));
-                                        break;
-                                    }
-                                }
-                            }
-                            None => {
-                                last_token = self.last_token().take().unwrap();
-                            }
-                        };
-                    }
+    primitive!{fn compile_token(&mut self) {
+        let last_token = self.last_token().take().expect("token");
+        match self.find(&last_token) {
+            Some(found_index) => {
+                self.set_last_token(last_token);
+                let compilation_semantics = self.wordlist()[found_index].compilation_semantics;
+                if !self.wordlist()[found_index].is_immediate() {
+                    compilation_semantics(self, found_index);
+                } else {
+                    self.execute_word(found_index);
                 }
-                None => {
-                    let mut done = false;
-                    let evaluators = self.evaluators().take().unwrap();
-                    for h in &evaluators {
+            }
+            None => {
+                let mut done = false;
+                self.set_error(None);
+                self.evaluate_integer(&last_token);
+                match self.last_error() {
+                    None => done = true,
+                    Some(_) => {
                         self.set_error(None);
-                        h(self, &last_token);
-                        match self.last_error() {
-                            None => {
-                                done = true;
-                                break;
-                            }
-                            Some(_) => continue,
+                        self.evaluate_float(&last_token);
+                        if self.last_error().is_none() {
+                            done = true;
                         }
                     }
-                    self.set_evaluators(evaluators);
-                    if !done {
-                        print!("{} ", &last_token);
-                        self.set_error(Some(UndefinedWord));
-                        break;
+                }
+                if done {
+                    self.set_last_token(last_token);
+                } else {
+                    match self.output_buffer().as_mut() {
+                        Some(buf) => {
+                            write!(buf, "{} ", &last_token).expect("write");
+                        }
+                        None => {}
                     }
+                    self.set_last_token(last_token);
+                    self.abort_with(UndefinedWord);
                 }
             }
-            if limit > 0 {
-                limit = limit - 1;
-                if limit == 0 {
+        }
+    }}
+
+    primitive!{fn interpret_token(&mut self) {
+        let last_token = self.last_token().take().expect("last token");
+        match self.find(&last_token) {
+            Some(found_index) => {
+                self.set_last_token(last_token);
+                if self.wordlist()[found_index].is_compile_only() {
+                    self.abort_with(InterpretingACompileOnlyWord);
+                } else {
+                    self.execute_word(found_index);
+                }
+            }
+            None => {
+                let mut done = false;
+                self.set_error(None);
+                self.evaluate_integer(&last_token);
+                match self.last_error() {
+                    None => done = true,
+                    Some(_) => {
+                        self.set_error(None);
+                        self.evaluate_float(&last_token);
+                        if self.last_error().is_none() {
+                            done = true;
+                        }
+                    }
+                }
+                if done {
+                    self.set_last_token(last_token);
+                } else {
+                    match self.output_buffer().as_mut() {
+                        Some(buf) => {
+                            write!(buf, "{} ", &last_token).expect("write");
+                        }
+                        None => {}
+                    }
+                    self.set_last_token(last_token);
+                    self.abort_with(UndefinedWord);
+                }
+            }
+        }
+    }}
+
+    primitive!{fn p_compiling(&mut self) {
+        let value = if self.state().is_compiling {
+            TRUE
+        } else {
+            FALSE
+        };
+        self.s_stack().push(value);
+    }}
+
+    primitive!{fn p_token_empty(&mut self) {
+        let value = match self.last_token().as_ref() {
+            Some(ref t) => if t.is_empty() { TRUE } else { FALSE },
+            None => TRUE,
+        };
+        self.s_stack().push(value);
+    }}
+
+    primitive!{fn evaluate(&mut self) {
+        loop {
+            self.parse_word();
+            match self.last_token().as_ref() {
+                Some(t) => {
+                    if t.is_empty() {
+                        return;
+                    }
+                }
+                None => {}
+            }
+            if self.state().is_compiling {
+                self.compile_token();
+                if self.last_error().is_some() {
+                    break;
+                }
+            } else {
+                self.interpret_token();
+                if self.last_error().is_some() {
                     break;
                 }
             }
-            self.set_last_token(last_token);
+            self.run();
+            self.check_stacks();
+            if self.last_error().is_some() {
+                break;
+            }
         }
-        self.set_last_token(last_token);
-    }
+    }}
 
-    fn base(&mut self) {
+    primitive!{fn base(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
-        match self.s_stack().push(base_addr as isize) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
-    }
+        self.s_stack().push(base_addr as isize);
+    }}
 
     fn evaluate_integer(&mut self, token: &str) {
         let base_addr = self.data_space().system_variables().base_addr();
@@ -859,18 +1297,21 @@ pub trait Core: Sized {
         }
     }
 
-    /// Extend `f` to evaluators.
-    /// Will create a vector for evaluators if there was no evaluator.
-    fn extend_evaluator(&mut self, f: fn(&mut Self, token: &str)) {
-        let optional_evaluators = self.evaluators().take();
-        match optional_evaluators {
-            Some(mut evaluators) => {
-                evaluators.push(f);
-                self.set_evaluators(evaluators);
+    /// Evaluate float.
+    fn evaluate_float(&mut self, token: &str) {
+        match FromStr::from_str(token) {
+            Ok(t) => {
+                if self.references().idx_flit == 0 {
+                    self.set_error(Some(UnsupportedOperation));
+                } else {
+                    if self.state().is_compiling {
+                        self.compile_float(t);
+                    } else {
+                        self.f_stack().push(t);
+                    }
+                }
             }
-            None => {
-                self.set_evaluators(vec![f]);
-            }
+            Err(_) => self.set_error(Some(UnsupportedOperation)),
         }
     }
 
@@ -878,62 +1319,46 @@ pub trait Core: Sized {
     // High level definitions
     // -----------------------
 
-    fn nest(&mut self) {
-        if self.r_stack().is_full() {
-            self.set_error(Some(ReturnStackOverflow));
-        } else {
-            unsafe {
-                ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize),
-                           self.state().instruction_pointer as isize);
-            }
-            self.r_stack().len += 1;
-            let wp = self.state().word_pointer;
-            self.state().instruction_pointer = self.wordlist()[wp].dfa();
-            self.set_error(Some(Nest));
-        }
-    }
+    primitive!{fn nest(&mut self) {
+        let rlen = self.r_stack().len.wrapping_add(1);
+        self.r_stack().len = rlen;
+        self.r_stack()[rlen.wrapping_sub(1)] = self.state().instruction_pointer as isize;
+        let wp = self.state().word_pointer;
+        self.state().instruction_pointer = self.wordlist()[wp].dfa();
+    }}
 
-    fn p_var(&mut self) {
+    primitive!{fn p_var(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa() as isize;
-        match self.s_stack().push(dfa) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
-    }
+        self.s_stack().push(dfa);
+    }}
 
-    fn p_const(&mut self) {
+    primitive!{fn p_const(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
         let value = self.data_space().get_i32(dfa) as isize;
-        match self.s_stack().push(value) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
-    }
+        self.s_stack().push(value);
+    }}
 
-    fn p_fvar(&mut self) {
-        let wp = self.state().word_pointer;
-        let dfa = self.wordlist()[wp].dfa() as isize;
-        match self.s_stack().push(dfa) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
-    }
-
-    fn define(&mut self, action: fn(&mut Self)) {
+    fn define(&mut self, action: primitive!{fn(&mut Self)}, compilation_semantics: fn(&mut Self, usize)) {
         self.parse_word();
-        let last_token = self.last_token().take().unwrap();
+        let mut last_token = self.last_token().take().expect("last token");
+        last_token.make_ascii_lowercase();
         if let Some(_) = self.find(&last_token) {
-            print!("Redefining {}", last_token);
+            match self.output_buffer().as_mut() {
+                Some(buf) => {
+                    write!(buf, "Redefining {}", last_token).expect("write");
+                }
+                None => {}
+            }
         }
         if last_token.is_empty() {
             self.set_last_definition(0);
             self.set_last_token(last_token);
-            self.set_error(Some(UnexpectedEndOfFile));
+            self.abort_with(UnexpectedEndOfFile);
         } else {
             let symbol = self.new_symbol(&last_token);
-            let word = Word::new(symbol, action, self.data_space().len());
+            let word = Word::new(symbol, action, compilation_semantics, self.data_space().len(), self.code_space().here());
             let len = self.wordlist().len();
             self.set_last_definition(len);
             self.wordlist_mut().push(word);
@@ -941,93 +1366,127 @@ pub trait Core: Sized {
         }
     }
 
-    fn colon(&mut self) {
-        self.define(Core::nest);
+    primitive!{fn colon(&mut self) {
+        self.define(Core::nest, Core::compile_nest);
         if self.last_error().is_none() {
             let def = self.last_definition();
+            self.compile_nest_code(def);
             self.wordlist_mut()[def].set_hidden(true);
-            let depth = self.s_stack().len;
-            self.set_structure_depth(depth);
-            self.compile();
+            self.right_bracket();
         }
-    }
+    }}
 
-    fn semicolon(&mut self) {
+    primitive!{fn semicolon(&mut self) {
         if self.last_definition() != 0 {
-            let depth = self.s_stack().len;
-            if depth != self.structure_depth() {
-                self.set_error(Some(ControlStructureMismatch));
+            if self.c_stack().len != 0 {
+                self.abort_with(ControlStructureMismatch);
             } else {
-                let idx = self.references().idx_exit as i32;
-                self.data_space().compile_i32(idx);
+                let idx = self.references().idx_exit;
+                let compile = self.wordlist()[idx].compilation_semantics;
+                compile(self, idx);
                 let def = self.last_definition();
                 self.wordlist_mut()[def].set_hidden(false);
             }
         }
-        self.interpret();
-    }
+        self.left_bracket();
+    }}
 
-    fn create(&mut self) {
-        self.define(Core::p_var);
-    }
+    primitive!{fn create(&mut self) {
+        self.define(Core::p_var, Core::compile_var);
+    }}
 
-    fn variable(&mut self) {
-        self.define(Core::p_var);
+    primitive!{fn variable(&mut self) {
+        self.define(Core::p_var, Core::compile_var);
         if self.last_error().is_none() {
             self.data_space().compile_i32(0);
         }
-    }
+    }}
 
-    fn constant(&mut self) {
-        match self.s_stack().pop() {
-            Ok(v) => {
-                self.define(Core::p_const);
-                if self.last_error().is_none() {
-                    self.data_space().compile_i32(v as i32);
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
+    primitive!{fn constant(&mut self) {
+        let v = self.s_stack().pop();
+        self.define(Core::p_const, Core::compile_const);
+        if self.last_error().is_none() {
+            self.data_space().compile_i32(v as i32);
         }
-    }
+    }}
 
-    fn unmark(&mut self) {
+    primitive!{fn unmark(&mut self) {
         let wp = self.state().word_pointer;
         let dfa;
+        let cfa;
         let symbol;
         {
             let w = &self.wordlist()[wp];
             dfa = w.dfa();
+            cfa = w.cfa();
             symbol = w.symbol();
         }
         self.data_space().truncate(dfa);
+        self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
         self.symbols_mut().truncate(symbol.id);
-    }
+    }}
 
-    fn marker(&mut self) {
-        self.define(Core::unmark);
-    }
+    primitive!{fn marker(&mut self) {
+        self.define(Core::unmark, Core::compile_unmark);
+    }}
 
     // --------
     // Control
     // --------)
 
-    fn branch(&mut self) {
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = self.data_space().get_i32(ip) as usize;
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn branch(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_branch(&mut self, destination: usize) -> usize {
+        // e9 xx xx xx xx      jmp xxxx
+        let here = self.code_space().here();
+        self.code_space().compile_u8(0xe9);
+        self.code_space().compile_relative(destination);
+        here
     }
 
-    fn zero_branch(&mut self) {
-        match self.s_stack().pop() {
-            Ok(v) => {
-                if v == 0 {
-                    self.branch();
-                } else {
-                    self.state().instruction_pointer += mem::size_of::<i32>();
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn zero_branch(&mut self) {
+        let v = self.s_stack().pop();
+        if v == 0 {
+            self.branch();
+        } else {
+            self.state().instruction_pointer += mem::size_of::<i32>();
         }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn zero_branch(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_zero_branch(&mut self, destination: usize) -> usize {
+        // 89 f1                mov    %esi,%ecx
+        // e8 xx xx xx xx       call   pop_stack ; pop value into %eax.
+        // 85 c0                test   %eax,%eax
+        // 0f 84 yy yy yy yy    je     yyyy
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::pop_s_stack as usize);
+        self.code_space().compile_u8(0x85);
+        self.code_space().compile_u8(0xc0);
+        let here = self.code_space().here();
+        self.code_space().compile_u8(0x0f);
+        self.code_space().compile_u8(0x84);
+        self.code_space().compile_relative(destination);
+        here
     }
 
     /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
@@ -1036,16 +1495,23 @@ pub trait Core: Sized {
     /// ambiguous condition exists if `n1`|`u1` and `n2`|`u2` are not both the same
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded.
-    fn _do(&mut self) {
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
-        match self.r_stack().push(ip) {
-            Err(_) => self.set_error(Some(ReturnStackOverflow)),
-            Ok(()) => {
-                self.state().instruction_pointer += mem::size_of::<i32>();
-                self.two_to_r();
-            }
-        }
-    }
+        self.r_stack().push(ip);
+        self.state().instruction_pointer += mem::size_of::<i32>();
+        self.two_to_r();
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _do(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _stc_do(&mut self) {
+        self.two_to_r();
+    }}
 
     /// Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
     ///
@@ -1054,27 +1520,33 @@ pub trait Core: Sized {
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
-    fn p_loop(&mut self) {
-        match self.r_stack().pop2() {
-            Ok((rn, rt)) => {
-                if rt + 1 < rn {
-                    if let Err(e) = self.r_stack().push2(rn, rt + 1) {
-                        self.set_error(Some(e));
-                        return;
-                    }
-                    self.branch();
-                } else {
-                    match self.r_stack().pop() {
-                        Ok(_) => {
-                            self.state().instruction_pointer += mem::size_of::<i32>();
-                        }
-                        Err(_) => self.set_error(Some(ReturnStackUnderflow)),
-                    }
-                }
-            }
-            Err(_) => self.set_error(Some(ReturnStackUnderflow)),
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn _loop(&mut self) {
+        let (rn, rt) = self.r_stack().pop2();
+        if rt + 1 < rn {
+            self.r_stack().push2(rn, rt + 1);
+            self.branch();
+        } else {
+            let _ = self.r_stack().pop();
+            self.state().instruction_pointer += mem::size_of::<i32>();
         }
-    }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _loop(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _stc_loop(&mut self) -> isize {
+        let (rn, rt) = self.r_stack().pop2();
+        if rt + 1 < rn {
+            self.r_stack().push2(rn, rt + 1);
+            0
+        } else {
+            -1
+        }
+    }}
 
     /// Run-time: ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
     ///
@@ -1084,32 +1556,35 @@ pub trait Core: Sized {
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
     /// following the loop.
-    fn p_plus_loop(&mut self) {
-        match self.r_stack().pop2() {
-            Ok((rn, rt)) => {
-                match self.s_stack().pop() {
-                    Ok(t) => {
-                        if rt + t < rn {
-                            if let Err(e) = self.r_stack().push2(rn, rt + t) {
-                                self.set_error(Some(e));
-                                return;
-                            }
-                            self.branch();
-                        } else {
-                            match self.r_stack().pop() {
-                                Ok(_) => {
-                                    self.state().instruction_pointer += mem::size_of::<i32>();
-                                }
-                                Err(_) => self.set_error(Some(ReturnStackUnderflow)),
-                            }
-                        }
-                    }
-                    Err(_) => self.set_error(Some(StackUnderflow)),
-                }
-            }
-            Err(_) => self.set_error(Some(ReturnStackUnderflow)),
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn _plus_loop(&mut self) {
+        let (rn, rt) = self.r_stack().pop2();
+        let t = self.s_stack().pop();
+        if rt + t < rn {
+            self.r_stack().push2(rn, rt + t);
+            self.branch();
+        } else {
+            let _ = self.r_stack().pop();
+            self.state().instruction_pointer += mem::size_of::<i32>();
         }
-    }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _plus_loop(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn _stc_plus_loop(&mut self) -> isize {
+        let (rn, rt) = self.r_stack().pop2();
+        let t = self.s_stack().pop();
+        if rt + t < rn {
+            self.r_stack().push2(rn, rt + t);
+            0
+        } else {
+            -1
+        }
+    }}
 
     /// Run-time: ( -- ) ( R: loop-sys -- )
     ///
@@ -1117,132 +1592,358 @@ pub trait Core: Sized {
     /// `UNLOOP` is required for each nesting level before the definition may be
     /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
-    fn unloop(&mut self) {
-        match self.r_stack().pop3() {
-            Ok(_) => {}
-            Err(_) => self.set_error(Some(ReturnStackUnderflow)),
-        }
-    }
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn unloop(&mut self) {
+        let _ = self.r_stack().pop3();
+    }}
 
-    fn leave(&mut self) {
-        match self.r_stack().pop3() {
-            Ok((third, _, _)) => {
-                self.state().instruction_pointer = self.data_space().get_i32(third as usize) as
-                                                   usize;
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn unloop(&mut self) {
+        let _ = self.r_stack().pop2();
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn leave(&mut self) {
+        let (third, _, _) = self.r_stack().pop3();
+        if self.r_stack().underflow() {
+            self.abort_with(ReturnStackUnderflow);
+            return;
+        }
+        self.state().instruction_pointer = self.data_space().get_i32(third as usize) as usize;
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn compile_leave(&mut self, word_idx: usize) {
+        match self.leave_part() {
+            Some(leave_part) => {
+                self.compile_word(word_idx);
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
             }
-            Err(_) => self.set_error(Some(ReturnStackUnderflow)),
-        }
+        };
     }
 
-    fn p_i(&mut self) {
-        match self.r_stack().last() {
-            Some(i) => {
-                match self.s_stack().push(i) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn leave(&mut self) {
+        // Do nothing.
+    }}
+
+    fn leave_part(&mut self) -> Option<usize> {
+        let position = self.c_stack().as_slice().iter().rposition(|&c| {
+            match c {
+                Control::Do(_,_) => true,
+                _ => false
+            }
+        });
+        match position {
+            Some(p) => {
+                match self.c_stack()[p as u8] {
+                    Control::Do(_, leave_part) => Some(leave_part),
+                    _ => None
                 }
-            }
-            None => self.set_error(Some(ReturnStackUnderflow)),
+            },
+            _ => None
         }
     }
 
-    fn p_j(&mut self) {
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_leave(&mut self, _: usize) {
+        let leave_part = match self.leave_part() {
+            Some(leave_part) => leave_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        // 89 f1                mov    %esi,%ecx
+        // e8 xx xx xx xx       call   unloop
+        // b8 yy yy yy yy       mov    leave_part,%eax
+        // ff 20                jmp    *(%eax)
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::unloop as usize);
+        self.code_space().compile_u8(0xb8);
+        self.code_space().compile_u32(leave_part as u32);
+        self.code_space().compile_u8(0xff);
+        self.code_space().compile_u8(0x20);
+    }
+
+    primitive!{fn p_i(&mut self) {
+        match self.r_stack().last() {
+            Some(i) => self.s_stack().push(i),
+            None => self.abort_with(ReturnStackUnderflow),
+        }
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         match self.r_stack().get(pos) {
-            Some(j) => {
-                match self.s_stack().push(j) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
+            Some(j) => self.s_stack().push(j),
+            None => self.abort_with(ReturnStackUnderflow),
+        }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn p_j(&mut self) {
+        let pos = self.r_stack().len() - 3;
+        match self.r_stack().get(pos) {
+            Some(j) => self.s_stack().push(j),
+            None => self.abort_with(ReturnStackUnderflow),
+        }
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_if(&mut self) {
+        let idx = self.references().idx_zero_branch;
+        self.compile_word(idx);
+        self.data_space().compile_i32(0);
+        let here = self.data_space().len();
+        self.c_stack().push(Control::If(here));
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_if(&mut self) {
+        let here = self.compile_zero_branch(0);
+        self.c_stack().push(Control::If(here));
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_else(&mut self) {
+        let if_part = match self.c_stack().pop() {
+            Control::If(if_part) => if_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(0);
+            let here = self.data_space().len();
+            self.c_stack().push(Control::Else(here));
+            self.data_space()
+                .put_i32(here as i32, (if_part - mem::size_of::<i32>()));
+        }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_else(&mut self) {
+        let if_part = match self.c_stack().pop() {
+            Control::If(if_part) => if_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let else_part = self.compile_branch(0);
+            self.c_stack().push(Control::Else(else_part));
+            // if_part: 0f 84 yy yy yy yy    je yyyy 
+            let here = self.code_space().here();
+            unsafe{
+                self.code_space()
+                    .put_i32((here - (if_part + 2 + mem::size_of::<i32>())) as i32, (if_part + 2));
+            }
+        }
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_then(&mut self) {
+        let branch_part = match self.c_stack().pop() {
+            Control::If(branch_part) => branch_part,
+            Control::Else(branch_part) => branch_part, 
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let here = self.data_space().len();
+            self.data_space()
+                .put_i32(here as i32, (branch_part - mem::size_of::<i32>()));
+        }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_then(&mut self) {
+        let branch_part = match self.c_stack().pop() {
+            Control::If(branch_part) => branch_part,
+            Control::Else(branch_part) => branch_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            // branch_part:
+            //      0f 84 yy yy yy yy   je yyyy 
+            // or
+            //      e9 xx xx xx xx      jmp xxxx
+            let here = self.code_space().here();
+            unsafe{
+                let c = self.code_space().get_u8(branch_part);
+                if c == 0x0f {
+                    self.code_space()
+                        .put_i32((here - (branch_part + 2 + mem::size_of::<i32>())) as i32, (branch_part + 2));
+                } else {
+                    self.code_space()
+                        .put_i32((here - (branch_part + 1 + mem::size_of::<i32>())) as i32, (branch_part + 1));
                 }
             }
-            None => self.set_error(Some(ReturnStackUnderflow)),
         }
-    }
+    }}
 
-    fn imm_if(&mut self) {
-        let idx = self.references().idx_zero_branch as i32;
-        self.data_space().compile_i32(idx);
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_begin(&mut self) {
+        let here = self.data_space().len();
+        self.c_stack().push(Control::Begin(here));
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_begin(&mut self) {
+        let here = self.code_space().here();
+        self.c_stack().push(Control::Begin(here));
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_while(&mut self) {
+        let idx = self.references().idx_zero_branch;
+        self.compile_word(idx);
         self.data_space().compile_i32(0);
-        self.here();
-    }
+        let here = self.data_space().len();
+        self.c_stack().push(Control::While(here));
+    }}
 
-    fn imm_else(&mut self) {
-        match self.s_stack().pop() {
-            Ok(if_part) => {
-                let idx = self.references().idx_branch as i32;
-                self.data_space().compile_i32(idx);
-                self.data_space().compile_i32(0);
-                self.here();
-                let here = self.data_space().len();
-                self.data_space().put_i32(here as i32,
-                                          (if_part - mem::size_of::<i32>() as isize) as usize);
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_while(&mut self) {
+        let while_part = self.compile_zero_branch(0);
+        self.c_stack().push(Control::While(while_part));
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_repeat(&mut self) {
+        let (begin_part, while_part) = match self.c_stack().pop2() {
+            (Control::Begin(begin_part), Control::While(while_part)) => {
+                (begin_part, while_part)
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
             }
-            Err(_) => self.set_error(Some(ControlStructureMismatch)),
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(begin_part as i32);
+            let here = self.data_space().len();
+            self.data_space()
+                .put_i32(here as i32, (while_part - mem::size_of::<i32>()));
         }
-    }
+    }}
 
-    fn imm_then(&mut self) {
-        match self.s_stack().pop() {
-            Ok(branch_part) => {
-                let here = self.data_space().len();
-                self.data_space().put_i32(here as i32,
-                                          (branch_part - mem::size_of::<i32>() as isize) as usize);
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_repeat(&mut self) {
+        let (begin_part, while_part) = match self.c_stack().pop2() {
+            (Control::Begin(begin_part), Control::While(while_part)) => (begin_part, while_part),
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
             }
-            Err(_) => self.set_error(Some(ControlStructureMismatch)),
-        }
-    }
-
-    fn imm_begin(&mut self) {
-        self.here();
-    }
-
-    fn imm_while(&mut self) {
-        let idx = self.references().idx_zero_branch as i32;
-        self.data_space().compile_i32(idx);
-        self.data_space().compile_i32(0);
-        self.here();
-    }
-
-    fn imm_repeat(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((begin_part, while_part)) => {
-                let idx = self.references().idx_branch as i32;
-                self.data_space().compile_i32(idx);
-                self.data_space().compile_i32(begin_part as i32);
-                let here = self.data_space().len();
-                self.data_space().put_i32(here as i32,
-                                          (while_part - mem::size_of::<i32>() as isize) as usize);
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let _ = self.compile_branch(begin_part);
+            // while_part: 0f 84 yy yy yy yy    je yyyy 
+            let here = self.code_space().here();
+            unsafe{
+                self.code_space()
+                    .put_i32((here - (while_part + 2 + mem::size_of::<i32>())) as i32, (while_part + 2));
             }
-            Err(_) => self.set_error(Some(ControlStructureMismatch)),
         }
-    }
+    }}
 
-    fn imm_again(&mut self) {
-        match self.s_stack().pop() {
-            Ok(begin_part) => {
-                let idx = self.references().idx_branch as i32;
-                self.data_space().compile_i32(idx);
-                self.data_space().compile_i32(begin_part as i32);
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_again(&mut self) {
+        let begin_part = match self.c_stack().pop() {
+            Control::Begin(begin_part) => begin_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
             }
-            Err(_) => self.set_error(Some(ControlStructureMismatch)),
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(begin_part as i32);
         }
-    }
+    }}
 
-    fn imm_recurse(&mut self) {
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_again(&mut self) {
+        let begin_part = match self.c_stack().pop() {
+            Control::Begin(begin_part) => begin_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let _ = self.compile_branch(begin_part);
+        }
+    }}
+
+    // TODO: subroutine-threaded version
+    primitive!{fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;
-        self.data_space().compile_u32(last as u32);
-    }
+        self.compile_nest(last);
+    }}
 
     /// Execution: ( -- a-ddr )
     ///
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
-    fn imm_do(&mut self) {
-        let idx = self.references().idx_do as i32;
-        self.data_space().compile_i32(idx);
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_do(&mut self) {
+        let idx = self.references().idx_do;
+        self.compile_word(idx);
         self.data_space().compile_i32(0);
-        self.here();
-    }
+        let here = self.data_space().len();
+        self.c_stack().push(Control::Do(here,here));
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_do(&mut self) {
+        // 89 f1                mov    %esi,%ecx
+        // e8 xx xx xx xx       call   _stc_do
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::_stc_do as usize);
+        let here = self.code_space().here();
+        let leave_part = self.data_space().here();
+        self.data_space().compile_u32(0);
+        self.c_stack().push(Control::Do(here, leave_part));
+    }}
 
     /// Run-time: ( a-addr -- )
     ///
@@ -1250,19 +1951,61 @@ pub trait Core: Sized {
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the `LOOP`.
-    fn imm_loop(&mut self) {
-        match self.s_stack().pop() {
-            Ok(do_part) => {
-                let idx = self.references().idx_loop as i32;
-                self.data_space().compile_i32(idx);
-                self.data_space().compile_i32(do_part as i32);
-                let here = self.data_space().len();
-                self.data_space().put_i32(here as i32,
-                                          (do_part - mem::size_of::<i32>() as isize) as usize);
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_loop(&mut self) {
+        let do_part = match self.c_stack().pop() {
+            Control::Do(do_part,_) => do_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
             }
-            Err(_) => self.set_error(Some(ControlStructureMismatch)),
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_loop;
+            self.compile_word(idx);
+            self.data_space().compile_i32(do_part as i32);
+            let here = self.data_space().len();
+            self.data_space()
+                .put_i32(here as i32, (do_part - mem::size_of::<i32>()) as usize);
         }
-    }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_loop(&mut self) {
+        let (do_part, leave_part) = match self.c_stack().pop() {
+            Control::Do(do_part, leave_part) => (do_part, leave_part),
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            //      89 f1                mov    %esi,%ecx
+            //      ba nn nn nn nn       mov    leave_part,%edx
+            //      e8 xx xx xx xx       call    _stc_loop
+            //      85 c0                test   %eax,%eax
+            //      0f 84 yy yy yy yy    je     do_part
+            // leave_part:
+            self.code_space().compile_u8(0x89);
+            self.code_space().compile_u8(0xf1);
+            self.code_space().compile_u8(0xe8);
+            self.code_space().compile_relative(Self::_stc_loop as usize);
+            self.code_space().compile_u8(0x85);
+            self.code_space().compile_u8(0xc0);
+            self.code_space().compile_u8(0x0f);
+            self.code_space().compile_u8(0x84);
+            self.code_space().compile_relative(do_part);
+            // TODO: 目前 data_space() 的 put_u32 和 code_space() 的作法不同。
+            // 未來 data_space() 要改為和 code_space() 作法一樣。雖然 leave_part 在
+            // data space，這兒先使用 code_space() 的作法。
+            let here = self.code_space().here();
+            unsafe{ self.code_space().put_u32(here as u32, leave_part); }
+        }
+    }}
 
     /// Run-time: ( a-addr -- )
     ///
@@ -1270,19 +2013,60 @@ pub trait Core: Sized {
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
-    fn imm_plus_loop(&mut self) {
-        match self.s_stack().pop() {
-            Ok(do_part) => {
-                let idx = self.references().idx_plus_loop as i32;
-                self.data_space().compile_i32(idx);
-                self.data_space().compile_i32(do_part as i32);
-                let here = self.data_space().len();
-                self.data_space().put_i32(here as i32,
-                                          (do_part - mem::size_of::<i32>() as isize) as usize);
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_plus_loop(&mut self) {
+        let do_part = match self.c_stack().pop() {
+            Control::Do(do_part,_) => do_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
             }
-            Err(_) => self.set_error(Some(ControlStructureMismatch)),
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_plus_loop;
+            self.compile_word(idx);
+            self.data_space().compile_i32(do_part as i32);
+            let here = self.data_space().len();
+            self.data_space()
+                .put_i32(here as i32, (do_part - mem::size_of::<i32>()) as usize);
         }
-    }
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    primitive!{fn imm_plus_loop(&mut self) {
+        let (do_part, leave_part) = match self.c_stack().pop() {
+            Control::Do(do_part, leave_part) => (do_part, leave_part),
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            //      89 f1                mov    %esi,%ecx
+            //      e8 xx xx xx xx       call    _stc_plus_loop
+            //      85 c0                test   %eax,%eax
+            //      0f 84 yy yy yy yy    je     do_part
+            // leave_part:
+            self.code_space().compile_u8(0x89);
+            self.code_space().compile_u8(0xf1);
+            self.code_space().compile_u8(0xe8);
+            self.code_space().compile_relative(Self::_stc_plus_loop as usize);
+            self.code_space().compile_u8(0x85);
+            self.code_space().compile_u8(0xc0);
+            self.code_space().compile_u8(0x0f);
+            self.code_space().compile_u8(0x84);
+            self.code_space().compile_relative(do_part);
+            // TODO: 目前 data_space() 的 put_u32 和 code_space() 的作法不同。
+            // 未來 data_space() 要改為和 code_space() 作法一樣。雖然 leave_part 在
+            // data space，這兒先使用 code_space() 的作法。
+            let here = self.code_space().here();
+            unsafe{ self.code_space().put_u32(here as u32, leave_part); }
+        }
+    }}
 
     // -----------
     // Primitives
@@ -1291,597 +2075,286 @@ pub trait Core: Sized {
     /// Run-time: ( -- )
     ///
     /// No operation
-    fn noop(&mut self) {
+    primitive!{fn noop(&mut self) {
         // Do nothing
-    }
+    }}
 
     /// Run-time: ( -- true )
     ///
     /// Return a true flag, a single-cell value with all bits set.
-    fn p_true(&mut self) {
-        match self.s_stack().push(TRUE) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
-    }
+    primitive!{fn p_true(&mut self) {
+        self.s_stack().push(TRUE);
+    }}
 
     /// Run-time: ( -- false )
     ///
     /// Return a false flag.
-    fn p_false(&mut self) {
-        match self.s_stack().push(FALSE) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
-    }
+    primitive!{fn p_false(&mut self) {
+        self.s_stack().push(FALSE);
+    }}
 
     /// Run-time: (c-addr1 -- c-addr2 )
     ///
     ///Add the size in address units of a character to `c-addr1`, giving `c-addr2`.
-    fn char_plus(&mut self) {
-        match self.s_stack().pop() {
-            Ok(v) => {
-                match self.s_stack().push(v + mem::size_of::<u8>() as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn char_plus(&mut self) {
+        let v = self.s_stack().pop();
+        self.s_stack().push(v + mem::size_of::<u8>() as isize);
+    }}
 
     /// Run-time: (n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` characters.
-    fn chars(&mut self) {
-        match self.s_stack().pop() {
-            Ok(v) => {
-                match self.s_stack().push(v * mem::size_of::<u8>() as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn chars(&mut self) {
+        let v = self.s_stack().pop();
+        self.s_stack().push(v * mem::size_of::<u8>() as isize);
+    }}
 
 
     /// Run-time: (a-addr1 -- a-addr2 )
     ///
     /// Add the size in address units of a cell to `a-addr1`, giving `a-addr2`.
-    fn cell_plus(&mut self) {
-        match self.s_stack().pop() {
-            Ok(v) => {
-                match self.s_stack().push(v + mem::size_of::<i32>() as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn cell_plus(&mut self) {
+        let v = self.s_stack().pop();
+        self.s_stack().push(v + mem::size_of::<i32>() as isize);
+    }}
 
     /// Run-time: (n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` cells.
-    fn cells(&mut self) {
-        match self.s_stack().pop() {
-            Ok(v) => {
-                match self.s_stack().push(v * mem::size_of::<i32>() as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn cells(&mut self) {
+        let v = self.s_stack().pop();
+        self.s_stack().push(v * mem::size_of::<i32>() as isize);
+    }}
 
-    fn lit(&mut self) {
-        if self.s_stack().is_full() {
-            self.set_error(Some(StackOverflow));
-        } else {
-            unsafe {
-                let ip = self.state().instruction_pointer;
-                let v = self.data_space().get_i32(ip) as isize;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
-                           v);
-            }
-            self.s_stack().len += 1;
-            self.state().instruction_pointer = self.state().instruction_pointer +
-                                               mem::size_of::<i32>();
-        }
-    }
+    primitive!{fn swap(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(1)] = n;
+        self.s_stack()[slen.wrapping_sub(2)] = t;
+    }}
 
-    fn flit(&mut self) {
-        let ip = self.state().instruction_pointer as usize;
-        let v = self.data_space().get_f64(ip);
-        match self.f_stack().push(v) {
-            Err(_) => self.set_error(Some(FloatingPointStackOverflow)),
-            Ok(()) => {
-                self.state().instruction_pointer = self.state().instruction_pointer +
-                                                   mem::size_of::<f64>();
-            }
-        }
-    }
+    primitive!{fn dup(&mut self) {
+        let slen = self.s_stack().len.wrapping_add(1);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(2)];
+    }}
 
-    /// Runtime of S"
-    fn p_s_quote(&mut self) {
-        let ip = self.state().instruction_pointer;
-        let cnt = self.data_space().get_i32(ip);
-        let addr = self.state().instruction_pointer + mem::size_of::<i32>();
-        match self.s_stack().push2(addr as isize, cnt as isize) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {
-                self.state().instruction_pointer = self.state().instruction_pointer +
-                                                   mem::size_of::<i32>() +
-                                                   cnt as usize;
-            }
-        }
-    }
+    primitive!{fn p_drop(&mut self) {
+        let slen = self.s_stack().len.wrapping_sub(1);
+        self.s_stack().len = slen;
+    }}
 
-    fn swap(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 2) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
-                           t);
-            }
-        }
-    }
+    primitive!{fn pop_s_stack(&mut self) -> isize {
+        let slen = self.s_stack().len.wrapping_sub(1);
+        let t = self.s_stack()[slen];
+        self.s_stack().len = slen;
+        t
+    }}
 
-    fn dup(&mut self) {
-        if self.s_stack().len < 1 {
-            self.set_error(Some(StackUnderflow));
-        } else if self.s_stack().is_full() {
-            self.set_error(Some(StackOverflow));
-        } else {
-            unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize)));
-                self.s_stack().len += 1;
-            }
-        }
-    }
+    primitive!{fn nip(&mut self) {
+        let slen = self.s_stack().len.wrapping_sub(1);
+        let t = self.s_stack()[slen];
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = t;
+    }}
 
-    fn p_drop(&mut self) {
-        if self.s_stack().len < 1 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            self.s_stack().len -= 1;
-        }
-    }
+    primitive!{fn over(&mut self) {
+        let slen = self.s_stack().len.wrapping_add(1);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
+    }}
 
-    fn nip(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-        }
-    }
+    primitive!{fn rot(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
+        self.s_stack()[slen.wrapping_sub(2)] = t;
+        self.s_stack()[slen.wrapping_sub(3)] = n;
+    }}
 
-    fn over(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
-        } else if self.s_stack().is_full() {
-            self.set_error(Some(StackOverflow));
-        } else {
-            unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 2) as isize)));
-                self.s_stack().len += 1;
-            }
-        }
-    }
+    primitive!{fn two_drop(&mut self) {
+        let slen = self.s_stack().len.wrapping_sub(2);
+        self.s_stack().len = slen;
+    }}
 
-    fn rot(&mut self) {
-        if self.s_stack().len < 3 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
-                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 2) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 3) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
-                           t);
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 3) as isize),
-                           n);
-            }
-        }
-    }
+    primitive!{fn two_dup(&mut self) {
+        let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
+        self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(4)];
+    }}
 
-    fn two_drop(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            self.s_stack().len -= 2;
-        }
-    }
+    primitive!{fn two_swap(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
+        self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(4)];
+        self.s_stack()[slen.wrapping_sub(3)] = t;
+        self.s_stack()[slen.wrapping_sub(4)] = n;
+    }}
 
-    fn two_dup(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
-        } else if self.s_stack().len + 2 > self.s_stack().cap {
-            self.set_error(Some(StackOverflow));
-        } else {
-            unsafe {
-                self.s_stack().len += 2;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 3) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 4) as isize)));
-            }
-        }
-    }
+    primitive!{fn two_over(&mut self) {
+        let slen = self.s_stack().len.wrapping_add(2);
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(5)];
+        self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(6)];
+    }}
 
-    fn two_swap(&mut self) {
-        if self.s_stack().len < 4 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
-                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 2) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 3) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 4) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 3) as isize),
-                           t);
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 4) as isize),
-                           n);
-            }
-        }
-    }
-
-    fn two_over(&mut self) {
-        if self.s_stack().len < 4 {
-            self.set_error(Some(StackUnderflow));
-        } else if self.s_stack().len + 2 > self.s_stack().cap {
-            self.set_error(Some(StackOverflow));
-        } else {
-            unsafe {
-                self.s_stack().len += 2;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 5) as isize)));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 6) as isize)));
-            }
-        }
-    }
-
-    fn depth(&mut self) {
+    primitive!{fn depth(&mut self) {
         let len = self.s_stack().len;
-        match self.s_stack().push(len as isize) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
-    }
+        self.s_stack().push(len as isize);
+    }}
 
-    fn one_plus(&mut self) {
-        if self.s_stack().len < 1 {
-            self.set_error(Some(StackUnderflow));
+    primitive!{fn one_plus(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        self.s_stack()[slen.wrapping_sub(1)] = t.wrapping_add(1);
+    }}
+
+    primitive!{fn one_minus(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        self.s_stack()[slen.wrapping_sub(1)] = t.wrapping_sub(1);
+    }}
+
+    primitive!{fn plus(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_add(t);
+        self.s_stack().len = slen.wrapping_sub(1);
+    }}
+
+    primitive!{fn minus(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_sub(t);
+        self.s_stack().len = slen.wrapping_sub(1);
+    }}
+
+    primitive!{fn star(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_mul(t);
+        self.s_stack().len = slen.wrapping_sub(1);
+    }}
+
+    primitive!{fn slash(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        if t == 0 {
+            self.abort_with(DivisionByZero);
         } else {
-            unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                                   .inner
-                                   .offset((self.s_stack().len - 1) as isize))
-                               .wrapping_add(1));
-            }
+            self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_div(t);
+            self.s_stack().len = slen.wrapping_sub(1);
         }
-    }
+    }}
 
-    fn one_minus(&mut self) {
-        if self.s_stack().len < 1 {
-            self.set_error(Some(StackUnderflow));
+    primitive!{fn p_mod(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        if t == 0 {
+            self.abort_with(DivisionByZero);
         } else {
-            unsafe {
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize)) -
-                           1);
-            }
+            self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_rem(t);
+            self.s_stack().len = slen.wrapping_sub(1);
         }
-    }
+    }}
 
-    fn plus(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
+    primitive!{fn slash_mod(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        if t == 0 {
+            self.abort_with(DivisionByZero);
         } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize)) +
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
+            self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_rem(t);
+            self.s_stack()[slen.wrapping_sub(1)] = n.wrapping_div(t);
         }
-    }
+    }}
 
-    fn minus(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize)) -
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-        }
-    }
+    primitive!{fn abs(&mut self) {
+        let t = self.s_stack().pop();
+        self.s_stack().push(t.wrapping_abs());
+    }}
 
-    fn star(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize)) *
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-        }
-    }
+    primitive!{fn negate(&mut self) {
+        let t = self.s_stack().pop();
+        self.s_stack().push(t.wrapping_neg());
+    }}
 
-    fn slash(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize)) /
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-        }
-    }
+    primitive!{fn zero_less(&mut self) {
+        let t = self.s_stack().pop();
+        self.s_stack().push(if t < 0 { TRUE } else { FALSE });
+    }}
 
-    fn p_mod(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            unsafe {
-                self.s_stack().len -= 1;
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           ptr::read(self.s_stack()
-                               .inner
-                               .offset((self.s_stack().len - 1) as isize)) %
-                           ptr::read(self.s_stack().inner.offset((self.s_stack().len) as isize)));
-            }
-        }
-    }
+    primitive!{fn zero_equals(&mut self) {
+        let t = self.s_stack().pop();
+        self.s_stack().push(if t == 0 { TRUE } else { FALSE });
+    }}
 
-    fn slash_mod(&mut self) {
-        if self.s_stack().len < 2 {
-            self.set_error(Some(StackUnderflow));
-        } else {
-            unsafe {
-                let t = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 1) as isize));
-                let n = ptr::read(self.s_stack().inner.offset((self.s_stack().len - 2) as isize));
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 2) as isize),
-                           n % t);
-                ptr::write(self.s_stack().inner.offset((self.s_stack().len - 1) as isize),
-                           n / t);
-            }
-        }
-    }
+    primitive!{fn zero_greater(&mut self) {
+        let t = self.s_stack().pop();
+        self.s_stack().push(if t > 0 { TRUE } else { FALSE });
+    }}
 
-    fn abs(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(t.abs()) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn zero_not_equals(&mut self) {
+        let t = self.s_stack().pop();
+        self.s_stack().push(if t == 0 { FALSE } else { TRUE });
+    }}
 
-    fn negate(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(-t) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn equals(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        self.s_stack().push(if t == n { TRUE } else { FALSE });
+    }}
 
-    fn zero_less(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(if t < 0 { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn less_than(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        self.s_stack().push(if n < t { TRUE } else { FALSE });
+    }}
 
-    fn zero_equals(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(if t == 0 { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn greater_than(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        self.s_stack().push(if n > t { TRUE } else { FALSE });
+    }}
 
-    fn zero_greater(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(if t > 0 { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn not_equals(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        self.s_stack().push(if n == t { FALSE } else { TRUE });
+    }}
 
-    fn zero_not_equals(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(if t == 0 { FALSE } else { TRUE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn between(&mut self) {
+        let (x1, x2, x3) = self.s_stack().pop3();
+        self.s_stack()
+            .push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE });
+    }}
 
-    fn equals(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(if t == n { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn invert(&mut self) {
+        let t = self.s_stack().pop();
+        self.s_stack().push(!t);
+    }}
 
-    fn less_than(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(if n < t { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn and(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        self.s_stack().push(t & n);
+    }}
 
-    fn greater_than(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(if n > t { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn or(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        self.s_stack().push(t | n);
+    }}
 
-    fn not_equals(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(if n == t { FALSE } else { TRUE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
-
-    fn between(&mut self) {
-        match self.s_stack().pop3() {
-            Ok((x1, x2, x3)) => {
-                match self.s_stack().push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE }) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
-
-    fn invert(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                match self.s_stack().push(!t) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
-
-    fn and(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(t & n) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
-
-    fn or(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(t | n) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {} 
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
-
-    fn xor(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(t ^ n) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn xor(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        self.s_stack().push(t ^ n);
+    }}
 
     /// Run-time: ( x1 u -- x2 )
     ///
@@ -1889,17 +2362,10 @@ pub trait Core: Sized {
     /// zeroes into the least significant bits vacated by the shift. An
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
-    fn lshift(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(n << t) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn lshift(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        self.s_stack().push(n.wrapping_shl(t as u32));
+    }}
 
     /// Run-time: ( x1 u -- x2 )
     ///
@@ -1907,35 +2373,11 @@ pub trait Core: Sized {
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
-    fn rshift(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push((n as usize >> t) as isize) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
-
-    /// Run-time: ( x1 u -- x2 )
-    ///
-    /// Perform a arithmetic right shift of `u` bit-places on `x1`, giving `x2`. Put
-    /// zeroes into the most significant bits vacated by the shift. An
-    /// ambiguous condition exists if `u` is greater than or equal to the number
-    /// of bits in a cell.
-    fn arshift(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                match self.s_stack().push(n >> t) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn rshift(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        self.s_stack()
+            .push(((n as usize).wrapping_shr(t as u32)) as isize);
+    }}
 
     /// Interpretation: Interpretation semantics for this word are undefined.
     ///
@@ -1944,139 +2386,116 @@ pub trait Core: Sized {
     /// Before executing `EXIT` within a do-loop, a program shall discard the
     /// loop-control parameters by executing `UNLOOP`.
     ///
-    /// TODO: `UNLOOP`
-    fn exit(&mut self) {
-        if self.r_stack().len == 0 {
-            self.set_error(Some(ReturnStackUnderflow));
-        } else {
-            self.r_stack().len -= 1;
-            unsafe {
-                self.state().instruction_pointer =
-                    ptr::read(self.r_stack().inner.offset(self.r_stack().len as isize)) as usize;
-            }
-        }
-    }
+    primitive!{fn exit(&mut self) {
+        let rlen = self.r_stack().len.wrapping_sub(1);
+        self.state().instruction_pointer = self.r_stack()[rlen] as usize;
+        self.r_stack().len = rlen;
+    }}
 
     /// Run-time: ( a-addr -- x )
     ///
     /// `x` is the value stored at `a-addr`.
-    fn fetch(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                let value = self.data_space().get_i32(t as usize) as isize;
-                match self.s_stack().push(value) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
+    primitive!{fn fetch(&mut self) {
+        let t = self.s_stack().pop();
+        if (t as usize + mem::size_of::<i32>()) <= self.data_space().capacity() {
+            let value = self.data_space().get_i32(t as usize) as isize;
+            self.s_stack().push(value);
+        } else {
+            self.abort_with(InvalidMemoryAddress);
         }
-    }
+    }}
 
     /// Run-time: ( x a-addr -- )
     ///
     /// Store `x` at `a-addr`.
-    fn store(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                self.data_space().put_i32(n as i32, t as usize);
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
+    primitive!{fn store(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        if (t as usize + mem::size_of::<i32>()) <= self.data_space().capacity() {
+            self.data_space().put_i32(n as i32, t as usize);
+        } else {
+            self.abort_with(InvalidMemoryAddress);
         }
-    }
+    }}
 
     /// Run-time: ( c-addr -- char )
     ///
     /// Fetch the character stored at `c-addr`. When the cell size is greater than
     /// character size, the unused high-order bits are all zeroes.
-    fn c_fetch(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                let value = self.data_space().get_u8(t as usize) as isize;
-                match self.s_stack().push(value) {
-                    Err(_) => self.set_error(Some(StackOverflow)),
-                    Ok(()) => {}
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
+    primitive!{fn c_fetch(&mut self) {
+        let t = self.s_stack().pop();
+        if (t as usize + mem::size_of::<u8>()) <= self.data_space().capacity() {
+            let value = self.data_space().get_u8(t as usize) as isize;
+            self.s_stack().push(value);
+        } else {
+            self.abort_with(InvalidMemoryAddress);
         }
-    }
+    }}
 
     /// Run-time: ( char c-addr -- )
     ///
     /// Store `char` at `c-addr`. When character size is smaller than cell size,
     /// only the number of low-order bits corresponding to character size are
     /// transferred.
-    fn c_store(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                self.data_space().put_u8(n as u8, t as usize);
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
+    primitive!{fn c_store(&mut self) {
+        let (n, t) = self.s_stack().pop2();
+        if (t as usize + mem::size_of::<u8>()) <= self.data_space().capacity() {
+            self.data_space().put_u8(n as u8, t as usize);
+        } else {
+            self.abort_with(InvalidMemoryAddress);
         }
-    }
+    }}
 
     /// Run-time: ( "<spaces>name" -- xt )
     ///
     /// Skip leading space delimiters. Parse name delimited by a space. Find
     /// `name` and return `xt`, the execution token for name. An ambiguous
     /// condition exists if name is not found.
-    fn tick(&mut self) {
+    primitive!{fn tick(&mut self) {
         self.parse_word();
-        let last_token = self.last_token().take().unwrap();
+        let last_token = self.last_token().take().expect("last token");
         if last_token.is_empty() {
-            self.set_error(Some(UnexpectedEndOfFile));
+            self.set_last_token(last_token);
+            self.abort_with(UnexpectedEndOfFile);
         } else {
             match self.find(&last_token) {
                 Some(found_index) => {
-                    match self.s_stack().push(found_index as isize) {
-                        Err(_) => self.set_error(Some(StackOverflow)),
-                        Ok(()) => {}
-                    }
+                    self.s_stack().push(found_index as isize);
+                    self.set_last_token(last_token);
                 }
-                None => self.set_error(Some(UndefinedWord)),
+                None => {
+                    self.set_last_token(last_token);
+                    self.abort_with(UndefinedWord);
+                }
             }
         }
-        self.set_last_token(last_token);
-    }
+    }}
 
     /// Run-time: ( i*x xt -- j*x )
     ///
     /// Remove `xt` from the stack and perform the semantics identified by it.
     /// Other stack effects are due to the word `EXECUTE`d.
-    fn execute(&mut self) {
-        match self.s_stack().pop() {
-            Ok(t) => {
-                self.execute_word(t as usize);
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn execute(&mut self) {
+        let t = self.s_stack().pop();
+        self.execute_word(t as usize);
+    }}
 
     /// Run-time: ( -- addr )
     ///
     /// `addr` is the data-space pointer.
-    fn here(&mut self) {
+    primitive!{fn here(&mut self) {
         let len = self.data_space().len() as isize;
-        match self.s_stack().push(len) {
-            Err(_) => self.set_error(Some(StackOverflow)),
-            Ok(()) => {}
-        }
-    }
+        self.s_stack().push(len);
+    }}
 
     /// Run-time: ( n -- )
     ///
     /// If `n` is greater than zero, reserve n address units of data space. If `n`
     /// is less than zero, release `|n|` address units of data space. If `n` is
     /// zero, leave the data-space pointer unchanged.
-    fn allot(&mut self) {
-        match self.s_stack().pop() {
-            Ok(v) => {
-                self.data_space().allot(v);
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn allot(&mut self) {
+        let v = self.s_stack().pop();
+        self.data_space().allot(v);
+    }}
 
     /// Run-time: ( x -- )
     ///
@@ -2084,165 +2503,206 @@ pub trait Core: Sized {
     /// data-space pointer is aligned when `,` begins execution, it will remain
     /// aligned when `,` finishes execution. An ambiguous condition exists if the
     /// data-space pointer is not aligned prior to execution of `,`.
-    fn comma(&mut self) {
-        match self.s_stack().pop() {
-            Ok(v) => {
-                self.data_space().compile_i32(v as i32);
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn comma(&mut self) {
+        let v = self.s_stack().pop();
+        self.data_space().compile_i32(v as i32);
+    }}
 
-    fn p_to_r(&mut self) {
-        match self.s_stack().pop() {
-            Ok(v) => {
-                if self.r_stack().is_full() {
-                    self.set_error(Some(ReturnStackOverflow));
-                } else {
-                    unsafe {
-                        ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), v);
-                    }
-                    self.r_stack().len += 1;
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn p_to_r(&mut self) {
+        let slen = self.s_stack().len;
+        let rlen = self.r_stack().len.wrapping_add(1);
+        self.r_stack().len = rlen;
+        self.r_stack()[rlen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(1)];
+        self.s_stack().len = slen.wrapping_sub(1);
+    }}
 
-    fn r_from(&mut self) {
-        if self.r_stack().len == 0 {
-            self.set_error(Some(ReturnStackUnderflow));
-        } else if self.s_stack().is_full() {
-            self.set_error(Some(StackOverflow));
-        } else {
-            self.r_stack().len -= 1;
-            unsafe {
-                let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-                self.s_stack().push(ptr::read(r0));
-            }
-        }
-    }
+    primitive!{fn r_from(&mut self) {
+        let slen = self.s_stack().len.wrapping_add(1);
+        let rlen = self.r_stack().len;
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.r_stack()[rlen.wrapping_sub(1)];
+        self.r_stack().len = rlen.wrapping_sub(1);
+    }}
 
-    fn r_fetch(&mut self) {
-        if self.r_stack().len == 0 {
-            self.set_error(Some(ReturnStackUnderflow));
-        } else if self.s_stack().is_full() {
-            self.set_error(Some(StackOverflow));
-        } else {
-            unsafe {
-                let r1 = self.r_stack().inner.offset((self.r_stack().len - 1) as isize);
-                self.s_stack().push(ptr::read(r1));
-            }
-        }
-    }
+    primitive!{fn r_fetch(&mut self) {
+        let slen = self.s_stack().len.wrapping_add(1);
+        let rlen = self.r_stack().len;
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(1)] = self.r_stack()[rlen.wrapping_sub(1)];
+    }}
 
-    fn two_to_r(&mut self) {
-        match self.s_stack().pop2() {
-            Ok((n, t)) => {
-                if self.r_stack().space_left() < 2 {
-                    self.set_error(Some(ReturnStackOverflow));
-                } else {
-                    unsafe {
-                        ptr::write(self.r_stack().inner.offset(self.r_stack().len as isize), n);
-                        ptr::write(self.r_stack().inner.offset((self.r_stack().len + 1) as isize),
-                                   t);
-                    }
-                    self.r_stack().len += 2;
-                }
-            }
-            Err(_) => self.set_error(Some(StackUnderflow)),
-        }
-    }
+    primitive!{fn two_to_r(&mut self) {
+        let slen = self.s_stack().len;
+        let rlen = self.r_stack().len.wrapping_add(2);
+        self.r_stack().len = rlen;
+        self.r_stack()[rlen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(2)];
+        self.r_stack()[rlen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(1)];
+        self.s_stack().len = slen.wrapping_sub(2);
+    }}
 
-    fn two_r_from(&mut self) {
-        // TODO: check overflow.
-        if self.r_stack().len < 2 {
-            self.set_error(Some(ReturnStackUnderflow));
-        } else {
-            self.r_stack().len -= 2;
-            unsafe {
-                let r0 = self.r_stack().inner.offset(self.r_stack().len as isize);
-                self.s_stack().push(ptr::read(r0));
-                let r1 = self.r_stack().inner.offset((self.r_stack().len + 1) as isize);
-                self.s_stack().push(ptr::read(r1));
-            }
-        }
-    }
+    primitive!{fn two_r_from(&mut self) {
+        let slen = self.s_stack().len.wrapping_add(2);
+        let rlen = self.r_stack().len;
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(2)] = self.r_stack()[rlen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(1)] = self.r_stack()[rlen.wrapping_sub(1)];
+        self.r_stack().len = rlen.wrapping_sub(2);
+    }}
 
-    fn two_r_fetch(&mut self) {
-        if self.r_stack().len < 2 {
-            self.set_error(Some(ReturnStackUnderflow));
-        } else {
-            unsafe {
-                let r2 = self.r_stack().inner.offset((self.r_stack().len - 2) as isize);
-                self.s_stack().push(ptr::read(r2));
-                let r1 = self.r_stack().inner.offset((self.r_stack().len - 1) as isize);
-                self.s_stack().push(ptr::read(r1));
-            }
-        }
-    }
-
-    /// Leave VM's inner loop, keep VM's all state.
-    /// Call inner to resume inner loop.
-    fn pause(&mut self) {
-        self.set_error(Some(Pause));
-    }
+    primitive!{fn two_r_fetch(&mut self) {
+        let slen = self.s_stack().len.wrapping_add(2);
+        let rlen = self.r_stack().len;
+        self.s_stack().len = slen;
+        self.s_stack()[slen.wrapping_sub(2)] = self.r_stack()[rlen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(1)] = self.r_stack()[rlen.wrapping_sub(1)];
+    }}
 
     // ----------------
     // Error handlling
     // ----------------
 
+    primitive!{fn check_stacks(&mut self) {
+        if self.s_stack().overflow() {
+            self.abort_with(StackOverflow);
+        } else if self.s_stack().underflow() {
+            self.abort_with(StackUnderflow);
+        } else if self.r_stack().overflow() {
+            self.abort_with(ReturnStackOverflow);
+        } else if self.r_stack().underflow() {
+            self.abort_with(ReturnStackUnderflow);
+        } else if self.c_stack().overflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else if self.f_stack().overflow() {
+            self.abort_with(FloatingPointStackOverflow);
+        } else if self.f_stack().underflow() {
+            self.abort_with(FloatingPointStackUnderflow);
+        }
+    }}
+
+    primitive!{fn handler_store(&mut self) {
+        let t = self.s_stack().pop();
+        self.set_handler(t as usize);
+    }}
+
+    primitive!{fn p_error_q(&mut self) {
+        let value = if self.last_error().is_some() {
+            TRUE
+        } else {
+            FALSE
+        };
+        self.s_stack().push(value);
+    }}
+
+    primitive!{fn p_handle_error(&mut self) {
+        match self.last_error() {
+            Some(e) => {
+                self.clear_stacks();
+                self.set_error(None);
+                match self.output_buffer().as_mut() {
+                    Some(buf) => {
+                        write!(buf, "{} ", e.description()).expect("write");
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+    }}
+
     /// Clear data and floating point stacks.
     /// Called by VM's client upon Abort.
-    fn clear_stacks(&mut self) {
-        self.s_stack().clear();
-        self.f_stack().clear();
-    }
+    primitive!{fn clear_stacks(&mut self) {
+        self.s_stack().reset();
+        self.f_stack().reset();
+    }}
 
     /// Reset VM, do not clear data stack and floating point stack.
     /// Called by VM's client upon Quit.
-    fn reset(&mut self) {
+    // TODO: subroutine-threaded version
+    primitive!{fn reset(&mut self) {
         self.r_stack().len = 0;
+        self.c_stack().len = 0;
         if let Some(ref mut buf) = *self.input_buffer() {
             buf.clear()
         }
         self.state().source_index = 0;
-        self.interpret();
+        self.left_bracket();
         self.set_error(None);
+    }}
+
+    primitive!{fn _regs(&mut self) -> &mut [usize; 2] {
+        self.regs()
+    }}
+
+    #[cfg(feature = "subroutine-threaded")]
+    fn compile_reset(&mut self, _: usize) {
+        //      ; 判斷之前是否執行過 set_regs。
+        //      89 f1           mov    %esi,%ecx
+        //      e8 xx xx xx xx  call   _regs()
+        //      8b 10           mov    (%eax),%edx
+        //      85 d2           test   %edx,%edx
+        //      74 04           je     set_regs
+        //      ; 若則執行過，重設 %esp 。
+        //      89 d4           mov    %edx,%esp
+        //      eb 02           jmp    call_reset
+        // set_regs:
+        //     ; 記住 quit 的 %esp 。
+        //      89 20           mov %esp, (%eax)
+        // call_reset:
+        //      89 f1           mov %esi,%ecx
+        //      e8 xx xx xx xx  call reset
+        //      89 f1           mov %esi,%ecx
+        //      e8 xx xx xx xx  call clear_stacks
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::_regs as usize);
+        self.code_space().compile_u8(0x8b);
+        self.code_space().compile_u8(0x10);
+        self.code_space().compile_u8(0x85);
+        self.code_space().compile_u8(0xd2);
+        self.code_space().compile_u8(0x74);
+        self.code_space().compile_u8(0x04);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xd4);
+        self.code_space().compile_u8(0xeb);
+        self.code_space().compile_u8(0x02);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0x20);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::reset as usize);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::clear_stacks as usize);
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
     fn abort_with(&mut self, e: Exception) {
         self.clear_stacks();
-        self.reset();
         self.set_error(Some(e));
+        let h = self.handler();
+        self.execute_word(h);
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
-    fn abort(&mut self) {
+    primitive!{fn abort(&mut self) {
         self.abort_with(Abort);
-    }
+    }}
 
-    fn halt(&mut self) {
+    // TODO: subroutine-threaded version
+    primitive!{fn halt(&mut self) {
         self.state().instruction_pointer = 0;
-        self.set_error(Some(Quit));
-    }
+    }}
 
-    /// Quit the inner loop and reset VM, without clearing stacks .
-    fn quit(&mut self) {
-        self.reset();
-        self.set_error(Some(Quit));
-    }
+    primitive!{fn bye(&mut self) {
+        process::exit(0);
+    }}
 
-    /// Emit Bye exception.
-    fn bye(&mut self) {
-        self.set_error(Some(Bye));
-    }
-
-    /// Jit
-    fn jit(&mut self) {
-        self.s_stack().push(jitmem::jit_3()() as isize);
-    }
 }
 
 #[cfg(test)]
@@ -2252,20 +2712,20 @@ mod tests {
     use vm::VM;
     use self::test::Bencher;
     use std::mem;
-    use exception::Exception::{InvalidMemoryAddress, Abort, Quit, Pause, Bye, StackUnderflow,
-                               InterpretingACompileOnlyWord, UndefinedWord, UnexpectedEndOfFile,
-                               ControlStructureMismatch, ReturnStackUnderflow};
+    use exception::Exception::{Abort, StackUnderflow, InterpretingACompileOnlyWord, UndefinedWord,
+                               UnexpectedEndOfFile, ControlStructureMismatch,
+                               ReturnStackUnderflow, InvalidMemoryAddress};
     use loader::HasLoader;
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| vm.noop());
     }
 
     #[test]
     fn test_find() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         assert!(vm.find("").is_none());
         assert!(vm.find("word-not-exist").is_none());
         vm.find("noop").expect("noop not found");
@@ -2273,47 +2733,25 @@ mod tests {
 
     #[bench]
     fn bench_find_word_not_exist(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| vm.find("unknown"));
     }
 
     #[bench]
     fn bench_find_word_at_beginning_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| vm.find("noop"));
     }
 
     #[bench]
     fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| vm.find("bye"));
-    }
-
-    #[test]
-    fn test_inner_interpreter_without_nest() {
-        let vm = &mut VM::new(16);
-        let ip = vm.data_space().len();
-        vm.compile_integer(3);
-        vm.compile_integer(2);
-        vm.compile_integer(1);
-        vm.state().instruction_pointer = ip;
-        assert_eq!(vm.last_error(), None);
-        vm.run();
-        match vm.last_error() {
-            Some(e) => {
-                match e {
-                    InvalidMemoryAddress => assert!(true),
-                    _ => assert!(false),
-                }
-            }
-            None => assert!(false),
-        }
-        assert_eq!(3usize, vm.s_stack().len());
     }
 
     #[bench]
     fn bench_inner_interpreter_without_nest(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         let ip = vm.data_space().len();
         let idx = vm.find("noop").expect("noop not exists");
         vm.compile_word(idx);
@@ -2324,49 +2762,54 @@ mod tests {
         vm.compile_word(idx);
         vm.compile_word(idx);
         b.iter(|| {
-            vm.state().instruction_pointer = ip;
-            vm.run();
-        });
+                   vm.state().instruction_pointer = ip;
+                   vm.run();
+               });
     }
 
     #[test]
     fn test_drop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.p_drop();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.p_drop();
+        vm.check_stacks();
         assert!(vm.s_stack().is_empty());
         assert!(vm.last_error().is_none());
     }
 
     #[bench]
     fn bench_drop(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
         b.iter(|| {
-            vm.p_drop();
-            vm.s_stack().push(1).unwrap();
-        });
+                   vm.p_drop();
+                   vm.s_stack().push(1);
+               });
     }
 
     #[test]
     fn test_nip() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.nip();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.nip();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.nip();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert!(vm.s_stack().len() == 1);
         assert!(vm.s_stack().last() == Some(2));
@@ -2374,280 +2817,313 @@ mod tests {
 
     #[bench]
     fn bench_nip(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(1).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(1);
         b.iter(|| {
-            vm.nip();
-            vm.s_stack().push(1).unwrap();
-        });
+                   vm.nip();
+                   vm.s_stack().push(1);
+               });
     }
 
     #[test]
     fn test_swap() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.swap();
+        vm.check_stacks();
+        // check_stacks() cannot detect this kind of underflow.
+        // assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.reset();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.swap();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.swap();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
-        vm.swap();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
-        assert_eq!(vm.s_stack().pop(), Ok(1));
-        assert_eq!(vm.s_stack().pop(), Ok(2));
+        assert_eq!(vm.s_stack().pop(), 1);
+        assert_eq!(vm.s_stack().pop(), 2);
+        vm.check_stacks();
+        assert!(vm.last_error().is_none());
     }
 
     #[bench]
     fn bench_swap(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         b.iter(|| vm.swap());
     }
 
     #[test]
     fn test_dup() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.dup();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.check_stacks();
+        // check_stacks can not detect this underflow();
+        //        assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
-        vm.s_stack().push(1).unwrap();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
         vm.dup();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
-        assert_eq!(vm.s_stack().pop(), Ok(1));
-        assert_eq!(vm.s_stack().pop(), Ok(1));
+        assert_eq!(vm.s_stack().pop(), 1);
+        assert_eq!(vm.s_stack().pop(), 1);
+        vm.check_stacks();
+        assert!(vm.last_error().is_none());
     }
 
     #[bench]
     fn bench_dup(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
         b.iter(|| {
-            vm.dup();
-            vm.s_stack().pop().unwrap();
-        });
+                   vm.dup();
+                   vm.s_stack().pop();
+               });
     }
 
     #[test]
     fn test_over() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.over();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.check_stacks();
+        // check_stacks() cannot detect stack underflow of over().
+        // assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
+        vm.check_stacks();
         vm.over();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        // check_stacks() cannot detect stack underflow of over().
+        // assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.over();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Ok(1));
-        assert_eq!(vm.s_stack().pop(), Ok(2));
-        assert_eq!(vm.s_stack().pop(), Ok(1));
+        assert_eq!(vm.s_stack().pop(), 1);
+        assert_eq!(vm.s_stack().pop(), 2);
+        assert_eq!(vm.s_stack().pop(), 1);
+        vm.check_stacks();
+        assert!(vm.last_error().is_none());
     }
 
     #[bench]
     fn bench_over(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         b.iter(|| {
-            vm.over();
-            vm.s_stack().pop().unwrap();
-        });
+                   vm.over();
+                   vm.s_stack().pop();
+               });
     }
 
     #[test]
     fn test_rot() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.rot();
+        vm.check_stacks();
+        // check_stacks() cannot detect this kind of stack underflow of over().
+        // assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.reset();
+        vm.clear_stacks();
+        vm.s_stack().push(1);
+        vm.rot();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.rot();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
         vm.rot();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
-        vm.s_stack().push(3).unwrap();
-        vm.rot();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Ok(1));
-        assert_eq!(vm.s_stack().pop(), Ok(3));
-        assert_eq!(vm.s_stack().pop(), Ok(2));
+        assert_eq!(vm.s_stack().pop(), 1);
+        assert_eq!(vm.s_stack().pop(), 3);
+        assert_eq!(vm.s_stack().pop(), 2);
+        vm.check_stacks();
+        assert!(vm.last_error().is_none());
     }
 
     #[bench]
     fn bench_rot(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
-        vm.s_stack().push(3).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
         b.iter(|| vm.rot());
     }
 
     #[test]
     fn test_2drop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.two_drop();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.two_drop();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.two_drop();
+        assert!(!vm.s_stack().underflow());
+        assert!(!vm.s_stack().overflow());
         assert!(vm.last_error().is_none());
         assert!(vm.s_stack().is_empty());
     }
 
     #[bench]
     fn bench_2drop(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| {
-            vm.s_stack().push(1).unwrap();
-            vm.s_stack().push(2).unwrap();
-            vm.two_drop();
-        });
+                   vm.s_stack().push(1);
+                   vm.s_stack().push(2);
+                   vm.two_drop();
+               });
     }
 
     #[test]
     fn test_2dup() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.two_dup();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(!vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.two_dup();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(!vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.two_dup();
+        assert!(!vm.s_stack().underflow());
+        assert!(!vm.s_stack().overflow());
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 4);
-        assert_eq!(vm.s_stack().pop(), Ok(2));
-        assert_eq!(vm.s_stack().pop(), Ok(1));
-        assert_eq!(vm.s_stack().pop(), Ok(2));
-        assert_eq!(vm.s_stack().pop(), Ok(1));
+        assert_eq!(vm.s_stack().pop(), 2);
+        assert_eq!(vm.s_stack().pop(), 1);
+        assert_eq!(vm.s_stack().pop(), 2);
+        assert_eq!(vm.s_stack().pop(), 1);
     }
 
     #[bench]
     fn bench_2dup(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         b.iter(|| {
-            vm.two_dup();
-            vm.two_drop();
-        });
+                   vm.two_dup();
+                   vm.two_drop();
+               });
     }
 
     #[test]
     fn test_2swap() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.two_swap();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(!vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.two_swap();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(!vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.two_swap();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
-        vm.s_stack().push(3).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
         vm.two_swap();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
-        vm.s_stack().push(3).unwrap();
-        vm.s_stack().push(4).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
+        vm.s_stack().push(4);
         vm.two_swap();
+        assert!(!vm.s_stack().underflow());
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 4);
-        assert_eq!(vm.s_stack().pop(), Ok(2));
-        assert_eq!(vm.s_stack().pop(), Ok(1));
-        assert_eq!(vm.s_stack().pop(), Ok(4));
-        assert_eq!(vm.s_stack().pop(), Ok(3));
+        assert_eq!(vm.s_stack().pop(), 2);
+        assert_eq!(vm.s_stack().pop(), 1);
+        assert_eq!(vm.s_stack().pop(), 4);
+        assert_eq!(vm.s_stack().pop(), 3);
     }
 
     #[bench]
     fn bench_2swap(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
-        vm.s_stack().push(3).unwrap();
-        vm.s_stack().push(4).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
+        vm.s_stack().push(4);
         b.iter(|| vm.two_swap());
     }
 
     #[test]
     fn test_2over() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.two_over();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(!vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.two_over();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(!vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.two_over();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(!vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
-        vm.s_stack().push(3).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
         vm.two_over();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert!(!vm.s_stack().underflow());
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
-        vm.s_stack().push(3).unwrap();
-        vm.s_stack().push(4).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
+        vm.s_stack().push(4);
         vm.two_over();
+        assert!(!vm.s_stack().underflow());
+        assert!(!vm.s_stack().overflow());
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 6);
         assert_eq!(vm.s_stack().as_slice(), [1, 2, 3, 4, 1, 2]);
@@ -2655,20 +3131,20 @@ mod tests {
 
     #[bench]
     fn bench_2over(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
-        vm.s_stack().push(3).unwrap();
-        vm.s_stack().push(4).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
+        vm.s_stack().push(3);
+        vm.s_stack().push(4);
         b.iter(|| {
-            vm.two_over();
-            vm.two_drop();
-        });
+                   vm.two_over();
+                   vm.two_drop();
+               });
     }
 
     #[test]
     fn test_depth() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.depth();
         vm.depth();
         vm.depth();
@@ -2677,662 +3153,705 @@ mod tests {
 
     #[test]
     fn test_one_plus() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.one_plus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.one_plus();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(2));
+        assert_eq!(vm.s_stack().pop(), 2);
     }
 
     #[bench]
     fn bench_one_plus(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(0).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(0);
         b.iter(|| { vm.one_plus(); });
     }
 
     #[test]
     fn test_one_minus() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.one_minus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(2).unwrap();
+        vm.s_stack().push(2);
         vm.one_minus();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(1));
+        assert_eq!(vm.s_stack().pop(), 1);
     }
 
     #[bench]
     fn bench_one_minus(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(0).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(0);
         b.iter(|| { vm.one_minus(); });
     }
 
     #[test]
     fn test_minus() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.minus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(5).unwrap();
+        vm.s_stack().push(5);
         vm.minus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(5).unwrap();
-        vm.s_stack().push(7).unwrap();
+        vm.s_stack().push(5);
+        vm.s_stack().push(7);
         vm.minus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-2));
+        assert_eq!(vm.s_stack().pop(), -2);
     }
 
     #[bench]
     fn bench_minus(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(0).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(0);
         b.iter(|| {
-            vm.dup();
-            vm.minus();
-        });
+                   vm.dup();
+                   vm.minus();
+               });
     }
 
     #[test]
     fn test_plus() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.plus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(5).unwrap();
+        vm.s_stack().push(5);
         vm.plus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(5).unwrap();
-        vm.s_stack().push(7).unwrap();
+        vm.s_stack().push(5);
+        vm.s_stack().push(7);
         vm.plus();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(12));
+        assert_eq!(vm.s_stack().pop(), 12);
     }
 
     #[bench]
     fn bench_plus(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
         b.iter(|| {
-            vm.dup();
-            vm.plus();
-        });
+                   vm.dup();
+                   vm.plus();
+               });
     }
 
     #[test]
     fn test_star() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.star();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(5).unwrap();
+        vm.s_stack().push(5);
         vm.star();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(5).unwrap();
-        vm.s_stack().push(7).unwrap();
+        vm.s_stack().push(5);
+        vm.s_stack().push(7);
         vm.star();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(35));
+        assert_eq!(vm.s_stack().pop(), 35);
     }
 
     #[bench]
     fn bench_star(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
         b.iter(|| {
-            vm.dup();
-            vm.star();
-        });
+                   vm.dup();
+                   vm.star();
+               });
     }
 
     #[test]
     fn test_slash() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.slash();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(30).unwrap();
+        vm.s_stack().push(30);
         vm.slash();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(30).unwrap();
-        vm.s_stack().push(7).unwrap();
+        vm.s_stack().push(30);
+        vm.s_stack().push(7);
         vm.slash();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(4));
+        assert_eq!(vm.s_stack().pop(), 4);
     }
 
     #[bench]
     fn bench_slash(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
         b.iter(|| {
-            vm.dup();
-            vm.slash();
-        });
+                   vm.dup();
+                   vm.slash();
+               });
     }
 
     #[test]
     fn test_mod() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.p_mod();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(30).unwrap();
+        vm.s_stack().push(30);
         vm.p_mod();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(30).unwrap();
-        vm.s_stack().push(7).unwrap();
+        vm.s_stack().push(30);
+        vm.s_stack().push(7);
         vm.p_mod();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(2));
+        assert_eq!(vm.s_stack().pop(), 2);
     }
 
     #[bench]
     fn bench_mod(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         b.iter(|| {
-            vm.p_mod();
-            vm.s_stack().push(2).unwrap();
-        });
+                   vm.p_mod();
+                   vm.s_stack().push(2);
+               });
     }
 
     #[test]
     fn test_slash_mod() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.slash_mod();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(30).unwrap();
+        vm.s_stack().push(30);
         vm.slash_mod();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(30).unwrap();
-        vm.s_stack().push(7).unwrap();
+        vm.s_stack().push(30);
+        vm.s_stack().push(7);
         vm.slash_mod();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
-        assert_eq!(vm.s_stack().pop(), Ok(4));
-        assert_eq!(vm.s_stack().pop(), Ok(2));
+        assert_eq!(vm.s_stack().pop(), 4);
+        assert_eq!(vm.s_stack().pop(), 2);
     }
 
     #[bench]
     fn bench_slash_mod(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
-        vm.s_stack().push2(1, 2).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push2(1, 2);
         b.iter(|| {
-            vm.slash_mod();
-            vm.p_drop();
-            vm.s_stack().push(2).unwrap();
-        });
+                   vm.slash_mod();
+                   vm.p_drop();
+                   vm.s_stack().push(2);
+               });
     }
 
     #[test]
     fn test_abs() {
-        let vm = &mut VM::new(16);
-        vm.abs();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
-        vm.s_stack().push(-30).unwrap();
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(-30);
         vm.abs();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(30));
+        assert_eq!(vm.s_stack().pop(), 30);
     }
 
     #[test]
     fn test_negate() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.negate();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(30).unwrap();
+        vm.s_stack().push(30);
         vm.negate();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-30));
+        assert_eq!(vm.s_stack().pop(), -30);
     }
 
     #[test]
     fn test_zero_less() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.zero_less();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(-1).unwrap();
+        vm.s_stack().push(-1);
         vm.zero_less();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        vm.s_stack().push(0).unwrap();
+        assert_eq!(vm.s_stack().pop(), -1);
+        vm.s_stack().push(0);
         vm.zero_less();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), 0);
     }
 
     #[test]
     fn test_zero_equals() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.zero_equals();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(0).unwrap();
+        vm.s_stack().push(0);
         vm.zero_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        vm.s_stack().push(-1).unwrap();
+        assert_eq!(vm.s_stack().pop(), -1);
+        vm.s_stack().push(-1);
         vm.zero_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        vm.s_stack().push(1).unwrap();
+        assert_eq!(vm.s_stack().pop(), 0);
+        vm.s_stack().push(1);
         vm.zero_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), 0);
     }
 
     #[test]
     fn test_zero_greater() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.zero_greater();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.zero_greater();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        vm.s_stack().push(0).unwrap();
+        assert_eq!(vm.s_stack().pop(), -1);
+        vm.s_stack().push(0);
         vm.zero_greater();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), 0);
     }
 
     #[test]
     fn test_zero_not_equals() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.zero_not_equals();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(0).unwrap();
+        vm.s_stack().push(0);
         vm.zero_not_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        vm.s_stack().push(-1).unwrap();
+        assert_eq!(vm.s_stack().pop(), 0);
+        vm.s_stack().push(-1);
         vm.zero_not_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        vm.s_stack().push(1).unwrap();
+        assert_eq!(vm.s_stack().pop(), -1);
+        vm.s_stack().push(1);
         vm.zero_not_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), -1);
     }
 
     #[test]
     fn test_less_than() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.less_than();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(-1).unwrap();
+        vm.s_stack().push(-1);
         vm.less_than();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(-1).unwrap();
-        vm.s_stack().push(0).unwrap();
+        vm.s_stack().push(-1);
+        vm.s_stack().push(0);
         vm.less_than();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        vm.s_stack().push(0).unwrap();
-        vm.s_stack().push(0).unwrap();
+        assert_eq!(vm.s_stack().pop(), -1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
         vm.less_than();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), 0);
     }
 
     #[test]
     fn test_equals() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.equals();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(0).unwrap();
+        vm.s_stack().push(0);
         vm.equals();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(0).unwrap();
-        vm.s_stack().push(0).unwrap();
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
         vm.equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        vm.s_stack().push(-1).unwrap();
-        vm.s_stack().push(0).unwrap();
+        assert_eq!(vm.s_stack().pop(), -1);
+        vm.s_stack().push(-1);
+        vm.s_stack().push(0);
         vm.equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(0).unwrap();
+        assert_eq!(vm.s_stack().pop(), 0);
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
         vm.equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), 0);
     }
 
     #[test]
     fn test_greater_than() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.greater_than();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.greater_than();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(0).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
         vm.greater_than();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        vm.s_stack().push(0).unwrap();
-        vm.s_stack().push(0).unwrap();
+        assert_eq!(vm.s_stack().pop(), -1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
         vm.greater_than();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), 0);
     }
 
     #[test]
     fn test_not_equals() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.not_equals();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(0).unwrap();
+        vm.s_stack().push(0);
         vm.not_equals();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(0).unwrap();
-        vm.s_stack().push(0).unwrap();
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
         vm.not_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        vm.s_stack().push(-1).unwrap();
-        vm.s_stack().push(0).unwrap();
+        assert_eq!(vm.s_stack().pop(), 0);
+        vm.s_stack().push(-1);
+        vm.s_stack().push(0);
         vm.not_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(0).unwrap();
+        assert_eq!(vm.s_stack().pop(), -1);
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
         vm.not_equals();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), -1);
     }
 
     #[test]
     fn test_between() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.between();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.between();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(1);
         vm.between();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.between();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(0).unwrap();
-        vm.s_stack().push(1).unwrap();
+        assert_eq!(vm.s_stack().pop(), -1);
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(1);
         vm.between();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        vm.s_stack().push(0).unwrap();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        assert_eq!(vm.s_stack().pop(), -1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.between();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        vm.s_stack().push(3).unwrap();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        assert_eq!(vm.s_stack().pop(), 0);
+        vm.s_stack().push(3);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.between();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), 0);
     }
 
     #[test]
     fn test_invert() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.invert();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(707).unwrap();
+        vm.s_stack().push(707);
         vm.invert();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-708));
+        assert_eq!(vm.s_stack().pop(), -708);
     }
 
     #[test]
     fn test_and() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(707);
+        vm.s_stack().push(007);
         vm.and();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
-        vm.s_stack().push(707).unwrap();
-        vm.and();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
-        vm.s_stack().push(707).unwrap();
-        vm.s_stack().push(007).unwrap();
-        vm.and();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
+        assert!(!vm.s_stack().overflow());
+        assert!(!vm.s_stack().underflow());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(3));
+        assert_eq!(vm.s_stack().pop(), 3);
     }
 
     #[test]
     fn test_or() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.or();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(707).unwrap();
+        vm.s_stack().push(707);
         vm.or();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(707).unwrap();
-        vm.s_stack().push(07).unwrap();
+        vm.s_stack().push(707);
+        vm.s_stack().push(07);
         vm.or();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(711));
+        assert_eq!(vm.s_stack().pop(), 711);
     }
 
     #[test]
     fn test_xor() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.xor();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(707).unwrap();
+        vm.s_stack().push(707);
         vm.xor();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(707).unwrap();
-        vm.s_stack().push(07).unwrap();
+        vm.s_stack().push(707);
+        vm.s_stack().push(07);
         vm.xor();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(708));
+        assert_eq!(vm.s_stack().pop(), 708);
     }
 
     #[test]
     fn test_lshift() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.lshift();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
         vm.lshift();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(1);
+        vm.s_stack().push(1);
         vm.lshift();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(2));
-        vm.s_stack().push(1).unwrap();
-        vm.s_stack().push(2).unwrap();
+        assert_eq!(vm.s_stack().pop(), 2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(2);
         vm.lshift();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(4));
+        assert_eq!(vm.s_stack().pop(), 4);
     }
 
     #[test]
     fn test_rshift() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.rshift();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(8).unwrap();
+        vm.s_stack().push(8);
         vm.rshift();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        vm.s_stack().push(8).unwrap();
-        vm.s_stack().push(1).unwrap();
+        vm.s_stack().push(8);
+        vm.s_stack().push(1);
         vm.rshift();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(4));
-        vm.s_stack().push(-1).unwrap();
-        vm.s_stack().push(1).unwrap();
+        assert_eq!(vm.s_stack().pop(), 4);
+        vm.s_stack().push(-1);
+        vm.s_stack().push(1);
         vm.rshift();
+        vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert!(vm.s_stack().pop().unwrap() > 0);
-    }
-
-    #[test]
-    fn test_arshift() {
-        let vm = &mut VM::new(16);
-        vm.arshift();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
-        vm.s_stack().push(8).unwrap();
-        vm.arshift();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        vm.clear_stacks();
-        vm.s_stack().push(8).unwrap();
-        vm.s_stack().push(1).unwrap();
-        vm.arshift();
-        assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(4));
-        vm.s_stack().push(-8).unwrap();
-        vm.s_stack().push(1).unwrap();
-        vm.arshift();
-        assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-4));
+        assert!(vm.s_stack().pop() > 0);
     }
 
     #[test]
     fn test_parse_word() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source("hello world\t\r\n\"");
         vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "hello");
@@ -3346,7 +3865,7 @@ mod tests {
 
     #[test]
     fn test_evaluate() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // >r
         vm.set_source(">r");
         vm.evaluate();
@@ -3376,36 +3895,39 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 5);
-        assert_eq!(vm.s_stack().pop(), Ok(-3));
-        assert_eq!(vm.s_stack().pop(), Ok(2));
-        assert_eq!(vm.s_stack().pop(), Ok(0));
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), -3);
+        assert_eq!(vm.s_stack().pop(), 2);
+        assert_eq!(vm.s_stack().pop(), 0);
+        assert_eq!(vm.s_stack().pop(), -1);
+        assert_eq!(vm.s_stack().pop(), 0);
     }
 
+/*
     #[bench]
     fn bench_compile_words_at_beginning_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| {
             vm.set_source("marker empty : main noop noop noop noop noop noop noop noop ; empty");
             vm.evaluate();
-            vm.s_stack().clear();
+            vm.s_stack().reset();
         });
     }
 
     #[bench]
     fn bench_compile_words_at_end_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         b.iter(|| {
-            vm.set_source("marker empty : main bye bye bye bye bye bye bye bye ; empty");
-            vm.evaluate();
-            vm.s_stack().clear();
-        });
+                   vm.set_source("marker empty : main bye bye bye bye bye bye bye bye ; empty");
+                   vm.evaluate();
+                   vm.s_stack().reset();
+               });
     }
+
+*/
 
     #[test]
     fn test_colon_and_semi_colon() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // :
         vm.set_source(":");
         vm.evaluate();
@@ -3417,16 +3939,17 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(5));
+        assert_eq!(vm.s_stack().pop(), 5);
     }
 
     #[test]
     fn test_constant() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // constant x
         vm.set_source("constant");
         vm.evaluate();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        // Note: cannot detect underflow.
+        // assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         // 5 constant x x x
@@ -3434,23 +3957,35 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
-        assert_eq!(vm.s_stack().pop(), Ok(5));
-        assert_eq!(vm.s_stack().pop(), Ok(5));
+        assert_eq!(vm.s_stack().pop(), 5);
+        assert_eq!(vm.s_stack().pop(), 5);
+    }
+
+    #[test]
+    fn test_constant_in_colon() {
+        let vm = &mut VM::new(16, 16);
+        // 77 constant x
+        // : 2x  x 2 * ;  2x
+        vm.set_source("77 constant x  : 2x x 2 * ;  2x");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.s_stack().pop(), 154);
+        assert_eq!(vm.s_stack().len, 0);
     }
 
     #[test]
     fn test_variable_and_store_fetch() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // @
         vm.set_source("@");
         vm.evaluate();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(InvalidMemoryAddress));
         vm.reset();
         vm.clear_stacks();
         // !
         vm.set_source("!");
         vm.evaluate();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(InvalidMemoryAddress));
         vm.reset();
         vm.clear_stacks();
         // variable x x !
@@ -3464,18 +3999,46 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
-        assert_eq!(vm.s_stack().pop(), Ok(3));
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), 3);
+        assert_eq!(vm.s_stack().pop(), 0);
+    }
+
+    #[test]
+    fn test_variable_and_fetch_in_colon() {
+        let vm = &mut VM::new(16, 16);
+        // variable x
+        // 7 x !
+        // : x@ x @ ; x@
+        vm.set_source("variable x  7 x !  : x@ x @ ;  x@");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.s_stack().pop(), 7);
+        assert_eq!(vm.s_stack().len, 0);
+    }
+
+    #[test]
+    fn test_create_in_colon() {
+        let vm = &mut VM::new(16, 16);
+        // create x 7 ,
+        // : x@ x @ ; x@
+        vm.set_source("create x 7 ,  : x@ x @ ;  x@");
+        vm.evaluate();
+        vm.run();
+        assert_eq!(vm.s_stack().pop(), 7);
+        assert_eq!(vm.s_stack().len, 0);
     }
 
     #[test]
     fn test_char_plus_and_chars() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.char_plus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.chars();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.check_stacks();
+        // Note: Cannot detecht underflow because size of char is 1.
+        // assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         // 2 char+  9 chars
         vm.set_source("2 char+  9 chars");
@@ -3486,11 +4049,13 @@ mod tests {
 
     #[test]
     fn test_cell_plus_and_cells() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.cell_plus();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.cells();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.set_source("2 cell+  9 cells");
@@ -3501,7 +4066,7 @@ mod tests {
 
     #[test]
     fn test_tick() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // '
         vm.tick();
         assert_eq!(vm.last_error(), Some(UnexpectedEndOfFile));
@@ -3521,14 +4086,18 @@ mod tests {
 
     #[test]
     fn test_execute() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // execute
         vm.execute();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), Some(UndefinedWord));
         vm.reset();
+        vm.clear_stacks();
         // ' drop execute
         vm.set_source("' drop");
+        vm.evaluate();
         vm.execute();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
@@ -3537,15 +4106,16 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
-        assert_eq!(vm.s_stack().pop(), Ok(1));
-        assert_eq!(vm.s_stack().pop(), Ok(2));
+        assert_eq!(vm.s_stack().pop(), 1);
+        assert_eq!(vm.s_stack().pop(), 2);
     }
 
     #[test]
     fn test_here_allot() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // allot
         vm.allot();
+        vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         // here 2 cells allot here -
@@ -3553,99 +4123,62 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(),
-                   Ok(-((mem::size_of::<i32>() * 2) as isize)));
-    }
-
-    #[test]
-    fn test_here_comma_compile_interpret() {
-        let vm = &mut VM::new(16);
-        vm.comma();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        // here 1 , 2 , ] lit exit [ here
-        let here = vm.data_space().len();
-        vm.set_source("here 1 , 2 , ] lit exit [ here");
-        vm.evaluate();
-        assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().len(), 2);
-        match vm.s_stack().pop2() {
-            Ok((n, t)) => {
-                assert_eq!(t - n, 4 * mem::size_of::<u32>() as isize);
-            }
-            Err(_) => {
-                assert!(false);
-            }
-        }
-        let idx_halt = vm.find("halt").expect("halt undefined");
-        assert_eq!(vm.data_space().get_i32(0), idx_halt as i32);
-        assert_eq!(vm.data_space().get_i32(here + 0), 1);
-        assert_eq!(vm.data_space().get_i32(here + 4), 2);
-        assert_eq!(vm.data_space().get_i32(here + 8),
-                   vm.references().idx_lit as i32);
-        assert_eq!(vm.data_space().get_i32(here + 12),
-                   vm.references().idx_exit as i32);
+        assert_eq!(vm.s_stack().pop(), -((mem::size_of::<i32>() * 2) as isize));
     }
 
     #[test]
     fn test_to_r_r_fetch_r_from() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(8));
+        assert_eq!(vm.s_stack().pop(), 8);
     }
 
     #[bench]
     fn bench_to_r_r_fetch_r_from(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": main 3 >r r@ drop r> drop ;");
         vm.evaluate();
         vm.set_source("' main");
         vm.evaluate();
         b.iter(|| {
-            vm.dup();
-            vm.execute();
-            vm.run();
-        });
+                   vm.dup();
+                   vm.execute();
+                   vm.run();
+               });
     }
 
     #[test]
     fn test_two_to_r_two_r_fetch_two_r_from() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-3));
+        assert_eq!(vm.s_stack().pop(), -3);
     }
 
     #[bench]
     fn bench_two_to_r_two_r_fetch_two_r_from(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": main 1 2 2>r 2r@ 2drop 2r> 2drop ;");
         vm.evaluate();
         vm.set_source("' main");
         vm.evaluate();
         b.iter(|| {
-            vm.dup();
-            vm.execute();
-            vm.run();
-        });
+                   vm.dup();
+                   vm.execute();
+                   vm.run();
+               });
     }
 
     #[test]
-    fn test_if_else_then() {
-        let vm = &mut VM::new(16);
+    fn test_if_then() {
+        let vm = &mut VM::new(16, 16);
         // : t5 if ; t5
         vm.set_source(": t5 if ;");
-        vm.evaluate();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.reset();
-        vm.clear_stacks();
-        // : t3 else then ; t3
-        vm.set_source(": t3 else then ;");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
@@ -3656,23 +4189,50 @@ mod tests {
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
-        // : t1 0 if true else false then ; t1
-        vm.set_source(": t1 0 if true else false then ; t1");
+        // : t1 false dup if drop true then ; t1
+        vm.set_source(": t1 0 dup if drop -1 then ; t1");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(0));
+        assert_eq!(vm.s_stack().pop(), 0);
+        vm.reset();
+        vm.clear_stacks();
+        // : t2 true dup if drop false then ; t1
+        vm.set_source(": t1 -1 dup if drop -1 then ; t1");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), -1);
+    }
+
+    #[test]
+    fn test_if_else_then() {
+        let vm = &mut VM::new(16, 16);
+        // : t3 else then ; t3
+        vm.set_source(": t3 else then ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.reset();
+        vm.clear_stacks();
+        // : t1 0 if true else false then ; t1
+        // let action = vm.code_space().here();
+        vm.set_source(": t1 0 if true else false then ; t1");
+        vm.evaluate();
+        // dump(vm, action);
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), 0);
         // : t2 1 if true else false then ; t2
         vm.set_source(": t2 1 if true else false then ; t2");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), -1);
     }
 
     #[test]
     fn test_begin_again() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t3 begin ;
         vm.set_source(": t3 begin ;");
         vm.evaluate();
@@ -3690,12 +4250,12 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(3));
+        assert_eq!(vm.s_stack().pop(), 3);
     }
 
     #[test]
     fn test_begin_while_repeat() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t1 begin ;
         vm.set_source(": t1 begin ;");
         vm.evaluate();
@@ -3737,55 +4297,38 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(3));
+        assert_eq!(vm.s_stack().pop(), 3);
     }
 
     #[test]
     fn test_backslash() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source("1 2 3 \\ 5 6 7");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Ok(3));
-        assert_eq!(vm.s_stack().pop(), Ok(2));
-        assert_eq!(vm.s_stack().pop(), Ok(1));
+        assert_eq!(vm.s_stack().pop(), 3);
+        assert_eq!(vm.s_stack().pop(), 2);
+        assert_eq!(vm.s_stack().pop(), 1);
     }
 
     #[test]
     fn test_marker_unmark() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         let symbols_len = vm.symbols().len();
         let wordlist_len = vm.wordlist().len();
         vm.set_source("here marker empty empty here =");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(-1));
+        assert_eq!(vm.s_stack().pop(), -1);
         assert_eq!(vm.symbols().len(), symbols_len);
         assert_eq!(vm.wordlist().len(), wordlist_len);
     }
 
     #[test]
-    fn test_quit() {
-        let vm = &mut VM::new(16);
-        vm.set_source(": main 1 2 ; main 3 quit 5 6 7");
-        vm.evaluate();
-        assert_eq!(vm.last_error(), Some(Quit));
-        assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), Ok(3));
-        assert_eq!(vm.s_stack().pop(), Ok(2));
-        assert_eq!(vm.s_stack().pop(), Ok(1));
-        assert_eq!(vm.r_stack().len, 0);
-        assert_eq!(vm.input_buffer().clone().unwrap().len(), 0);
-        assert_eq!(vm.state().source_index, 0);
-        assert_eq!(vm.state().instruction_pointer, 0);
-        assert!(!vm.state().is_compiling);
-    }
-
-    #[test]
     fn test_abort() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source("1 2 3 abort 5 6 7");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(Abort));
@@ -3793,32 +4336,8 @@ mod tests {
     }
 
     #[test]
-    fn test_bye() {
-        let vm = &mut VM::new(16);
-        vm.set_source("1 2 3 bye 5 6 7");
-        vm.evaluate();
-        assert_eq!(vm.last_error(), Some(Bye));
-        assert!(vm.state().is_idle());
-    }
-
-    #[test]
-    fn test_pause() {
-        let vm = &mut VM::new(16);
-        vm.set_source(": test 1 2 3 pause 5 6 7 ; test");
-        vm.evaluate();
-        assert_eq!(vm.last_error(), Some(Pause));
-        assert!(!vm.state().is_idle());
-        assert_eq!(vm.s_stack().len(), 3);
-        vm.set_error(None);
-        vm.run();
-        assert_eq!(vm.last_error(), None);
-        assert!(vm.state().is_idle());
-        assert_eq!(vm.s_stack().len(), 6);
-    }
-
-    #[test]
     fn test_do_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t1 do ;
         vm.set_source(": t1 do ;");
         vm.evaluate();
@@ -3836,12 +4355,12 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(6));
+        assert_eq!(vm.s_stack().pop(), 6);
     }
 
     #[test]
     fn test_do_unloop_exit_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t1 unloop ;
         vm.set_source(": t1 unloop ; t1");
         vm.evaluate();
@@ -3853,12 +4372,12 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(3));
+        assert_eq!(vm.s_stack().pop(), 3);
     }
 
     #[test]
     fn test_do_plus_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t1 +loop ;
         vm.set_source(": t1 +loop ;");
         vm.evaluate();
@@ -3876,22 +4395,22 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(4));
+        assert_eq!(vm.s_stack().pop(), 4);
         // : t4 1 6 0 do 1+ 2 +loop ;  t4
         vm.set_source(": t4 1 6 0 do 1+ 2 +loop ;  t4");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), Ok(4));
+        assert_eq!(vm.s_stack().pop(), 4);
     }
 
     #[test]
     fn test_do_leave_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : t1 leave ;
         vm.set_source(": t1 leave ;  t1");
         vm.evaluate();
-        assert_eq!(vm.last_error(), Some(ReturnStackUnderflow));
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main
@@ -3899,23 +4418,35 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 2);
-        assert_eq!(vm.s_stack().pop2(), Ok((88, 9)));
+        assert_eq!(vm.s_stack().pop2(), (88, 9));
     }
 
     #[test]
+    fn test_do_leave_plus_loop() {
+        let vm = &mut VM::new(16, 16);
+        // : main 1 5 0 do 1+ dup 3 = if drop 88 leave then 2 +loop 9 ;  main
+        vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then 2 +loop 9 ;  main");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().len(), 2);
+        assert_eq!(vm.s_stack().pop2(), (88, 9));
+    }
+
+
+    #[test]
     fn test_do_i_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         // : main 3 0 do i loop ;  main
         vm.set_source(": main 3 0 do i loop ;  main");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop3(), Ok((0, 1, 2)));
+        assert_eq!(vm.s_stack().pop3(), (0, 1, 2));
     }
 
     #[test]
     fn test_do_i_j_loop() {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -3925,7 +4456,7 @@ mod tests {
 
     #[bench]
     fn bench_fib(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": fib dup 2 < if drop 1 else dup 1- recurse swap 2 - recurse + then ;");
         vm.evaluate();
         assert!(vm.last_error().is_none());
@@ -3938,14 +4469,7 @@ mod tests {
             vm.execute();
             vm.run();
             match vm.last_error() {
-                Some(e) => {
-                    match e {
-                        Quit => {}
-                        _ => {
-                            assert!(false);
-                        }
-                    }
-                }
+                Some(_) => assert!(false),
                 None => assert!(true),
             };
         });
@@ -3953,7 +4477,7 @@ mod tests {
 
     #[bench]
     fn bench_repeat(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": bench 0 begin over over > while 1 + repeat drop drop ;");
         vm.evaluate();
         vm.set_source(": main 8000 bench ;");
@@ -3965,14 +4489,7 @@ mod tests {
             vm.execute();
             vm.run();
             match vm.last_error() {
-                Some(e) => {
-                    match e {
-                        Quit => {}
-                        _ => {
-                            assert!(false);
-                        }
-                    }
-                }
+                Some(_) => assert!(false),
                 None => assert!(true),
             };
         });
@@ -3980,7 +4497,7 @@ mod tests {
 
     #[bench]
     fn bench_sieve(b: &mut Bencher) {
-        let vm = &mut VM::new(16);
+        let vm = &mut VM::new(16, 16);
         vm.load("./lib.fs");
         assert_eq!(vm.last_error(), None);
         vm.set_source("CREATE FLAGS 8190 ALLOT   VARIABLE EFLAG");
@@ -4004,7 +4521,7 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         vm.set_source("
-            : MAIN 
+            : MAIN
                 FLAGS 8190 + EFLAG !
                 BENCHMARK DROP
             ;
@@ -4018,16 +4535,217 @@ mod tests {
             vm.execute();
             vm.run();
             match vm.last_error() {
-                Some(e) => {
-                    match e {
-                        Quit => {}
-                        _ => {
-                            assert!(false);
-                        }
-                    }
-                }
+                Some(_) => assert!(false),
                 None => assert!(true),
             };
         });
     }
+
+    #[test]
+    #[cfg(not(any(feature = "primitive-centric", feature="subroutine-threaded")))]
+    fn test_here_comma_compile_interpret() {
+        let vm = &mut VM::new(16, 16);
+        vm.comma();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.reset();
+        // here 1 , 2 , ] lit exit [ here
+        let here = vm.data_space().len();
+        vm.set_source("here 1 , 2 , ] lit exit [ here");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 2);
+        let (n, t) = vm.s_stack().pop2();
+        assert!(!vm.s_stack().underflow());
+        assert_eq!(t - n, 4 * mem::size_of::<u32>() as isize);
+        assert_eq!(vm.data_space().get_i32(here + 0), 1);
+        assert_eq!(vm.data_space().get_i32(here + 4), 2);
+        assert_eq!(vm.data_space().get_i32(here + 8),
+                   vm.references().idx_lit as i32);
+        assert_eq!(vm.data_space().get_i32(here + 12),
+                   vm.references().idx_exit as i32);
+    }
+
+    #[test]
+    #[cfg(feature = "primitive-centric")]
+    fn test_inner_interpreter_without_nest() {
+        let vm = &mut VM::new(16, 16);
+        let ip = vm.data_space().len();
+        let noop_idx = vm.find("noop").expect("noop not exists");
+        let true_idx = vm.find("true").expect("true not exists");
+        let dup_idx = vm.find("dup").expect("dup not exists");
+        let halt_idx = vm.find("halt").expect("halt not exists");
+        let plus_idx = vm.find("+").expect("+ not exists");
+        vm.compile_word(noop_idx);
+        vm.compile_word(true_idx);
+        vm.compile_word(dup_idx);
+        vm.compile_word(plus_idx);
+        vm.compile_word(halt_idx);
+        vm.state().instruction_pointer = ip;
+        vm.run();
+        assert_eq!(vm.state().instruction_pointer, 0);
+        assert_eq!(vm.s_stack().pop(), -2);
+    }
+
+    #[test]
+    #[cfg(feature = "primitive-centric")]
+    fn test_here_comma_compile_interpret() {
+        let vm = &mut VM::new(16, 16);
+        vm.comma();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        vm.reset();
+        // here 1 , 2 , ] lit exit [ here
+        let here = vm.data_space().len();
+        vm.set_source("here 1 , 2 , ] lit exit [ here");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 2);
+        let (n, t) = vm.s_stack().pop2();
+        assert!(!vm.s_stack().underflow());
+        assert_eq!(t - n, 4 * mem::size_of::<u32>() as isize);
+        assert_eq!(vm.data_space().get_i32(here + 0), 1);
+        assert_eq!(vm.data_space().get_i32(here + 4), 2);
+        let idx_lit = vm.references().idx_lit;
+        let idx_exit = vm.references().idx_exit;
+        assert_eq!(vm.data_space().get_u32(here + 8),
+                   vm.wordlist()[idx_lit].action as u32);
+        assert_eq!(vm.data_space().get_u32(here + 12),
+                   vm.wordlist()[idx_exit].action as u32);
+    }
+
+    #[test]
+    #[cfg(feature = "primitive-centric")]
+    fn test_marker_in_colon() {
+        let vm = &mut VM::new(16, 16);
+        let symbols_len = vm.symbols().len();
+        let wordlist_len = vm.wordlist().len();
+        // here marker empty
+        // : test empty ;
+        // test here = 
+        vm.set_source("here marker empty  : test empty ;  test here =");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), -1);
+        assert_eq!(vm.symbols().len(), symbols_len);
+        assert_eq!(vm.wordlist().len(), wordlist_len);
+    }
+
+    #[test]
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    fn test_subroutine_threaded_colon_and_semi_colon() {
+        let vm = &mut VM::new(16, 16);
+        // : nop ;
+        // 56               push   %esi
+        // 89 ce            mov    %ecx,%esi
+        // 83 ec 08         sub    $8,%esp
+        //
+        // 83 c4 08         add    $8,%esp
+        // 5e               pop    %esi
+        // c3               ret
+        let action = vm.code_space().here();
+        vm.set_source(": nop ; nop");
+        vm.evaluate();
+        let w = vm.last_definition();
+        assert_eq!(vm.wordlist()[w].action as usize, action);
+        unsafe{
+            assert_eq!(vm.code_space().get_u8(action + 0), 0x56);
+            assert_eq!(vm.code_space().get_u8(action + 1), 0x89);
+            assert_eq!(vm.code_space().get_u8(action + 2), 0xce);
+            assert_eq!(vm.code_space().get_u8(action + 3), 0x83);
+            assert_eq!(vm.code_space().get_u8(action + 4), 0xec);
+            assert_eq!(vm.code_space().get_u8(action + 5), 0x08);
+
+            assert_eq!(vm.code_space().get_u8(action + 6), 0x83);
+            assert_eq!(vm.code_space().get_u8(action + 7), 0xc4);
+            assert_eq!(vm.code_space().get_u8(action + 8), 0x08);
+            assert_eq!(vm.code_space().get_u8(action + 9), 0x5e);
+            assert_eq!(vm.code_space().get_u8(action + 10), 0xc3);
+        }
+    }
+
+    // TODO: added a dump forth word.
+    fn dump(vm: &mut VM, addr: usize) {
+        if vm.code_space().has(addr) {
+            for i in 0..8 {
+                if vm.code_space().has(addr+7+i*8) {
+                    unsafe{
+                        println!("{:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x}",
+                            vm.code_space().get_u8(addr+0+i*8),
+                            vm.code_space().get_u8(addr+1+i*8),
+                            vm.code_space().get_u8(addr+2+i*8),
+                            vm.code_space().get_u8(addr+3+i*8),
+                            vm.code_space().get_u8(addr+4+i*8),
+                            vm.code_space().get_u8(addr+5+i*8),
+                            vm.code_space().get_u8(addr+6+i*8),
+                            vm.code_space().get_u8(addr+7+i*8),
+                        );
+                    }
+                } else {
+                    panic!("Error: invaild dump address.");
+                }
+            }
+        } else {
+            panic!("Error: invaild dump address.");
+        }
+    }
+
+    #[test]
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    fn test_subroutine_threaded_lit_and_plus() {
+        let vm = &mut VM::new(16, 16);
+        // : 2+3 2 3 + ;
+        // let action = vm.code_space().here();
+        vm.set_source(": 2+3 2 3 + ;");
+        vm.evaluate();
+        // dump(vm, action);
+        // 2+3
+        vm.set_source("2+3");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), 5);
+    }
+
+    #[test]
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    fn test_subroutine_threaded_if_then() {
+        let vm = &mut VM::new(16, 16);
+        // : t5 if ; t5
+        vm.set_source(": t5 if ;");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.reset();
+        vm.clear_stacks();
+        // : t4 then ; t4
+        vm.set_source(": t4 then ; t4");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        vm.reset();
+        vm.clear_stacks();
+        // let action = vm.code_space().here();
+        // : tx dup drop ;
+        vm.set_source(": tx dup drop ;");
+        vm.evaluate();
+        // dump(vm, action);
+        // println!("**** t1 ****");
+        // let action = vm.code_space().here();
+        // : t1 0 dup if drop -1 then ; t1
+        vm.set_source(": t1 0 dup if drop -1 then ; t1");
+        vm.evaluate();
+        // dump(vm, action);
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), 0);
+        vm.reset();
+        vm.clear_stacks();
+        // : t2 -1 dup if drop 0 then ; t1
+        vm.set_source(": t2 -1 dup if drop -1 then ; t2");
+        vm.evaluate();
+        assert!(vm.last_error().is_none());
+        assert_eq!(vm.s_stack().len(), 1);
+        assert_eq!(vm.s_stack().pop(), -1);
+    }
+
 }

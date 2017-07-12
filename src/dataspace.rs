@@ -1,10 +1,8 @@
 extern crate libc;
 
 use std::mem;
-use std::ptr::Unique;
 use std::slice;
 use std::marker;
-use std::ops::{Index, IndexMut};
 
 extern "C" {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
@@ -25,7 +23,7 @@ impl SystemVariables {
 
 #[allow(dead_code)]
 pub struct DataSpace {
-    pub inner: Unique<u8>,
+    pub inner: *mut u8,
     cap: usize,
     len: usize,
     marker: marker::PhantomData<SystemVariables>,
@@ -43,7 +41,7 @@ impl DataSpace {
             memset(ptr, 0x00, size);
         }
         let mut result = DataSpace {
-            inner: unsafe { Unique::new(ptr as *mut u8) },
+            inner: ptr as *mut u8,
             cap: size,
             len: mem::size_of::<SystemVariables>(),
             marker: marker::PhantomData,
@@ -63,13 +61,17 @@ impl DataSpace {
         unsafe { &mut *(self.inner.offset(0) as *mut SystemVariables) }
     }
 
+    pub fn capacity(&self) -> usize {
+        self.cap
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }
 
-    #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool {
-        self.len == mem::align_of::<usize>()
+    pub fn here(&mut self) -> usize {
+        let len = self.len;
+        unsafe{ self.inner.offset(len as isize) as usize }
     }
 
     pub fn get_u8(&self, addr: usize) -> u8 {
@@ -171,6 +173,11 @@ impl DataSpace {
         self.len = (self.len + align - 1) & align.wrapping_neg();
     }
 
+    pub fn align_f64(&mut self) {
+        let align = mem::align_of::<f64>();
+        self.len = (self.len + align - 1) & align.wrapping_neg();
+    }
+
     pub fn allot(&mut self, v: isize) {
         let len = (self.len() as isize + v) as usize;
         self.len = len;
@@ -179,70 +186,4 @@ impl DataSpace {
     pub fn truncate(&mut self, i: usize) {
         self.len = i;
     }
-}
-
-
-pub struct CodeSpace {
-    pub inner: Unique<u8>,
-    cap: usize,
-    len: usize,
-}
-
-impl CodeSpace {
-    #[cfg(target_arch = "x86")]
-    pub fn new(num_pages: usize) -> CodeSpace {
-        let mut ptr: *mut libc::c_void;
-        let size = num_pages * PAGE_SIZE;
-        unsafe {
-            ptr = mem::uninitialized();
-            libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(ptr,
-                           size,
-                           libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE);
-
-            memset(ptr, 0xc3, size);
-        }
-        let mut result = CodeSpace {
-            inner: unsafe { Unique::new(ptr as *mut u8) },
-            cap: size,
-            len: 0,
-        };
-        result
-    }
-
-    #[cfg(target_arch = "arm")]
-    pub fn new(num_pages: usize) -> CodeSpace {
-        unimplemented!()
-    }
-}
-
-impl Index<usize> for CodeSpace {
-    type Output = u8;
-
-    fn index(&self, _index: usize) -> &u8 {
-        unsafe { &*self.inner.offset(_index as isize) }
-    }
-}
-
-impl IndexMut<usize> for CodeSpace {
-    fn index_mut(&mut self, _index: usize) -> &mut u8 {
-        unsafe { &mut *self.inner.offset(_index as isize) }
-    }
-}
-
-#[cfg(target_arch = "x86")]
-pub fn jit_3() -> (fn() -> i32) {
-    let mut jit = CodeSpace::new(1);
-    jit[0] = 0x31; // xor %eax, %eax
-    jit[1] = 0xc0;
-    jit[2] = 0x40; // inc %eax
-    jit[3] = 0x40; // inc %eax
-    jit[4] = 0x40; // inc %eax
-
-    unsafe { mem::transmute(jit.inner.offset(0)) }
-}
-
-#[cfg(target_arch = "arm")]
-pub fn jit_3() -> (fn() -> i32) {
-    unimplemented!()
 }

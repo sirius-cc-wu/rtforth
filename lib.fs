@@ -5,8 +5,6 @@
 32 constant bl
 : space ( -- ) 32 emit ;
 : spaces ( n -- ) 0 begin 2dup > while 1+ space repeat 2drop ;
-: 2/ ( n -- n/2 ) 1 arshift ;
-: 2* ( n -- n*2 ) 1 lshift ;
 : aligned ( addr -- a-addr ) 1 cells 1- +  1 cells 1- invert and ;
 : align ( -- ) here aligned  here - allot ;
 : 2@ ( a-addr -- x1 x2 ) dup cell+ @ swap @ ;

@@ -1,2 +1,4 @@
 .project
+Cargo.lock
 **/target/
+**/*.bk

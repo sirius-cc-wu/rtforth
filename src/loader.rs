@@ -8,7 +8,7 @@ pub trait HasLoader: Core {
     fn load(&mut self, path_name: &str) {
         let mut reader = match File::open(&path_name) {
             Err(_) => {
-                self.set_error(Some(FileIOException));
+                self.abort_with(FileIOException);
                 return;
             }
             Ok(file) => BufReader::new(file),
@@ -33,7 +33,7 @@ pub trait HasLoader: Core {
                 }
                 Err(_) => {
                     self.set_input_buffer(input_buffer);
-                    self.set_error(Some(FileIOException));
+                    self.abort_with(FileIOException);
                     return;
                 }
             };

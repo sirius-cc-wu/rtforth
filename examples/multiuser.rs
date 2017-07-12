@@ -6,8 +6,9 @@ extern crate tokio_core;
 const BUFFER_SIZE: usize = 0x400;
 
 mod vm {
-    use rtforth::core::{Core, Stack, State, ForwardReferences, Word};
-    use rtforth::jitmem::DataSpace;
+    use rtforth::core::{Core, Stack, State, ForwardReferences, Word, Control};
+    use rtforth::dataspace::DataSpace;
+    use rtforth::codespace::CodeSpace;
     use rtforth::float::Float;
     use rtforth::env::Environment;
     use rtforth::exception::Exception;
@@ -19,9 +20,12 @@ mod vm {
 
     struct Task {
         last_error: Option<Exception>,
+        handler: usize,
         state: State,
+        regs: [usize; 2],
         s_stk: Stack<isize>,
         r_stk: Stack<isize>,
+        c_stk: Stack<Control>,
         f_stk: Stack<f64>,
         inbuf: Option<String>,
         tkn: Option<String>,
@@ -34,59 +38,64 @@ mod vm {
         tasks_used: [bool; 3],
         tasks: [Task; 3],
         symbols: Vec<String>,
-        structure_depth: usize,
         last_definition: usize,
         wordlist: Vec<Word<VM>>,
-        jitmem: DataSpace,
+        data_space: DataSpace,
+        code_space: CodeSpace,
         references: ForwardReferences,
-        evals: Option<Vec<fn(&mut VM, token: &str)>>,
         // Evalution limit for tasks[1]
-        evaluation_limit: isize,
     }
 
     impl VM {
-        pub fn new(pages: usize) -> VM {
+        pub fn new(data_pages: usize, code_pages: usize) -> VM {
             let mut vm = VM {
                 current_task: 0,
                 tasks_used: [false; 3],
                 tasks: [Task {
                             last_error: None,
+                            handler: 0,
                             state: State::new(),
-                            s_stk: Stack::with_capacity(64),
-                            r_stk: Stack::with_capacity(64),
-                            f_stk: Stack::with_capacity(16),
+                            regs: [0, 0],
+                            s_stk: Stack::new(0x12345678),
+                            r_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(Control::Default),
+                            f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
                             outbuf: Some(String::with_capacity(BUFFER_SIZE)),
                         },
                         Task {
                             last_error: None,
+                            handler: 0,
                             state: State::new(),
-                            s_stk: Stack::with_capacity(64),
-                            r_stk: Stack::with_capacity(64),
-                            f_stk: Stack::with_capacity(16),
+                            regs: [0, 0],
+                            s_stk: Stack::new(0x12345678),
+                            r_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(Control::Default),
+                            f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
                             outbuf: Some(String::with_capacity(BUFFER_SIZE)),
                         },
                         Task {
                             last_error: None,
+                            handler: 0,
                             state: State::new(),
-                            s_stk: Stack::with_capacity(64),
-                            r_stk: Stack::with_capacity(64),
-                            f_stk: Stack::with_capacity(16),
+                            regs: [0, 0],
+                            s_stk: Stack::new(0x12345678),
+                            r_stk: Stack::new(0x12345678),
+                            c_stk: Stack::new(Control::Default),
+                            f_stk: Stack::new(1.234567890),
                             inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                             tkn: Some(String::with_capacity(64)),
                             outbuf: Some(String::with_capacity(BUFFER_SIZE)),
                         }],
                 symbols: vec![],
-                structure_depth: 0,
                 last_definition: 0,
                 wordlist: vec![],
-                jitmem: DataSpace::new(pages),
+                data_space: DataSpace::new(data_pages),
+                code_space: CodeSpace::new(code_pages),
                 references: ForwardReferences::new(),
-                evals: None,
-                evaluation_limit: 80,
             };
             vm.add_core();
             vm.add_output();
@@ -127,17 +136,23 @@ mod vm {
         fn set_error(&mut self, e: Option<Exception>) {
             self.tasks[self.current_task].last_error = e;
         }
-        fn structure_depth(&self) -> usize {
-            self.structure_depth
+        fn handler(&self) -> usize {
+            self.tasks[self.current_task].handler
         }
-        fn set_structure_depth(&mut self, depth: usize) {
-            self.structure_depth = depth
+        fn set_handler(&mut self, h: usize) {
+            self.tasks[self.current_task].handler = h;
         }
         fn data_space(&mut self) -> &mut DataSpace {
-            &mut self.jitmem
+            &mut self.data_space
         }
         fn data_space_const(&self) -> &DataSpace {
-            &self.jitmem
+            &self.data_space
+        }
+        fn code_space(&mut self) -> &mut CodeSpace {
+            &mut self.code_space
+        }
+        fn code_space_const(&self) -> &CodeSpace {
+            &self.code_space
         }
         fn output_buffer(&mut self) -> &mut Option<String> {
             &mut self.tasks[self.current_task].outbuf
@@ -157,11 +172,17 @@ mod vm {
         fn set_last_token(&mut self, buffer: String) {
             self.tasks[self.current_task].tkn = Some(buffer);
         }
+        fn regs(&mut self) -> &mut [usize; 2] {
+            &mut self.tasks[self.current_task].regs
+        }
         fn s_stack(&mut self) -> &mut Stack<isize> {
             &mut self.tasks[self.current_task].s_stk
         }
         fn r_stack(&mut self) -> &mut Stack<isize> {
             &mut self.tasks[self.current_task].r_stk
+        }
+        fn c_stack(&mut self) -> &mut Stack<Control> {
+            &mut self.tasks[self.current_task].c_stk
         }
         fn f_stack(&mut self) -> &mut Stack<f64> {
             &mut self.tasks[self.current_task].f_stk
@@ -189,19 +210,6 @@ mod vm {
         }
         fn references(&mut self) -> &mut ForwardReferences {
             &mut self.references
-        }
-        fn evaluators(&mut self) -> &mut Option<Vec<fn(&mut Self, token: &str)>> {
-            &mut self.evals
-        }
-        fn set_evaluators(&mut self, evaluators: Vec<fn(&mut Self, token: &str)>) {
-            self.evals = Some(evaluators)
-        }
-        fn evaluation_limit(&self) -> isize {
-            if self.current_task == 0 {
-                0
-            } else {
-                self.evaluation_limit
-            }
         }
     }
 
@@ -298,7 +306,7 @@ mod server {
                             let mut outbuf = (*vm).output_buffer().take().unwrap();
                             match vm.last_error() {
                                 Some(e) => {
-                                    writeln!(outbuf, "{:?}", e);
+                                    writeln!(outbuf, "{:?}", e).unwrap();
                                 }
                                 None => {}
                             }
@@ -336,20 +344,22 @@ fn main() {
     let addr = "127.0.0.1:12345".parse().unwrap();
     let sock = TcpListener::bind(&addr, &handle).unwrap();
 
-    let vm = Arc::new(Mutex::new(VM::new(0x100)));
+    let vm = Arc::new(Mutex::new(VM::new(0x100, 0x100)));
 
-    let server = sock.incoming().for_each(|(sock, _)| {
-        let (reader, writer) = sock.split();
+    let server = sock.incoming()
+        .for_each(|(sock, _)| {
+            let (reader, writer) = sock.split();
 
-        let future = server::eval(reader, writer, vm.clone());
+            let future = server::eval(reader, writer, vm.clone());
 
-        let handle_conn = future.map(|_| println!("done"))
-            .map_err(|err| println!("IO error {:?}", err));
+            let handle_conn = future
+                .map(|_| println!("done"))
+                .map_err(|err| println!("IO error {:?}", err));
 
-        handle.spawn(handle_conn);
+            handle.spawn(handle_conn);
 
-        Ok(())
-    });
+            Ok(())
+        });
 
     core.run(server).unwrap();
 }

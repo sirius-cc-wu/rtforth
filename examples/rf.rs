@@ -16,6 +16,7 @@ use rtforth::tools::Tools;
 use rtforth::env::Environment;
 use rtforth::facility::Facility;
 use rtforth::float::Float;
+use rtforth::units::Units;
 
 #[cfg(not(test))]
 #[cfg(not(test))]
@@ -70,6 +71,7 @@ impl VM {
         vm.add_environment();
         vm.add_facility();
         vm.add_float();
+        vm.add_units();
         vm.add_primitive("accept", p_accept);
         vm
     }
@@ -162,6 +164,7 @@ impl Core for VM {
 impl Environment for VM {}
 impl Facility for VM {}
 impl Float for VM {}
+impl Units for VM {}
 impl HasLoader for VM {}
 impl Output for VM {}
 impl Tools for VM {}

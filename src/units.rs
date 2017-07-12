@@ -11,7 +11,6 @@ pub trait Units: Core {
         self.add_primitive("deg", Units::from_deg);
         self.add_primitive("rad", Units::from_rad);
 
-
         self.add_primitive("min", Units::from_minute);
         self.add_primitive("sec", Units::from_sec);
         self.add_primitive("msec", Units::from_msec);
@@ -19,24 +18,20 @@ pub trait Units: Core {
 
     }
 
-
     primitive!{fn from_meter(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t);
     }}
-
 
     primitive!{fn from_mm(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t*0.001);
     }}
 
-
     primitive!{fn from_um(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t*0.000_001);
     }}
-
 
     primitive!{fn from_deg(&mut self) {
         let t = self.f_stack().pop();

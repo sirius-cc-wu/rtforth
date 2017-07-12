@@ -1,5 +1,3 @@
-use std::mem;
-use {TRUE, FALSE};
 use std::f64::consts::PI;
 use core::Core;
 
@@ -62,7 +60,7 @@ pub trait Units: Core {
 
     primitive!{fn from_msec(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(t*0.0001);
+        self.f_stack().push(t*0.001);
     }}
 
     primitive!{fn from_usec(&mut self) {
@@ -75,7 +73,6 @@ pub trait Units: Core {
 mod tests {
     use vm::VM;
     use core::Core;
-    use super::Units;
 
     fn double_value_check(res: f64, exp: f64) -> bool {
         if (res > exp - 0.000_000_1) && (res < exp + 0.000_000_1) {
@@ -91,9 +88,8 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
-        assert!(match vm.f_stack().pop() {
-                    t => double_value_check(t, 0.1234),
-                });
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 0.1234));
     }
 
 
@@ -104,9 +100,8 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
-        assert!(match vm.f_stack().pop() {
-                    t => double_value_check(t, 0.000_3),
-                });
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 0.000_3));
     }
 
     #[test]
@@ -116,9 +111,8 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
-        assert!(match vm.f_stack().pop() {
-                    t => double_value_check(t, 0.000_003),
-                });
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 0.000_003));
     }
 
 
@@ -129,9 +123,8 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
-        assert!(match vm.f_stack().pop() {
-                    t => double_value_check(t, 0.174_532_9),
-                });
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 0.174_532_9));
     }
 
     #[test]
@@ -141,9 +134,8 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
-        assert!(match vm.f_stack().pop() {
-                    t => double_value_check(t, 10.0),
-                });
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 10.0));
     }
 
     #[test]
@@ -153,9 +145,8 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
-        assert!(match vm.f_stack().pop() {
-                    t => double_value_check(t, 60.0),
-                });
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 60.0));
     }
 
     #[test]
@@ -165,9 +156,8 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
-        assert!(match vm.f_stack().pop() {
-                    t => double_value_check(t, 2.0),
-                });
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 2.0));
     }
 
     #[test]
@@ -177,9 +167,8 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
-        assert!(match vm.f_stack().pop() {
-                    t => double_value_check(t, 0.002),
-                });
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 0.002));
     }
 
     #[test]
@@ -189,12 +178,8 @@ mod tests {
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
-        assert!(match vm.f_stack().pop() {
-                    t => double_value_check(t, 0.000_002),
-                });
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 0.000_002));
     }
-
-
-
 
 }

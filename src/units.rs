@@ -1,3 +1,6 @@
+use uom::si::f64::{Length, Time};
+use uom::si::length::{meter, millimeter, micrometer};
+use uom::si::time::{minute, second, millisecond, microsecond};
 use std::f64::consts::PI;
 use core::Core;
 
@@ -20,17 +23,17 @@ pub trait Units: Core {
 
     primitive!{fn from_meter(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(t);
+        self.f_stack().push(Length::new::<meter>(t).value);
     }}
 
     primitive!{fn from_mm(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(t*0.001);
+        self.f_stack().push(Length::new::<millimeter>(t).value);
     }}
 
     primitive!{fn from_um(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(t*0.000_001);
+        self.f_stack().push(Length::new::<micrometer>(t).value);
     }}
 
     primitive!{fn from_deg(&mut self) {
@@ -45,22 +48,22 @@ pub trait Units: Core {
 
     primitive!{fn from_minute(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(t*60.0);
+        self.f_stack().push(Time::new::<minute>(t).value);
     }}
 
     primitive!{fn from_sec(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(t);
+        self.f_stack().push(Time::new::<second>(t).value);
     }}
 
     primitive!{fn from_msec(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(t*0.001);
+        self.f_stack().push(Time::new::<millisecond>(t).value);
     }}
 
     primitive!{fn from_usec(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(t*0.000_001);
+        self.f_stack().push(Time::new::<microsecond>(t).value);
     }}
 }
 

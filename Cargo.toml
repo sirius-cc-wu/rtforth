@@ -10,6 +10,7 @@ repository = "https://github.com/chengchangwu/rtforth.git"
 
 [dependencies]
 time = "0.1"
+uom = "0.15"
 
 [profile.release]
 debug = true

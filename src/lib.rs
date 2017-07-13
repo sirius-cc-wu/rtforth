@@ -19,6 +19,8 @@ macro_rules! primitive {
     (fn $f:ident $args:tt -> &mut [usize; 2] $body:tt) => { extern "fastcall" fn $f $args -> &mut [usize; 2] $body };
 }
 
+extern crate uom;
+
 pub mod vm;
 pub mod core;
 pub mod loader;

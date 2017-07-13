@@ -1,8 +1,10 @@
 use uom::si::f64::{Length, Time};
 use uom::si::length::{meter, millimeter, micrometer};
-use uom::si::time::{minute, second, millisecond, microsecond};
+use uom::si::time::{hour, minute, second, millisecond, microsecond};
 use std::f64::consts::PI;
 use core::Core;
+
+const RPM: f64 = 2.0*PI/60.0;
 
 pub trait Units: Core {
     fn add_units(&mut self) {
@@ -14,11 +16,18 @@ pub trait Units: Core {
         self.add_primitive("deg", Units::from_deg);
         self.add_primitive("rad", Units::from_rad);
 
+        self.add_primitive("hr", Units::from_hour);
         self.add_primitive("min", Units::from_minute);
         self.add_primitive("sec", Units::from_sec);
         self.add_primitive("msec", Units::from_msec);
         self.add_primitive("usec", Units::from_usec);
 
+        self.add_primitive("mm/min", Units::mm_per_min);
+        self.add_primitive("um/msec", Units::um_per_msec);
+
+        self.add_primitive("rpm", Units::rpm);
+        self.add_primitive("hz", Units::hertz);
+        self.add_primitive("1/sec", Units::hertz);
     }
 
     primitive!{fn from_meter(&mut self) {
@@ -46,6 +55,11 @@ pub trait Units: Core {
         self.f_stack().push(t);
     }}
 
+    primitive!{fn from_hour(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(Time::new::<hour>(t).value);
+    }}
+
     primitive!{fn from_minute(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Time::new::<minute>(t).value);
@@ -65,12 +79,34 @@ pub trait Units: Core {
         let t = self.f_stack().pop();
         self.f_stack().push(Time::new::<microsecond>(t).value);
     }}
+
+    primitive!{fn mm_per_min(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(Length::new::<millimeter>(t).value/Time::new::<minute>(1.0).value);
+    }}
+
+    primitive!{fn um_per_msec(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(Length::new::<micrometer>(t).value/Time::new::<millisecond>(1.0).value);
+    }}
+
+     primitive!{fn rpm(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(t*RPM);
+    }}
+
+     primitive!{fn hertz(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(t);
+    }}
+
 }
 
 #[cfg(test)]
 mod tests {
     use vm::VM;
     use core::Core;
+    use std::f64::consts::PI;
 
     fn double_value_check(res: f64, exp: f64) -> bool {
         if (res > exp - 0.000_000_1) && (res < exp + 0.000_000_1) {
@@ -137,6 +173,17 @@ mod tests {
     }
 
     #[test]
+    fn test_units_hr() {
+        let vm = &mut VM::new(16, 16);
+        vm.set_source("1.0 hr");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 60.0*60.0));
+    }
+
+    #[test]
     fn test_units_min() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("1.0 min");
@@ -178,6 +225,50 @@ mod tests {
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
         assert!(double_value_check(t, 0.000_002));
+    }
+
+    #[test]
+    fn test_units_mm_per_min() {
+        let vm = &mut VM::new(16, 16);
+        vm.set_source("2.0 mm/min");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 0.002 / 60.0));
+    }
+
+    #[test]
+    fn test_units_um_per_msec() {
+        let vm = &mut VM::new(16, 16);
+        vm.set_source("2.0 um/msec");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 0.000002 / 0.001));
+    }
+
+    #[test]
+    fn test_rpm() {
+        let vm = &mut VM::new(16, 16);
+        vm.set_source("2.0 rpm");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 2.0 * 2.0 * PI / 60.0));
+    }
+
+    #[test]
+    fn test_hz() {
+        let vm = &mut VM::new(16, 16);
+        vm.set_source("2.0 hz");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        let t = vm.f_stack().pop();
+        assert!(double_value_check(t, 2.0));
     }
 
 }

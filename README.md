@@ -26,7 +26,7 @@ $ cargo build --example rf --release --features="subroutine-threaded"    # Compi
 ```
 
 ```
-$ cargo run --examples rf              # Execute debug version of rtForth.
+$ cargo run --example rf              # Execute debug version of rtForth.
 rtForth v0.1.39, Copyright (C) 2017 Mapacode Inc.
 Type 'bye' or press Ctrl-D to exit.
 rf> : star 42 emit ;

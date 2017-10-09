@@ -25,6 +25,7 @@ pub trait Float: Core {
         self.add_primitive("frot", Float::frot);
         self.add_primitive("fover", Float::fover);
         self.add_primitive("n>f", Float::n_to_f);
+        self.add_primitive("f>n", Float::f_to_n);
         self.add_primitive("f+", Float::fplus);
         self.add_primitive("f-", Float::fminus);
         self.add_primitive("f*", Float::fstar);
@@ -167,6 +168,12 @@ pub trait Float: Core {
         let t = self.s_stack().pop();
         self.f_stack().push(t as f64);
     }}
+    
+    primitive!{fn f_to_n(&mut self) {
+        let t = self.f_stack().pop();
+        self.s_stack().push(t as isize);
+    }}
+    
 
     primitive!{fn fplus(&mut self) {
         let t = self.f_stack().pop();
@@ -598,6 +605,16 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [0.0, -1.0, 1.0]);
     }
+    
+    #[test]
+    fn test_f_to_n() {
+        let vm = &mut VM::new(16, 16);
+        vm.set_source("0.0 f>n -1.0 f>n 1.0 f>n");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), [0, -1, 1]);
+    }
+    
 
     #[test]
     fn test_flit_and_compile_float() {

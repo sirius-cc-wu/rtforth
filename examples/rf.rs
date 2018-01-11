@@ -1,12 +1,12 @@
+extern crate getopts;
 #[macro_use(primitive)]
 extern crate rtforth;
-extern crate getopts;
 extern crate rustyline;
 
 use std::fmt::Write;
 use std::env;
 use getopts::Options;
-use rtforth::core::{Core, Word, ForwardReferences, Stack, State, Control};
+use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
 use rtforth::exception::Exception;
 use rtforth::output::Output;
 use rtforth::dataspace::DataSpace;
@@ -239,7 +239,8 @@ primitive!{fn p_accept(vm: &mut VM) {
 
 #[inline(never)]
 fn repl(vm: &mut VM) {
-    vm.set_source("
+    vm.set_source(
+        "
         : EVALUATE
             BEGIN PARSE-WORD
             TOKEN-EMPTY? NOT  ERROR? NOT  AND
@@ -253,7 +254,8 @@ fn repl(vm: &mut VM) {
             AGAIN ;
         : (ABORT) HANDLE-ERROR FLUSH QUIT ;
         ' (ABORT) HANDLER!
-    ");
+    ",
+    );
     vm.evaluate();
     vm.run();
     let quit = vm.find("QUIT").expect("QUIT");

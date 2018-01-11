@@ -1,14 +1,13 @@
 use uom::si::f64::{Length, Time};
-use uom::si::length::{meter, millimeter, micrometer};
-use uom::si::time::{hour, minute, second, millisecond, microsecond};
+use uom::si::length::{meter, micrometer, millimeter};
+use uom::si::time::{hour, microsecond, millisecond, minute, second};
 use std::f64::consts::PI;
 use core::Core;
 
-const RPM: f64 = 2.0*PI/60.0;
+const RPM: f64 = 2.0 * PI / 60.0;
 
 pub trait Units: Core {
     fn add_units(&mut self) {
-
         self.add_primitive("meter", Units::from_meter);
         self.add_primitive("mm", Units::from_mm);
         self.add_primitive("um", Units::from_um);
@@ -90,16 +89,15 @@ pub trait Units: Core {
         self.f_stack().push(Length::new::<micrometer>(t).value/Time::new::<millisecond>(1.0).value);
     }}
 
-     primitive!{fn rpm(&mut self) {
+    primitive!{fn rpm(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t*RPM);
     }}
 
-     primitive!{fn hertz(&mut self) {
+    primitive!{fn hertz(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t);
     }}
-
 }
 
 #[cfg(test)]
@@ -126,7 +124,6 @@ mod tests {
         assert!(double_value_check(t, 0.1234));
     }
 
-
     #[test]
     fn test_units_mm() {
         let vm = &mut VM::new(16, 16);
@@ -148,7 +145,6 @@ mod tests {
         let t = vm.f_stack().pop();
         assert!(double_value_check(t, 0.000_003));
     }
-
 
     #[test]
     fn test_units_deg() {
@@ -180,7 +176,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
-        assert!(double_value_check(t, 60.0*60.0));
+        assert!(double_value_check(t, 60.0 * 60.0));
     }
 
     #[test]

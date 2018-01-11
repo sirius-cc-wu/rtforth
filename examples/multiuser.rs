@@ -1,12 +1,12 @@
-extern crate rtforth;
 extern crate futures;
+extern crate rtforth;
 #[macro_use(try_nb)]
 extern crate tokio_core;
 
 const BUFFER_SIZE: usize = 0x400;
 
 mod vm {
-    use rtforth::core::{Core, Stack, State, ForwardReferences, Word, Control};
+    use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
     use rtforth::dataspace::DataSpace;
     use rtforth::codespace::CodeSpace;
     use rtforth::float::Float;
@@ -51,45 +51,47 @@ mod vm {
             let mut vm = VM {
                 current_task: 0,
                 tasks_used: [false; 3],
-                tasks: [Task {
-                            last_error: None,
-                            handler: 0,
-                            state: State::new(),
-                            regs: [0, 0],
-                            s_stk: Stack::new(0x12345678),
-                            r_stk: Stack::new(0x12345678),
-                            c_stk: Stack::new(Control::Default),
-                            f_stk: Stack::new(1.234567890),
-                            inbuf: Some(String::with_capacity(BUFFER_SIZE)),
-                            tkn: Some(String::with_capacity(64)),
-                            outbuf: Some(String::with_capacity(BUFFER_SIZE)),
-                        },
-                        Task {
-                            last_error: None,
-                            handler: 0,
-                            state: State::new(),
-                            regs: [0, 0],
-                            s_stk: Stack::new(0x12345678),
-                            r_stk: Stack::new(0x12345678),
-                            c_stk: Stack::new(Control::Default),
-                            f_stk: Stack::new(1.234567890),
-                            inbuf: Some(String::with_capacity(BUFFER_SIZE)),
-                            tkn: Some(String::with_capacity(64)),
-                            outbuf: Some(String::with_capacity(BUFFER_SIZE)),
-                        },
-                        Task {
-                            last_error: None,
-                            handler: 0,
-                            state: State::new(),
-                            regs: [0, 0],
-                            s_stk: Stack::new(0x12345678),
-                            r_stk: Stack::new(0x12345678),
-                            c_stk: Stack::new(Control::Default),
-                            f_stk: Stack::new(1.234567890),
-                            inbuf: Some(String::with_capacity(BUFFER_SIZE)),
-                            tkn: Some(String::with_capacity(64)),
-                            outbuf: Some(String::with_capacity(BUFFER_SIZE)),
-                        }],
+                tasks: [
+                    Task {
+                        last_error: None,
+                        handler: 0,
+                        state: State::new(),
+                        regs: [0, 0],
+                        s_stk: Stack::new(0x12345678),
+                        r_stk: Stack::new(0x12345678),
+                        c_stk: Stack::new(Control::Default),
+                        f_stk: Stack::new(1.234567890),
+                        inbuf: Some(String::with_capacity(BUFFER_SIZE)),
+                        tkn: Some(String::with_capacity(64)),
+                        outbuf: Some(String::with_capacity(BUFFER_SIZE)),
+                    },
+                    Task {
+                        last_error: None,
+                        handler: 0,
+                        state: State::new(),
+                        regs: [0, 0],
+                        s_stk: Stack::new(0x12345678),
+                        r_stk: Stack::new(0x12345678),
+                        c_stk: Stack::new(Control::Default),
+                        f_stk: Stack::new(1.234567890),
+                        inbuf: Some(String::with_capacity(BUFFER_SIZE)),
+                        tkn: Some(String::with_capacity(64)),
+                        outbuf: Some(String::with_capacity(BUFFER_SIZE)),
+                    },
+                    Task {
+                        last_error: None,
+                        handler: 0,
+                        state: State::new(),
+                        regs: [0, 0],
+                        s_stk: Stack::new(0x12345678),
+                        r_stk: Stack::new(0x12345678),
+                        c_stk: Stack::new(Control::Default),
+                        f_stk: Stack::new(1.234567890),
+                        inbuf: Some(String::with_capacity(BUFFER_SIZE)),
+                        tkn: Some(String::with_capacity(64)),
+                        outbuf: Some(String::with_capacity(BUFFER_SIZE)),
+                    },
+                ],
                 symbols: vec![],
                 last_definition: 0,
                 wordlist: vec![],
@@ -254,8 +256,9 @@ mod server {
         }
     }
     pub fn eval<R, W>(reader: R, writer: W, vm: Arc<Mutex<VM>>) -> Eval<R, W>
-        where R: io::Read,
-              W: io::Write
+    where
+        R: io::Read,
+        W: io::Write,
     {
         let tsk = {
             let mut v = vm.lock().unwrap();
@@ -275,8 +278,9 @@ mod server {
     }
 
     impl<R, W> Future for Eval<R, W>
-        where R: io::Read,
-              W: io::Write
+    where
+        R: io::Read,
+        W: io::Write,
     {
         type Item = ();
         type Error = io::Error;
@@ -346,20 +350,19 @@ fn main() {
 
     let vm = Arc::new(Mutex::new(VM::new(0x100, 0x100)));
 
-    let server = sock.incoming()
-        .for_each(|(sock, _)| {
-            let (reader, writer) = sock.split();
+    let server = sock.incoming().for_each(|(sock, _)| {
+        let (reader, writer) = sock.split();
 
-            let future = server::eval(reader, writer, vm.clone());
+        let future = server::eval(reader, writer, vm.clone());
 
-            let handle_conn = future
-                .map(|_| println!("done"))
-                .map_err(|err| println!("IO error {:?}", err));
+        let handle_conn = future
+            .map(|_| println!("done"))
+            .map_err(|err| println!("IO error {:?}", err));
 
-            handle.spawn(handle_conn);
+        handle.spawn(handle_conn);
 
-            Ok(())
-        });
+        Ok(())
+    });
 
     core.run(server).unwrap();
 }

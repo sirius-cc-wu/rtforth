@@ -1,5 +1,5 @@
 use std::mem;
-use {TRUE, FALSE};
+use {FALSE, TRUE};
 use core::Core;
 use exception::Exception::InvalidMemoryAddress;
 
@@ -168,12 +168,11 @@ pub trait Float: Core {
         let t = self.s_stack().pop();
         self.f_stack().push(t as f64);
     }}
-    
+
     primitive!{fn f_to_n(&mut self) {
         let t = self.f_stack().pop();
         self.s_stack().push(t as isize);
     }}
-    
 
     primitive!{fn fplus(&mut self) {
         let t = self.f_stack().pop();
@@ -301,7 +300,7 @@ mod tests {
         vm.evaluate();
         vm.run();
         assert_eq!(vm.last_error(), None);
-        assert_eq!(vm.f_stack().as_slice(), [1.1*2.0]);
+        assert_eq!(vm.f_stack().as_slice(), [1.1 * 2.0]);
     }
 
     #[test]
@@ -334,8 +333,8 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    t => t > 3.13999 && t < 3.14001,
-                });
+            t => t > 3.13999 && t < 3.14001,
+        });
     }
 
     #[test]
@@ -346,8 +345,8 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    t => t > 0.0015925 && t < 0.0015927,
-                });
+            t => t > 0.0015925 && t < 0.0015927,
+        });
     }
 
     #[test]
@@ -358,8 +357,8 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    t => t > -0.989993 && t < -0.989991,
-                });
+            t => t > -0.989993 && t < -0.989991,
+        });
     }
 
     #[test]
@@ -370,8 +369,8 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    t => t > -0.142547 && t < -0.142545,
-                });
+            t => t > -0.142547 && t < -0.142545,
+        });
     }
 
     #[test]
@@ -382,8 +381,8 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    t => t > 0.304691 && t < 0.304693,
-                });
+            t => t > 0.304691 && t < 0.304693,
+        });
     }
 
     #[test]
@@ -394,8 +393,8 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    t => t > 1.266102 && t < 1.266104,
-                });
+            t => t > 1.266102 && t < 1.266104,
+        });
     }
 
     #[test]
@@ -406,8 +405,8 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    t => t > 0.291455 && t < 0.291457,
-                });
+            t => t > 0.291455 && t < 0.291457,
+        });
     }
 
     #[test]
@@ -418,8 +417,8 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    t => t > 0.643500 && t < 0.643502,
-                });
+            t => t > 0.643500 && t < 0.643502,
+        });
     }
 
     #[test]
@@ -430,8 +429,8 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    t => t > 0.547721 && t < 0.547723,
-                });
+            t => t > 0.547721 && t < 0.547723,
+        });
     }
 
     #[test]
@@ -509,8 +508,8 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
-                    t => t > 7.384614 && t < 7.384616,
-                });
+            t => t > 7.384614 && t < 7.384616,
+        });
         vm.check_stacks();
         assert_eq!(vm.last_error(), None);
     }
@@ -605,7 +604,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [0.0, -1.0, 1.0]);
     }
-    
+
     #[test]
     fn test_f_to_n() {
         let vm = &mut VM::new(16, 16);
@@ -614,7 +613,6 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().as_slice(), [0, -1, 1]);
     }
-    
 
     #[test]
     fn test_flit_and_compile_float() {

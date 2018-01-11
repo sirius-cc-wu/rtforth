@@ -17,7 +17,6 @@ pub struct CodeSpace {
 }
 
 impl CodeSpace {
-
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     pub fn new(num_pages: usize) -> CodeSpace {
         let mut ptr: *mut libc::c_void;
@@ -25,7 +24,11 @@ impl CodeSpace {
         unsafe {
             ptr = mem::uninitialized();
             libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(ptr, size, libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE);
+            libc::mprotect(
+                ptr,
+                size,
+                libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE,
+            );
             memset(ptr, 0xc3, size); // prepopulate with 'RET'
         }
         CodeSpace {
@@ -42,7 +45,11 @@ impl CodeSpace {
         unsafe {
             ptr = mem::uninitialized();
             libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(ptr, size, libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE);
+            libc::mprotect(
+                ptr,
+                size,
+                libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE,
+            );
             memset(ptr, 0x00, size);
         }
         let mut result = CodeSpace {
@@ -64,8 +71,8 @@ impl CodeSpace {
     }
 
     pub fn has(&self, pos: usize) -> bool {
-        let lower_bound = unsafe{ self.inner.offset(0) as usize };
-        let upper_bound = unsafe{ self.inner.offset(self.cap as isize) as usize };
+        let lower_bound = unsafe { self.inner.offset(0) as usize };
+        let upper_bound = unsafe { self.inner.offset(self.cap as isize) as usize };
         (lower_bound <= pos) & (pos < upper_bound)
     }
 
@@ -104,7 +111,9 @@ impl CodeSpace {
     pub fn compile_u8(&mut self, v: u8) {
         if self.len + mem::size_of::<u8>() <= self.cap {
             let here = self.here();
-            unsafe{ self.put_u8(v, here); }
+            unsafe {
+                self.put_u8(v, here);
+            }
             self.len += mem::size_of::<u8>();
         } else {
             panic!("Error: compile_u8 while code space is full.");
@@ -118,7 +127,9 @@ impl CodeSpace {
     pub fn compile_u32(&mut self, v: u32) {
         if self.len + mem::size_of::<u32>() <= self.cap {
             let here = self.here();
-            unsafe{ self.put_u32(v, here); }
+            unsafe {
+                self.put_u32(v, here);
+            }
             self.len += mem::size_of::<u32>();
         } else {
             panic!("Error: compile_u32 while code space is full.");
@@ -132,7 +143,9 @@ impl CodeSpace {
     pub fn compile_i32(&mut self, v: i32) {
         if self.len + mem::size_of::<i32>() <= self.cap {
             let here = self.here();
-            unsafe{ self.put_i32(v, here); }
+            unsafe {
+                self.put_i32(v, here);
+            }
             self.len += mem::size_of::<i32>();
         } else {
             panic!("Error: compile_i32 while code space is full.");
@@ -146,7 +159,9 @@ impl CodeSpace {
     pub fn compile_f64(&mut self, v: f64) {
         if self.len + mem::size_of::<f64>() <= self.cap {
             let here = self.here();
-            unsafe{ self.put_f64(v, here); }
+            unsafe {
+                self.put_f64(v, here);
+            }
             self.len += mem::size_of::<f64>();
         } else {
             panic!("Error: compile_f64 while code space is full.");
@@ -172,7 +187,7 @@ impl CodeSpace {
 
     pub fn here(&mut self) -> usize {
         let len = self.len;
-        unsafe{ self.inner.offset(len as isize) as usize }
+        unsafe { self.inner.offset(len as isize) as usize }
     }
 
     pub fn align(&mut self) {

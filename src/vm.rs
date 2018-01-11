@@ -1,5 +1,5 @@
 use output::Output;
-use core::{Core, Word, ForwardReferences, Stack, State, Control};
+use core::{Control, Core, ForwardReferences, Stack, State, Word};
 use dataspace::DataSpace;
 use codespace::CodeSpace;
 use loader::HasLoader;

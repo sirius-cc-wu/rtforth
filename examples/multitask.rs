@@ -5,7 +5,7 @@ mod vm {
     use rtforth::output::Output;
     use rtforth::dataspace::DataSpace;
     use rtforth::codespace::CodeSpace;
-    use rtforth::core::{Core, Stack, State, ForwardReferences, Word, Control};
+    use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
     use rtforth::exception::Exception;
 
     const BUFFER_SIZE: usize = 0x400;
@@ -39,22 +39,24 @@ mod vm {
         pub fn new(data_pages: usize, code_pages: usize) -> VM {
             let mut vm = VM {
                 current_task: 0,
-                tasks: [Task {
-                            state: State::new(),
-                            regs: [0, 0],
-                            s_stk: Stack::new(0x12345678),
-                            r_stk: Stack::new(0x12345678),
-                            c_stk: Stack::new(Control::Default),
-                            f_stk: Stack::new(1.234567890),
-                        },
-                        Task {
-                            state: State::new(),
-                            regs: [0, 0],
-                            s_stk: Stack::new(0x12345678),
-                            r_stk: Stack::new(0x12345678),
-                            c_stk: Stack::new(Control::Default),
-                            f_stk: Stack::new(1.234567890),
-                        }],
+                tasks: [
+                    Task {
+                        state: State::new(),
+                        regs: [0, 0],
+                        s_stk: Stack::new(0x12345678),
+                        r_stk: Stack::new(0x12345678),
+                        c_stk: Stack::new(Control::Default),
+                        f_stk: Stack::new(1.234567890),
+                    },
+                    Task {
+                        state: State::new(),
+                        regs: [0, 0],
+                        s_stk: Stack::new(0x12345678),
+                        r_stk: Stack::new(0x12345678),
+                        c_stk: Stack::new(Control::Default),
+                        f_stk: Stack::new(1.234567890),
+                    },
+                ],
                 last_error: None,
                 handler: 0,
                 symbols: vec![],

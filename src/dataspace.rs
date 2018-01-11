@@ -71,7 +71,7 @@ impl DataSpace {
 
     pub fn here(&mut self) -> usize {
         let len = self.len;
-        unsafe{ self.inner.offset(len as isize) as usize }
+        unsafe { self.inner.offset(len as isize) as usize }
     }
 
     pub fn get_u8(&self, addr: usize) -> u8 {
@@ -97,7 +97,10 @@ impl DataSpace {
 
     pub fn get_str(&self, addr: usize, len: usize) -> &str {
         unsafe {
-            mem::transmute(slice::from_raw_parts::<u8>(self.inner.offset(addr as isize), len))
+            mem::transmute(slice::from_raw_parts::<u8>(
+                self.inner.offset(addr as isize),
+                len,
+            ))
         }
     }
 

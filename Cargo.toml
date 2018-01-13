@@ -1,7 +1,7 @@
 [package]
 
 name = "rtforth"
-version = "0.1.40"
+version = "0.2.0"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 keywords = ["forth", "real-time"]
 description = "Forth implemented in Rust for realtime application"
@@ -11,6 +11,7 @@ repository = "https://github.com/chengchangwu/rtforth.git"
 [dependencies]
 time = "0.1"
 uom = "0.15"
+approx = "0.1"
 
 [profile.release]
 debug = true

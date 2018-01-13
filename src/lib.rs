@@ -20,6 +20,8 @@ macro_rules! primitive {
         => { extern "fastcall" fn $f $args -> &mut [usize; 2] $body };
 }
 
+#[macro_use]
+extern crate approx;
 extern crate uom;
 
 pub mod vm;
@@ -34,6 +36,7 @@ pub mod float;
 pub mod units;
 pub mod dataspace;
 pub mod codespace;
+pub(crate) mod parser;
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;

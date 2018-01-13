@@ -6,9 +6,9 @@ use std::mem;
 use std::ops::{Index, IndexMut};
 use std::fmt::{self, Display};
 use std::fmt::Write;
-use std::str::FromStr;
-use std::ascii::AsciiExt;
+use std::str;
 use std::result;
+use parser;
 use dataspace::DataSpace;
 use codespace::CodeSpace;
 use exception::Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
@@ -1322,19 +1322,100 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     /// Evaluate float.
     fn evaluate_float(&mut self, token: &str) {
-        match FromStr::from_str(token) {
-            Ok(t) => {
-                if self.references().idx_flit == 0 {
-                    self.set_error(Some(UnsupportedOperation));
-                } else {
-                    if self.state().is_compiling {
-                        self.compile_float(t);
+        let significand_sign;
+        let integer_part;
+        let mut fraction_part = 0.0;
+        let mut exponent_sign: isize = 0;
+        let mut exponent_part: isize = 0;
+        let mut failed = false;
+        let mut bytes = token.as_bytes();
+
+        match parser::sign(bytes) {
+            parser::IResult::Done(input, value) => {
+                significand_sign = value;
+                bytes = input;
+            }
+        }
+
+        let len_before = bytes.len();
+        match parser::uint(bytes) {
+            parser::IResult::Done(input, value) => {
+                integer_part = value;
+                bytes = input;
+            }
+        }
+        if bytes.len() != len_before {
+            match parser::fraction(bytes) {
+                parser::IResult::Done(input, value) => {
+                    fraction_part = value;
+                    bytes = input;
+                }
+            }
+
+            let len_before = bytes.len();
+            match parser::ascii(bytes, b'E') {
+                parser::IResult::Done(input, value) => {
+                    if value {
+                        match parser::sign(input) {
+                            parser::IResult::Done(input, value) => {
+                                exponent_sign = value;
+                                bytes = input;
+                            }
+                        }
+                        match parser::uint(bytes) {
+                            parser::IResult::Done(input, value) => {
+                                exponent_part = value;
+                                bytes = input;
+                            }
+                        }
                     } else {
-                        self.f_stack().push(t);
+                        match parser::ascii(bytes, b'e') {
+                            parser::IResult::Done(input, value) => {
+                                if value {
+                                    match parser::sign(input) {
+                                        parser::IResult::Done(input, value) => {
+                                            exponent_sign = value;
+                                            bytes = input;
+                                        }
+                                    }
+                                    match parser::uint(bytes) {
+                                        parser::IResult::Done(input, value) => {
+                                            exponent_part = value;
+                                            bytes = input;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
-            Err(_) => self.set_error(Some(UnsupportedOperation)),
+
+            if bytes.len() == len_before {
+                failed = true;
+            }
+        } else {
+            failed = true;
+        }
+
+        if bytes.len() != 0 {
+            failed = true;
+        }
+
+        if failed {
+            self.set_error(Some(UnsupportedOperation))
+        } else {
+            if self.references().idx_flit == 0 {
+                self.set_error(Some(UnsupportedOperation));
+            } else {
+                let value = (significand_sign as f64) * (integer_part as f64 + fraction_part)
+                    * ((10.0f64).powi((exponent_sign.wrapping_mul(exponent_part)) as i32) as f64);
+                if self.state().is_compiling {
+                    self.compile_float(value);
+                } else {
+                    self.f_stack().push(value);
+                }
+            }
         }
     }
 

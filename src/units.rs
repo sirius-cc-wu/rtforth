@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn test_units_meter() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("0.1234 meter");
+        vm.set_source("0.1234E meter");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn test_units_mm() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("0.3 mm");
+        vm.set_source("0.3E mm");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -138,7 +138,7 @@ mod tests {
     #[test]
     fn test_units_um() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("3.0 um");
+        vm.set_source("3.0E um");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn test_units_deg() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("10.0 deg");
+        vm.set_source("10.0E deg");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn test_units_rad() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("10.0 rad");
+        vm.set_source("10.0E rad");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn test_units_hr() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("1.0 hr");
+        vm.set_source("1.0E hr");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn test_units_min() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("1.0 min");
+        vm.set_source("1.0E min");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -193,7 +193,7 @@ mod tests {
     #[test]
     fn test_units_sec() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("2.0 sec");
+        vm.set_source("2.0E sec");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -204,7 +204,7 @@ mod tests {
     #[test]
     fn test_units_msec() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("2.0 msec");
+        vm.set_source("2.0E msec");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn test_units_usec() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("2.0 usec");
+        vm.set_source("2.0E usec");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn test_units_mm_per_min() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("2.0 mm/min");
+        vm.set_source("2.0E mm/min");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -237,7 +237,7 @@ mod tests {
     #[test]
     fn test_units_um_per_msec() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("2.0 um/msec");
+        vm.set_source("2.0E um/msec");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -248,7 +248,7 @@ mod tests {
     #[test]
     fn test_rpm() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("2.0 rpm");
+        vm.set_source("2.0E rpm");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn test_hz() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("2.0 hz");
+        vm.set_source("2.0E hz");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);

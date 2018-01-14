@@ -1308,15 +1308,24 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     fn evaluate_integer(&mut self, token: &str) {
         let base_addr = self.data_space().system_variables().base_addr();
         let base = self.data_space().get_isize(base_addr);
-        match isize::from_str_radix(token, base as u32) {
-            Ok(t) => {
-                if self.state().is_compiling {
-                    self.compile_integer(t);
-                } else {
-                    self.s_stack().push(t);
+        match parser::sign(&token.as_bytes()) {
+            parser::IResult::Done(bytes, sign) => match parser::uint_in_base(&bytes, base) {
+                parser::IResult::Done(bytes, value) => {
+                    if bytes.len() != 0 {
+                        self.set_error(Some(UnsupportedOperation));
+                    } else {
+                        if self.state().is_compiling {
+                            self.compile_integer(sign * value);
+                        } else {
+                            self.s_stack().push(sign * value);
+                        }
+                    }
                 }
+                parser::IResult::Err(e) => self.set_error(Some(e)),
+            },
+            parser::IResult::Err(e) => {
+                self.set_error(Some(e));
             }
-            Err(_) => self.set_error(Some(UnsupportedOperation)),
         }
     }
 

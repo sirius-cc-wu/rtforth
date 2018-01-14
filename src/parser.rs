@@ -26,12 +26,39 @@ pub fn sign(input: &[u8]) -> IResult<isize> {
     IResult::Done(&bytes, sign)
 }
 
+pub fn uint_in_base(input: &[u8], base: isize) -> IResult<isize> {
+    let mut len = 0;
+    let mut bytes = input;
+    let mut value = 0isize;
+    for c in bytes.iter() {
+        let d;
+        if b'0' <= *c && *c <= b'9' {
+            d = (*c - b'0') as isize;
+        } else if b'a' <= *c && *c <= b'f' {
+            d = (*c - b'a') as isize + 10;
+        } else if b'A' <= *c && *c <= b'F' {
+            d = (*c - b'A') as isize + 10;
+        } else {
+            return IResult::Err(Exception::ResultOutOfRange);
+        }
+        if d >= base {
+            return IResult::Err(Exception::ResultOutOfRange);
+        }
+        // Allow wrapping for integer.
+        value = value.wrapping_mul(base).wrapping_add(d);
+        len = len + 1;
+    }
+    bytes = &bytes[len..];
+    IResult::Done(bytes, value)
+}
+
 pub fn uint(input: &[u8]) -> IResult<isize> {
     let mut len = 0;
     let mut bytes = input;
     let mut value = 0isize;
     for c in bytes.iter() {
         if b'0' <= *c && *c <= b'9' {
+            // Do not allow wrapping for floating point.
             match value
                 .checked_mul(10)
                 .and_then(|x| x.checked_add((*c - b'0') as isize))
@@ -66,6 +93,7 @@ pub fn fraction(input: &[u8]) -> IResult<f64> {
         bytes = &bytes[1..];
         for c in bytes.iter() {
             if b'0' <= *c && *c <= b'9' {
+                // Do not allow wrapping for floating point.
                 match value
                     .checked_mul(10)
                     .and_then(|x| x.checked_add((*c - b'0') as isize))

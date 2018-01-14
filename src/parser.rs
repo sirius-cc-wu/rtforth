@@ -1,6 +1,9 @@
+use exception::Exception;
+
 #[derive(PartialEq, Debug)]
 pub enum IResult<'l, T> {
     Done(&'l [u8], T),
+    Err(Exception),
 }
 
 pub fn sign(input: &[u8]) -> IResult<isize> {
@@ -29,7 +32,15 @@ pub fn uint(input: &[u8]) -> IResult<isize> {
     let mut value = 0isize;
     for c in bytes.iter() {
         if b'0' <= *c && *c <= b'9' {
-            value = value.wrapping_mul(10).wrapping_add((*c - b'0') as isize);
+            match value
+                .checked_mul(10)
+                .and_then(|x| x.checked_add((*c - b'0') as isize))
+            {
+                Some(v) => {
+                    value = v;
+                }
+                None => return IResult::Err(Exception::ResultOutOfRange),
+            }
             len = len + 1;
         } else {
             break;
@@ -55,7 +66,13 @@ pub fn fraction(input: &[u8]) -> IResult<f64> {
         bytes = &bytes[1..];
         for c in bytes.iter() {
             if b'0' <= *c && *c <= b'9' {
-                value = value.wrapping_mul(10).wrapping_add((*c - b'0') as isize);
+                match value
+                    .checked_mul(10)
+                    .and_then(|x| x.checked_add((*c - b'0') as isize))
+                {
+                    Some(v) => value = v,
+                    None => return IResult::Err(Exception::ResultOutOfRange),
+                }
                 len = len + 1;
             } else {
                 break;

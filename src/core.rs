@@ -1335,6 +1335,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 significand_sign = value;
                 bytes = input;
             }
+            parser::IResult::Err(e) => {
+                self.set_error(Some(e));
+                return;
+            }
         }
 
         let len_before = bytes.len();
@@ -1343,12 +1347,20 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 integer_part = value;
                 bytes = input;
             }
+            parser::IResult::Err(e) => {
+                self.set_error(Some(e));
+                return;
+            }
         }
         if bytes.len() != len_before {
             match parser::fraction(bytes) {
                 parser::IResult::Done(input, value) => {
                     fraction_part = value;
                     bytes = input;
+                }
+                parser::IResult::Err(e) => {
+                    self.set_error(Some(e));
+                    return;
                 }
             }
 
@@ -1361,11 +1373,19 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                                 exponent_sign = value;
                                 bytes = input;
                             }
+                            parser::IResult::Err(e) => {
+                                self.set_error(Some(e));
+                                return;
+                            }
                         }
                         match parser::uint(bytes) {
                             parser::IResult::Done(input, value) => {
                                 exponent_part = value;
                                 bytes = input;
+                            }
+                            parser::IResult::Err(e) => {
+                                self.set_error(Some(e));
+                                return;
                             }
                         }
                     } else {
@@ -1377,17 +1397,33 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                                             exponent_sign = value;
                                             bytes = input;
                                         }
+                                        parser::IResult::Err(e) => {
+                                            self.set_error(Some(e));
+                                            return;
+                                        }
                                     }
                                     match parser::uint(bytes) {
                                         parser::IResult::Done(input, value) => {
                                             exponent_part = value;
                                             bytes = input;
                                         }
+                                        parser::IResult::Err(e) => {
+                                            self.set_error(Some(e));
+                                            return;
+                                        }
                                     }
                                 }
                             }
+                            parser::IResult::Err(e) => {
+                                self.set_error(Some(e));
+                                return;
+                            }
                         }
                     }
+                }
+                parser::IResult::Err(e) => {
+                    self.set_error(Some(e));
+                    return;
                 }
             }
 

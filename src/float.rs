@@ -614,6 +614,9 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.1e 0.1e 0.0e f~   0.1e 0.10000000001e 0.0e f~");
         vm.evaluate();
+        assert_eq!(vm.last_error(), Some(UndefinedWord));
+        vm.set_source("0.1e 0.1e 0.0e f~   0.1e 0.1000000001e 0.0e f~");
+        vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), 0);

@@ -10,7 +10,7 @@ macro_rules! primitive {
     (fn $f:ident $args:tt -> &mut [usize; 2] $body:tt) => { fn $f $args -> &mut [usize; 2] $body };
 }
 
-#[cfg(target_arch = "x86")]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[macro_export]
 macro_rules! primitive {
     (fn $args:tt) => { extern "fastcall" fn $args };

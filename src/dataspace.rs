@@ -171,14 +171,22 @@ impl DataSpace {
         self.len += bytes.len();
     }
 
-    pub fn align(&mut self) {
+    pub fn aligned(pos: usize) -> usize {
         let align = mem::align_of::<usize>();
-        self.len = (self.len + align - 1) & align.wrapping_neg();
+        (pos + align - 1) & align.wrapping_neg()
+    }
+
+    pub fn align(&mut self) {
+        self.len = Self::aligned(self.len);
+    }
+
+    pub fn aligned_f64(pos: usize) -> usize {
+        let align = mem::align_of::<f64>();
+        (pos + align - 1) & align.wrapping_neg()
     }
 
     pub fn align_f64(&mut self) {
-        let align = mem::align_of::<f64>();
-        self.len = (self.len + align - 1) & align.wrapping_neg();
+        self.len = Self::aligned_f64(self.len);
     }
 
     pub fn allot(&mut self, v: isize) {

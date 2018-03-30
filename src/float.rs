@@ -1,6 +1,7 @@
 use std::mem;
 use {FALSE, TRUE};
 use core::Core;
+use dataspace::DataSpace;
 use exception::Exception::InvalidMemoryAddress;
 
 pub trait Float: Core {
@@ -46,28 +47,30 @@ pub trait Float: Core {
 
     primitive!{fn p_fconst(&mut self) {
         let wp = self.state().word_pointer();
-        let dfa = self.wordlist()[wp].dfa();
-        let v = self.data_space().get_f64(dfa);
+        let pos = DataSpace::aligned_f64(self.wordlist()[wp].dfa());
+        let v = self.data_space().get_f64(pos);
         self.f_stack().push(v);
     }}
 
     primitive!{fn fvariable(&mut self) {
         self.define(Core::p_var, Core::compile_var);
+        self.data_space().align_f64();
         self.data_space().compile_f64(0.0);
     }}
 
     primitive!{fn fconstant(&mut self) {
         let v = self.f_stack().pop();
         self.define(Float::p_fconst, Core::compile_fconst);
+        self.data_space().align_f64();
         self.data_space().compile_f64(v);
     }}
 
     // Floating point primitives
 
     primitive!{fn ffetch(&mut self) {
-        let t = self.s_stack().pop();
-        if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
-            let value = self.data_space().get_f64(t as usize);
+        let t = DataSpace::aligned_f64(self.s_stack().pop() as usize);
+        if (t + mem::size_of::<f64>()) <= self.data_space().capacity() {
+            let value = self.data_space().get_f64(t);
             self.f_stack().push(value);
         } else {
             self.abort_with(InvalidMemoryAddress);
@@ -75,7 +78,7 @@ pub trait Float: Core {
     }}
 
     primitive!{fn fstore(&mut self) {
-        let t = self.s_stack().pop();
+        let t = DataSpace::aligned_f64(self.s_stack().pop() as usize);
         let n = self.f_stack().pop();
         if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
             self.data_space().put_f64(n, t as usize);

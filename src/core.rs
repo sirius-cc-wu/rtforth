@@ -775,7 +775,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(feature = "primitive-centric")]
     primitive!{fn p_fconst_next(&mut self) {
-        let ip = self.state().instruction_pointer;
+        let ip = DataSpace::aligned_f64(self.state().instruction_pointer);
         let value = self.data_space().get_f64(ip);
         self.state().instruction_pointer = ip + mem::size_of::<f64>();
         self.f_stack().push(value);
@@ -784,8 +784,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(feature = "primitive-centric")]
     fn compile_fconst(&mut self, word_index: usize) {
         self.data_space().compile_u32(Self::p_fconst_next as u32);
-        let dfa = self.wordlist()[word_index].dfa();
-        let value = self.data_space().get_f64(dfa);
+        let pos = DataSpace::aligned_f64(self.wordlist()[word_index].dfa());
+        let value = self.data_space().get_f64(pos);
+        self.data_space().align_f64();
         self.data_space().compile_f64(value);
     }
 
@@ -813,12 +814,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn flit(&mut self) {
-        let ip = self.state().instruction_pointer as usize;
+        let ip = DataSpace::aligned_f64(self.state().instruction_pointer as usize);
         let v = self.data_space().get_f64(ip);
         let flen = self.f_stack().len.wrapping_add(1);
         self.f_stack().len = flen;
         self.f_stack()[flen.wrapping_sub(1)] = v;
-        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<f64>();
+        self.state().instruction_pointer = ip + mem::size_of::<f64>();
     }}
 
     /// Compile float 'f'.
@@ -826,6 +827,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     fn compile_float(&mut self, f: f64) {
         let idx_flit = self.references().idx_flit;
         self.compile_word(idx_flit);
+        self.data_space().align_f64();
         self.data_space().compile_f64(f);
     }
 
@@ -1882,7 +1884,7 @@ compilation_semantics: fn(&mut Self, usize)){
             let here = self.data_space().len();
             self.c_stack().push(Control::Else(here));
             self.data_space()
-                .put_i32(here as i32, (if_part - mem::size_of::<i32>()));
+                .put_i32(here as i32, if_part - mem::size_of::<i32>());
         }
     }}
 
@@ -1924,7 +1926,7 @@ compilation_semantics: fn(&mut Self, usize)){
         } else {
             let here = self.data_space().len();
             self.data_space()
-                .put_i32(here as i32, (branch_part - mem::size_of::<i32>()));
+                .put_i32(here as i32, branch_part - mem::size_of::<i32>());
         }
     }}
 
@@ -2007,7 +2009,7 @@ compilation_semantics: fn(&mut Self, usize)){
             self.data_space().compile_i32(begin_part as i32);
             let here = self.data_space().len();
             self.data_space()
-                .put_i32(here as i32, (while_part - mem::size_of::<i32>()));
+                .put_i32(here as i32, while_part - mem::size_of::<i32>());
         }
     }}
 

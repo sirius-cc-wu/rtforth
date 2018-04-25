@@ -1062,12 +1062,19 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.state().is_compiling = true;
     }}
 
-    /// copy content of `s` to `input_buffer` and set `source_index` to 0.
+    /// Copy content of `s` to `input_buffer` and set `source_index` to 0.
     fn set_source(&mut self, s: &str) {
         let mut buffer = self.input_buffer().take().expect("input buffer");
         buffer.clear();
         buffer.push_str(s);
         self.state().source_index = 0;
+        self.set_input_buffer(buffer);
+    }
+
+    /// Push content of `s` to `input_buffer`.
+    fn push_source(&mut self, s: &str) {
+        let mut buffer = self.input_buffer().take().expect("input buffer");
+        buffer.push_str(s);
         self.set_input_buffer(buffer);
     }
 
@@ -4085,6 +4092,17 @@ mod tests {
     }
 
 */
+
+    #[test]
+    fn test_push_source() {
+        let mut vm = VM::new(16, 16);
+        vm.set_source(": x");
+        vm.push_source(" ");
+        vm.push_source("1");
+        vm.push_source(" ");
+        vm.push_source(";");
+        assert_eq!(vm.input_buffer(), &Some(": x 1 ;".to_owned()));
+    }
 
     #[test]
     fn test_colon_and_semi_colon() {

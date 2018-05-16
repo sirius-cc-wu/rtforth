@@ -16,7 +16,7 @@ pub trait Units: Core {
         self.add_primitive("rad", Units::from_rad);
 
         self.add_primitive("hr", Units::from_hour);
-        self.add_primitive("min", Units::from_minute);
+        self.add_primitive("minute", Units::from_minute);
         self.add_primitive("sec", Units::from_sec);
         self.add_primitive("msec", Units::from_msec);
         self.add_primitive("usec", Units::from_usec);
@@ -180,9 +180,9 @@ mod tests {
     }
 
     #[test]
-    fn test_units_min() {
+    fn test_units_minute() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("1.0E min");
+        vm.set_source("1.0E minute");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);

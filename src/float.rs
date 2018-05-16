@@ -615,9 +615,6 @@ mod tests {
     #[test]
     fn test_fproximate() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("0.1e 0.1e 0.0e f~   0.1e 0.10000000001e 0.0e f~");
-        vm.evaluate();
-        assert_eq!(vm.last_error(), Some(UndefinedWord));
         vm.set_source("0.1e 0.1e 0.0e f~   0.1e 0.1000000001e 0.0e f~");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
@@ -650,6 +647,14 @@ mod tests {
         vm.check_stacks();
         assert_eq!(vm.last_error(), None);
         vm.s_stack().reset();
+    }
+
+    #[test]
+    fn test_very_long_float() {
+        let vm = &mut VM::new(16, 16);
+        vm.set_source("0.10000000000000001e");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), None);
     }
 
     #[test]

@@ -9,6 +9,7 @@
 : align ( -- ) here aligned  here - allot ;
 : 2@ ( a-addr -- x1 x2 ) dup cell+ @ swap @ ;
 : 2! ( x1 x2 a-addr -- ) swap over !  cell+ ! ;
+: 2variable   align  create  2 cells allot ;
 : +! ( n|u a-addr -- ) dup @ rot + swap ! ;
 : max ( n1 n2 -- n3 ) 2dup < if nip else drop then ;
 : min ( n1 n2 -- n3 ) 2dup < if drop else nip then ;

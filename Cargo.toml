@@ -24,5 +24,4 @@ tokio-core = "0.1"
 
 [features]
 default = []
-primitive-centric = []
 subroutine-threaded = []

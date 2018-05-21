@@ -21,7 +21,6 @@ $ ./target/debug/examples/rf --help         # Display help information.
 $ ./target/debug/examples/rf <file>         # Load forth commands in <file>.
 $ ./target/debug/examples/rf lib.fs <file>  # Load lib.fs before <file>.
 $ cargo build --release --example rf        # Compile optimized token-threaded rtForth.
-$ cargo build --example rf --release --features="primitive-centric"    # Compile optimized primitive-centric-threaded rtForth.
 $ cargo build --example rf --release --features="subroutine-threaded"    # Compile optimized subroutine-threaded rtForth.
 ```
 
@@ -60,10 +59,10 @@ sieve       |    1       |   1.5       |   2.1    |   6.5
 ssieve-a    |    1       |     x       |     x    |     x
 repeat      |    1       |   7.9       |  14.5    |  26.5
 
-rtForth subroutine-threading vs primitive-cnetric-threading vs token-threading:
+rtForth subroutine-threading vs token-threading:
 
-threading | subroutine | primitive-centric | token
-----------|------------|-------------------|-------
-fib       |     1      |              2.1  |  3.1
-repeat    |     1      |              1.66 |  2.0
-sieve     |     1      |              1.5  |  2.2
+threading | subroutine | token
+----------|------------|--------
+fib       |     1      | 3.1
+repeat    |     1      | 2.0
+sieve     |     1      | 2.2

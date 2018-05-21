@@ -621,7 +621,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.
     #[inline(never)]
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while 0 < ip && ip < self.data_space().len() {
@@ -632,167 +632,40 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     fn compile_word(&mut self, word_index: usize) {
         self.data_space().compile_u32(word_index as u32);
     }
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     fn compile_nest(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     fn compile_nest_code(&mut self, _: usize) {
         // Do nothing.
     }
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     fn compile_var(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     fn compile_const(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     fn compile_unmark(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     fn compile_fconst(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
-
-    // -------------------------------
-    // Primitive-centric threaded code
-    // -------------------------------
-
-    /// Evaluate a compiled program following self.state().instruction_pointer.
-    /// Any exception causes termination of inner loop.
-    #[inline(never)]
-    #[cfg(feature = "primitive-centric")]
-    fn run(&mut self) {
-        let mut ip = self.state().instruction_pointer;
-        while 0 < ip && ip < self.data_space().len() {
-            let w: primitive!{fn(&mut Self)} = unsafe{
-                 mem::transmute(self.data_space().get_i32(ip))
-                  };
-            self.state().instruction_pointer += mem::size_of::<i32>();
-            w(self);
-            ip = self.state().instruction_pointer;
-        }
-    }
-
-    #[cfg(feature = "primitive-centric")]
-    fn compile_word(&mut self, word_index: usize) {
-        let w = self.wordlist()[word_index].action as u32;
-        self.data_space().compile_u32(w);
-    }
-
-    #[cfg(feature = "primitive-centric")]
-    primitive!{fn nest_next(&mut self) {
-        let mut ip = self.state().instruction_pointer;
-        let dfa = self.data_space().get_u32(ip) as usize;
-        ip += mem::size_of::<i32>();
-        let rlen = self.r_stack().len.wrapping_add(1);
-        self.r_stack().len = rlen;
-        self.r_stack()[rlen.wrapping_sub(1)] = ip as isize;
-        self.state().instruction_pointer = dfa;
-    }}
-
-    #[cfg(feature = "primitive-centric")]
-    fn compile_nest(&mut self, word_index: usize) {
-        self.data_space().compile_u32(Self::nest_next as u32);
-        let dfa = self.wordlist()[word_index].dfa();
-        self.data_space().compile_u32(dfa as u32);
-    }
-
-    #[cfg(feature = "primitive-centric")]
-    fn compile_nest_code(&mut self, _: usize) {
-        // Do nothing.
-    }
-
-    #[cfg(feature = "primitive-centric")]
-    primitive!{fn p_var_next(&mut self) {
-        let ip = self.state().instruction_pointer;
-        let dfa = self.data_space().get_u32(ip) as isize;
-        self.state().instruction_pointer = ip + mem::size_of::<i32>();
-        self.s_stack().push(dfa);
-    }}
-
-    #[cfg(feature = "primitive-centric")]
-    fn compile_var(&mut self, word_index: usize) {
-        self.data_space().compile_u32(Self::p_var_next as u32);
-        let dfa = self.wordlist()[word_index].dfa();
-        self.data_space().compile_u32(dfa as u32);
-    }
-
-    #[cfg(feature = "primitive-centric")]
-    primitive!{fn p_const_next(&mut self) {
-        let ip = self.state().instruction_pointer;
-        let value = self.data_space().get_i32(ip) as isize;
-        self.state().instruction_pointer = ip + mem::size_of::<i32>();
-        self.s_stack().push(value);
-    }}
-
-    #[cfg(feature = "primitive-centric")]
-    fn compile_const(&mut self, word_index: usize) {
-        self.data_space().compile_u32(Self::p_const_next as u32);
-        let dfa = self.wordlist()[word_index].dfa();
-        let value = self.data_space().get_i32(dfa);
-        self.data_space().compile_i32(value);
-    }
-
-    #[cfg(feature = "primitive-centric")]
-    primitive!{fn unmark_next(&mut self) {
-        let ip = self.state().instruction_pointer;
-        self.state().instruction_pointer = ip + mem::size_of::<u32>();
-        let wp = self.data_space().get_u32(ip) as usize;
-        let dfa;
-        let cfa;
-        let symbol;
-        {
-            let w = &self.wordlist()[wp];
-            dfa = w.dfa();
-            cfa = w.cfa();
-            symbol = w.symbol();
-        }
-        self.data_space().truncate(dfa);
-        self.code_space().truncate(cfa);
-        self.wordlist_mut().truncate(wp);
-        self.symbols_mut().truncate(symbol.id);
-    }}
-
-    #[cfg(feature = "primitive-centric")]
-    fn compile_unmark(&mut self, word_index: usize) {
-        self.data_space().compile_u32(Self::unmark_next as u32);
-        self.data_space().compile_u32(word_index as u32);
-    }
-
-    #[cfg(feature = "primitive-centric")]
-    primitive!{fn p_fconst_next(&mut self) {
-        let ip = DataSpace::aligned_f64(self.state().instruction_pointer);
-        let value = self.data_space().get_f64(ip);
-        self.state().instruction_pointer = ip + mem::size_of::<f64>();
-        self.f_stack().push(value);
-    }}
-
-    #[cfg(feature = "primitive-centric")]
-    fn compile_fconst(&mut self, word_index: usize) {
-        self.data_space().compile_u32(Self::p_fconst_next as u32);
-        let pos = DataSpace::aligned_f64(self.wordlist()[word_index].dfa());
-        let value = self.data_space().get_f64(pos);
-        self.data_space().align_f64();
-        self.data_space().compile_f64(value);
-    }
-
-    // --------------------------------------------------
-    // Token threaded and primitive-centric threaded code
-    // --------------------------------------------------
 
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn lit(&mut self) {
@@ -4726,7 +4599,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(feature = "primitive-centric", feature = "subroutine-threaded")))]
+    #[cfg(not(feature = "subroutine-threaded"))]
     fn test_here_comma_compile_interpret() {
         let vm = &mut VM::new(16, 16);
         vm.comma();
@@ -4752,76 +4625,6 @@ mod tests {
             vm.data_space().get_i32(here + 12),
             vm.references().idx_exit as i32
         );
-    }
-
-    #[test]
-    #[cfg(feature = "primitive-centric")]
-    fn test_inner_interpreter_without_nest() {
-        let vm = &mut VM::new(16, 16);
-        let ip = vm.data_space().len();
-        let noop_idx = vm.find("noop").expect("noop not exists");
-        let true_idx = vm.find("true").expect("true not exists");
-        let dup_idx = vm.find("dup").expect("dup not exists");
-        let halt_idx = vm.find("halt").expect("halt not exists");
-        let plus_idx = vm.find("+").expect("+ not exists");
-        vm.compile_word(noop_idx);
-        vm.compile_word(true_idx);
-        vm.compile_word(dup_idx);
-        vm.compile_word(plus_idx);
-        vm.compile_word(halt_idx);
-        vm.state().instruction_pointer = ip;
-        vm.run();
-        assert_eq!(vm.state().instruction_pointer, 0);
-        assert_eq!(vm.s_stack().pop(), -2);
-    }
-
-    #[test]
-    #[cfg(feature = "primitive-centric")]
-    fn test_here_comma_compile_interpret() {
-        let vm = &mut VM::new(16, 16);
-        vm.comma();
-        vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        // here 1 , 2 , ] lit exit [ here
-        let here = vm.data_space().len();
-        vm.set_source("here 1 , 2 , ] lit exit [ here");
-        vm.evaluate();
-        assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().len(), 2);
-        let (n, t) = vm.s_stack().pop2();
-        assert!(!vm.s_stack().underflow());
-        assert_eq!(t - n, 4 * mem::size_of::<u32>() as isize);
-        assert_eq!(vm.data_space().get_i32(here + 0), 1);
-        assert_eq!(vm.data_space().get_i32(here + 4), 2);
-        let idx_lit = vm.references().idx_lit;
-        let idx_exit = vm.references().idx_exit;
-        assert_eq!(
-            vm.data_space().get_u32(here + 8),
-            vm.wordlist()[idx_lit].action as u32
-        );
-        assert_eq!(
-            vm.data_space().get_u32(here + 12),
-            vm.wordlist()[idx_exit].action as u32
-        );
-    }
-
-    #[test]
-    #[cfg(feature = "primitive-centric")]
-    fn test_marker_in_colon() {
-        let vm = &mut VM::new(16, 16);
-        let symbols_len = vm.symbols().len();
-        let wordlist_len = vm.wordlist().len();
-        // here marker empty
-        // : test empty ;
-        // test here =
-        vm.set_source("here marker empty  : test empty ;  test here =");
-        vm.evaluate();
-        assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), -1);
-        assert_eq!(vm.symbols().len(), symbols_len);
-        assert_eq!(vm.wordlist().len(), wordlist_len);
     }
 
     #[test]

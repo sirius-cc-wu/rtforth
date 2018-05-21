@@ -344,38 +344,12 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "primitive-centric")]
-    fn test_fconstant_in_colon() {
-        let vm = &mut VM::new(16, 16);
-        // 1.1 fconstant x
-        // : 2x  x 2.0 f* ; 2x
-        vm.set_source("1.1 fconstant x  : 2x  x 2.0E f* ;  2x");
-        vm.evaluate();
-        vm.run();
-        assert_eq!(vm.last_error(), None);
-        assert_eq!(vm.f_stack().as_slice(), [1.1 * 2.0]);
-    }
-
-    #[test]
     fn test_fvariable_and_fstore_ffetch() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("fvariable fx  fx f@  3.3E fx f!  fx f@");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [0.0, 3.3]);
-    }
-
-    #[test]
-    #[cfg(feature = "primitive-centric")]
-    fn test_fvariable_and_ffetch_in_colon() {
-        let vm = &mut VM::new(16, 16);
-        // fvariable fx  3.3 fx f!
-        // : fx@  fx f@ ;  fx@
-        vm.set_source("fvariable fx  3.3E fx f!  : fx@  fx f@ ;  fx@");
-        vm.evaluate();
-        vm.run();
-        assert_eq!(vm.last_error(), None);
-        assert_eq!(vm.f_stack().as_slice(), [3.3]);
     }
 
     #[test]

@@ -285,6 +285,7 @@ pub struct ForwardReferences {
     pub idx_zero_branch: usize,
     pub idx_branch: usize,
     pub idx_do: usize,
+    pub idx_qdo: usize,
     pub idx_loop: usize,
     pub idx_plus_loop: usize,
     pub idx_s_quote: usize,
@@ -300,6 +301,7 @@ impl ForwardReferences {
             idx_zero_branch: 0,
             idx_branch: 0,
             idx_do: 0,
+            idx_qdo: 0,
             idx_loop: 0,
             idx_plus_loop: 0,
             idx_s_quote: 0,
@@ -420,6 +422,7 @@ pub trait Core: Sized {
         self.add_compile_only("branch", Core::branch); // j1, eForth
         self.add_compile_only("0branch", Core::zero_branch); // j1, eForth
         self.add_compile_only("_do", Core::_do); // jx
+        self.add_compile_only("_qdo", Core::_qdo); // jx
         self.add_compile_only("_loop", Core::_loop); // jx
         self.add_compile_only("_+loop", Core::_plus_loop); // jx
         self.add_compile_only("unloop", Core::unloop); // jx
@@ -483,6 +486,7 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("again", Core::imm_again);
         self.add_immediate_and_compile_only("recurse", Core::imm_recurse);
         self.add_immediate_and_compile_only("do", Core::imm_do);
+        self.add_immediate_and_compile_only("?do", Core::imm_qdo);
         self.add_immediate_and_compile_only("loop", Core::imm_loop);
         self.add_immediate_and_compile_only("+loop", Core::imm_plus_loop);
 
@@ -533,6 +537,7 @@ pub trait Core: Sized {
         self.references().idx_zero_branch = self.find("0branch").expect("0branch undefined");
         self.references().idx_branch = self.find("branch").expect("branch undefined");
         self.references().idx_do = self.find("_do").expect("_do undefined");
+        self.references().idx_qdo = self.find("_qdo").expect("_qdo undefined");
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
 
@@ -1534,6 +1539,17 @@ compilation_semantics: fn(&mut Self, usize)){
     /// ambiguous condition exists if `n1`|`u1` and `n2`|`u2` are not both the same
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded.
+    ///
+    ///         +--------------------------+
+    ///         |                          |
+    ///         |                          v
+    /// +-----+-+-+-----------+-------+---+--
+    /// | _do | x | loop body | _loop | x |
+    /// +-----+---+-----------+-------+-+-+--
+    ///         ^
+    ///         |
+    ///         ip
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
@@ -1550,6 +1566,54 @@ compilation_semantics: fn(&mut Self, usize)){
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     primitive!{fn _stc_do(&mut self) {
         self.two_to_r();
+    }}
+
+    /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
+    ///
+    /// If n1|u1 is equal to n2|u2, continue execution at the location given by
+    /// the consumer of do-sys. Otherwise set up loop control parameters with
+    /// index n2|u2 and limit n1|u1 and continue executing immediately
+    /// following ?DO. Anything already on the return stack becomes unavailable
+    /// until the loop control parameters are discarded. An ambiguous condition
+    /// exists if n1|u1 and n2|u2 are not both of the same type.
+    ///
+    ///          +--------------------------+
+    ///          |                          |
+    ///          |                          v
+    /// +------+-+-+-----------+-------+---+--
+    /// | _qdo | x | loop body | _loop | x |
+    /// +------+---+-----------+-------+-+-+--
+    ///          ^
+    ///          |
+    ///          ip
+    ///
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn _qdo(&mut self) {
+        let (n1, n2) = self.s_stack().pop2();
+        if n1 == n2 {
+            self.branch();
+        } else {
+            let ip = self.state().instruction_pointer as isize;
+            self.r_stack().push(ip);
+            self.state().instruction_pointer += mem::size_of::<i32>();
+            self.r_stack().push2(n1, n2);
+        }
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn _qdo(&mut self) {
+        // Do nothing.
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn _stc_qdo(&mut self) -> isize {
+        let (n1, n2) = self.s_stack().pop2();
+        if n1 == n2 {
+            -1
+        } else {
+            self.r_stack().push2(n1, n2);
+            0
+        }
     }}
 
     /// Run-time: ( -- ) ( R:  loop-sys1 --  | loop-sys2 )
@@ -1683,6 +1747,20 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }
 
+    /// Code space
+    /// +-----------+------+--
+    /// | loop body | LOOP |
+    /// +-----------+------+--
+    ///                     ^
+    ///                     |
+    ///               +-----+
+    ///               |
+    /// Data space    |
+    ///             +---+--
+    ///             | x |
+    ///             +---+--
+    ///           leave_part
+    ///
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_leave(&mut self, _: usize) {
         let leave_part = match self.leave_part() {
@@ -1960,6 +2038,16 @@ compilation_semantics: fn(&mut Self, usize)){
     ///
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
+    ///
+    /// +-----+---+--
+    /// | _do | 0 |
+    /// +-----+---+--
+    ///            ^
+    ///            |
+    ///            ++-----+
+    ///             |     |
+    /// Control::Do(here, here)
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_do(&mut self) {
         let idx = self.references().idx_do;
@@ -1969,6 +2057,23 @@ compilation_semantics: fn(&mut Self, usize)){
         self.c_stack().push(Control::Do(here,here));
     }}
 
+    /// Code space
+    /// +-----------------+--------------+--
+    /// | move %esi, %ecx | call _stc_do |
+    /// +-----------------+--------------+--
+    ///                                   ^
+    ///                                   |
+    ///             +---------------------+
+    ///             |
+    /// Control::Do(here, leave_part)
+    ///                   |
+    ///               +---+
+    ///               |
+    /// Data space    v
+    ///             +---+--
+    ///             | 0 |
+    ///             +---+--
+    ///
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     primitive!{fn imm_do(&mut self) {
         // 89 f1                mov    %esi,%ecx
@@ -1983,12 +2088,111 @@ compilation_semantics: fn(&mut Self, usize)){
         self.c_stack().push(Control::Do(here, leave_part));
     }}
 
+    /// Execution: ( -- a-ddr )
+    ///
+    /// Append the run-time semantics of `_qdo` to the current definition.
+    /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
+    ///
+    /// +------+---+--
+    /// | _qdo | 0 |
+    /// +------+---+--
+    ///             ^
+    ///             |
+    ///             ++-----+
+    ///              |     |
+    /// Control::Do(here, here)
+    ///
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_qdo(&mut self) {
+        let idx = self.references().idx_qdo;
+        self.compile_word(idx);
+        self.data_space().compile_i32(0);
+        let here = self.data_space().len();
+        self.c_stack().push(Control::Do(here,here));
+    }}
+
+    /// Code space
+    /// +-------+-----------+------+--
+    /// | (?DO) | loop body | LOOP |
+    /// +-------+-----------+------+--
+    ///          ^                  ^
+    ///          |                  |
+    ///          +--+               +----+
+    ///             |                    |
+    /// Control::Do(here, leave_part)    |
+    ///                   |              |
+    ///               +---+              |
+    ///               |                  |
+    /// Data space    v                  |
+    ///             +---+--              |
+    ///             | 0 |                |
+    ///             +---+--              |
+    ///               |                  |
+    ///               +------------------+
+    ///
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_qdo(&mut self) {
+        //   89 f1                mov    %esi,%ecx
+        //   e8 xx xx xx xx       call   _stc_qdo
+        //   85 c0                test   %eax,%eax
+        //   0f 84 yy yy yy yy    je     do_part
+        //   b8 yy yy yy yy       mov    leave_part,%eax
+        //   ff 20                jmp    *(%eax)
+        // do_part:
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xe8);
+        self.code_space().compile_relative(Self::_stc_qdo as usize);
+        self.code_space().compile_u8(0x85);
+        self.code_space().compile_u8(0xc0);
+        self.code_space().compile_u8(0x0f);
+        self.code_space().compile_u8(0x84);
+        self.code_space().compile_u32(7);
+        let leave_part = self.data_space().here();
+        self.data_space().compile_u32(0);
+        self.code_space().compile_u8(0xb8);
+        self.code_space().compile_u32(leave_part as u32);
+        self.code_space().compile_u8(0xff);
+        self.code_space().compile_u8(0x20);
+        let here = self.code_space().here();
+        self.c_stack().push(Control::Do(here, leave_part));
+    }}
+
     /// Run-time: ( a-addr -- )
     ///
     /// Append the run-time semantics of `_LOOP` to the current definition.
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the `LOOP`.
+    ///
+    /// For DO ... LOOP,
+    ///
+    ///         +--------------------------+
+    ///         |                          |
+    ///         |                          v
+    /// +-----+-+-+-----------+-------+---+--
+    /// | _do | x | loop body | _loop | x |
+    /// +-----+---+-----------+-------+-+-+--
+    ///            ^                    |
+    ///            |                    |
+    ///            ++-------------------+
+    ///             |
+    /// Control::Do(do_part, _)
+    ///
+    /// For ?DO ... LOOP,
+    ///
+    ///          +--------------------------+
+    ///          |                          |
+    ///          |                          v
+    /// +------+-+-+-----------+-------+---+--
+    /// | _qdo | x | loop body | _loop | x |
+    /// +------+---+-----------+-------+-+-+--
+    ///             ^                    |
+    ///             |                    |
+    ///             +--------------------+
+    ///             |
+    /// Control::Do(do_part, _)
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
@@ -2010,6 +2214,26 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }}
 
+    /// Code space
+    /// +-----------+-----------+--
+    /// | loop body | loop code |
+    /// +-----------+-----------+--
+    ///  ^                       ^
+    ///  |                       |
+    ///  |                       +----------+
+    ///  +----------+                       |
+    ///             |                       |
+    /// Control::Do(do_part, leave_part)    |
+    ///                      |              |
+    ///               +------+              |
+    ///               |                     |
+    /// Data space    v                     |
+    ///             +---+--                 |
+    ///             | x |                   |
+    ///             +---+--                 |
+    ///               |                     |
+    ///               +---------------------+
+    ///
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     primitive!{fn imm_loop(&mut self) {
         let (do_part, leave_part) = match self.c_stack().pop() {
@@ -2023,7 +2247,6 @@ compilation_semantics: fn(&mut Self, usize)){
             self.abort_with(ControlStructureMismatch);
         } else {
             //      89 f1                mov    %esi,%ecx
-            //      ba nn nn nn nn       mov    leave_part,%edx
             //      e8 xx xx xx xx       call    _stc_loop
             //      85 c0                test   %eax,%eax
             //      0f 84 yy yy yy yy    je     do_part

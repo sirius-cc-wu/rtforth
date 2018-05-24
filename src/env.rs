@@ -24,8 +24,8 @@ pub trait Environment: Core {
 
 #[cfg(test)]
 mod tests {
-    use vm::VM;
     use core::Core;
+    use vm::VM;
 
     #[test]
     fn test_max_n() {

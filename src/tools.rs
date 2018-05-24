@@ -1,5 +1,5 @@
-use std::fmt::Write;
 use output::Output;
+use std::fmt::Write;
 
 pub trait Tools: Output {
     /// Add programming-tools primitives.

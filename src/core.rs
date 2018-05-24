@@ -1,22 +1,22 @@
 extern crate libc;
 
-use {FALSE, TRUE};
-use std::process;
-use std::mem;
-use std::ops::{Index, IndexMut};
-use std::fmt::{self, Display};
-use std::fmt::Write;
-use std::str;
-use std::result;
-use parser;
-use dataspace::DataSpace;
 use codespace::CodeSpace;
+use dataspace::DataSpace;
 use exception::Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
                            FloatingPointStackOverflow, FloatingPointStackUnderflow,
                            InterpretingACompileOnlyWord, InvalidMemoryAddress,
                            ReturnStackOverflow, ReturnStackUnderflow, StackOverflow,
                            StackUnderflow, UndefinedWord, UnexpectedEndOfFile,
                            UnsupportedOperation};
+use parser;
+use std::fmt::Write;
+use std::fmt::{self, Display};
+use std::mem;
+use std::ops::{Index, IndexMut};
+use std::process;
+use std::result;
+use std::str;
+use {FALSE, TRUE};
 
 pub type Result = result::Result<(), Exception>;
 
@@ -2968,14 +2968,14 @@ compilation_semantics: fn(&mut Self, usize)){
 #[cfg(test)]
 mod tests {
     extern crate test;
-    use super::Core;
-    use vm::VM;
     use self::test::Bencher;
-    use std::mem;
+    use super::Core;
     use exception::Exception::{Abort, ControlStructureMismatch, InterpretingACompileOnlyWord,
                                InvalidMemoryAddress, ReturnStackUnderflow, StackUnderflow,
                                UndefinedWord, UnexpectedEndOfFile};
     use loader::HasLoader;
+    use std::mem;
+    use vm::VM;
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {

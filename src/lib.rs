@@ -24,19 +24,19 @@ macro_rules! primitive {
 extern crate approx;
 extern crate uom;
 
-pub mod vm;
+pub mod codespace;
 pub mod core;
-pub mod loader;
-pub mod output;
-pub mod exception;
-pub mod tools;
+pub mod dataspace;
 pub mod env;
+pub mod exception;
 pub mod facility;
 pub mod float;
-pub mod units;
-pub mod dataspace;
-pub mod codespace;
+pub mod loader;
+pub mod output;
 pub(crate) mod parser;
+pub mod tools;
+pub mod units;
+pub mod vm;
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;

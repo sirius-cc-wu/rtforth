@@ -1,8 +1,8 @@
+use core::Core;
+use std::f64::consts::PI;
 use uom::si::f64::{Length, Time};
 use uom::si::length::{meter, micrometer, millimeter};
 use uom::si::time::{hour, microsecond, millisecond, minute, second};
-use std::f64::consts::PI;
-use core::Core;
 
 const RPM: f64 = 2.0 * PI / 60.0;
 
@@ -102,9 +102,9 @@ pub trait Units: Core {
 
 #[cfg(test)]
 mod tests {
-    use vm::VM;
     use core::Core;
     use std::f64::consts::PI;
+    use vm::VM;
 
     fn double_value_check(res: f64, exp: f64) -> bool {
         if (res > exp - 0.000_000_1) && (res < exp + 0.000_000_1) {

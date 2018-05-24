@@ -1,6 +1,6 @@
 extern crate rtforth;
-use rtforth::vm::VM;
 use rtforth::core::Core;
+use rtforth::vm::VM;
 
 // Evaluate "1 ."
 fn main() {

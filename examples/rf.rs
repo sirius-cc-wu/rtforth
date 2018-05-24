@@ -3,20 +3,20 @@ extern crate getopts;
 extern crate rtforth;
 extern crate rustyline;
 
-use std::fmt::Write;
-use std::env;
 use getopts::Options;
-use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
-use rtforth::exception::Exception;
-use rtforth::output::Output;
-use rtforth::dataspace::DataSpace;
 use rtforth::codespace::CodeSpace;
-use rtforth::loader::HasLoader;
-use rtforth::tools::Tools;
+use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
+use rtforth::dataspace::DataSpace;
 use rtforth::env::Environment;
+use rtforth::exception::Exception;
 use rtforth::facility::Facility;
 use rtforth::float::Float;
+use rtforth::loader::HasLoader;
+use rtforth::output::Output;
+use rtforth::tools::Tools;
 use rtforth::units::Units;
+use std::env;
+use std::fmt::Write;
 
 #[cfg(not(test))]
 #[cfg(not(test))]

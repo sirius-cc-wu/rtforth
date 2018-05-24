@@ -6,17 +6,17 @@ extern crate tokio_core;
 const BUFFER_SIZE: usize = 0x400;
 
 mod vm {
+    use super::BUFFER_SIZE;
+    use rtforth::codespace::CodeSpace;
     use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
     use rtforth::dataspace::DataSpace;
-    use rtforth::codespace::CodeSpace;
-    use rtforth::float::Float;
     use rtforth::env::Environment;
     use rtforth::exception::Exception;
     use rtforth::facility::Facility;
+    use rtforth::float::Float;
     use rtforth::loader::HasLoader;
     use rtforth::output::Output;
     use rtforth::tools::Tools;
-    use super::BUFFER_SIZE;
 
     struct Task {
         last_error: Option<Exception>,
@@ -224,14 +224,14 @@ mod vm {
 }
 
 mod server {
-    use std::io;
-    use futures::{Future, Poll};
-    use vm::VM;
-    use std::sync::{Arc, Mutex};
     use super::BUFFER_SIZE;
-    use std::str;
+    use futures::{Future, Poll};
     use rtforth::core::Core;
     use std::fmt::Write;
+    use std::io;
+    use std::str;
+    use std::sync::{Arc, Mutex};
+    use vm::VM;
 
     pub struct Eval<R, W> {
         vm: Arc<Mutex<VM>>,
@@ -335,11 +335,11 @@ mod server {
 }
 
 use futures::{Future, Stream};
+use std::sync::{Arc, Mutex};
 use tokio_core::io::Io;
 use tokio_core::net::TcpListener;
 use tokio_core::reactor::Core;
 use vm::VM;
-use std::sync::{Arc, Mutex};
 
 fn main() {
     let mut core = Core::new().unwrap();

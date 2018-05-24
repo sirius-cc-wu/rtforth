@@ -1,6 +1,6 @@
-use std::fmt::Write;
 use core::Core;
 use exception::Exception::{StackUnderflow, UnsupportedOperation};
+use std::fmt::Write;
 
 /// Types that can output to console.
 pub trait Output: Core {
@@ -170,8 +170,8 @@ pub trait Output: Core {
 
 #[cfg(test)]
 mod tests {
-    use vm::VM;
     use core::Core;
+    use vm::VM;
 
     #[test]
     fn test_s_quote_and_type() {

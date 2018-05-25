@@ -12,6 +12,7 @@ repository = "https://github.com/chengchangwu/rtforth.git"
 time = "0.1"
 uom = "0.18"
 approx = "0.2"
+libc = "0.2.41"
 
 [profile.release]
 debug = true

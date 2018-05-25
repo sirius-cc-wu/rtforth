@@ -19,8 +19,6 @@ debug = true
 [dev-dependencies]
 getopts = "0.2"
 rustyline = "1.0"
-futures = "0.2"
-tokio-core = "0.1"
 
 [features]
 default = []

@@ -1,4 +1,3 @@
-#![feature(libc)]
 #![feature(test)]
 
 #[cfg(target_arch = "arm")]

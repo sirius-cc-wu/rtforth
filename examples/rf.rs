@@ -18,9 +18,6 @@ use rtforth::units::Units;
 use std::env;
 use std::fmt::Write;
 
-#[cfg(not(test))]
-#[cfg(not(test))]
-
 // Virtual machine
 pub struct VM {
     editor: rustyline::Editor<()>,
@@ -263,7 +260,6 @@ fn repl(vm: &mut VM) {
     vm.run();
 }
 
-#[cfg(not(test))]
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} [files] [options]", program);
     print!("{}", opts.usage(&brief));

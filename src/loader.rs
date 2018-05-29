@@ -1,8 +1,8 @@
-use std::fs::File;
-use std::io::BufReader;
-use std::io::BufRead;
 use core::Core;
 use exception::Exception::FileIOException;
+use std::fs::File;
+use std::io::BufRead;
+use std::io::BufReader;
 
 pub trait HasLoader: Core {
     fn load(&mut self, path_name: &str) {

@@ -1,8 +1,8 @@
-use std::mem;
-use {FALSE, TRUE};
 use core::Core;
 use dataspace::DataSpace;
 use exception::Exception::InvalidMemoryAddress;
+use std::mem;
+use {FALSE, TRUE};
 
 pub trait Float: Core {
     fn add_float(&mut self) {
@@ -267,10 +267,10 @@ pub trait Float: Core {
 
 #[cfg(test)]
 mod tests {
-    use vm::VM;
-    use core::Core;
     use super::Float;
+    use core::Core;
     use exception::Exception::UndefinedWord;
+    use vm::VM;
 
     #[test]
     fn test_ans_forth_float() {

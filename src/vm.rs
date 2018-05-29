@@ -1,14 +1,14 @@
-use output::Output;
+use codespace::CodeSpace;
 use core::{Control, Core, ForwardReferences, Stack, State, Word};
 use dataspace::DataSpace;
-use codespace::CodeSpace;
-use loader::HasLoader;
-use tools::Tools;
 use env::Environment;
+use exception::Exception;
 use facility::Facility;
 use float::Float;
+use loader::HasLoader;
+use output::Output;
+use tools::Tools;
 use units::Units;
-use exception::Exception;
 
 // Virtual machine
 pub struct VM {

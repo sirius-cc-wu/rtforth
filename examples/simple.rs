@@ -1,11 +1,11 @@
 extern crate rtforth;
-use rtforth::vm::VM;
 use rtforth::core::Core;
+use rtforth::vm::VM;
 
 // Evaluate "1 ."
 fn main() {
     let vm = &mut VM::new(100, 100);
-    vm.set_source("1 .");
+    vm.set_source("1 . flush");
     vm.evaluate();
     match vm.last_error() {
         Some(e) => println!("{:?}", e),

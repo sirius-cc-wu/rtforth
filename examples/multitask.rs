@@ -2,11 +2,11 @@
 extern crate rtforth;
 
 mod vm {
-    use rtforth::output::Output;
-    use rtforth::dataspace::DataSpace;
     use rtforth::codespace::CodeSpace;
     use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
+    use rtforth::dataspace::DataSpace;
     use rtforth::exception::Exception;
+    use rtforth::output::Output;
 
     const BUFFER_SIZE: usize = 0x400;
 
@@ -171,8 +171,8 @@ mod vm {
     impl Output for VM {}
 }
 
-use vm::VM;
 use rtforth::core::Core;
+use vm::VM;
 
 fn main() {
     let mut vm = VM::new(0x100, 0x100);

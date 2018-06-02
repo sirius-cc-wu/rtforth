@@ -5,7 +5,7 @@ Forth implemented in Rust, designed for real-time applications.
 ## Design decisions:
 
 * Safe first, performance later
-* Token Threaded + Primitive-centric threaded + Subroutine-threaded (only for x86)
+* Token Threaded + Subroutine-threaded (only for x86)
 
 ## Usage
 

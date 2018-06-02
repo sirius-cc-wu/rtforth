@@ -415,7 +415,6 @@ pub trait Core: Sized {
         // Bytecodes
         self.add_primitive("noop", Core::noop); // j1, Ngaro, jx
         self.add_compile_only("exit", Core::exit); // j1, jx, eForth
-        self.add_compile_only("halt", Core::halt); // rtForth
         self.add_compile_only("lit", Core::lit); // Ngaro, jx, eForth
         self.add_compile_only("flit", Core::flit);
         self.add_compile_only("_s\"", Core::p_s_quote);
@@ -2948,11 +2947,6 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Abort the inner loop with an exception, reset VM and clears stacks.
     primitive!{fn abort(&mut self) {
         self.abort_with(Abort);
-    }}
-
-    // TODO: subroutine-threaded version
-    primitive!{fn halt(&mut self) {
-        self.state().instruction_pointer = 0;
     }}
 
     primitive!{fn bye(&mut self) {

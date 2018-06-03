@@ -1140,8 +1140,42 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     // -------------------------------
-    // Subroutine threaded code
+    // Subroutine threaded code, x86
     // -------------------------------
+    //
+    // Calling convension: fastcall
+    //
+    // Register usage:
+    //
+    // Caller save registers:
+    //   %eax: result of function
+    //   %ecx: first argument of function, often a pointer to vm
+    //   %edx: second argument of function
+    // Callee save registers:
+    //   %ebx: not used
+    //   %esi: pointer to vm
+    //   %edi: not used
+    //   %ebp: frame pointer
+    //   %esp: stack pointer
+    //
+    // In future, for multitasking:
+    //   %ebx: top of data stack
+    //   %edi: data stack pointer
+    //   %ebp: stack pointer for primitives implemented in rust
+    //   %esp: stack pointer for colon definitions
+    //
+    // Frame pointer in %ebp should be saved in memory upon RESET.
+    // Before call to primitives implemented in rust,
+    // %ebp and %esp need to be exchanged.
+    //
+    //    xchg %eax,%ebp
+    //    xchg %eax,%esp
+    //    xchg %eax,%ebp
+    //    call primitive1
+    //    call primitive2
+    //    xchg %eax,%ebp
+    //    xchg %eax,%esp
+    //    xchg %eax,%ebp
 
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.

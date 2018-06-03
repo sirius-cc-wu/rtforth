@@ -190,9 +190,22 @@ impl CodeSpace {
         unsafe { self.inner.offset(len as isize) as usize }
     }
 
-    pub fn align(&mut self) {
+    pub fn aligned(pos: usize) -> usize {
         let align = mem::align_of::<usize>();
-        self.len = (self.len + align - 1) & align.wrapping_neg();
+        (pos + align - 1) & align.wrapping_neg()
+    }
+
+    pub fn align(&mut self) {
+        self.len = Self::aligned(self.len);
+    }
+
+    pub fn aligned_16bytes(pos: usize) -> usize {
+        let align = 16;
+        (pos + align - 1) & align.wrapping_neg()
+    }
+
+    pub fn align_16bytes(&mut self) {
+        self.len = Self::aligned_16bytes(self.len);
     }
 
     pub fn allot(&mut self, v: isize) {

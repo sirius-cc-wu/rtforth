@@ -1203,6 +1203,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_nest_code(&mut self, word_index: usize) {
+        self.code_space().align_16bytes();
         self.wordlist_mut()[word_index].action =
             unsafe { mem::transmute(self.code_space().here()) };
         // ; Aligned to 16 bytes because some x86 instruction, ex. movdqa, need

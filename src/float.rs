@@ -624,12 +624,23 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "x86_64"))]
+    fn test_very_long_float() {
+        let vm = &mut VM::new(16, 16);
+        vm.set_source("0.10000000000000001e");
+        vm.evaluate();
+        assert_eq!(vm.last_error(), Some(UndefinedWord));
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
     fn test_very_long_float() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.10000000000000001e");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
     }
+
 
     #[test]
     fn test_n_to_f() {

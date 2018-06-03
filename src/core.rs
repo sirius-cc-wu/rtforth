@@ -1205,27 +1205,21 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     fn compile_nest_code(&mut self, word_index: usize) {
         self.wordlist_mut()[word_index].action =
             unsafe { mem::transmute(self.code_space().here()) };
-        // ; make a copy of vm in %esi because %ecx may be destropyed by subroutine call.
-        // 56               push   %esi
-        // 89 ce            mov    %ecx,%esi
-        // 83 ec 08         sub    $8,%esp
-        self.code_space().compile_u8(0x56);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xce);
+        // ; Aligned to 16 bytes because some x86 instruction, ex. movdqa, need
+        // ; it.
+        // 83 ec 0c         sub    $c,%esp
         self.code_space().compile_u8(0x83);
         self.code_space().compile_u8(0xec);
-        self.code_space().compile_u8(0x08);
+        self.code_space().compile_u8(0x0c);
     }
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_exit(&mut self, _: usize) {
-        // 83 c4 08         add    $8,%esp
-        // 5e               pop    %esi
+        // 83 c4 0c         add    $c,%esp
         // c3               ret
         self.code_space().compile_u8(0x83);
         self.code_space().compile_u8(0xc4);
-        self.code_space().compile_u8(0x08);
-        self.code_space().compile_u8(0x5e);
+        self.code_space().compile_u8(0x0c);
         self.code_space().compile_u8(0xc3);
     }
 
@@ -2926,8 +2920,13 @@ compilation_semantics: fn(&mut Self, usize)){
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_reset(&mut self, _: usize) {
+        //      ; Make a copy of vm in %esi because %ecx may be destropyed by
+        //      ; subroutine call.
+        //      ; Note that RESET is the first Forth instruction in QUIT.
+        //      ; Also note that %esi is not saved here because QUIT doesn't
+        //      ; return to caller.
+        //      89 ce            mov    %ecx,%esi
         //      ; 判斷之前是否執行過 set_regs。
-        //      89 f1           mov    %esi,%ecx
         //      e8 xx xx xx xx  call   _regs()
         //      8b 10           mov    (%eax),%edx
         //      85 d2           test   %edx,%edx
@@ -2944,7 +2943,7 @@ compilation_semantics: fn(&mut Self, usize)){
         //      89 f1           mov %esi,%ecx
         //      e8 xx xx xx xx  call clear_stacks
         self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xce);
         self.code_space().compile_u8(0xe8);
         self.code_space().compile_relative(Self::_regs as usize);
         self.code_space().compile_u8(0x8b);
@@ -4878,12 +4877,9 @@ mod tests {
     fn test_subroutine_threaded_colon_and_semi_colon() {
         let vm = &mut VM::new(16, 16);
         // : nop ;
-        // 56               push   %esi
-        // 89 ce            mov    %ecx,%esi
-        // 83 ec 08         sub    $8,%esp
+        // 83 ec 0c         sub    $c,%esp
         //
-        // 83 c4 08         add    $8,%esp
-        // 5e               pop    %esi
+        // 83 c4 0c         add    $c,%esp
         // c3               ret
         let action = vm.code_space().here();
         vm.set_source(": nop ; nop");
@@ -4891,18 +4887,14 @@ mod tests {
         let w = vm.last_definition();
         assert_eq!(vm.wordlist()[w].action as usize, action);
         unsafe {
-            assert_eq!(vm.code_space().get_u8(action + 0), 0x56);
-            assert_eq!(vm.code_space().get_u8(action + 1), 0x89);
-            assert_eq!(vm.code_space().get_u8(action + 2), 0xce);
-            assert_eq!(vm.code_space().get_u8(action + 3), 0x83);
-            assert_eq!(vm.code_space().get_u8(action + 4), 0xec);
-            assert_eq!(vm.code_space().get_u8(action + 5), 0x08);
+            assert_eq!(vm.code_space().get_u8(action + 0), 0x83);
+            assert_eq!(vm.code_space().get_u8(action + 1), 0xec);
+            assert_eq!(vm.code_space().get_u8(action + 2), 0x0c);
 
-            assert_eq!(vm.code_space().get_u8(action + 6), 0x83);
-            assert_eq!(vm.code_space().get_u8(action + 7), 0xc4);
-            assert_eq!(vm.code_space().get_u8(action + 8), 0x08);
-            assert_eq!(vm.code_space().get_u8(action + 9), 0x5e);
-            assert_eq!(vm.code_space().get_u8(action + 10), 0xc3);
+            assert_eq!(vm.code_space().get_u8(action + 3), 0x83);
+            assert_eq!(vm.code_space().get_u8(action + 4), 0xc4);
+            assert_eq!(vm.code_space().get_u8(action + 5), 0x0c);
+            assert_eq!(vm.code_space().get_u8(action + 6), 0xc3);
         }
     }
 

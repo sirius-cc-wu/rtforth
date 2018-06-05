@@ -18,9 +18,6 @@ use rtforth::units::Units;
 use std::env;
 use std::fmt::Write;
 
-#[cfg(not(test))]
-#[cfg(not(test))]
-
 // Virtual machine
 pub struct VM {
     editor: rustyline::Editor<()>,
@@ -214,7 +211,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.1.39, Copyright (C) 2017 Mapacode Inc.");
+    println!("rtForth v0.3.0, Copyright (C) 2018 Mapacode Inc.");
 }
 
 primitive!{fn p_accept(vm: &mut VM) {
@@ -263,7 +260,6 @@ fn repl(vm: &mut VM) {
     vm.run();
 }
 
-#[cfg(not(test))]
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} [files] [options]", program);
     print!("{}", opts.usage(&brief));

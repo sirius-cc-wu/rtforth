@@ -1,4 +1,4 @@
-# rtForth Primer 
+# rtForth 入門 
 
 FORTH 是種很適用於工業控制的語言。而 rtForth 是動程科技針對自家的軸控系統設計的 FORTH 方言。為回饋 FORTH 社群，rtForth 自始就是開源的。
 

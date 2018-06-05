@@ -12,6 +12,12 @@ rtForth 使用 Rust 語言進行開發。 安裝 Rust 請參考
 
 * [The Rust Programming Language 第一章](https://doc.rust-lang.org/book/second-edition/ch01-01-installation.html)
 
+目前編譯 rtForth 要使用 nightly 版的 Rust。因此，
+
+```
+$ rustup default nightly
+```
+
 ## 下載 rtForth 原程式並編譯
 
 在 linux 下
@@ -24,19 +30,19 @@ $ git clone https://github.com/chengchangwu/rtforth.git
 
 編譯除錯版的 rtForth：
 ```
-$ cargo build --example rf
+$ cargo build
 ```
-編譯出來的除錯版 rtForth 位於 ./target/debug/example/rf 。
+編譯出來的除錯版 rtForth 位於 ./target/debug/rf 。
 
 編譯最佳化版的 rtForth：
 ```
-$ cargo build --example rf --release
+$ cargo build --release
 ```
-編譯出來最佳化版的 rtForth 位於 ./target/release/example/rf 。
+編譯出來最佳化版的 rtForth 位於 ./target/release/rf 。
 
 ## Hello World!
 
-執行 rf，出現以下訊息，
+執行 ./target/debug/rf 或 ./target/release/rf，出現以下訊息，
 
 ```
 rtForth v0.1.39, Copyright (C) 2017 Mapacode Inc.

@@ -4,8 +4,9 @@
 
 * [https://github.com/chengchangwu/rtforth](https://github.com/chengchangwu/rtforth)
 
-安裝步驟如下：
+安裝步驟如下。
 
+-------------------
 ## 安裝 Rust 開發環境
 
 rtForth 使用 Rust 語言進行開發。 安裝 Rust 請參考
@@ -18,6 +19,7 @@ rtForth 使用 Rust 語言進行開發。 安裝 Rust 請參考
 $ rustup default nightly
 ```
 
+-------------------------
 ## 下載 rtForth 原程式並編譯
 
 在 linux 下
@@ -40,6 +42,7 @@ $ cargo build --release
 ```
 編譯出來最佳化版的 rtForth 位於 ./target/release/rf 。
 
+---------------
 ## Hello World!
 
 執行 ./target/debug/rf 或 ./target/release/rf，出現以下訊息，
@@ -69,3 +72,10 @@ rf>
 ```
 rf> bye
 ```
+
+------------
+## 本章指令集
+
+| 指令 | 堆疊效果           | 說明                        | 口語唸法 |
+|-----|-------------------|-----------------------------|--------|
+| `bye` | ( -- ) | 離開 rtForth | bye   |

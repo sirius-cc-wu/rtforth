@@ -45,6 +45,7 @@ $ cargo build --release
 執行 ./target/debug/rf 或 ./target/release/rf，出現以下訊息，
 
 ```
+$ ./target/debug/rf
 rtForth v0.3.0, Copyright (C) 2018 Mapacode Inc.
 Type 'bye' or press Ctrl-D to exit.
 rf> 

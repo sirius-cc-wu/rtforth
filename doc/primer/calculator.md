@@ -40,4 +40,4 @@ rf> 2 17 + .
 19  ok
 rf> 
 ```
-
+這兒發生了什麼事？首先 Forth 是直譯式語言，內建[直譯器](https://zh.wikipedia.org/wiki/%E7%9B%B4%E8%AD%AF%E5%99%A8) (英文：interpreter) 。當執行 `rf` 時，rtForth 會起動直譯器，先印出 `rf>`，等待使用者輸入，再一個字 (word) 一個字的，從輸入緩衝區 (input buffer) 掃描 (scan) 使用者的輸入，在字典 (word list) 中查詢字的定義 (definition) 並執行。完成後顯示 `ok`，告訴使用者執行成功。若失敗則印出錯誤訊息。然後再印出提示字串 (prompt) 請使用者繼續輸入。

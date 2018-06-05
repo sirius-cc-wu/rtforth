@@ -1,4 +1,4 @@
-# rtForth Primer 
+# rtForth 入門 
 
 FORTH 是種很適用於工業控制的語言。而 rtForth 是動程科技針對自家的軸控系統設計的 FORTH 方言。為回饋 FORTH 社群，rtForth 自始就是開源的。
 
@@ -13,4 +13,5 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 現在就讓我們開始！
 
 * [安裝 rtForth](installation.md)
-* [使用 Forth 計算](calculator.md)
+* [使用 Forth 進行數值計算](numeric.md)
+* [使用 Forth 進行邏輯計算](logic.md)

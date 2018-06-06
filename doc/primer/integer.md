@@ -1,6 +1,4 @@
-# 使用 Forth 進行數值計算
-
-本節將 rtForth 當成計算機來用。
+# 使用 Forth 進行整數運算
 
 在前一章節中編譯產生的 ./target/release/rf 或是 ./target/debug/rf 只包括了 rtForth 的基本指令集，本節需要更多的指令，因此請以以下方式執行 rtForth：
 
@@ -41,7 +39,7 @@ rf> 2 17 + .
 19  ok
 rf> 
 ```
-這兒發生了什麼事？首先 Forth 是直譯式語言，內建[直譯器](https://zh.wikipedia.org/wiki/%E7%9B%B4%E8%AD%AF%E5%99%A8) (英文：interpreter) 。當執行 `rf` 時，rtForth 會起動直譯器，先印出 `rf>`，等待使用者輸入，再一個字 (word) 一個字的，從輸入緩衝區 (input buffer) 掃描 (scan) 使用者的輸入，在字典 (word list) 中查詢字的定義 (definition) 並執行。完成後顯示 `ok`，告訴使用者執行成功。若失敗則印出錯誤訊息。然後再印出提示字串 (prompt) `rf>` 請使用者繼續輸入。
+這兒發生了什麼事？首先 Forth 是直譯式語言，內建[直譯器](https://zh.wikipedia.org/wiki/%E7%9B%B4%E8%AD%AF%E5%99%A8) (英文：interpreter) 。當執行 `rf` 時，rtForth 會起動外層直譯器 (outer interpreter) ，先印出 `rf>`，等待使用者輸入，再一個字 (word) 一個字的，從輸入緩衝區 (input buffer) 掃描 (scan) 使用者的輸入，在字典 (word list) 中查詢字的定義 (definition) 並執行。完成後顯示 `ok`，告訴使用者執行成功。若失敗則印出錯誤訊息。然後再印出提示字串 (prompt) `rf>` 請使用者繼續輸入。
 
 Forth 的字和字是以空白或是換行符號隔開的。因此 `2 17 + .` 裡面一共有四個字。`2` 和 `17` 是數字。而 `+` 和 `.` 是已經在字典中定義好的指令 (instruction) 。
 
@@ -87,6 +85,39 @@ Data stack |    |
 | `+` | ( n1 n2 -- n1+n2 )| 將資料堆疊上的最後的兩個整數相加，結果放回堆疊 | plus   |
 | `.` | ( n -- )          | 印出資料堆疊上最後的整數，並將它從堆疊上移除 | dot |
 | `(` | ( -- )            | 註解，因為是指令，之後必須接一個空白。會忽略這空白之後一直到下一個右括弧 ) 之間的文字 | paren |
+
+---------------
+## 更多的整數運算
+
+TODO
+
+### 本節指令集
+
+| 指令 | 堆疊效果           | 說明                        | 口語唸法 |
+|-----|-------------------|-----------------------------|--------|
+| `-` | ( n1 n2 -- n1-n2 )|  | minus   |
+| `*` | ( n1 n2 -- n1*n2 )          |  | star |
+| `/` | ( n1 n2 -- quotient )            |  | slash |
+| `mod` | ( n1 n2 -- remainder )            |  | mod |
+| `/mod` | ( n1 n2 -- remainder quotient )            |  | slash-mod |
+| `abs` | ( -- )            |  |  |
+| `negate` | ( -- )            |  |  |
+| `min` | ( -- )            |  |  |
+| `max` | ( -- )            |  |  |
+
+-------------
+## 本章重點整理
+
+* 外層直譯器 (outer interpreter)
+* 資料堆疊 (data stack)
+* 字 (word)
+* 指令 (instruction)
+* 字典或指令集  (word list)
+* 定義 (definition)
+* 輸入緩衝區 (input buffer)
+* 掃描 (scan)
+* 輸出緩衝區 (output buffer)
+* 整數 (integer)
 
 -------------------------------------
 ## 本章指令集

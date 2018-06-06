@@ -39,7 +39,7 @@ rf> 2 17 + .
 19  ok
 rf> 
 ```
-這兒發生了什麼事？首先 Forth 是直譯式語言，內建[直譯器](https://zh.wikipedia.org/wiki/%E7%9B%B4%E8%AD%AF%E5%99%A8) (英文：interpreter) 。當執行 `rf` 時，rtForth 會起動外層直譯器 (outer interpreter) ，先印出 `rf>`，等待使用者輸入，再一個字 (word) 一個字的，從輸入緩衝區 (input buffer) 掃描 (scan) 使用者的輸入，在字典 (word list) 中查詢字的定義 (definition) 並執行。完成後顯示 `ok`，告訴使用者執行成功。若失敗則印出錯誤訊息。然後再印出提示字串 (prompt) `rf>` 請使用者繼續輸入。
+這兒發生了什麼事？首先 Forth 是直譯式語言，內建[直譯器](https://zh.wikipedia.org/wiki/%E7%9B%B4%E8%AD%AF%E5%99%A8) (英文：interpreter) 。當執行 `rf` 時，rtForth 會起動文本直譯器 (text interpreter) ，先印出 `rf>`，等待使用者輸入，再一個字 (word) 一個字的，從輸入緩衝區 (input buffer) 掃描 (scan) 使用者的輸入，在字典 (word list) 中查詢字的定義 (definition) 並執行。完成後顯示 `ok`，告訴使用者執行成功。若失敗則印出錯誤訊息。然後再印出提示字串 (prompt) `rf>` 請使用者繼續輸入。
 
 Forth 的字和字是以空白或是換行符號隔開的。因此 `2 17 + .` 裡面一共有四個字。`2` 和 `17` 是數字。而 `+` 和 `.` 是已經在字典中定義好的指令 (instruction) 。
 
@@ -214,7 +214,7 @@ rf> 3 4 + 3 4 + * negate .
 -------------
 ## 本章重點整理
 
-* 外層直譯器 (outer interpreter)
+* 文本直譯器 (text interpreter)
 * 資料堆疊 (data stack)
 * 堆疊效果 (stack effect)：FORTH 文件常以 `( -- )` 的方式呈現執行指令時堆疊的變化。在 `--` 前的是指令執行前疊頂的內容。在 `--` 後的是執行後疊頂的內容。
 * 字 (word)

@@ -13,5 +13,7 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 現在就讓我們開始！
 
 * [安裝 rtForth](installation.md)
-* [使用 Forth 進行數值計算](numeric.md)
-* [使用 Forth 進行邏輯計算](logic.md)
+* [Forth 計算機](calculator.md)
+  * [使用 Forth 進行整數計算](integer.md)
+  * [使用 Forth 進行浮點計算](float.md)
+  * [使用 Forth 進行邏輯計算](logic.md)

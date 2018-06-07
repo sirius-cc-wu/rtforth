@@ -150,7 +150,7 @@ pub trait Output: Core {
     primitive!{fn fdot(&mut self) {
         let r = self.f_stack().pop();
         if let Some(mut buf) = self.output_buffer().take() {
-            write!(buf, "{} ", r).unwrap();
+            write!(buf, "{:.7} ", r).unwrap();
             self.set_output_buffer(buf);
         }
     }}

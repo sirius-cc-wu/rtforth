@@ -31,6 +31,7 @@ pub trait Float: Core {
         self.add_primitive("f-", Float::fminus);
         self.add_primitive("f*", Float::fstar);
         self.add_primitive("f/", Float::fslash);
+        self.add_primitive("f**", Float::fpowf);
         self.add_primitive("f~", Float::fproximate);
         self.add_primitive("f0<", Float::f_zero_less_than);
         self.add_primitive("f0=", Float::f_zero_equals);
@@ -199,6 +200,12 @@ pub trait Float: Core {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n / t);
+    }}
+
+    primitive!{fn fpowf(&mut self) {
+        let t = self.f_stack().pop();
+        let n = self.f_stack().pop();
+        self.f_stack().push(n.powf(t));
     }}
 
     primitive!{fn fproximate(&mut self) {

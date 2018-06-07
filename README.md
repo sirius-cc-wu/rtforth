@@ -2,6 +2,8 @@
 
 Forth implemented in Rust, designed for real-time applications.
 
+Documentation at [rtForth Primer](http://chengchangwu.github.io/rtforth/).
+
 ## Design decisions:
 
 * Safe first, performance later

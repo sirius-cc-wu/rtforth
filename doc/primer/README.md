@@ -15,7 +15,9 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 * 組合語言指令：對於需要性能的程式，可以使用 Rust 實現。或在 Rust 函式中使用 inline asm。因此 rtForth 不提供組合語言指令。
 * 返回堆疊和 `R>` `R<` 等指令：`R>` 和 `R<` 以及返回堆疊是危險的，容易造成當機的指令。雖然 rtForth 目前提供 `R>` 和 `R<` 指令。但在未來會以 LOCAL 取代。這選擇也和 Rust 語言注意安全的哲學更相容。
 
-「rtForth 入門」的撰寫參考了 J.V. Noble 的 [A Beginner's Guide to Forth](http://galileo.phys.virginia.edu/classes/551.jvn.fall01/primer.htm)，謹在此表達感謝。
+「rtForth 入門」的撰寫參考了以下文獻，謹在此表達感謝，
+* J.V. Noble 的 [A Beginner's Guide to Forth](http://galileo.phys.virginia.edu/classes/551.jvn.fall01/primer.htm)
+* Forth Inc. Leo Brodie 的 [Starting Forth](https://www.forth.com/starting-forth/)
 
 現在就讓我們開始！
 

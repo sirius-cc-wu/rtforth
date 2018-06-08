@@ -37,32 +37,64 @@ rf> 1e 3e 2e f** f/  f.
 
 | 指令 | 堆疊效果           | 說明                        | 口語唸法 |
 |-----|-------------------|-----------------------------|--------|
-| `f.` | ( F:&nbsp; f -- ) | 印出浮點堆疊上最後的浮點數，並將它從堆疊上移除 | f-dot |
-| `f+` | ( F:&nbsp; f1 f2 -- f1+f2 )| 將浮點堆疊上的 f1 加上 f2，將結果放回浮點堆疊 | f-plus |
-| `f-` | ( F:&nbsp; f1 f2 -- f1-f2 )| 將浮點堆疊上的 f1 減去 f2，將結果放回浮點堆疊 | f-minus |
-| `f*` | ( F:&nbsp; f1 f2 -- f1*f2 )| 將浮點堆疊上的 f1 乘以 f2，將結果放回浮點堆疊 | f-star |
-| `f/` | ( F:&nbsp; f1 f2 -- f1/f2 )| 將浮點堆疊上的 f1 除以 f2，將結果放回浮點堆疊 | f-slash |
-| `f**` | ( F:&nbsp; f1 f2 -- f1<sup>f2</sup>)| 求浮點堆疊上的 f1 的 f2 次方，將結果放回浮點堆疊 | f-star-star |
+| `f.` | ( F:&nbsp; r -- ) | 印出浮點堆疊上最後的浮點數，並將它從堆疊上移除 | f-dot |
+| `f+` | ( F:&nbsp; r1 r2 -- r1+r2 )| 將浮點堆疊上的 r1 加上 r2，將結果放回浮點堆疊 | f-plus |
+| `f-` | ( F:&nbsp; r1 r2 -- r1-r2 )| 將浮點堆疊上的 r1 減去 r2，將結果放回浮點堆疊 | f-minus |
+| `f*` | ( F:&nbsp; r1 r2 -- r1*r2 )| 將浮點堆疊上的 r1 乘以 r2，將結果放回浮點堆疊 | f-star |
+| `f/` | ( F:&nbsp; r1 r2 -- r1/r2 )| 將浮點堆疊上的 r1 除以 r2，將結果放回浮點堆疊 | f-slash |
+| `f**` | ( F:&nbsp; r1 r2 -- r1<sup>r2</sup>)| 求浮點堆疊上的 r1 的 r2 次方，將結果放回浮點堆疊 | f-star-star |
 
 -----------
 ## 更多的浮點算術指令
 
+如同整數，Forth 提供了類似 `abs` 、 `negate` 、 `max` 、 `min` 的 `fabs` 、 `fnegate` 、 `fmax` 、 `fmin` 。
+
+另外，因浮點數的特性，還提供了對浮點數行四捨五入的 `fround`、求小於等於浮點數的最大整數的 `floor` 及求大於等於浮點數的最小整數的 `fceil` 。注意這三個指令雖說是求整數，但結果仍以浮點數表示。
+
+注意 `fceil` 指令不是 [FORTH 標準](https://forth-standard.org/standard/index) 中的指令，但存在於某些 Forth 系統中 (包括 rtForth)。
+
+練習一下，
+
+例一：100.0/9.0 後四捨五入。
+```
+rf> 100e 9e f/  fround  f.
+11.0000000  ok
+```
+
+例二：請問 3.5 介於哪兩個整數之間？
+```
+rf> 3.5e floor f.  3.5e fceil f.
+3.0000000 4.0000000  ok
+```
+
+例三：(29/4.05) 和 7 哪一個比較大？
+```
+rf> 29e 4.05e f/  7e fmax  f.
+7.1604938  ok
+```
+
+例四：求中位法 -ａbs(3.2-1.7) 和 -1.4 的最小值。 
+```
+rf> 3.2e 1.7e f-  fabs  fnegate  -1.4e fmin  f.
+-1.5000000  ok
+```
+
 | 指令 | 堆疊效果           | 說明                        | 口語唸法 |
 |-----|-------------------|-----------------------------|--------|
-| `fnegate` | ( F:&nbsp; f -- ) | | f-negate |
-| `fabs` | ( F:&nbsp; f -- ) | | f-abs |
-| `fmax` | ( F:&nbsp; f -- ) | | f-max |
-| `fmin` | ( F:&nbsp; f -- ) | | f-min |
-| `fsqrt` | ( F:&nbsp; f -- ) | | f-sqrt |
-| `fround` | ( F:&nbsp; f -- ) | | f-round |
-| `floor` | ( F:&nbsp; f -- ) | | floor |
-| `fceil` | ( F:&nbsp; f -- ) | | f-ceiling |
+| `fnegate` | ( F:&nbsp; r1 -- r2 ) | 求 r1 的加法反元素。 | f-negate |
+| `fabs` | ( F:&nbsp; r1 -- r2 ) | 求 r1 的絕對值 | f-abs |
+| `fmax` | ( F:&nbsp; r1 r2 -- r3 ) | 求 r1 和 r2 中較大的數 | f-max |
+| `fmin` | ( F:&nbsp; r1 r2 -- r3 ) | 求 r1 和 r2 中較小的數 | f-min |
+| `fround` | ( F:&nbsp; r1 -- r2 ) | 將 r1 四捨五入，注意結果仍是浮點數 | f-round |
+| `floor` | ( F:&nbsp; r1 -- r2 ) | 求小於等於 r1 的最大整數，注意結果仍是浮點數 | floor |
+| `fceil` | ( F:&nbsp; r1 -- r2 ) | 求大於等於 r1 的最小整數，注意結果仍是浮點數 | f-ceil |
 
 ---------------
-## 三角函數 
+## 開根號和三角函數 
 
 | 指令 | 堆疊效果           | 說明                        | 口語唸法 |
 |-----|-------------------|-----------------------------|--------|
+| `fsqrt` | ( F:&nbsp; f -- ) | | f-sqrt |
 | `fsin` | ( F:&nbsp; f -- ) | | f-sine |
 | `fcos` | ( F:&nbsp; f -- ) | | f-cos |
 | `ftan` | ( F:&nbsp; f -- ) | | f-tan |

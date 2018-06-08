@@ -94,15 +94,15 @@ rf> 3.2e 1.7e f-  fabs  fnegate  -1.4e fmin  f.
 
 | 指令 | 堆疊效果           | 說明                        | 口語唸法 |
 |-----|-------------------|-----------------------------|--------|
-| `fsqrt` | ( F:&nbsp; f -- ) | | f-sqrt |
-| `fsin` | ( F:&nbsp; f -- ) | | f-sine |
-| `fcos` | ( F:&nbsp; f -- ) | | f-cos |
-| `ftan` | ( F:&nbsp; f -- ) | | f-tan |
-| `fsincos` | ( F:&nbsp; f -- ) | | f-sine-cos |
-| `fasin` | ( F:&nbsp; f -- ) | | f-a-sine |
-| `facos` | ( F:&nbsp; f -- ) | | f-a-cos |
-| `fatan` | ( F:&nbsp; f -- ) | | f-a-tan |
-| `fatan2` | ( F:&nbsp; f -- ) | | f-a-tan-two |
+| `fsqrt` | ( F:&nbsp; r1 -- r2 ) | | f-sqrt |
+| `fsin` | ( F:&nbsp; r1 -- r2 ) | | f-sine |
+| `fcos` | ( F:&nbsp; r1 -- r2 ) | | f-cos |
+| `ftan` | ( F:&nbsp; r1 -- r2 ) | | f-tan |
+| `fsincos` | ( F:&nbsp; r1 -- r2 r3 ) | | f-sine-cos |
+| `fasin` | ( F:&nbsp; r1 -- r2 ) | | f-a-sine |
+| `facos` | ( F:&nbsp; r1 -- r2 ) | | f-a-cos |
+| `fatan` | ( F:&nbsp; r1 -- r2 ) | | f-a-tan |
+| `fatan2` | ( F:&nbsp; r1 r2 -- r3 ) | | f-a-tan-two |
 
 ----------------
 ## 整數和浮點數轉換

@@ -14,6 +14,7 @@ pub trait Float: Core {
         self.add_primitive("fsin", Float::fsin);
         self.add_primitive("fcos", Float::fcos);
         self.add_primitive("ftan", Float::ftan);
+        self.add_primitive("fsincos", Float::fsincos);
         self.add_primitive("fasin", Float::fasin);
         self.add_primitive("facos", Float::facos);
         self.add_primitive("fatan", Float::fatan);
@@ -106,6 +107,12 @@ pub trait Float: Core {
     primitive!{fn ftan(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.tan());
+    }}
+
+    primitive!{fn fsincos(&mut self) {
+        let t = self.f_stack().pop();
+        let (s, c) = t.sin_cos();
+        self.f_stack().push2(s, c);
     }}
 
     primitive!{fn fasin(&mut self) {

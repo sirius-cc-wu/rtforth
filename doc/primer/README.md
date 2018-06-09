@@ -6,6 +6,9 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 
 其次，rt 也代表了 Rust，。Rust 是 Mozilla 公司為了開發下一代安全且高性能的瀏覽器而設計的程式語言，具有安全 (Safety)、速度 (Speed)、并發 (Concurrency) 特性。目前已被國際大型軟體公司，包括 Docker、Facebook、Google 用於內部的關鍵技術中。其特性不僅適合用來開發安全、高性能的瀏覽器、伺服器，也適合用於軸控系統。
 
+---------
+## 本書內容
+
 「rtForth 入門」透過例子展示 Foth 語言的語法和概念。前半部的 Forth 指令是 [FORTH 標準](https://forth-standard.org/standard/index) 指令集的子集，若有不屬於 [FORTH 標準](https://forth-standard.org/standard/index) 的指令，會特別說明。後半部進階的部份則是 rtForth 特有的內容，包括如何使用 Rust 擴充 rtForth 的指令集，以及如何使用動程科技的軸控系統。
 
 某些其他 Forth 文件中常討論的主題，在本書中特意不討論，原因如下：
@@ -20,10 +23,19 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 * Forth Inc. Leo Brodie 的 [Starting Forth](https://www.forth.com/starting-forth/)
 * [FORTH 標準](https://forth-standard.org/standard/index)
 
+-------------
+## 如何閱讀本書
+
+建議依序閱讀各章節中進階課題以前的部份，並實際練習書中的例子。進階課題內的各章是獨立的，可以只在有興趣或需要時才閱讀。
 現在就讓我們開始！
+
+## 目錄
 
 * [安裝 rtForth](installation.md)
 * [Forth 計算機](calculator.md)
   * [整數計算](integer.md)
   * [浮點計算](float.md)
-  * [邏輯計算](logic.md)
+  * [WIP: 邏輯計算](logic.md)
+* [進階課題](advanced.md)
+  * [TODO: 矩陣運算](matrix.md)
+  * [TODO: 範例：電子凸輪](cam.md)

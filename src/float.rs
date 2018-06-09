@@ -14,6 +14,7 @@ pub trait Float: Core {
         self.add_primitive("fsin", Float::fsin);
         self.add_primitive("fcos", Float::fcos);
         self.add_primitive("ftan", Float::ftan);
+        self.add_primitive("fsincos", Float::fsincos);
         self.add_primitive("fasin", Float::fasin);
         self.add_primitive("facos", Float::facos);
         self.add_primitive("fatan", Float::fatan);
@@ -25,8 +26,8 @@ pub trait Float: Core {
         self.add_primitive("fnip", Float::fnip);
         self.add_primitive("frot", Float::frot);
         self.add_primitive("fover", Float::fover);
-        self.add_primitive("n>f", Float::n_to_f);
-        self.add_primitive("f>n", Float::f_to_n);
+        self.add_primitive("s>f", Float::s_to_f);
+        self.add_primitive("f>s", Float::f_to_s);
         self.add_primitive("f+", Float::fplus);
         self.add_primitive("f-", Float::fminus);
         self.add_primitive("f*", Float::fstar);
@@ -108,6 +109,12 @@ pub trait Float: Core {
         self.f_stack().push(t.tan());
     }}
 
+    primitive!{fn fsincos(&mut self) {
+        let t = self.f_stack().pop();
+        let (s, c) = t.sin_cos();
+        self.f_stack().push2(s, c);
+    }}
+
     primitive!{fn fasin(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.asin());
@@ -168,12 +175,12 @@ pub trait Float: Core {
         self.f_stack().push3(n, t, n);
     }}
 
-    primitive!{fn n_to_f(&mut self) {
+    primitive!{fn s_to_f(&mut self) {
         let t = self.s_stack().pop();
         self.f_stack().push(t as f64);
     }}
 
-    primitive!{fn f_to_n(&mut self) {
+    primitive!{fn f_to_s(&mut self) {
         let t = self.f_stack().pop();
         self.s_stack().push(t as isize);
     }}

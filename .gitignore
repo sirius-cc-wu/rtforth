@@ -3,3 +3,4 @@ Cargo.lock
 **/target/
 **/*.bk
 doc/primer/_book
+**/book.pdf

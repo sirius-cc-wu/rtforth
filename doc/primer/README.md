@@ -6,7 +6,7 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 
 其次，rt 也代表了 Rust，。Rust 是 Mozilla 公司為了開發下一代安全且高性能的瀏覽器而設計的程式語言，具有安全 (Safety)、速度 (Speed)、并發 (Concurrency) 特性。目前已被國際大型軟體公司，包括 Docker、Facebook、Google 用於內部的關鍵技術中。其特性不僅適合用來開發安全、高性能的瀏覽器、伺服器，也適合用於軸控系統。
 
-「rtForth 入門」透過例子展示 Foth 語言的語法和概念。在前半部的內容和 ANSI Forth 相容。後半部進階的部份則是 rtForth 特有的內容，包括如何使用 Rust 擴充 rtForth 的指令集，以及如何使用動程科技的軸控系統。
+「rtForth 入門」透過例子展示 Foth 語言的語法和概念。前半部的 Forth 指令是 [FORTH 標準](https://forth-standard.org/standard/index) 指令集的子集，若有不屬於 [FORTH 標準](https://forth-standard.org/standard/index) 的指令，會特別說明。後半部進階的部份則是 rtForth 特有的內容，包括如何使用 Rust 擴充 rtForth 的指令集，以及如何使用動程科技的軸控系統。
 
 某些其他 Forth 文件中常討論的主題，在本書中特意不討論，原因如下：
 
@@ -18,11 +18,12 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 「rtForth 入門」的撰寫參考了以下文獻，謹在此表達感謝，
 * J.V. Noble 的 [A Beginner's Guide to Forth](http://galileo.phys.virginia.edu/classes/551.jvn.fall01/primer.htm)
 * Forth Inc. Leo Brodie 的 [Starting Forth](https://www.forth.com/starting-forth/)
+* [FORTH 標準](https://forth-standard.org/standard/index)
 
 現在就讓我們開始！
 
 * [安裝 rtForth](installation.md)
 * [Forth 計算機](calculator.md)
-  * [使用 Forth 進行整數計算](integer.md)
-  * [使用 Forth 進行浮點計算](float.md)
-  * [使用 Forth 進行邏輯計算](logic.md)
+  * [整數計算](integer.md)
+  * [浮點計算](float.md)
+  * [邏輯計算](logic.md)

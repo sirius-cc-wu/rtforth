@@ -508,8 +508,6 @@ pub trait Core: Sized {
         self.add_primitive("mod", Core::p_mod);
         self.add_primitive("abs", Core::abs);
         self.add_primitive("negate", Core::negate);
-        self.add_primitive("min", Core::min);
-        self.add_primitive("max", Core::max);
         self.add_primitive("between", Core::between);
         self.add_primitive("parse-word", Core::parse_word);
         self.add_primitive("char", Core::char);
@@ -2550,16 +2548,6 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn negate(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(t.wrapping_neg());
-    }}
-
-    primitive!{fn min(&mut self) {
-        let (n, t) = self.s_stack().pop2();
-        self.s_stack().push(if n > t { t } else { n });
-    }}
-
-    primitive!{fn max(&mut self) {
-        let (n, t) = self.s_stack().pop2();
-        self.s_stack().push(if n > t { n } else { t });
     }}
 
     primitive!{fn zero_less(&mut self) {

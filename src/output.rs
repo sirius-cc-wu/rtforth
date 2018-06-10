@@ -121,16 +121,16 @@ pub trait Output: Core {
         if let Some(mut buf) = self.output_buffer().take() {
             match base {
                 2 => {
-                    write!(buf, "{:b}", n).unwrap();
+                    write!(buf, "{:b} ", n).unwrap();
                 }
                 8 => {
-                    write!(buf, "{:o}", n).unwrap();
+                    write!(buf, "{:o} ", n).unwrap();
                 }
                 10 => {
                     write!(buf, "{} ", n).unwrap();
                 }
                 16 => {
-                    write!(buf, "{:X}", n).unwrap();
+                    write!(buf, "{:X} ", n).unwrap();
                 }
                 _ => {
                     invalid_base = true;

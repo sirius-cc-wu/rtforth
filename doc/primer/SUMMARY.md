@@ -6,10 +6,11 @@
   * [整數運算](integer.md)
   * [浮點運算](float.md)
   * [WIP: 邏輯運算](logic.md)
-* [TODO]
+* [Forth 程式入門](programming.md)
   * [TODO: 字典](wordlist.md)
   * [TODO: 堆疊](stacks.md)
   * [TODO: 判斷與迴圈](control.md)
+  * [TODO: 多工、異常處理與文本解譯器](tasking.md)
 * [進階課題](advanced.md)
   * [TODO: 矩陣運算](matrix.md)
   * [TODO: 範例：電子凸輪](cam.md)

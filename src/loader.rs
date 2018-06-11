@@ -5,6 +5,15 @@ use std::io::BufRead;
 use std::io::BufReader;
 
 pub trait HasLoader: Core {
+    fn load_str(&mut self, script: &str) {
+        let mut input_buffer = self.input_buffer().take().unwrap();
+        input_buffer.clear();
+        input_buffer.push_str(script);
+        self.state().source_index = 0;
+        self.set_input_buffer(input_buffer);
+        self.evaluate();
+    }
+
     fn load(&mut self, path_name: &str) {
         let mut reader = match File::open(&path_name) {
             Err(_) => {

@@ -168,6 +168,9 @@ impl Tools for VM {}
 
 fn main() {
     let vm = &mut VM::new(1024, 1024);
+    let libfs = include_str!("../lib.fs");
+    vm.load_str(libfs);
+
     let mut bye = false;
 
     let args: Vec<_> = env::args().collect();

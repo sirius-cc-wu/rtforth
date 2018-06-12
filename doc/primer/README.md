@@ -35,7 +35,7 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 * [Forth 計算機](calculator.md)
   * [整數計算](integer.md)
   * [浮點計算](float.md)
-  * [WIP: 邏輯計算](logic.md)
+  * [WIP: 比較及邏輯計算](logic.md)
 * [Forth 程式入門](programming.md)
   * [TODO: 字典](wordlist.md)
   * [TODO: 堆疊](stacks.md)

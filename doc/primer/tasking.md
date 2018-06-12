@@ -5,18 +5,18 @@ TODO
 -------------------------------------
 ## 本章指令集
 
-| 指令 | 堆疊效果           | 說明                        | 口語唸法 |
-|-----|-------------------|-----------------------------|--------|
-| `quit` | ( -- ) | | quit |
-| `evaluate` | ( -- ) | | evaluate |
-| `token-empty?` | ( -- ) | | token-empty |
-| `compiling?` | ( -- ) | | compiling |
-| `compile-token` | ( -- ) | | compile-token |
-| `interpret-token` | ( -- ) | | interpret-token |
-| `error?` | ( -- ) | | |
-| `?stacks` | ( -- ) | | check-stacks |
-| `parse-word` | ( -- ) | | parse-word |
-| `abort` | ( -- ) | | abort |
-| `leave-task` | ( -- ) | | leave-task |
-| `enter-task` | ( -- ) | | enter-task |
-| `handler!` | ( -- ) | | handler-store |
+| 指令 | 堆疊效果及指令說明                          | 口語唸法 |
+|-----|------------------------------------------|--------|
+| `quit` | ( -- ) &emsp; | quit |
+| `evaluate` | ( -- ) &emsp; | evaluate |
+| `token-empty?` | ( -- ) &emsp; | token-empty |
+| `compiling?` | ( -- ) &emsp; | compiling |
+| `compile-token` | ( -- ) &emsp; | compile-token |
+| `interpret-token` | ( -- ) &emsp; | interpret-token |
+| `error?` | ( -- ) &emsp; | |
+| `?stacks` | ( -- ) &emsp; | check-stacks |
+| `parse-word` | ( -- ) &emsp; | parse-word |
+| `abort` | ( -- ) &emsp; | abort |
+| `leave-task` | ( -- ) &emsp; | leave-task |
+| `enter-task` | ( -- ) &emsp; | enter-task |
+| `handler!` | ( -- ) &emsp; | handler-store |

@@ -5,7 +5,7 @@
 * [Forth 計算機](calculator.md)
   * [整數運算](integer.md)
   * [浮點運算](float.md)
-  * [WIP: 邏輯運算](logic.md)
+  * [WIP: 比較及邏輯運算](logic.md)
 * [Forth 程式入門](programming.md)
   * [TODO: 字典](wordlist.md)
   * [TODO: 堆疊](stacks.md)

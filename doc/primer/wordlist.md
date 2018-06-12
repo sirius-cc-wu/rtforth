@@ -25,54 +25,45 @@ exit noop  ok
 
 字典如何記載一個指令？
 
-| 名稱 | 行為        | 資料來源 |
-|-----|-------------|-----|
-| `+`  | 執行整數加法 | 來自資料堆疊 |
-| `f+` | 執行浮數點加法 | 來自浮點堆疊  |
-
 -----------
 ## 常數、變數
 
-| 名稱 | 行為        | 資料資料 |
-|-----|-------------|-----|
-| `true`  | 將 -1 放上堆疊 | 來自資料空間 |
-| `false` | 將 0 放上堆疊 | 來自資料空間  |
 
 ### 本節指令集
-| 指令 | 堆疊效果           | 說明                        | 口語唸法 |
-|-----|-------------------|-----------------------------|--------|
-| `constant` | ( -- )|  | constant |
-| `variable` | ( -- )|  | variable |
-| `fconstant` | ( -- )|  | f-constant |
-| `fvariable` | ( -- )|  | f-variable |
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|----------------------------------------|--------|
+| `constant` | ( -- ) &emsp; | constant |
+| `variable` | ( -- ) &emsp; | variable |
+| `fconstant` | ( -- ) &emsp; | f-constant |
+| `fvariable` | ( -- ) &emsp; | f-variable |
 
 -----------
 ## 本章指令集
 
-| 指令 | 堆疊效果           | 說明                        | 口語唸法 |
-|-----|-------------------|-----------------------------|--------|
-| `words` | ( -- )|  | words |
-| `marker` | ( -- )|  | marker |
-| `empty` | ( -- )|  | empty |
-| `:` | ( -- )|  | colon |
-| `;` | ( -- )|  | semicolon |
-| `constant` | ( -- )|  | constant |
-| `variable` | ( -- )|  | variable |
-| `fconstant` | ( -- )|  | f-constant |
-| `fvariable` | ( -- )|  | f-variable |
-| `create` | ( -- )|  | create |
-| `cells` | ( -- )|  | cells |
-| `cell+` | ( -- )|  | cell+ |
-| `align` | ( -- )|  | align |
-| `aligned` | ( -- )|  | aligned |
-| `allot` | ( -- )|  | allot |
-| `here` | ( -- )|  | here |
-| `,` | ( -- )|  | comma |
-| `does>` | ( -- )|  | does |
-| `@` | ( -- )|  | fetch |
-| `!` | ( n a -- )| 將 n 存在位址 a  | store |
-| `2@` | ( -- )| | two-fetch |
-| `2!` | ( -- )| | two-store |
-| `+!` | ( n a -- )| 將位址 a 內的整數加 n | plus-store |
-| `f@` | ( -- )|  | f-fetch |
-| `f!` | ( -- )|  | f-store |
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|------------------------------------|--------|
+| `words` | ( -- ) &emsp;  | words |
+| `marker` | ( -- ) &emsp; | marker |
+| `empty` | ( -- ) &emsp; | empty |
+| `:` | ( -- ) &emsp; | colon |
+| `;` | ( -- ) &emsp; | semicolon |
+| `constant` | ( -- ) &emsp; | constant |
+| `variable` | ( -- ) &emsp; | variable |
+| `fconstant` | ( -- ) &emsp; | f-constant |
+| `fvariable` | ( -- ) &emsp; | f-variable |
+| `create` | ( -- ) &emsp; | create |
+| `cells` | ( -- ) &emsp; | cells |
+| `cell+` | ( -- ) &emsp; | cell+ |
+| `align` | ( -- ) &emsp; | align |
+| `aligned` | ( -- ) &emsp; | aligned |
+| `allot` | ( -- ) &emsp; | allot |
+| `here` | ( -- ) &emsp; | here |
+| `,` | ( -- ) &emsp; | comma |
+| `does>` | ( -- ) &emsp; | does |
+| `@` | ( -- ) &emsp; | fetch |
+| `!` | ( n a -- ) &emsp; 將 n 存在位址 a  | store |
+| `2@` | ( -- ) &emsp; | two-fetch |
+| `2!` | ( -- ) &emsp; | two-store |
+| `+!` | ( n a -- ) &emsp; 將位址 a 內的整數加 n | plus-store |
+| `f@` | ( -- ) &emsp; | f-fetch |
+| `f!` | ( -- ) &emsp; | f-store |

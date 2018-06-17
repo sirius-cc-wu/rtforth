@@ -26,6 +26,31 @@ pub fn sign(input: &[u8]) -> IResult<isize> {
     IResult::Done(&bytes, sign)
 }
 
+pub fn base(input: &[u8], default_base: isize) -> IResult<isize> {
+    let mut base = default_base;
+    let mut bytes = input;
+    if bytes.len() >= 1 {
+        match bytes[0] {
+            b'%' => {
+                base = 2;
+                bytes = &bytes[1..];
+            }
+            b'#' => {
+                base = 10;
+                bytes = &bytes[1..];
+            }
+            b'$' => {
+                base = 16;
+                bytes = &bytes[1..];
+            }
+            _ => {
+                // Do nothing.
+            }
+        }
+    }
+    IResult::Done(&bytes, base)
+}
+
 pub fn uint_in_base(input: &[u8], base: isize) -> IResult<isize> {
     let mut len = 0;
     let mut bytes = input;
@@ -75,6 +100,15 @@ pub fn uint(input: &[u8]) -> IResult<isize> {
     }
     bytes = &bytes[len..];
     IResult::Done(bytes, value)
+}
+
+/// Character in ''
+pub fn quoted_char(input: &[u8]) -> IResult<isize> {
+    if input.len() == 3 && input[0] == 39u8 && input[2] == 39u8 {
+        IResult::Done(&input[3..], input[1] as isize)
+    } else {
+        IResult::Err(Exception::ResultOutOfRange)
+    }
 }
 
 pub fn ascii(input: &[u8], ascii: u8) -> IResult<bool> {
@@ -127,11 +161,29 @@ mod tests {
     }
 
     #[test]
+    fn test_base() {
+        assert_eq!(base(b"", 7), IResult::Done(b"", 7));
+        assert_eq!(base(b"-", 7), IResult::Done(b"-", 7));
+        assert_eq!(base(b"'", 7), IResult::Done(b"'", 7));
+        assert_eq!(base(b"%", 7), IResult::Done(b"", 2));
+        assert_eq!(base(b"#", 7), IResult::Done(b"", 10));
+        assert_eq!(base(b"$", 7), IResult::Done(b"", 16));
+    }
+
+    #[test]
     fn test_uint() {
         assert_eq!(uint(b"123"), IResult::Done(b"", 123));
         assert_eq!(uint(b"45x6"), IResult::Done(b"x6", 45));
         assert_eq!(uint(b""), IResult::Done(b"", 0));
         assert_eq!(uint(b"xy"), IResult::Done(b"xy", 0));
+    }
+
+    #[test]
+    fn test_quoted_char() {
+        assert_eq!(quoted_char(b"'''"), IResult::Done(b"", 39));
+        assert_eq!(quoted_char(b"'*'"), IResult::Done(b"", 42));
+        assert_eq!(quoted_char(b"''"), IResult::Err(Exception::ResultOutOfRange));
+        assert_eq!(quoted_char(b""), IResult::Err(Exception::ResultOutOfRange));
     }
 
     #[test]

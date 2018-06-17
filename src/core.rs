@@ -508,8 +508,6 @@ pub trait Core: Sized {
         self.add_primitive("mod", Core::p_mod);
         self.add_primitive("abs", Core::abs);
         self.add_primitive("negate", Core::negate);
-        self.add_primitive("min", Core::min);
-        self.add_primitive("max", Core::max);
         self.add_primitive("between", Core::between);
         self.add_primitive("parse-word", Core::parse_word);
         self.add_primitive("char", Core::char);
@@ -1196,22 +1194,40 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     fn evaluate_integer(&mut self, token: &str) {
         let base_addr = self.data_space().system_variables().base_addr();
-        let base = self.data_space().get_isize(base_addr);
-        match parser::sign(&token.as_bytes()) {
-            parser::IResult::Done(bytes, sign) => match parser::uint_in_base(&bytes, base) {
-                parser::IResult::Done(bytes, value) => {
-                    if bytes.len() != 0 {
-                        self.set_error(Some(UnsupportedOperation));
-                    } else {
-                        if self.state().is_compiling {
-                            self.compile_integer(sign * value);
+        let default_base = self.data_space().get_isize(base_addr);
+        match parser::quoted_char(&token.as_bytes()) {
+            parser::IResult::Done(_bytes, c) => {
+                if self.state().is_compiling {
+                    self.compile_integer(c);
+                } else {
+                    self.s_stack().push(c);
+                }
+                return;
+            }
+            parser::IResult::Err(_) => {
+                // Do nothing.
+            }
+        }
+        match parser::base(&token.as_bytes(), default_base) {
+            parser::IResult::Done(bytes, base) => match parser::sign(&bytes) {
+                parser::IResult::Done(bytes, sign) => match parser::uint_in_base(&bytes, base) {
+                    parser::IResult::Done(bytes, value) => {
+                        if bytes.len() != 0 {
+                            self.set_error(Some(UnsupportedOperation));
                         } else {
-                            self.s_stack().push(sign * value);
+                            if self.state().is_compiling {
+                                self.compile_integer(sign * value);
+                            } else {
+                                self.s_stack().push(sign * value);
+                            }
                         }
                     }
+                    parser::IResult::Err(e) => self.set_error(Some(e)),
+                },
+                parser::IResult::Err(e) => {
+                    self.set_error(Some(e));
                 }
-                parser::IResult::Err(e) => self.set_error(Some(e)),
-            },
+            }
             parser::IResult::Err(e) => {
                 self.set_error(Some(e));
             }
@@ -2550,16 +2566,6 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn negate(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(t.wrapping_neg());
-    }}
-
-    primitive!{fn min(&mut self) {
-        let (n, t) = self.s_stack().pop2();
-        self.s_stack().push(if n > t { t } else { n });
-    }}
-
-    primitive!{fn max(&mut self) {
-        let (n, t) = self.s_stack().pop2();
-        self.s_stack().push(if n > t { n } else { t });
     }}
 
     primitive!{fn zero_less(&mut self) {

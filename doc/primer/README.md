@@ -42,6 +42,7 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
   * [TODO: 判斷與迴圈](control.md)
   * [TODO: 多工、異常處理與文本解譯器](tasking.md)
 * [進階課題](advanced.md)
+  * [TODO: Modbus RTU](modbus.md)
   * [TODO: 矩陣運算](matrix.md)
   * [TODO: 範例：電子凸輪](cam.md)
   * [TODO: 範例：自動對位](alignment.md)

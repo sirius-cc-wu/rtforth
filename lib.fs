@@ -1,8 +1,9 @@
 : decimal   10 base ! ;
 : hex   16 base ! ;
-: <=   > invert ;
-: >=   < invert ;
-: f>   f< invert ;
+: h. ( n1 -- )   base @ swap  hex . base ! ;
+: <= ( n1 n2 -- flag)   > invert ;
+: >= ( n1 n2 -- flag)   < invert ;
+: f> ( -- flag ) ( F: r1 r2 -- )  f< invert ;
 : ?dup ( x -- 0 | x x )   0 <> if dup then ;
 : cr ( -- )   10 emit ;
 32 constant bl

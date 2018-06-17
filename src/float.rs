@@ -648,7 +648,7 @@ mod tests {
     #[test]
     fn test_n_to_f() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("0 n>f -1 n>f 1 n>f");
+        vm.set_source("0 s>f -1 s>f 1 s>f");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [0.0, -1.0, 1.0]);
@@ -657,7 +657,7 @@ mod tests {
     #[test]
     fn test_f_to_n() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("0.0e f>n -1.0e f>n 1.0e f>n");
+        vm.set_source("0.0e f>s -1.0e f>s 1.0e f>s");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().as_slice(), [0, -1, 1]);

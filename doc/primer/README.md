@@ -16,7 +16,6 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 * Metacompiler 或 cross compiler：由於 rtForth 是以 Rust 語言寫成的，可以使用 Rust 本身的 cross compiler 將 rtForth  移植到不同的系統上。而且，rtForth 的設計重點是能作為一個 Rust 函式庫，整合進其他的 Rust 程式中，因此 rtForth 不自帶 Metacompiler 或 cross compiler。
 * 正整數、雙整數及混合整數型別的指令： rtForth 專注於 32 位元以上的系統，整數的範圍足夠大，因此並未提供傳統 Forth 一定提供的正整數、雙整數、混合整數計算指令。這也是 rtForth 不符合 Forth 2012 標準的主要地方。
 * 組合語言指令：對於需要性能的程式，可以使用 Rust 實現。或在 Rust 函式中使用 inline asm。因此 rtForth 不提供組合語言指令。
-* 返回堆疊和 `R>` `R<` 等指令：`R>` 和 `R<` 以及返回堆疊是危險的，容易造成當機的指令。雖然 rtForth 目前提供 `R>` 和 `R<` 指令。但在未來會以 LOCAL 取代。這選擇也和 Rust 語言注意安全的哲學更相容。
 
 「rtForth 入門」的撰寫參考了以下文獻，謹在此表達感謝，
 * J.V. Noble 的 [A Beginner's Guide to Forth](http://galileo.phys.virginia.edu/classes/551.jvn.fall01/primer.htm)
@@ -37,7 +36,7 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
   * [浮點計算](float.md)
   * [比較及邏輯計算](logic.md)
 * [Forth 程式入門](programming.md)
-  * [WIP: 字典](wordlist.md)
+  * [WIP: 指令集](wordlist.md)
   * [TODO: 堆疊](stacks.md)
   * [TODO: 判斷與迴圈](control.md)
   * [TODO: 多工、異常處理與文本解譯器](tasking.md)

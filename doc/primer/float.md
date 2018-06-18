@@ -171,7 +171,7 @@ Forth 提供了三角函數的指令集。這在處理幾何問題時非常有�
 
 例十五：驗證 sin(&pi; / 2) = 1。
 ```
-rf> 3.1415927e 2e f/  fsin  f.
+rf> pi 2e f/  fsin  f.
 1.0000000  ok
 ```
 
@@ -182,18 +182,15 @@ rf> 1e fsin 2e f**  1e fcos 2e f**  f+  f.
 ```
 例十七：求 tan(45&deg;)。
 ```
-rf> 3.14159e 4e f/  ftan  f.
-0.9999987  ok
-rf> 3.1415927e 4e f/  ftan  f.
+rf> pi 4e f/  ftan  f.
 1.0000000  ok
 ```
-在這例子中，第一次嘗試 &pi; 的有效位數不夠，結果的有效位數也不夠。
 
 例十八：求 sin<sup>-1</sup>(sin(&pi;)) 和 sin<sup>-1</sup>(sin(-&pi;/2)) 。
 ```
-rf> 3.14159265e fsin  fasin  f.
+rf> pi fsin  fasin  f.
 0.0000000  ok
-rf> -3.14159265e 2e f/  fsin  fasin  f.
+rf> pi fnegate 2e f/  fsin  fasin  f.
 -1.5707963  ok
 ```
 
@@ -201,10 +198,10 @@ rf> -3.14159265e 2e f/  fsin  fasin  f.
 
 例十九：求 cos<sup>-1</sup>(cos(&pi;)) 和 cos<sup>-1</sup>(cos(-&pi;)) 。
 ```
-rf> 3.1415926e fcos  facos  f.
-3.1415926  ok
-rf> -3.1415926e  fcos  facos  f.
-3.1415926  ok
+rf> pi fcos  facos  f.
+3.1415927  ok
+rf> pi fnegate  fcos  facos  f.
+3.1415927  ok
 ```
 `facos` 的值域是 0 - &pi;，因此 cos<sup>-1</sup>(cos(-&pi;)) 無法得到 -&pi;。
 
@@ -237,6 +234,7 @@ rf> -1.5707963e fsincos f. f.
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
+| `pi` | ( F:&nbsp; -- pi ) &emsp; 將 PI 放上浮點堆疊 | pi |
 | `fsin` | ( F:&nbsp; r1 -- r2 ) &emsp; 計算弳度角 r1 的正弦 r2 | f-sine |
 | `fcos` | ( F:&nbsp; r1 -- r2 ) &emsp; 計算弳度角 r1 的餘弦 r2 | f-cos |
 | `ftan` | ( F:&nbsp; r1 -- r2 ) &emsp; 計算弳度角 r1 的正切 r2 | f-tan |
@@ -258,6 +256,7 @@ rf> -1.5707963e fsincos f. f.
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|-------|
+| `pi` | ( F:&nbsp; -- pi ) &emsp; 將 PI 放上浮點堆疊 | pi |
 | `f.` | ( F:&nbsp; r -- ) &emsp; 印出浮點堆疊上最後的浮點數，並將它從堆疊上移除 | f-dot |
 | `f+` | ( F:&nbsp; r1 r2 -- r1+r2 ) &emsp; 將浮點堆疊上的 r1 加上 r2，將結果放回浮點堆疊 | f-plus |
 | `f-` | ( F:&nbsp; r1 r2 -- r1-r2 ) &emsp; 將浮點堆疊上的 r1 減去 r2，將結果放回浮點堆疊 | f-minus |

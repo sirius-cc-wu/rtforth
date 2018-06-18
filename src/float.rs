@@ -2,12 +2,14 @@ use core::Core;
 use dataspace::DataSpace;
 use exception::Exception::InvalidMemoryAddress;
 use std::mem;
+use std::f64::consts::PI;
 use {FALSE, TRUE};
 
 pub trait Float: Core {
     fn add_float(&mut self) {
         self.add_primitive("fconstant", Float::fconstant);
         self.add_primitive("fvariable", Float::fvariable);
+        self.add_primitive("pi", Float::pi);
         self.add_primitive("f!", Float::fstore);
         self.add_primitive("f@", Float::ffetch);
         self.add_primitive("fabs", Float::fabs);
@@ -65,6 +67,10 @@ pub trait Float: Core {
         self.define(Float::p_fconst, Core::compile_fconst);
         self.data_space().align_f64();
         self.data_space().compile_f64(v);
+    }}
+
+    primitive!{fn pi(&mut self) {
+        let v = self.f_stack().push(PI);
     }}
 
     // Floating point primitives

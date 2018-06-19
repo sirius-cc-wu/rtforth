@@ -8,8 +8,8 @@ pub trait Output: Core {
     fn add_output(&mut self) {
         self.add_primitive("emit", Output::emit);
         self.add_primitive("type", Output::p_type);
-        self.add_immediate("s\"", Output::s_quote);
-        self.add_immediate(".\"", Output::dot_quote);
+        self.add_immediate_and_compile_only("s\"", Output::s_quote);
+        self.add_immediate_and_compile_only(".\"", Output::dot_quote);
         self.add_immediate(".(", Output::dot_paren);
         self.add_primitive(".", Output::dot);
         self.add_primitive("f.", Output::fdot);

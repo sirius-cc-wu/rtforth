@@ -7,7 +7,7 @@ Forth 能執行 `+` 、 `-` 、`*` 、 `/` 這些指令，是因為它的系統�
 ```
 rf> words
 
-empty (abort) quit evaluate >in source tib #tib fill c, min
+-work (abort) quit evaluate >in source tib #tib fill c, min
 max +! 2variable 2! 2@ align aligned spaces space bl cr
 ?dup f> >= <= h. hex decimal accept 1/sec hz rpm um/msec
 mm/min usec msec sec minute hr rad deg um mm meter fnegate
@@ -29,7 +29,7 @@ fceil fround floor fmax fmin f< f0= f0< f~ f** f/ f* f- f+
 
 指令集
             +--------+      +---------+      +------+      +----------+
-  LAST ---> | empty  | ---> | (abort) | ---> | quit | ---> | evaluate | --->
+  LAST ---> | -work  | ---> | (abort) | ---> | quit | ---> | evaluate | --->
             +--------+      +---------+      +------+      +----------+
             | unmark |      | nest    |      | nest |      | nest     |
             +--------+      +---------+      +------+      +----------+
@@ -37,7 +37,7 @@ fceil fround floor fmax fmin f< f0= f0< f~ f** f/ f* f- f+
             +--------+      +---------+      +------+      +----------+
 ```
 
-在以上的示義圖中，LAST 指的是最後一個定義的指令。指令 `words` 先顯示較晚定義的指令，再顯示較早定義的指令。以之前的例子來看，指令 `empty` 是最後一個定義的指令，再來是 `(abort)`，再來是 `quit`。
+指令 `words` 先顯示較晚定義的指令，再顯示較早定義的指令。以之前的例子來看，指令 `-work` 是最後一個定義的指令，再來是 `(abort)`，再來是 `quit`。示義圖中，LAST 指的是最後一個定義的指令，也就是 `-work`。
 
 現在讓我們定義本書的第一個指令。這個指令在安裝的章節已經定義過。輸入時請注意 Forth 使用空格來分開指令，因此指令 `."` 之後要有空格，指令 `;` 之前也要有空格：
 
@@ -46,14 +46,14 @@ rf> : hello ." Hello World!" ;
  ok
 rf> words
 
-hello empty (abort) quit evaluate >in source tib #tib fill
+hello -work (abort) quit evaluate >in source tib #tib fill
 c, min max +! 2variable 2! 2@ align aligned spaces space bl
 ...
 ```
 
-可以看到 `words` 顯示的最後一個指令是剛才定義的 `hello` 。這個指令是使用冒號 (:) 定義出來的。因此被稱為冒號定義指令 (colon definition)。冒號定義指令相當於其他程式語言的副程式或函式。
+可以看到 `words` 顯示的最後一個指令是剛才定義的 `hello`。這個指令是使用冒號 (:) 定義出來的。因此被稱為冒號定義指令 (colon definition)。冒號定義指令相當於其他程式語言的副程式或函式。
 
-冒號 `:` 定義了一個新指令，在它之後的 hello 是這個新指令的名稱。名稱之後到 `;` 之前的部份是這個指令的行為。指令 `;` 結束了這新定義定義。
+冒號 `:` 定義了一個新指令，在它之後的 hello 是這個新指令的名稱。名稱之後到 `;` 之前的部份是這個指令的行為。分號 `;` 結束了這個新的定義。
 
 ```
 指令
@@ -73,46 +73,55 @@ rf> hello
 Hello World! ok
 ```
 
-
-```
-rf> empty
- ok
-rf> words
-
-(abort) quit evaluate >in source tib #tib fill c, min max
-+! 2variable 2! 2@ align aligned ...
-```
-
-```
-rf> marker empty
- ok
-rf> words
-
-empty (abort) quit evaluate >in source tib #tib fill c, min
-max +! 2variable 2! 2@ align aligned ...
-```
-
-```
-rf> : hello  ." Hello World!" ;
- ok
-rf> hello
-Hello World! ok
-rf> empty
- ok
-rf> hello
-hello Undefined word
-```
+指令 `."` 編譯了它之後一直到 `"` 的宇串，然後，當 hello 執行時，這個字串被印出來。
 
 ### 本節指令集
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
 | `words` | ( -- ) &emsp;  | words |
-| `empty` | ( -- ) &emsp;  | empty |
-| `marker` | ( -- ) &emsp;  | marker |
 | `:` | ( -- ) &emsp; | colon |
 | `;` | ( -- ) &emsp; | semicolon |
 | `."` | ( -- ) &emsp; | dot-quote |
+
+## 標記指令 (Marker)
+
+當你使用 rtForth，不想保留自己定義的指令時，可以執行 `-work。
+```
+rf> ----
+ ok
+rf> words
+
+(abort) quit evaluate >in source tib #tib fill c, min max
++! 2variable 2! 2@ align aligned ...
+```
+你會發現，不只是剛剛定義的 `hello` 不見了，連 `-work` 也不見。
+像 `-work` 這樣的指令，標記了指令集的特定位置。執行時，會丟棄指令本身以及其後的所有指令。
+
+你可以使用 `marker` 定義這類標記指令。
+
+```
+rf> marker -work
+ ok
+rf> words
+
+-work (abort) quit evaluate >in source tib #tib fill c, min
+max +! 2variable 2! 2@ align aligned ...
+```
+
+於是一個新的 `-work 又出現了。
+
+指令 `-work` 並不是 Forth 2012 的標準指令。但是 `marker` 是一個標準指令。它的主要用處是在必要時移除一群指令，以便定義一群新的指令。這兩群指令很可能是互斥的。舉個例子，有一台作菜的機器，使用者可以選擇不同的食譜，機器就會依食譜作菜。不同食譜的作菜指令都是 `cook`，但是作菜的方法不同，這時就可以如下使用 `marker` ：
+
+首先在原有的指令集最後增加一個標記指令 `-recipe`，然後在每個食譜之前都先執行 `-recipe  marker -recipe`。最後才定義 `cook`。
+於是，載入食譜時，之前的食譜會先被丟棄，之後才會定義新的 `-recipe` 以及新的 `cook`。
+```
+
+### 本節指令集
+
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|----------------------------------------|--------|
+| `marker` | ( -- ) &emsp;  | marker |
 
 -----------
 ## 常數、變數
@@ -156,7 +165,6 @@ variable 狀態  (　定義一個名為「狀態」的整數變數 )
 |-----|------------------------------------|--------|
 | `words` | ( -- ) &emsp;  | words |
 | `marker` | ( -- ) &emsp; | marker |
-| `empty` | ( -- ) &emsp; | empty |
 | `:` | ( -- ) &emsp; | colon |
 | `;` | ( -- ) &emsp; | semicolon |
 | `constant` | ( -- ) &emsp; | constant |

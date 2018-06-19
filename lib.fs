@@ -39,4 +39,4 @@ variable >in  0 >in !
 : (abort) handle-error flush quit ;
 ' (abort) handler!
 
-marker empty
+marker -work

@@ -7,7 +7,7 @@
   * [浮點運算](float.md)
   * [比較及邏輯運算](logic.md)
 * [Forth 程式入門](programming.md)
-  * [WIP: 指令集](wordlist.md)
+  * [WIP: 字典](dictionary.md)
   * [TODO: 堆疊](stacks.md)
   * [TODO: 判斷與迴圈](control.md)
   * [TODO: 多工、異常處理與文本解譯器](tasking.md)

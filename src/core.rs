@@ -509,7 +509,6 @@ pub trait Core: Sized {
         self.add_primitive("mod", Core::p_mod);
         self.add_primitive("abs", Core::abs);
         self.add_primitive("negate", Core::negate);
-        self.add_primitive("within", Core::within);
         self.add_primitive("parse-word", Core::parse_word);
         self.add_primitive("char", Core::char);
         self.add_primitive("parse", Core::parse);

@@ -77,7 +77,7 @@ impl VM {
 	    panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
         }
 
-        let libfs = include_str!("./rf.fs");
+        let libfs = include_str!("./lib.fs");
         vm.load_str(libfs);
         if vm.last_error().is_some() {
 	    panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());

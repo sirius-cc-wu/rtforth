@@ -547,6 +547,8 @@ pub trait Core: Sized {
     /// Add a primitive word to word list.
 fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         let symbol = self.new_symbol(name);
+        self.data_space().align();
+        self.code_space().align();
         let word = Word::new(
             symbol,
             action,
@@ -1413,6 +1415,8 @@ compilation_semantics: fn(&mut Self, usize)){
             self.abort_with(UnexpectedEndOfFile);
         } else {
             let symbol = self.new_symbol(&last_token);
+            self.data_space().align();
+            self.code_space().align();
             let word = Word::new(
                 symbol,
                 action,

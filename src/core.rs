@@ -2608,9 +2608,12 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(if n == t { FALSE } else { TRUE });
     }}
 
+    /// `within` ( n1 n2 n3 -- flag )  true if n2 <= n1 and n1 <= n3.
+    ///
+    /// Note: implmenetation incompatible with Forth 2012 standards
+    /// when n2 > n3.
     primitive!{fn within(&mut self) {
         let (x1, x2, x3) = self.s_stack().pop3();
-        // Note: 可能不合 Forth 2012 標準
         self.s_stack()
             .push(if x2 <= x1 && x1 < x3 { TRUE } else { FALSE });
     }}

@@ -1158,7 +1158,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.s_stack().push(value);
     }}
 
-    primitive!{fn evaluate(&mut self) {
+    fn evaluate(&mut self) {
         loop {
             self.parse_word();
             match self.last_token().as_ref() {
@@ -1186,7 +1186,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 break;
             }
         }
-    }}
+    }
 
     primitive!{fn base(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
@@ -3943,22 +3943,22 @@ mod tests {
     }
 
     #[test]
-    fn test_between() {
+    fn test_within() {
         let vm = &mut VM::new(16, 16);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(1);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
@@ -3966,7 +3966,7 @@ mod tests {
         vm.s_stack().push(1);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
@@ -3974,15 +3974,15 @@ mod tests {
         vm.s_stack().push(1);
         vm.s_stack().push(0);
         vm.s_stack().push(1);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), -1);
+        assert_eq!(vm.s_stack().pop(), 0);
         vm.s_stack().push(0);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
@@ -3990,7 +3990,7 @@ mod tests {
         vm.s_stack().push(3);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
@@ -4793,6 +4793,9 @@ mod tests {
     fn bench_sieve(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
         vm.load("./lib.fs");
+        if vm.last_error().is_some() {
+            eprintln!("Error {:?} at {:?}", vm.last_error().unwrap(), vm.last_token());
+        }
         assert_eq!(vm.last_error(), None);
         vm.set_source("CREATE FLAGS 8190 ALLOT   VARIABLE EFLAG");
         vm.evaluate();

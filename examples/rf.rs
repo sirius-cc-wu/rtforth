@@ -70,6 +70,19 @@ impl VM {
         vm.add_float();
         vm.add_units();
         vm.add_primitive("accept", p_accept);
+
+        let libfs = include_str!("../lib.fs");
+        vm.load_str(libfs);
+        if vm.last_error().is_some() {
+	    panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
+        }
+
+        let libfs = include_str!("./rf.fs");
+        vm.load_str(libfs);
+        if vm.last_error().is_some() {
+	    panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
+        }
+
         vm
     }
 }
@@ -168,8 +181,6 @@ impl Tools for VM {}
 
 fn main() {
     let vm = &mut VM::new(1024, 1024);
-    let libfs = include_str!("../lib.fs");
-    vm.load_str(libfs);
 
     let mut bye = false;
 

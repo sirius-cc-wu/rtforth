@@ -25,18 +25,5 @@ variable #tib  0 #tib !
 variable tib 256 allot
 : source ( -- c-addr u )   tib #tib @ ;
 variable >in  0 >in !
-: evaluate
-    begin parse-word
-    token-empty? not  error? not  and
-    while
-    compiling? if compile-token ?stacks else interpret-token ?stacks then
-    repeat ;
-: quit
-    reset
-    begin accept evaluate
-    ."  ok" flush
-    again ;
-: (abort) handle-error flush quit ;
-' (abort) handler!
 
 marker -work

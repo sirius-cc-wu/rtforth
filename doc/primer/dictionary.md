@@ -1,6 +1,6 @@
 # 字典
 
-## 定義第一個指令
+## 冒號定義
 Forth 能執行 `+` 、 `-` 、`*` 、 `/` 這些指令，是因為它的系統內建的字典 (dictionary).。
 指令 `words` 會顯示出 Forth 字典內的指令。
 
@@ -124,11 +124,42 @@ max +! 2variable 2! 2@ align aligned ...
 | `marker` | ( -- ) &emsp;  | marker |
 
 -----------
-## 常數、變數
-像 `true` 和 `false` 這類被賦與固定數值的指令，被稱為常數。Forth 定義整數常數的方法如下：
+## 常數
+像 `true` 、 `false` 和 `pi` 這類被賦與固定數值的指令，被稱為常數。Forth 定義整數常數的方法如下：
 ```
 <整數> constant <常數名>
+<整數> <整數> 2constant <常數名>
+<浮點數> fconstant <常數名>
 ```
+指令 `constant` 從堆疊上取得整數，從輸入緩衝區取得跟在它後面的名稱，然後在字典裡建立了一個同名的常數。指令 `fconstant` 的行為類似，但定義的是浮點數常數。而 2constant 則從堆疊上取得一組兩個整數，為它們定義了一個常數。
+
+例子：定義自己的真、假、圓週率常數
+```
+rf> -1 constant my-true
+ ok
+rf> 0 constant my-false
+ ok
+rf> 3.141592653e fconstant my-pi
+ ok
+rf> my-true .  my-false .  my-pi f.
+-1 0 3.1415927  ok
+```
+
+例子：某機器只能在 4 度到 40 度之間工作，超過就要停機，請將 4 和 40 這組數字定為一常數 `range` 並以 `within` 分別判斷 3 度、20 度及 40 度是否落在機器可以工作的範圍內。
+
+```
+TODO：等待 DOES>
+
+```
+
+### 本節指令集
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|----------------------------------------|--------|
+| `constant` | ( -- ) &emsp; | constant |
+| `2constant` | ( -- ) &emsp; | two-constant |
+| `fconstant` | ( -- ) &emsp; | f-constant |
+
+## 變數
 
 例子：
 ```
@@ -148,38 +179,9 @@ variable 狀態  (　定義一個名為「狀態」的整數變數 )
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `constant` | ( -- ) &emsp; | constant |
 | `variable` | ( -- ) &emsp; | variable |
-| `fconstant` | ( -- ) &emsp; | f-constant |
+| `2variable` | ( -- ) &emsp; | two-variable |
 | `fvariable` | ( -- ) &emsp; | f-variable |
-
--------------
-## 本章重點整理
-
-* 字典 (dictionary)
-
------------
-## 本章指令集
-
-| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
-|-----|------------------------------------|--------|
-| `words` | ( -- ) &emsp;  | words |
-| `marker` | ( -- ) &emsp; | marker |
-| `:` | ( -- ) &emsp; | colon |
-| `;` | ( -- ) &emsp; | semicolon |
-| `constant` | ( -- ) &emsp; | constant |
-| `variable` | ( -- ) &emsp; | variable |
-| `fconstant` | ( -- ) &emsp; | f-constant |
-| `fvariable` | ( -- ) &emsp; | f-variable |
-| `create` | ( -- ) &emsp; | create |
-| `cells` | ( -- ) &emsp; | cells |
-| `cell+` | ( -- ) &emsp; | cell+ |
-| `align` | ( -- ) &emsp; | align |
-| `aligned` | ( -- ) &emsp; | aligned |
-| `allot` | ( -- ) &emsp; | allot |
-| `here` | ( -- ) &emsp; | here |
-| `,` | ( -- ) &emsp; | comma |
-| `does>` | ( -- ) &emsp; | does |
 | `@` | ( -- ) &emsp; | fetch |
 | `!` | ( n a -- ) &emsp; 將 n 存在位址 a  | store |
 | `2@` | ( -- ) &emsp; | two-fetch |
@@ -187,3 +189,47 @@ variable 狀態  (　定義一個名為「狀態」的整數變數 )
 | `+!` | ( n a -- ) &emsp; 將位址 a 內的整數加 n | plus-store |
 | `f@` | ( -- ) &emsp; | f-fetch |
 | `f!` | ( -- ) &emsp; | f-store |
+
+-------------------
+## 資料空間、程式碼空間
+
+
+### 本節指令集
+
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|------------------------------------|--------|
+| `cells` | ( -- ) &emsp; | cells |
+| `cell+` | ( -- ) &emsp; | cell+ |
+| `align` | ( -- ) &emsp; | align |
+| `aligned` | ( -- ) &emsp; | aligned |
+| `allot` | ( -- ) &emsp; | allot |
+| `here` | ( -- ) &emsp; | here |
+| `,` | ( -- ) &emsp; | comma |
+
+----------
+## 定義指令
+
+### 本節指令集
+
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|------------------------------------|--------|
+| `create` | ( -- ) &emsp; | create |
+| `does>` | ( -- ) &emsp; | does |
+
+-------------
+## 本章重點整理
+
+* 字典 (dictionary)
+* 變數 (variable)
+* 常數 (constant)
+* 細胞 (cell)
+* 資料空間 (data space)
+* 程式碼空間 (code space)
+
+-----------
+## 本章指令集
+
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|------------------------------------|--------|
+| `create` | ( -- ) &emsp; | create |
+| `does>` | ( -- ) &emsp; | does |

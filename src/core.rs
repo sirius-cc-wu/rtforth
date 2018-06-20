@@ -499,6 +499,7 @@ pub trait Core: Sized {
         self.add_primitive("0<>", Core::zero_not_equals);
         self.add_primitive(">", Core::greater_than);
         self.add_primitive("<>", Core::not_equals);
+        self.add_primitive("within", Core::within);
         self.add_primitive("rot", Core::rot);
         self.add_primitive("2dup", Core::two_dup);
         self.add_primitive("2drop", Core::two_drop);
@@ -508,7 +509,7 @@ pub trait Core: Sized {
         self.add_primitive("mod", Core::p_mod);
         self.add_primitive("abs", Core::abs);
         self.add_primitive("negate", Core::negate);
-        self.add_primitive("between", Core::between);
+        self.add_primitive("within", Core::within);
         self.add_primitive("parse-word", Core::parse_word);
         self.add_primitive("char", Core::char);
         self.add_primitive("parse", Core::parse);
@@ -2608,10 +2609,11 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(if n == t { FALSE } else { TRUE });
     }}
 
-    primitive!{fn between(&mut self) {
+    primitive!{fn within(&mut self) {
         let (x1, x2, x3) = self.s_stack().pop3();
+        // Note: 可能不合 Forth 2012 標準
         self.s_stack()
-            .push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE });
+            .push(if x2 <= x1 && x1 < x3 { TRUE } else { FALSE });
     }}
 
     primitive!{fn invert(&mut self) {

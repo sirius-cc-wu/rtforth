@@ -30,15 +30,16 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 
 ## 目錄
 
+* [簡介](README.md)
 * [安裝 rtForth](installation.md)
 * [Forth 計算機](calculator.md)
-  * [整數計算](integer.md)
-  * [浮點計算](float.md)
-  * [比較及邏輯計算](logic.md)
+  * [整數運算](integer.md)
+  * [浮點運算](float.md)
+  * [比較及邏輯運算](logic.md)
+  * [WIP: 冒號定義](colon.md)
 * [Forth 程式入門](programming.md)
-  * [WIP: 字典](dictionary.md)
-  * [TODO: 堆疊](stacks.md)
   * [TODO: 判斷與迴圈](control.md)
+  * [WIP: 字典](dictionary.md)
   * [TODO: 多工、異常處理與文本解譯器](tasking.md)
 * [進階課題](advanced.md)
   * [TODO: Modbus RTU](modbus.md)

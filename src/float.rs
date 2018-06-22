@@ -9,6 +9,8 @@ pub trait Float: Core {
     fn add_float(&mut self) {
         self.add_primitive("fconstant", Float::fconstant);
         self.add_primitive("fvariable", Float::fvariable);
+        self.add_primitive("faligned", Float::faligned);
+        self.add_primitive("falign", Float::falign);
         self.add_primitive("pi", Float::pi);
         self.add_primitive("f!", Float::fstore);
         self.add_primitive("f@", Float::ffetch);
@@ -68,6 +70,17 @@ pub trait Float: Core {
         self.data_space().align_f64();
         self.data_space().compile_f64(v);
     }}
+
+    primitive!{fn faligned(&mut self) {
+        let pos = self.s_stack().pop();
+        let pos = DataSpace::aligned_f64(pos as usize);
+        self.s_stack().push(pos as isize);
+    }}
+
+    primitive!{fn falign(&mut self) {
+        self.data_space().align_f64();
+    }}
+
 
     primitive!{fn pi(&mut self) {
         let v = self.f_stack().push(PI);

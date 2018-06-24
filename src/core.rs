@@ -490,6 +490,7 @@ pub trait Core: Sized {
         self.add_primitive("<>", Core::not_equals);
         self.add_primitive("within", Core::within);
         self.add_primitive("rot", Core::rot);
+        self.add_primitive("-rot", Core::minus_rot);
         self.add_primitive("2dup", Core::two_dup);
         self.add_primitive("2drop", Core::two_drop);
         self.add_primitive("2swap", Core::two_swap);
@@ -2442,6 +2443,15 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
         self.s_stack()[slen.wrapping_sub(2)] = t;
         self.s_stack()[slen.wrapping_sub(3)] = n;
+    }}
+
+    primitive!{fn minus_rot(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(3)];
+        self.s_stack()[slen.wrapping_sub(3)] = t;
+        self.s_stack()[slen.wrapping_sub(1)] = n;
     }}
 
     primitive!{fn two_drop(&mut self) {

@@ -17,6 +17,7 @@ use rtforth::tools::Tools;
 use rtforth::units::Units;
 use std::env;
 use std::fmt::Write;
+use std::process;
 
 // Virtual machine
 pub struct VM {
@@ -70,6 +71,7 @@ impl VM {
         vm.add_float();
         vm.add_units();
         vm.add_primitive("accept", p_accept);
+        vm.add_primitive("bye", bye);
 
         let libfs = include_str!("../lib.fs");
         vm.load_str(libfs);
@@ -235,7 +237,7 @@ primitive!{fn p_accept(vm: &mut VM) {
             vm.set_source(&line);
         }
         Err(rustyline::error::ReadlineError::Eof) => {
-            vm.bye();
+            bye(vm);
         }
         Err(err) => {
             match vm.output_buffer().as_mut() {
@@ -246,6 +248,11 @@ primitive!{fn p_accept(vm: &mut VM) {
             }
         }
     }
+}}
+
+primitive!{fn bye(vm: &mut VM) {
+    vm.p_flush();
+    process::exit(0);
 }}
 
 #[inline(never)]

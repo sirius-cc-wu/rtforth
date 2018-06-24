@@ -13,7 +13,6 @@ use std::fmt::Write;
 use std::fmt::{self, Display};
 use std::mem;
 use std::ops::{Index, IndexMut};
-use std::process;
 use std::result;
 use std::str;
 use {FALSE, TRUE};
@@ -525,7 +524,6 @@ pub trait Core: Sized {
         self.add_primitive("handle-error", Core::p_handle_error);
         self.add_primitive("reset", Core::reset);
         self.add_primitive("abort", Core::abort);
-        self.add_primitive("bye", Core::bye);
         self.add_primitive("compiling?", Core::p_compiling);
         self.add_primitive("token-empty?", Core::p_token_empty);
         self.add_primitive("compile-token", Core::compile_token);
@@ -2986,9 +2984,6 @@ compilation_semantics: fn(&mut Self, usize)){
         self.state().instruction_pointer = 0;
     }}
 
-    primitive!{fn bye(&mut self) {
-        process::exit(0);
-    }}
 }
 
 #[cfg(test)]

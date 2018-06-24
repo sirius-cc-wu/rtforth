@@ -6,7 +6,7 @@
   * [整數運算](integer.md)
   * [浮點運算](float.md)
   * [比較及邏輯運算](logic.md)
-  * [WIP: 冒號定義](colon.md)
+  * [WIP: 自己定義運算指令](colon.md)
 * [Forth 程式入門](programming.md)
   * [TODO: 判斷與迴圈](control.md)
   * [WIP: 字典](dictionary.md)

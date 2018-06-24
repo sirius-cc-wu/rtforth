@@ -83,7 +83,7 @@ pub trait Float: Core {
 
 
     primitive!{fn pi(&mut self) {
-        let v = self.f_stack().push(PI);
+        self.f_stack().push(PI);
     }}
 
     // Floating point primitives

@@ -233,47 +233,37 @@ impl Index<u8> for Stack<Control> {
 
 impl fmt::Debug for Stack<isize> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match write!(f, "<{}> ", self.len()) {
-            Ok(_) => {
-                if self.len == 0 {
-                } else {
-                    for i in 0..self.len {
-                        let v = self[i];
-                        match write!(f, "{} ", v) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                return Err(e);
-                            }
-                        }
+        if self.len == 0 {
+        } else {
+            for i in 0..self.len {
+                let v = self[i];
+                match write!(f, "{} ", v) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        return Err(e);
                     }
                 }
-                Ok(())
             }
-            Err(e) => Err(e),
         }
+        Ok(())
     }
 }
 
 impl fmt::Debug for Stack<f64> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match write!(f, "<F {}> ", self.len()) {
-            Ok(_) => {
-                if self.len == 0 {
-                } else {
-                    for i in 0..self.len {
-                        let v = self[i];
-                        match write!(f, "{} ", v) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                return Err(e);
-                            }
-                        }
+        if self.len == 0 {
+        } else {
+            for i in 0..self.len {
+                let v = self[i];
+                match write!(f, "{:.7} ", v) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        return Err(e);
                     }
                 }
-                Ok(())
             }
-            Err(e) => Err(e),
         }
+        Ok(())
     }
 }
 

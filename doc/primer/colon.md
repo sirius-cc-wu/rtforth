@@ -98,8 +98,6 @@ rf> 3 2 x^2-y^2  .
 * 旋轉增疊上資料的指令。當堆疊上有三個整數 ( n1 n2 n3 ) 時，指令 `rot` 會旋轉它們的次序使得原本在堆疊從上數來第三位的 n1 會出現在最上方。指令 `-rot` 則以相反的方向旋轉，使得最上方的 n3 出現在從上數來第三位的位置。
 * 雙整數堆疊指令。另有 `2dup` `2drop` `2swap` `2over` 類似 `dup` `drop` `swap` `over` ，但以兩個整數為一組進行處理。
 
-請參本節指令表的堆疊效果以瞭解這些指令。
-
 例子：堆疊上原本有三個數字 ( 1 2 3 )，請運用堆疊指令使其次序變成  ( 3 2 1 )，並以 .s 檢查結果。
 ```
 rf> 1 2 3 .s
@@ -131,35 +129,83 @@ rf> swap .s
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `.s` | (  -- ) &emsp; | dot-s |
-| `dup` | (  -- ) &emsp; | dup |
-| `drop` | (  -- ) &emsp; | drop |
-| `nip` | (  -- ) &emsp; | nip |
-| `swap` | ( -- ) &emsp; | swap |
-| `over` | ( -- ) &emsp; | over |
-| `rot` | ( -- ) &emsp; | rote |
-| `-rot` | ( -- ) &emsp; | minus-rote |
-| `2dup` | ( -- ) &emsp; | two-dup |
-| `2drop` | ( -- ) &emsp; | two-drop |
-| `2swap` | ( -- ) &emsp; | two-swap |
-| `2over` | ( -- ) &emsp; | two-over |
-
+| `.s` | ( ... -- ... ) &emsp; | dot-s |
+| `dup` | ( n -- n n ) &emsp; | dup |
+| `drop` | ( n -- ) &emsp; | drop |
+| `nip` | ( n1 n2 -- n2 ) &emsp; | nip |
+| `swap` | ( n1 n2 -- n2 n1 ) &emsp; | swap |
+| `over` | ( n1 n2 -- n1 n2 n1 ) &emsp; | over |
+| `rot` | ( n1 n2 n3 -- n2 n3 n1 ) &emsp; | rote |
+| `-rot` | ( n1 n2 n3 -- n3 n1 n2 ) &emsp; | minus-rote |
+| `2dup` | ( n1 n2 -- n1 n2 n1 n2 ) &emsp; | two-dup |
+| `2drop` | ( n1 n2 -- ) &emsp; | two-drop |
+| `2swap` | ( n1 n2 n3 n4 -- n3 n4 n1 n2 ) &emsp; | two-swap |
+| `2over` | ( n1 n2 n3 n4 -- n1 n2 n3 n4 n1 n2 ) &emsp; | two-over |
 
 ## 浮點堆疊指令
 
-求 x<sup>2</sup> + 4 x + 1 = 0 的解。
+Forth 也同樣提供浮點堆疊指令，但沒有資料堆疊那麼完整。參考本節指令集。
 
-求 x<sup>5</sup> + x<sup>4</sup> + x<sup>3</sup> + x<sup>2</sup> + x + 1 。
+例子： 求 x<sup>5</sup> + 2 x<sup>4</sup> + 3 x<sup>3</sup> + 4 x<sup>2</sup> + 5 x + 6 。
+
+若直接計算這個五次方程式，需要執行 4 + 3 + 2 + 1 = 10 個乘法，以及 5 個加法。使用 Horner's method 修改式子：
+
+x<sup>5</sup> + 2 x<sup>4</sup> + 3 x<sup>3</sup> + 4 x<sup>2</sup> + 5 x + 6
+
+= (x<sup>4</sup> + 2 x<sup>3</sup> + 3 x<sup>2</sup> + 4 x + 5) x + 6
+
+= ((x<sup>3</sup> + 2 x<sup>2</sup> + 3 x + 4) x  + 5) x + 6
+
+= (((x<sup>2</sup> + 2 x + 3) x + 4) x  + 5) x + 6
+
+= ((((x + 2) x + 3) x + 4) x  + 5) x + 6
+
+最後的式子 ((((x + 2) x + 3) x + 4) x  + 5) x + 6 只需要 5 個加法及 4 個乘法，在計算上更有效率。以下設計 Forth 指令計算這個式子：
+
+```
+: poly5 ( F: x -- x^5+2x^4+3x^3+4x^4+5x^5+6 )
+   fdup         \ ( F: x x )
+   2e f+        \ ( F: x x+2 )
+   fover f*     \ ( F: x (x+2)x )
+   3e f+        \ ( F: x ((x+2)x+3) )
+   fover f*     \ ( F: x ((x+2)x+3)x )
+   4e f+        \ ( F: x (((x+2)x+3)x+4) )
+   fover f*     \ ( F: x (((x+2)x+3)x+4)x )
+   5e f+        \ ( F: x ((((x+2)x+3)x+4)x+5) )
+   fover f*     \ ( F: x ((((x+2)x+3)x+4)x+5)x )
+   6e f+        \ ( F: x ((((x+2)x+3)x+4)x+5)x+6 )
+;
+```
+
+在指令 `poly5` 之後加上了堆疊效果，這是撰寫 Forth 指令的好習慣。
+
+指令 `\` 會忽略其後至換行的所有字元，因此類似 `(` 的作用，是另一種註解方式。在此採用此一註解方式的原因是註解中有很多括弧，不適合使用 `(`。
+
+直式方式加上使用 `\` 開頭的註解，方便初學者瞭解堆疊變化。已熟悉 Forth 堆疊操作的工程師會以下列方式撰寫：
+
+```
+\ Caculate x^5+2x^4+3x^3+4x^4+5x^5+6 using Horner's method.
+: poly5 ( x -- result )
+   fdup
+   2e f+ fover f*
+   3e f+ fover f*
+   4e f+ fover f*
+   5e f+ fover f*
+   6e f+
+;
+```
+
+練習：假設浮點堆疊上資料為 ( F: x )，請設計指令 `poly3` 計算 x<sup>3</sup> + 2 x <sup>2</sup> + 3 x + 4 的值。從 `poly5` 的型式你應該能很快的寫出這個指令。
 
 ### 本節指令集
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `fdup` | (  -- ) &emsp; | dup |
-| `fdrop` | (  -- ) &emsp; | drop |
-| `fswap` | ( -- ) &emsp; | swap |
-| `fover` | ( -- ) &emsp; | over |
-| `frot` | ( -- ) &emsp; | rot |
+| `fdup` | ( F: r  -- r r ) &emsp; | f-dup |
+| `fdrop` | ( F: r -- ) &emsp; | f-drop |
+| `fswap` | ( F: r1 r2 -- r2 r1 ) &emsp; | f-swap |
+| `fover` | ( F: r1 r2 -- r1 r2 r1 ) &emsp; | f-over |
+| `frot` | ( F: r1 r2 r3 -- r2 r3 r1 ) &emsp; | f-rote |
 
 ## 第一個腳本程式
 

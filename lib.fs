@@ -4,7 +4,7 @@
 : <= ( n1 n2 -- flag)   > invert ;
 : >= ( n1 n2 -- flag)   < invert ;
 : f> ( -- flag ) ( F: r1 r2 -- )  f< invert ;
-: ?dup ( x -- 0 | x x )   0 <> if dup then ;
+: ?dup ( x -- 0 | x x )   dup if dup then ;
 : cr ( -- )   10 emit ;
 32 constant bl
 : space ( -- )   32 emit ;

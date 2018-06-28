@@ -279,6 +279,9 @@ pub struct ForwardReferences {
     pub idx_plus_loop: usize,
     pub idx_s_quote: usize,
     pub idx_type: usize,
+    pub idx_over: usize,
+    pub idx_equal: usize,
+    pub idx_drop: usize,
 }
 
 impl ForwardReferences {
@@ -295,6 +298,9 @@ impl ForwardReferences {
             idx_plus_loop: 0,
             idx_s_quote: 0,
             idx_type: 0,
+            idx_over: 0,
+            idx_equal: 0,
+            idx_drop: 0,
         }
     }
 }
@@ -538,6 +544,9 @@ pub trait Core: Sized {
         self.references().idx_qdo = self.find("_qdo").expect("_qdo undefined");
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
+        self.references().idx_over = self.find("over").expect("over undefined");
+        self.references().idx_equal = self.find("=").expect("= undefined");
+        self.references().idx_drop = self.find("drop").expect("drop undefined");
 
         self.patch_compilation_semanticses();
     }
@@ -981,15 +990,19 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// ENDCASE
     /// D
     ///
-    ///                                     +-------------------------------------+-------+
-    ///                                     |                                     |       |
-    ///                                     |                                     |       v
-    /// +-----+----+-----+---+---+--------+---+-----+----+-----+---+---+--------+---+---+---+--
-    /// | lit | n2 | _of | x | A | _endof | x | lit | n3 | _of | x | B | _endof | x | C | D |
-    /// +-----+----+-----+---+---+--------+---+-----+----+-----+---+---+--------+---+---+---+--
-    ///                    |                    ^                |                    ^
-    ///                    |                    |                |                    |
-    ///                    +--------------------+                +--------------------+
+    /// +-----+----+------+---+---------+---+------+---+--------+---+
+    /// | lit | n2 | over | = | 0branch | x | drop | A | branch | x |
+    /// +-----+----+------+---+---------+---+------+---+--------+---+
+    ///                                   |                       |
+    ///   +-------------------------------+                       +--------------+
+    ///   |                                                       |              |
+    ///   v                                                       |              v
+    /// +-----+----+------+---+---------+---+------+---+--------+---+---+------+---+
+    /// | lit | n3 | over | = | 0branch | x | drop | B | branch | x | C | drop | D |
+    /// +-----+----+------+---+---------+---+------+---+--------+---+---+------+---+
+    ///                                   |                           ^
+    ///                                   |                           |
+    ///                                   +---------------------------+
     ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_case(&mut self) {
@@ -1001,43 +1014,81 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         match self.c_stack().pop() {
             Control::Case => {
                 self.c_stack().push(Control::Case);
-                self.c_stack().push(Control::Of(0));
             },
-            Control::Endof(0) => {
-                self.c_stack().push(Control::Endof(0));
-                self.c_stack().push(Control::Of(0));
+            Control::Endof(n) => {
+                self.c_stack().push(Control::Endof(n));
             },
             _ => {
                 self.abort_with(ControlStructureMismatch);
                 return;
             }
         };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_over;
+            self.compile_word(idx);
+            let idx = self.references().idx_equal;
+            self.compile_word(idx);
+            let idx = self.references().idx_zero_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(0);
+            let here = self.data_space().len();
+            self.c_stack().push(Control::Of(here));
+            let idx = self.references().idx_drop;
+            self.compile_word(idx);
+        }
     }}
 
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_endof(&mut self) {
-        match self.c_stack().pop() {
-            Control::Of(_) => {
-                self.c_stack().push(Control::Endof(0));
+        let of_part = match self.c_stack().pop() {
+            Control::Of(of_part) => {
+                of_part
             },
             _ => {
                 self.abort_with(ControlStructureMismatch);
                 return;
             }
         };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(0);
+            let here = self.data_space().len();
+            self.c_stack().push(Control::Endof(here));
+            self.data_space()
+                .put_i32(here as i32, of_part - mem::size_of::<i32>());
+        }
     }}
 
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_endcase(&mut self) {
+        let idx = self.references().idx_drop;
+        self.compile_word(idx);
         loop {
-            match self.c_stack().pop() {
+            let endof_part = match self.c_stack().pop() {
                 Control::Case => { break; }
-                Control::Endof(_) => {}
+                Control::Endof(endof_part) => {
+                    endof_part
+                }
                 _ => {
                     self.abort_with(ControlStructureMismatch);
                     return;
                 }
+            };
+            if self.c_stack().underflow() {
+                self.abort_with(ControlStructureMismatch);
+            } else {
+                let here = self.data_space().len();
+                self.data_space()
+                    .put_i32(here as i32, endof_part - mem::size_of::<i32>());
             }
+        }
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
         }
     }}
 

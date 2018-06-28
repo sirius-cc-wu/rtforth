@@ -341,6 +341,9 @@ pub enum Control {
     Begin(usize),
     While(usize),
     Do(usize, usize),
+    Case,
+    Of(usize),
+    Endof(usize),
 }
 
 impl Default for Control {
@@ -359,6 +362,9 @@ impl Display for Control {
             Control::Begin(_) => "Begin",
             Control::While(_) => "While",
             Control::Do(_, _) => "Do",
+            Control::Case => "Case",
+            Control::Of(_) => "Of",
+            Control::Endof(_) => "Endof",
         };
         write!(f, "{}", s)
     }
@@ -469,6 +475,10 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("if", Core::imm_if);
         self.add_immediate_and_compile_only("else", Core::imm_else);
         self.add_immediate_and_compile_only("then", Core::imm_then);
+        self.add_immediate_and_compile_only("case", Core::imm_case);
+        self.add_immediate_and_compile_only("of", Core::imm_of);
+        self.add_immediate_and_compile_only("endof", Core::imm_endof);
+        self.add_immediate_and_compile_only("endcase", Core::imm_endcase);
         self.add_immediate_and_compile_only("begin", Core::imm_begin);
         self.add_immediate_and_compile_only("while", Core::imm_while);
         self.add_immediate_and_compile_only("repeat", Core::imm_repeat);
@@ -1820,6 +1830,18 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }}
 
+    /// IF A THEN
+    ///
+    ///         +------+
+    ///         |      |
+    ///         |      v
+    /// +-----+---+---+--
+    /// | _if | x | A |
+    /// +-----+---+---+--
+    ///         ^
+    ///         |
+    ///         ip
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_if(&mut self) {
         let idx = self.references().idx_zero_branch;
@@ -1835,6 +1857,18 @@ compilation_semantics: fn(&mut Self, usize)){
         self.c_stack().push(Control::If(here));
     }}
 
+    /// IF A ELSE B THEN
+    ///
+    ///             +--------------------+
+    ///             |                    |
+    ///             |                    v
+    /// +---------+---+---+--------+---+---+--
+    /// | ?branch | x | A | branch | x | B |
+    /// +---------+---+---+--------+---+---+--
+    ///             ^                |       ^
+    ///             |                |       |
+    ///             ip               +-------+
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
@@ -1927,6 +1961,73 @@ compilation_semantics: fn(&mut Self, usize)){
                     self.code_space()
                         .put_i32((here - (branch_part +
                          1 + mem::size_of::<i32>())) as i32, (branch_part + 1));
+                }
+            }
+        }
+    }}
+
+    /// n1 CASE
+    ///   n2 OF A ENDOF
+    ///   n3 OF B ENDOF
+    ///   C
+    /// ENDCASE
+    /// D
+    ///
+    ///                                     +-------------------------------------+-------+
+    ///                                     |                                     |       |
+    ///                                     |                                     |       v
+    /// +-----+----+-----+---+---+--------+---+-----+----+-----+---+---+--------+---+---+---+--
+    /// | lit | n2 | _of | x | A | _endof | x | lit | n3 | _of | x | B | _endof | x | C | D |
+    /// +-----+----+-----+---+---+--------+---+-----+----+-----+---+---+--------+---+---+---+--
+    ///                    |                    ^                |                    ^
+    ///                    |                    |                |                    |
+    ///                    +--------------------+                +--------------------+
+    ///
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_case(&mut self) {
+        self.c_stack().push(Control::Case);
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_of(&mut self) {
+        match self.c_stack().pop() {
+            Control::Case => {
+                self.c_stack().push(Control::Case);
+                self.c_stack().push(Control::Of(0));
+            },
+            Control::Endof(0) => {
+                self.c_stack().push(Control::Endof(0));
+                self.c_stack().push(Control::Of(0));
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_endof(&mut self) {
+        match self.c_stack().pop() {
+            Control::Of(_) => {
+                self.c_stack().push(Control::Endof(0));
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_endcase(&mut self) {
+        loop {
+            match self.c_stack().pop() {
+                Control::Case => { break; }
+                Control::Endof(_) => {}
+                _ => {
+                    self.abort_with(ControlStructureMismatch);
+                    return;
                 }
             }
         }

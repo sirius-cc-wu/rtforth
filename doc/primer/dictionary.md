@@ -321,3 +321,4 @@ max +! 2variable 2! 2@ align aligned ...
 |-----|------------------------------------|--------|
 | `create` | ( -- ) &emsp; | create |
 | `does>` | ( -- ) &emsp; | does |
+| `+field` | ( -- ) &emsp; | pluse-field |

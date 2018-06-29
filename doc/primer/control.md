@@ -231,6 +231,8 @@ rf> 90 guess
 
 指令 `case` 和 `endcase` 之間可以有多段由 `of` 開始，由 `endof` 結束的指令，以及一段在所有 `of ... endof` 敘述之後，比較都失敗時才執行的敘述。
 
+和 `if` 、 `else` 、 `then` 一樣，指令 `case` 、 `of` 、 `endof` 、 `endcase` 都是只能用於冒號定義中的「編譯指令」。
+
 ### 本節指令集
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
@@ -240,42 +242,72 @@ rf> 90 guess
 | `endof` | ( -- ) &emsp; 結束由 `of` 開始的控制結構，然後執行在 `endcase` 之後的指令 | end-of |
 | `endcase` | ( x -- ) &emsp; 拋棄資料堆疊頂端的整數  x，結束以 `case` 開始的控制結構 | end-case |
 
-## 重覆
+## 無限循環
 
-: spaces ;
+```
+\ 印出 n 個空格
+: spaces ( n -- ) ;
+```
+
+```
+\ 產生給 12bit 類比輸出所需的 sin table
+: sin-table ;
+```
+
 
 本書建議儘量使用 `begin ... while ... repeat` 而不使用 `begin ... until`，因為使用後者常犯所謂差一的錯誤。
+
+### 中途結束
+
+### 本節指令集
+
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|----------------------------------------|--------|
+| `begin` | ( -- ) &emsp;  | begin |
+| `while` | ( -- ) &emsp;  | while |
+| `repeat` | ( -- ) &emsp;  | repeat |
+| `until` | ( -- ) &emsp;  | until |
+| `again` | ( -- ) &emsp;  | again |
+| `exit` | ( -- ) &emsp;  | exit |
+| `.r` | ( -- ) &emsp;  | dot-r |
+| `f.r` | ( -- ) &emsp;  | f-dot-r |
+
+## 有限循環
+
+```
+: spaces ;
+```
+
+```
+: table cr 11 1 do 11 1 do i j * 5 .r loop cr loop ;
+```
 
 例子：
 
 ### 中途結束
 
-exit
-
-leave
-
--------------------------------------
-## 本章指令集
+### 本節指令集
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `if` | ( -- ) &emsp;  | if |
-| `else` | ( -- ) &emsp;  | else |
-| `then` | ( -- ) &emsp;  | then |
-| `case` | ( -- ) &emsp;  | case |
-| `endcase` | ( -- ) &emsp;  | endcase |
-| `of` | ( -- ) &emsp;  | of |
-| `endof` | ( -- ) &emsp;  | endof |
-| `begin` | ( -- ) &emsp;  | begin |
-| `while` | ( -- ) &emsp;  | while |
-| `repeat` | ( -- ) &emsp;  | repeat |
-| `until` | ( -- ) &emsp;  | until |
 | `do` | ( -- ) &emsp;  | do |
 | `?do` | ( -- ) &emsp;  | do |
 | `loop` | ( -- ) &emsp;  | loop |
 | `+loop` | ( -- ) &emsp;  | plus-loop |
 | `leave` | ( -- ) &emsp;  | leave |
 | `unloop` | ( -- ) &emsp;  | unloop |
-| `exit` | ( -- ) &emsp;  | exit |
+| `i` | ( -- ) &emsp;  | i |
+| `j` | ( -- ) &emsp;  | j |
+
+-------------
+## 本章重點整理
+
+* 編譯指令
+
+-------------------------------------
+## 本章指令集
+
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|----------------------------------------|--------|
 | `>r` | ( -- ) &emsp;  | to-r |
 | `r>` | ( -- ) &emsp;  | r-from |

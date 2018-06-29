@@ -11,8 +11,8 @@ pub trait Output: Core {
         self.add_immediate_and_compile_only("s\"", Output::s_quote);
         self.add_immediate_and_compile_only(".\"", Output::dot_quote);
         self.add_immediate(".(", Output::dot_paren);
-        self.add_primitive(".", Output::dot);
-        self.add_primitive("f.", Output::fdot);
+        self.add_primitive(".r", Output::dot_r);
+        self.add_primitive("f.r", Output::fdot_r);
         self.add_primitive("flush", Output::p_flush);
         self.references().idx_s_quote = self.find("_s\"").expect("_s\" undefined");
         self.references().idx_type = self.find("type").expect("type undefined");
@@ -110,31 +110,38 @@ pub trait Output: Core {
         self.set_last_token(last_token);
     }}
 
-    /// Run-time: ( n -- )
+    /// Run-time: ( n1 n2 -- )
     ///
-    /// Display n in free field format.
-    primitive!{fn dot(&mut self) {
+    /// Display `n1` right aligned in a field `n2` characters wide.
+    primitive!{fn dot_r(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
         let base = self.data_space().get_isize(base_addr);
         let mut invalid_base = false;
-        let n = self.s_stack().pop();
+        let (n1, n2) = self.s_stack().pop2();
         if let Some(mut buf) = self.output_buffer().take() {
+            self.hold_buffer().clear();
             match base {
                 2 => {
-                    write!(buf, "{:b} ", n).unwrap();
+                    write!(self.hold_buffer(), "{:b}", n1).unwrap();
                 }
                 8 => {
-                    write!(buf, "{:o} ", n).unwrap();
+                    write!(self.hold_buffer(), "{:o}", n1).unwrap();
                 }
                 10 => {
-                    write!(buf, "{} ", n).unwrap();
+                    write!(self.hold_buffer(), "{}", n1).unwrap();
                 }
                 16 => {
-                    write!(buf, "{:X} ", n).unwrap();
+                    write!(self.hold_buffer(), "{:X}", n1).unwrap();
                 }
                 _ => {
                     invalid_base = true;
                 }
+            }
+            if !invalid_base {
+                for _ in 0..(n2 - self.hold_buffer().len() as isize) {
+                    buf.push(' ');
+                }
+                buf.push_str(self.hold_buffer());
             }
             self.set_output_buffer(buf);
         }
@@ -143,14 +150,41 @@ pub trait Output: Core {
         }
     }}
 
-    /// Run-time: ( -- ) ( F: r -- )
+    /// Run-time: ( n1 n2 -- ) ( F: r -- )
     ///
-    /// Display, with a trailing space, the top number on the floating-point
-    /// stack using fixed-point notation.
-    primitive!{fn fdot(&mut self) {
+    /// Display, without a trailing space, the top number on the floating-point
+    /// stack in a field `n1` characters wide, with `n2` digits after the decimal point.
+    ///
+    /// If n2 greater than 17, only 17 digits after the decimal point is printed.
+    primitive!{fn fdot_r(&mut self) {
         let r = self.f_stack().pop();
+        let (n1, n2) = self.s_stack().pop2();
         if let Some(mut buf) = self.output_buffer().take() {
-            write!(buf, "{:.7} ", r).unwrap();
+            self.hold_buffer().clear();
+            match n2 {
+                0 => write!(self.hold_buffer(), "{:.0}", r).unwrap(),
+                1 => write!(self.hold_buffer(), "{:.1}", r).unwrap(),
+                2 => write!(self.hold_buffer(), "{:.2}", r).unwrap(),
+                3 => write!(self.hold_buffer(), "{:.3}", r).unwrap(),
+                4 => write!(self.hold_buffer(), "{:.4}", r).unwrap(),
+                5 => write!(self.hold_buffer(), "{:.5}", r).unwrap(),
+                6 => write!(self.hold_buffer(), "{:.6}", r).unwrap(),
+                7 => write!(self.hold_buffer(), "{:.7}", r).unwrap(),
+                8 => write!(self.hold_buffer(), "{:.8}", r).unwrap(),
+                9 => write!(self.hold_buffer(), "{:.9}", r).unwrap(),
+                10 => write!(self.hold_buffer(), "{:.10}", r).unwrap(),
+                11 => write!(self.hold_buffer(), "{:.11}", r).unwrap(),
+                12 => write!(self.hold_buffer(), "{:.12}", r).unwrap(),
+                13 => write!(self.hold_buffer(), "{:.13}", r).unwrap(),
+                14 => write!(self.hold_buffer(), "{:.14}", r).unwrap(),
+                15 => write!(self.hold_buffer(), "{:.15}", r).unwrap(),
+                16 => write!(self.hold_buffer(), "{:.16}", r).unwrap(),
+                _ => write!(self.hold_buffer(), "{:.17}", r).unwrap(),
+            }
+            for _ in 0..(n1 - self.hold_buffer().len() as isize) {
+                buf.push(' ');
+            }
+            buf.push_str(self.hold_buffer());
             self.set_output_buffer(buf);
         }
     }}

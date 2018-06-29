@@ -386,6 +386,8 @@ pub trait Core: Sized {
     fn data_space_const(&self) -> &DataSpace;
     fn code_space(&mut self) -> &mut CodeSpace;
     fn code_space_const(&self) -> &CodeSpace;
+    /// Numeric output buffer
+    fn hold_buffer(&mut self) -> &mut String;
     /// Get `output_buffer`.
     fn output_buffer(&mut self) -> &mut Option<String>;
     /// Set `output_buffer` to `Some(buffer)`.

@@ -32,6 +32,7 @@ mod vm {
         inbuf: Option<String>,
         tkn: Option<String>,
         outbuf: Option<String>,
+        hldbuf: String,
         references: ForwardReferences,
     }
 
@@ -67,6 +68,7 @@ mod vm {
                 inbuf: Some(String::with_capacity(BUFFER_SIZE)),
                 tkn: Some(String::with_capacity(64)),
                 outbuf: Some(String::with_capacity(BUFFER_SIZE)),
+                hldbuf: String::with_capacity(128),
                 references: ForwardReferences::new(),
             };
             vm.add_core();
@@ -108,6 +110,9 @@ mod vm {
         }
         fn code_space_const(&self) -> &CodeSpace {
             &self.code_space
+        }
+        fn hold_buffer(&mut self) -> &mut String {
+            &mut self.hldbuf
         }
         fn output_buffer(&mut self) -> &mut Option<String> {
             &mut self.outbuf

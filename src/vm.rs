@@ -27,6 +27,7 @@ pub struct VM {
     inbuf: Option<String>,
     tkn: Option<String>,
     outbuf: Option<String>,
+    hldbuf: String,
     state: State,
     references: ForwardReferences,
 }
@@ -49,6 +50,7 @@ impl VM {
             inbuf: Some(String::with_capacity(128)),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
+            hldbuf: String::with_capacity(128),
             state: State::new(),
             references: ForwardReferences::new(),
         };
@@ -87,6 +89,9 @@ impl Core for VM {
     }
     fn code_space_const(&self) -> &CodeSpace {
         &self.code_space
+    }
+    fn hold_buffer(&mut self) -> &mut String {
+        &mut self.hldbuf
     }
     fn output_buffer(&mut self) -> &mut Option<String> {
         &mut self.outbuf

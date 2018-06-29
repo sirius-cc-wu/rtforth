@@ -1,3 +1,8 @@
+32 constant bl
+: space ( -- )   32 emit ;
+: spaces ( n -- )   0 begin 2dup > while 1+ space repeat 2drop ;
+: . ( n -- )   0 .r space ;
+: f. ( F: r -- )   0 7 f.r space ;
 : decimal   10 base ! ;
 : hex   16 base ! ;
 : h. ( n1 -- )   base @ swap  hex . base ! ;
@@ -6,9 +11,6 @@
 : f> ( -- flag ) ( F: r1 r2 -- )  f< invert ;
 : ?dup ( x -- 0 | x x )   dup if dup then ;
 : cr ( -- )   10 emit ;
-32 constant bl
-: space ( -- )   32 emit ;
-: spaces ( n -- )   0 begin 2dup > while 1+ space repeat 2drop ;
 : aligned ( addr -- a-addr )   1 cells 1- +  1 cells 1- invert and ;
 : align ( -- )   here aligned  here - allot ;
 : 2@ ( a-addr -- x1 x2 )   dup cell+ @ swap @ ;

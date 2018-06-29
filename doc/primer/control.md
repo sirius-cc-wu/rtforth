@@ -225,9 +225,11 @@ rf> 90 guess
   endcase ;
 ```
 
-在上例中，指令 `case` 開始一段將會由 `endcase` 結束的控制結構。在指令 case 之前，資料堆疊上已經有一未知的，需要透過此一控制結構檢查的數字 x。在 case 之後的 `1 of ... endof` 會檢查 `x` 是否是 1，如果是就移除 `x` 和 1，執行在 `of` 和 `endof` 之間的指令，並於完成後跳到 `endcase` 之後執行。如果 `x` 不是 1，就執行之後的 `2 of ... endof`、`3 of ... endof`。如果所有由 `of` 開始的比對都不成功時，會執行在所有的 `of ... endof` 之後，在 `endcase` 之前的敘述。也就是例子中的 `." value is" dup .`。此時堆疊頂端仍然是那個未知整數 `x`。注意因為 `endcase` 會拋棄一個堆疊頂端的數字，因此我們在 `." value is " dup .` 這敘述中使用 `dup` 複製了 `x`，以免將 `x` 用掉後， `endcase` 發現堆疊上沒有資料，發出 Stack underflow 這樣的錯誤訊息。
+在上例中，指令 `case` 開始一段將由 `endcase` 結束的控制結構。在指令 `case` 之前，資料堆疊上已經有一未知的，需要透過此一控制結構檢查的數字 x。在 case 之後的 `1 of ... endof` 檢查 `x` 是否是 1，如果是就移除 `x` 和 1，執行 `of` 和 `endof` 之間的指令，並於完成後跳到 `endcase` 之後執行。如果 `x` 不是 1，執行之後的 `2 of ... endof`、`3 of ... endof`。如果所有由 `of` 開始的敘述都不成功，會執行在所有 `of ... endof` 之後，在 `endcase` 之前的敘述。也就是例子中的 `." value is" dup .`。此時堆疊頂端仍然是那個未知整數 `x`。指令 `endcase` 會拋棄這個 `x`。
 
-在 `case` 和 `endcase` 之間可以有多段由 `of` 開始，由 `endof` 結束的指令，以及一段在所有 `of ... endof` 敘述之後，在所有比較都失敗之後才執行的敘述。
+注意 `endcase` 會拋棄堆疊最頂端的數字。如果我們在 `." value is " dup .` 這敘述中忘了了 `dup`， `endcase` 發現堆疊上沒有資料，會發出 Stack underflow 這樣的錯誤訊息。
+
+指令 `case` 和 `endcase` 之間可以有多段由 `of` 開始，由 `endof` 結束的指令，以及一段在所有 `of ... endof` 敘述之後，比較都失敗時才執行的敘述。
 
 ### 本節指令集
 

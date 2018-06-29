@@ -69,6 +69,8 @@ rf> if
 Interpreting a compile only word
 ```
 
+### 本節指令集
+
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
 | `if` | ( -- ) &emsp;  | if |
@@ -198,14 +200,57 @@ rf> 80 guess
 rf> 90 guess
 答對了 ok
 ```
+## 多選一
 
-### 迴圈
+指令`if`讓我們能在 0 和非 0 這兩種條件間進行選擇。現在讓我們使用 `if` 在 1 、 2 、 3 之間選擇。
+
+```
+\ 判斷 x 是 1,2,3 中的哪一個
+: choose ( x -- )
+  dup 1 = if drop ." one" else
+    dup 2 = if drop ." two" else
+      dup 3 = if drop ." three" else ." value is " . then
+    then
+  then ;
+```
+我們發現必須以一層套一層的方式來實現多選一。Forth 提供另一種方式使得我們能更清晰的表達多選一。以下程式效果和上面這段程式一樣。
+```
+\ 判斷 n 是 1,2,3 中的哪一個
+: choose ( x -- )
+  case
+    1 of ." one" endof
+    2 of ." two" endof
+    3 of ." three" endof
+    ." value is " dup .
+  endcase ;
+```
+
+在上例中，指令 `case` 開始一段將會由 `endcase` 結束的控制結構。在指令 case 之前，資料堆疊上已經有一未知的，需要透過此一控制結構檢查的數字 x。在 case 之後的 `1 of ... endof` 會檢查 `x` 是否是 1，如果是就移除 `x` 和 1，執行在 `of` 和 `endof` 之間的指令，並於完成後跳到 `endcase` 之後執行。如果 `x` 不是 1，就執行之後的 `2 of ... endof`、`3 of ... endof`。如果所有由 `of` 開始的比對都不成功時，會執行在所有的 `of ... endof` 之後，在 `endcase` 之前的敘述。也就是例子中的 `." value is" dup .`。此時堆疊頂端仍然是那個未知整數 `x`。注意因為 `endcase` 會拋棄一個堆疊頂端的數字，因此我們在 `." value is " dup .` 這敘述中使用 `dup` 複製了 `x`，以免將 `x` 用掉後， `endcase` 發現堆疊上沒有資料，發出 Stack underflow 這樣的錯誤訊息。
+
+在 `case` 和 `endcase` 之間可以有多段由 `of` 開始，由 `endof` 結束的指令，以及一段在所有 `of ... endof` 敘述之後，在所有比較都失敗之後才執行的敘述。
+
+### 本節指令集
+
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|----------------------------------------|--------|
+| `case` | ( -- ) &emsp; 開始一以 `endcase` 結果的多選一控制結構，在 `case` 和 `endcase` 中可以有任意數目的 `of...endof` | case |
+| `of` | ( x n -- x &#124; ) &emsp; 比較 x 和 n 是否相等。若相等，從資料堆疊移除這兩個值並執行 `of` 之後一直到 `endof` 之間的指令，否則保留 x ，執行在 `endof` 之後的指令 | of |
+| `endof` | ( -- ) &emsp; 結束由 `of` 開始的控制結構，然後執行在 `endcase` 之後的指令 | end-of |
+| `endcase` | ( x -- ) &emsp; 拋棄資料堆疊頂端的整數  x，結束以 `case` 開始的控制結構 | end-case |
+
+## 重覆
 
 : spaces ;
 
 本書建議儘量使用 `begin ... while ... repeat` 而不使用 `begin ... until`，因為使用後者常犯所謂差一的錯誤。
 
 例子：
+
+### 中途結束
+
+exit
+
+leave
 
 -------------------------------------
 ## 本章指令集
@@ -224,5 +269,11 @@ rf> 90 guess
 | `repeat` | ( -- ) &emsp;  | repeat |
 | `until` | ( -- ) &emsp;  | until |
 | `do` | ( -- ) &emsp;  | do |
+| `?do` | ( -- ) &emsp;  | do |
 | `loop` | ( -- ) &emsp;  | loop |
 | `+loop` | ( -- ) &emsp;  | plus-loop |
+| `leave` | ( -- ) &emsp;  | leave |
+| `unloop` | ( -- ) &emsp;  | unloop |
+| `exit` | ( -- ) &emsp;  | exit |
+| `>r` | ( -- ) &emsp;  | to-r |
+| `r>` | ( -- ) &emsp;  | r-from |

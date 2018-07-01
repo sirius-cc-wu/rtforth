@@ -19,7 +19,7 @@ pub trait Tools: Output {
                 }
                 if self.f_stack().len() > 0 {
                     if self.s_stack().len() > 0 {
-                        write!(buf, " ");
+                        write!(buf, " ").unwrap();
                     }
                     write!(buf, "F: {:?}", self.f_stack()).expect("write floating stack");
                 }

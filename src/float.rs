@@ -28,8 +28,9 @@ pub trait Float: Core {
         self.add_primitive("fdup", Float::fdup);
         self.add_primitive("fswap", Float::fswap);
         self.add_primitive("fnip", Float::fnip);
-        self.add_primitive("frot", Float::frot);
         self.add_primitive("fover", Float::fover);
+        self.add_primitive("frot", Float::frot);
+        self.add_primitive("fpick", Float::fpick);
         self.add_primitive("s>f", Float::s_to_f);
         self.add_primitive("f>s", Float::f_to_s);
         self.add_primitive("f+", Float::fplus);
@@ -192,6 +193,16 @@ pub trait Float: Core {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push3(n, t, n);
+    }}
+
+    /// Place a copy of the nth floating point stack entry on top of the floating point stack. `fpick ( n -- ) ( F: ... -- x )`
+    ///
+    /// `0 fpick` is equivalent to `fdup`.
+    primitive!{fn fpick(&mut self) {
+        let t = self.s_stack().pop() as u8;
+        let len = self.f_stack().len;
+        let x = self.f_stack()[len.wrapping_sub(t.wrapping_add(1))];
+        self.f_stack().push(x);
     }}
 
     primitive!{fn s_to_f(&mut self) {
@@ -558,6 +569,28 @@ mod tests {
         vm.check_stacks();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [2.0, 3.0, 1.0]);
+    }
+
+    #[test]
+    fn test_fpick() {
+        let vm = &mut VM::new(16, 16);
+        vm.f_stack().push(1.0);
+        vm.s_stack().push(0);
+        vm.fpick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), [1.0, 1.0]);
+
+        let vm = &mut VM::new(16, 16);
+        vm.f_stack().push(1.0);
+        vm.f_stack().push(0.0);
+        vm.s_stack().push(1);
+        vm.fpick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), [1.0, 0.0, 1.0]);
     }
 
     #[test]

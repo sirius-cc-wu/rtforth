@@ -508,6 +508,7 @@ pub trait Core: Sized {
         self.add_primitive("within", Core::within);
         self.add_primitive("rot", Core::rot);
         self.add_primitive("-rot", Core::minus_rot);
+        self.add_primitive("pick", Core::pick);
         self.add_primitive("2dup", Core::two_dup);
         self.add_primitive("2drop", Core::two_drop);
         self.add_primitive("2swap", Core::two_swap);
@@ -2603,6 +2604,16 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack()[slen.wrapping_sub(1)] = n;
     }}
 
+    /// Place a copy of the nth stack entry on top of the stack. `pick ( ... n -- x )`
+    ///
+    /// `0 pick` is equivalent to `dup`.
+    primitive!{fn pick(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)] as u8;
+        let x = self.s_stack()[slen.wrapping_sub(t.wrapping_add(2))];
+        self.s_stack()[slen.wrapping_sub(1)] = x;
+    }}
+
     primitive!{fn two_drop(&mut self) {
         let slen = self.s_stack().len.wrapping_sub(2);
         self.s_stack().len = slen;
@@ -3392,6 +3403,36 @@ mod tests {
         vm.s_stack().push(2);
         vm.s_stack().push(3);
         b.iter(|| vm.rot());
+    }
+
+    #[test]
+    fn test_pick() {
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
+        vm.pick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), [0, 0]);
+
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(1);
+        vm.pick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), [1, 0, 1]);
+
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(2);
+        vm.pick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), [2, 1, 0, 2]);
     }
 
     #[test]

@@ -242,7 +242,11 @@ rf> 90 guess
 | `endof` | ( -- ) &emsp; 結束由 `of` 開始的控制結構，然後執行在 `endcase` 之後的指令 | end-of |
 | `endcase` | ( x -- ) &emsp; 拋棄資料堆疊頂端的整數  x，結束以 `case` 開始的控制結構 | end-case |
 
-## 無限循環
+## 不定循環 (Indefinite loop)
+
+| x           | 0 | 15 | 30 | 45 | 60 | 75 | 90 |
+|-------------|---|----|----|----|----|----|----|
+| sin(x)      |   |    |    |    |    |    |    |
 
 ```
 \ 印出 n 個空格
@@ -250,10 +254,58 @@ rf> 90 guess
 ```
 
 ```
-\ 產生給 12bit 類比輸出所需的 sin table
-: sin-table ;
+\ 印出 sine table 的標頭
+: .sin-header ( F: start end step -- )
+( F: start end step )           frot
+( F: end step start )           begin
+( F: end step start )             fdup 7 3 f.r
+( F: end step start )             fover f+
+( F: end step start' )            frot
+( F: step start' end )            fover fover
+( F: step start' end start' end ) f> not
+( flag F: step start' end )     while
+( F: step start' end )            frot frot
+( F: end step start' )          repeat
+( F: step start' end )          fdrop fdrop fdrop
+;
 ```
+Test it:
+``
+rf> 0e 90e 15e .sin-header
+  0.000 15.000 30.000 45.000 60.000 75.000 ok
+``
 
+```
+\ 將角度轉成徑度
+: degree 180e f/ pi f* ;
+
+\ 印出 sine table 的值
+: .sin-values ( F: start end step -- )
+( F: start end step )           frot
+( F: end step start )           begin
+( F: end step start )             fdup degree fsin  7 3 f.r
+( F: end step start )             fover f+
+( F: end step start' )            frot
+( F: step start' end )            fover fover
+( F: step start' end start' end ) f> not
+( flag F: step start' end )     while
+( F: step start' end )            frot frot
+( F: end step start' )          repeat
+( F: step start' end )          fdrop fdrop fdrop
+;
+
+\ 印出 sine table
+: .sin-table ( F: start end step -- )
+   ( F: start end step )   2 fpick  2 fpick  2 fpick
+   ( F: start end step start end step )   .sin-header  cr
+   ( F: start end step )   .sin-values
+;
+```
+```
+rf> 0e 90e 10e .sin-table
+  0.000 10.000 20.000 30.000 40.000 50.000 60.000 70.000 80.000
+  0.000  0.174  0.342  0.500  0.643  0.766  0.866  0.940  0.985 ok
+```
 
 本書建議儘量使用 `begin ... while ... repeat` 而不使用 `begin ... until`，因為使用後者常犯所謂差一的錯誤。
 
@@ -272,7 +324,8 @@ rf> 90 guess
 | `.r` | ( -- ) &emsp;  | dot-r |
 | `f.r` | ( -- ) &emsp;  | f-dot-r |
 
-## 有限循環
+## 定循環 (Definite loop)
+
 
 ```
 : spaces ;

@@ -14,8 +14,15 @@ pub trait Tools: Output {
     primitive!{fn dot_s(&mut self) {
         match self.output_buffer().take() {
             Some(mut buf) => {
-                write!(buf, "{:?}", self.s_stack()).expect("write data stack");
-                write!(buf, "{:?}", self.f_stack()).expect("write floating stack");
+                if self.s_stack().len() > 0 {
+                    write!(buf, "{:?}", self.s_stack()).expect("write data stack");
+                }
+                if self.f_stack().len() > 0 {
+                    if self.s_stack().len() > 0 {
+                        write!(buf, " ");
+                    }
+                    write!(buf, "F: {:?}", self.f_stack()).expect("write floating stack");
+                }
                 self.set_output_buffer(buf);
             }
             None => {}

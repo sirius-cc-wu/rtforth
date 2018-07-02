@@ -1,12 +1,12 @@
-# 選擇與循環
+# 選擇
 
 ## 結構化程式
 
 依據結構化程式理論，程式的控制流程都可以化為三種型式：
 
-* 順序
-* 選擇
-* 循環
+* 順序 (sequence)
+* 選擇 (selection)
+* 循環 (repetitiion)
 
 我們以前一章的兩個冒號定義說明 Forth 如何順序執行。以下是它們被编譯進字典中的示意圖。
 
@@ -333,193 +333,13 @@ D
 | `endof` | ( -- ) &emsp; 結束由 `of` 開始的控制結構，然後執行在 `endcase` 之後的指令 | end-of |
 | `endcase` | ( x -- ) &emsp; 拋棄資料堆疊頂端的整數  x，結束以 `case` 開始的控制結構 | end-case |
 
-## 不定循環 (Indefinite loop)
-
-| x           | 0 | 15 | 30 | 45 | 60 | 75 | 90 |
-|:------------|--:|---:|---:|---:|---:|---:|---:|
-| sin(x)      | 0.000 | 0.259 | 0.500 | 0.707 | 0.866 | 0.966 | 1.000 |
-
-```
-\ 印出 n 個空格
-: spaces ( n -- ) ;
-```
-
-```
-\ 印出 sine table 的標頭
-: .sin-header ( F: start end step -- )
-( F: start end step )           frot
-( F: end step start )           begin
-( F: end step start )             fdup fround f>s 7 .r
-( F: end step start )             fover f+
-( F: end step start' )            frot
-( F: step start' end )            fover fover
-( F: step start' end start' end ) f> not
-( flag F: step start' end )     while
-( F: step start' end )            frot frot
-( F: end step start' )          repeat
-( F: step start' end )          fdrop fdrop fdrop
-;
-```
-測試一下：
-```
-rf> 0e 91e 15e .sin-header
-      0     15     30     45     60     75     90 ok
-```
-
-```
-\ 將角度轉成徑度
-: deg ( n1 -- n2 ) 180e f/ pi f* ;
-
-\ 印出 sine table 的值
-: .sin-values ( F: start end step -- )
-( F: start end step )           frot
-( F: end step start )           begin
-( F: end step start )             fdup deg fsin  7 3 f.r
-( F: end step start )             fover f+
-( F: end step start' )            frot
-( F: step start' end )            fover fover
-( F: step start' end start' end ) f> not
-( flag ) ( F: step start' end ) while
-( F: step start' end )            frot frot
-( F: end step start' )          repeat
-( F: step start' end )          fdrop fdrop fdrop
-;
-
-\ 印出 sine table
-: .sin-table ( F: start end step -- )
-   ( F: start end step )   2 fpick  2 fpick  2 fpick
-   ( F: start end step start end step )   .sin-header  cr
-   ( F: start end step )   .sin-values
-;
-```
-
-```
-rf> 0e 91e 15e .sin-table
-      0     15     30     45     60     75     90
-  0.000  0.259  0.500  0.707  0.866  0.966  1.000 ok
-```
-
-本書建議儘量使用 `begin ... while ... repeat` 而不使用 `begin ... until`，因為使用後者常犯所謂差一的錯誤。
-
-### 中途結束
-
-EXIT
-
-### 本節指令集
-
-| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
-|-----|----------------------------------------|--------|
-| `begin` | ( -- ) &emsp;  | begin |
-| `while` | ( -- ) &emsp;  | while |
-| `repeat` | ( -- ) &emsp;  | repeat |
-| `until` | ( -- ) &emsp;  | until |
-| `again` | ( -- ) &emsp;  | again |
-| `.r` | ( -- ) &emsp;  | dot-r |
-| `f.r` | ( -- ) &emsp;  | f-dot-r |
-
-## 定循環 (Definite loop)
-
-```
-: spaces ;
-```
-指令 `space` 和 `spaces` 都是 Forth 2012 標準內的指令。
-
-```
-rf> : star [char] * emit ;
-rf> star
-* ok
-rf> : stars 0 do star loop ;
- ok
-rf> 5 stars
-***** ok
-```
-
-```
-rf> 0 stars
-* ok
-```
-
-```
-rf> : stars 0 ?do star loop ;
-Redefining stars ok
-rf> 0 stars
- ok
-```
-
-### 兩重循環
-
-```
-: .table cr 10 1 do 10 1 do i j * 5 .r loop cr loop ;
-```
-
-例子：
-```
-rf> : .table cr 10 1 do 10 1 do i j * 5 .r loop cr loop ;
- ok
-rf> .table
-
-    1    2    3    4    5    6    7    8    9
-    2    4    6    8   10   12   14   16   18
-    3    6    9   12   15   18   21   24   27
-    4    8   12   16   20   24   28   32   36
-    5   10   15   20   25   30   35   40   45
-    6   12   18   24   30   36   42   48   54
-    7   14   21   28   35   42   49   56   63
-    8   16   24   32   40   48   56   64   72
-    9   18   27   36   45   54   63   72   81
- ok
-```
-
-### 印出所有 3 的倍數
-
-```
-rf> : .multiple3   0 do i . 3 +loop ;
- ok
-rf> 17 .multiple3
-0 3 6 9 12 15  ok
-```
-
-### 中途結束
-
-LEAVE
-
-```
-rf> : wrong-loop  0 do 42 emit  i 5 > if exit then loop ;
- ok
-rf> 7 wrong-loop
-*******Undefined word
-```
-
-UNLOOP
-
-```
-rf> : correct-loop   0 do 42 emit  i 5 > if unloop exit then loop ;
- ok
-rf> 7 correct-loop
-******* ok
-```
-
-### 本節指令集
-
-| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
-|-----|----------------------------------------|--------|
-| `do` | ( -- ) &emsp;  | do |
-| `?do` | ( -- ) &emsp;  | question-do |
-| `loop` | ( -- ) &emsp;  | loop |
-| `+loop` | ( -- ) &emsp;  | plus-loop |
-| `leave` | ( -- ) &emsp;  | leave |
-| `unloop` | ( -- ) &emsp;  | unloop |
-| `i` | ( -- ) &emsp;  | i |
-| `j` | ( -- ) &emsp;  | j |
-| `space` | ( -- ) &emsp;  | space |
-| `spaces` | ( -- ) &emsp;  | spaces |
-| `emit` | ( -- ) &emsp;  | emit |
-| `[char]` | ( "c" -- ) &emsp;  | bracket-care |
-
 -------------
 ## 本章重點整理
 
-* 結構化程式
+* 結構化程式 (structured programming)
+* 順序 (sequence)
+* 選擇 (selection)
+* 循環 (repetition)
 * 編譯指令
 * Forth 虛擬機
 * 返回堆疊 (return stack)
@@ -530,3 +350,12 @@ rf> 7 correct-loop
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
+| `if` | ( flag -- ) &emsp; 如果 flag 為真，或部份為真，執行之後的指令；否則跳到 `else` 或 `then` 之後的指令。  | if |
+| `else` | ( -- ) &emsp; 標記著 `if else then` 結構中，當 `if` 判斷為假時要執行的分支 | else |
+| `then` | ( -- ) &emsp; 結束由 `if` 開始的控制結構。不論 `if` 判斷選擇了哪個分支，最後都要從 `then` 之後的指令繼續執行。  | then |
+| `?dup` | ( x -- 0 &#124; x x ) &emsp; 如果 x 不為零，則複製一份。常用於當 x 為零就不處理的情況。 | question-dupe |
+| `exit` | ( -- ) &emsp; 結束冒號定義的執行，返回呼叫者 | exit |
+| `case` | ( -- ) &emsp; 開始一多選一控制結構 | case |
+| `of` | ( x n -- x &#124; ) &emsp; 比較 x 和 n 是否相等。若相等，從資料堆疊移除這兩個值並執行 `of` 之後一直到 `endof` 之間的指令，否則保留 x ，執行在 `endof` 之後的指令 | of |
+| `endof` | ( -- ) &emsp; 結束由 `of` 開始的控制結構，然後執行在 `endcase` 之後的指令 | end-of |
+| `endcase` | ( x -- ) &emsp; 拋棄資料堆疊頂端的整數  x，結束以 `case` 開始的控制結構 | end-case |

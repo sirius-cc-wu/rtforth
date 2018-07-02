@@ -1,13 +1,51 @@
-# 選擇與重覆
+# 選擇與循環
+
+## 結構化程式
+
+依據結構化程式理論，程式的控制流程都可以化為三種型式：
+
+* 順序
+* 選擇
+* 循環
+
+我們以前一章看到的兩個冒號定義說明 Forth 如何實現順序執行。以下是它們被编譯進字典中的示意圖。
+
+```
+: x^2-y^2 ( x y -- x^2-y^2 )   square  swap  square  - negate ;
+: square   dup * ;
+
+x^2-y^2   +--------+------+--------+---+--------+------+
+          | square | swap | square | - | negate | exit |
+          +--------+------+--------+---+--------+------+
+                            |        ^
+            +---------------+        |
+            |                        |
+            v                        |
+          +-----+---+------+         |
+square    | dup | * | exit |         |
+          +-----+---+------+         |
+            ^                        |
+            |                        |
++-----------|------------------------|-----------------+
+|           |                        |     Forth 虛擬機 |
+|         +---+              +-----+---+               |
+|         | x |              | ... | x |               |
+|         +---+              +-----+---+               |
+|        程式計數器            返回堆疊                   |
++------------------------------------------------------+
+```
+示意圖中冒號定義名稱和 `;` 之間的指令被依序放入字典中，並由一個 `;` 編譯進字典的指令 `exit` 結束。
+
+當執行到 `square` 時，Forth 的執行核心或稱為 Forth 虛擬機 (virtual machine) 中的「程式計數器」會指到如圖中的位置。虛擬機由此順序執行 `dup` 、 `*` 。程式計數器不斷後移，直到解得 `exit`。指令 `exit` 從返回堆疊上取得副程式返回的位址，於是 Forth 虛擬機繼續從上圖中的 `-` 開始順序執行。
 
 ## 選擇
 
 在之前我們學過 `min` 這個指令。現在我們看看它是怎麼用冒號定義出來的：
 
 ```
+\ 當 `n1<n2` 時 n3 = n1，否則 n3 = n2。
 : min ( n1 n2 -- n3 )   2dup < if drop else nip then ;
 ```
-當 `n1<n2` 時選擇 n1，否則選擇 n2。
 
 Forth 表達選擇的方式是 ( 條件 ) if A else B then C。條件是在堆疊上的一個真假值。
 
@@ -69,6 +107,24 @@ rf> if
 Interpreting a compile only word
 ```
 
+下圖是 `min` 被編譯進字典的示意圖。我們發現字典中的 `min` 內並沒有 `if` 、`else` 、 `then`。但多了 `0branch` 和 `branch` 以及之後的數字。這些是由編譯指令 `if` 、 `else` 和 `then` 编進字典，在執行 `min` 時真正進行判斷和選擇的指令。指令 `0branch` 就如之前我們對 `if` 的說明一樣，會檢查堆疊上的數字，若為 0 就依據它後面的數字跳到 `nip` 的位置，否則順序執行 `drop`。而 `branch` 則無條件依其後的數字跳到之後的 `exit`。
+
+指令 `0branch` 和 `branch` 並不是 Forth 2012 標準中的指令，只是 Forth 實作選擇方式中的一種。因其概念簡單，我們藉此說明 `if` 、 `else` 、 `then` 的編譯行為。
+
+```
+: min   2dup < if drop else nip then ;
+
+                             +-----------------------+
+                             |                       |
+                             |                       v
+      +------+---+---------+---+------+--------+---+-----+------+
+min   | 2dup | < | 0branch | 3 | drop | branch | 1 | nip | exit |
+      +------+---+---------+---+------+--------+---+-----+------+
+                                                 |         ^
+                                                 |         |
+                                                 +---------+
+```
+
 ### 本節指令集
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
@@ -77,6 +133,7 @@ Interpreting a compile only word
 | `else` | ( -- ) &emsp;  | else |
 | `then` | ( -- ) &emsp;  | then |
 | `?dup` | ( -- ) &emsp;  | question-dupe |
+| `exit` | ( -- ) &emsp;  | exit |
 
 ## 猜數字
 
@@ -202,7 +259,7 @@ rf> 90 guess
 ```
 ## 多選一
 
-指令`if`讓我們能在 0 和非 0 這兩種條件間進行選擇。現在讓我們使用 `if` 在 1 、 2 、 3 之間選擇。
+指令`if`讓我們能在 0 和非 0 這兩種條件間進行選擇。當我們要用它實現多數一時，會發現它不那麼好用。以下是使用 `if` 在 1 、 2 、 3 之間選擇的例子。
 
 ```
 \ 判斷 x 是 1,2,3 中的哪一個
@@ -213,7 +270,9 @@ rf> 90 guess
     then
   then ;
 ```
-我們發現必須以一層套一層的方式來實現多選一。Forth 提供另一種方式使得我們能更清晰的表達多選一。以下程式效果和上面這段程式一樣。
+
+我們發現必須以一層套一層的巢狀結構來實現多選一。當選項多時，巢狀結構會很深，而且我們必須很小心在每個分支中堆疊指令的效果。Forth 提供另一種方式使得我們能更清晰的表達多選一。以下程式效果和上面這段程式一樣。
+
 ```
 \ 判斷 n 是 1,2,3 中的哪一個
 : choose ( x -- )
@@ -233,6 +292,32 @@ rf> 90 guess
 
 和 `if` 、 `else` 、 `then` 一樣，指令 `case` 、 `of` 、 `endof` 、 `endcase` 都是只能用於冒號定義中的「編譯指令」。
 
+以下是它們编譯到字典的示意圖。注意這只是眾多實作方式的一種。圖中的數字 n2 及 n3 被编譯到字典中的方式是 `lit n2` 及 `lit n3`。指令 `lit` 會將其後的數字推上參數堆疊。编譯指令 `of` 不只編譯跳躍指令 `0branch` 到字典中，還编譯了 `over = ` 以進行堆疊上數字的比較。
+
+```
+( n1 )
+CASE
+   n2 OF A ENDOF
+   n3 OF B ENDOF
+   C
+ENDCASE
+D
+
+    +-----+----+------+---+---------+---+------+---+--------+---+
+    | lit | n2 | over | = | 0branch | x | drop | A | branch | x |
+    +-----+----+------+---+---------+---+------+---+--------+---+
+                                      |                       |
+      +-------------------------------+                       +--------------+
+      |                                                       |              |
+      v                                                       |              v
+    +-----+----+------+---+---------+---+------+---+--------+---+---+------+---+
+    | lit | n3 | over | = | 0branch | x | drop | B | branch | x | C | drop | D |
+    +-----+----+------+---+---------+---+------+---+--------+---+---+------+---+
+                                      |                           ^
+                                      |                           |
+                                      +---------------------------+
+```
+
 ### 本節指令集
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
@@ -245,8 +330,8 @@ rf> 90 guess
 ## 不定循環 (Indefinite loop)
 
 | x           | 0 | 15 | 30 | 45 | 60 | 75 | 90 |
-|-------------|---|----|----|----|----|----|----|
-| sin(x)      |   |    |    |    |    |    |    |
+|:------------|--:|---:|---:|---:|---:|---:|---:|
+| sin(x)      | 0.000 | 0.259 | 0.500 | 0.707 | 0.866 | 0.966 | 1.000 |
 
 ```
 \ 印出 n 個空格
@@ -258,7 +343,7 @@ rf> 90 guess
 : .sin-header ( F: start end step -- )
 ( F: start end step )           frot
 ( F: end step start )           begin
-( F: end step start )             fdup 7 3 f.r
+( F: end step start )             fdup fround f>s 7 .r
 ( F: end step start )             fover f+
 ( F: end step start' )            frot
 ( F: step start' end )            fover fover
@@ -277,18 +362,18 @@ rf> 0e 90e 15e .sin-header
 
 ```
 \ 將角度轉成徑度
-: degree 180e f/ pi f* ;
+: deg ( n1 -- n2 ) 180e f/ pi f* ;
 
 \ 印出 sine table 的值
 : .sin-values ( F: start end step -- )
 ( F: start end step )           frot
 ( F: end step start )           begin
-( F: end step start )             fdup degree fsin  7 3 f.r
+( F: end step start )             fdup deg fsin  7 3 f.r
 ( F: end step start )             fover f+
 ( F: end step start' )            frot
 ( F: step start' end )            fover fover
 ( F: step start' end start' end ) f> not
-( flag F: step start' end )     while
+( flag ) ( F: step start' end ) while
 ( F: step start' end )            frot frot
 ( F: end step start' )          repeat
 ( F: step start' end )          fdrop fdrop fdrop
@@ -302,9 +387,9 @@ rf> 0e 90e 15e .sin-header
 ;
 ```
 ```
-rf> 0e 90e 10e .sin-table
-  0.000 10.000 20.000 30.000 40.000 50.000 60.000 70.000 80.000
-  0.000  0.174  0.342  0.500  0.643  0.766  0.866  0.940  0.985 ok
+rf> 0e 91e 15e .sin-table
+      0     15     30     45     60     75     90
+  0.000  0.259  0.500  0.707  0.866  0.966  1.000 ok
 ```
 
 本書建議儘量使用 `begin ... while ... repeat` 而不使用 `begin ... until`，因為使用後者常犯所謂差一的錯誤。
@@ -320,7 +405,6 @@ rf> 0e 90e 10e .sin-table
 | `repeat` | ( -- ) &emsp;  | repeat |
 | `until` | ( -- ) &emsp;  | until |
 | `again` | ( -- ) &emsp;  | again |
-| `exit` | ( -- ) &emsp;  | exit |
 | `.r` | ( -- ) &emsp;  | dot-r |
 | `f.r` | ( -- ) &emsp;  | f-dot-r |
 

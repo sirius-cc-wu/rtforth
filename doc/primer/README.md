@@ -38,7 +38,7 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
   * [比較及邏輯運算](logic.md)
   * [自己定義運算指令](colon.md)
 * [Forth 程式入門](programming.md)
-  * [WIP: 選擇與重覆](control.md)
+  * [WIP: 選擇與循環](control.md)
   * [TODO 字典](dictionary.md)
   * [TODO: 多工、異常處理與文本解譯器](tasking.md)
   * [TODO: 錯誤訊息說明](errors.md)

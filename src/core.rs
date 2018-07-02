@@ -2610,7 +2610,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(if n == t { FALSE } else { TRUE });
     }}
 
-    /// `within` ( n1 n2 n3 -- flag )  true if n2 <= n1 and n1 <= n3.
+    /// `within` ( n1 n2 n3 -- flag )  true if n2 <= n1 and n1 < n3.
     ///
     /// Note: implmenetation incompatible with Forth 2012 standards
     /// when n2 > n3.

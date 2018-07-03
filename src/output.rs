@@ -116,7 +116,7 @@ pub trait Output: Core {
     primitive!{fn dot_r(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
         let base = self.data_space().get_isize(base_addr);
-        let mut invalid_base = false;
+        let mut valid_base = true;
         let (n1, n2) = self.s_stack().pop2();
         if let Some(mut buf) = self.output_buffer().take() {
             self.hold_buffer().clear();
@@ -134,10 +134,10 @@ pub trait Output: Core {
                     write!(self.hold_buffer(), "{:X}", n1).unwrap();
                 }
                 _ => {
-                    invalid_base = true;
+                    valid_base = false;
                 }
             }
-            if !invalid_base {
+            if valid_base {
                 for _ in 0..(n2 - self.hold_buffer().len() as isize) {
                     buf.push(' ');
                 }
@@ -145,7 +145,7 @@ pub trait Output: Core {
             }
             self.set_output_buffer(buf);
         }
-        if invalid_base {
+        if !valid_base {
             self.abort_with(UnsupportedOperation);
         }
     }}

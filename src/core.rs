@@ -2112,10 +2112,8 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     primitive!{fn imm_backslash(&mut self) {
-        self.state().source_index = match *self.input_buffer() {
-            Some(ref buf) => buf.len(),
-            None => 0,
-        };
+        self.s_stack().push('\n' as isize);
+        self.parse();
     }}
 
     primitive!{fn compile_token(&mut self) {

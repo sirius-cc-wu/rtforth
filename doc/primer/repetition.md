@@ -12,10 +12,15 @@ Forth 有多種表達循環的方式，
 
 這些表達循環的指令和 `if` 等指令一樣，都是「編譯指令」。
 
+在這個章節只集中介紹 `begin ... while ... repeat`。因為它可以實現所有其他循環方式所能做的事。此外，以 `do` 開始的定循環看似簡單其實有複雜的一面，誤用時容易犯錯，因此 rtForth 並不提供。
+
 ## 不定循環 (Indefinite loop)
+
+### 例一：spaces
 
 我們先看一個能印出指定數量空格的指令 `spaces` 的定義：
 ```
+\ 印出 n 個空格
 : spaces ( n -- )   0 begin 2dup > while 1+ space repeat 2drop ;
 ```
 
@@ -56,7 +61,9 @@ begin A while B repeat C
   +------------------------------+
 ```
 
-例子：以不定循環指令印出以下表格。
+### 例二：正弦表
+
+以不定循環指令印出以下表格。
 
 | x           | 0.000 | 15.000 | 30.000 | 45.000 | 60.000 | 75.000 | 90.000 |
 |:------------|--:|---:|---:|---:|---:|---:|---:|
@@ -151,71 +158,117 @@ x        0.000 15.000 30.000 45.000 60.000 75.000 90.000
 sin(x)   0.000  0.259  0.500  0.707  0.866  0.966  1.000 ok
 ```
 
+### 不定循環中的 BEGIN ... UNTIL 和 BEGIN ... AGAIN
+
 不定循環中的另兩個版本 `begin ... until` 和 `begin ... again` 可視為 `begin ... while ... repeat` 的簡化版。
 敘述 `begin ... ( flag ) until` 會在 `until` 比較資料堆疊上的數是否為真，若為真就結束循環。因此它的行為和 `begin ... ( flag ) 0= while repeat` 一樣。注意在這兒 `while` 和 `repeat` 之間不執行任何指令。而無限循環 `begin ... again` 則相當於敘述 `begin ... true while repeat` 。
 
 本書建議儘量使用 `begin ... while ... repeat` 不使用 `begin ... until`，因為使用後者常犯所謂差一的錯誤，忘了對循環的第一次執行進行條件測試。例如以下使用 `until` 實現的 `spaces` 因忘了檢查 n=0 的情形，導致當 n 為 0 時仍印出了一個空格。
 
+```
 : wrong-spaces ( n -- )   0 begin space 1+ 2dup <= until 2drop ;
+```
 
-### 中途結束
+### 例三：印出所有 3 的倍數
 
-EXIT
-
-### 本節指令集
-
-| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
-|-----|----------------------------------------|--------|
-| `space` | ( -- ) &emsp;  | space |
-| `spaces` | ( -- ) &emsp;  | spaces |
-| `begin` | ( -- ) &emsp;  | begin |
-| `while` | ( -- ) &emsp;  | while |
-| `repeat` | ( -- ) &emsp;  | repeat |
-| `until` | ( -- ) &emsp;  | until |
-| `again` | ( -- ) &emsp;  | again |
-| `.r` | ( -- ) &emsp;  | dot-r |
-| `f.r` | ( -- ) &emsp;  | f-dot-r |
-| `fpick` | ( -- ) &emsp;  | fpick |
-
-## 定循環 (Definite loop)
+請設計一個程式其規格如下：
 
 ```
-: spaces ;
+\ 印出所有小於 n 的 3 的倍數
+: .multiple3 ( n -- ) ... ;
 ```
-指令 `space` 和 `spaces` 都是 Forth 2012 標準內的指令。
 
 ```
-rf> : star [char] * emit ;
-rf> star
-* ok
-rf> : stars 0 do star loop ;
+rf> : .multiple3   0 begin 2dup >= while dup 5 .r 3 + repeat 2drop ;
  ok
-rf> 5 stars
-***** ok
-```
-
-```
-rf> 0 stars
-* ok
-```
-
-```
-rf> : stars 0 ?do star loop ;
-Redefining stars ok
-rf> 0 stars
+rf> 17 .multiple3
+    0    3    6    9   12   15 ok
+rf> .s
  ok
 ```
 
-### 兩重循環
+### 例四：Fibonacci 數列
+
+位工程師寫了以下程式想印出 Fibonacci 數列。但是有 Stack underflow 的錯誤。請找出程式的錯誤。
 
 ```
-: .table cr 10 1 do 10 1 do i j * 5 .r loop cr loop ;
+\ 印出小於 n 的 Fibonacci 數列。
+: fibonacci ( n -- )   0 1 begin dup 3 pick < while . swap over + repeat drop 2drop ;
 ```
 
-例子：
+實測一下，
 ```
-rf> : .table cr 10 1 do 10 1 do i j * 5 .r loop cr loop ;
+rf> : fibonacci   0 1 begin dup 3 pick < while . swap over + repeat drop 2drop ;
  ok
+rf> 7 fibonacci
+1 7 Stack underflow
+```
+
+真的有問題。為了找出問題，我們可以利用 Forth 的互動式環境理解這個程式。先手動模擬程式執行 `7 0 1 begin dup 3 pick <`。
+
+```
+rf> 7 0 1 dup 3 pick .s
+7 0 1 1 7  ok
+```
+
+`7` 是測試時使用者輸入的數字，`0 1` 是 `fibonacci` 放上堆疊的數字。`begin` 是編譯指令，標記循環的開始，但執行時不會做什麼事，忽略它。`dup 3 pick` 是 `begin` 後 `fibonacci` 執行的指令。使用 `.s` 檢查堆疊內容看看是否和我們期望的一樣。
+
+```
+rf> <  .s
+7 0 1 -1  ok
+```
+接下來比較 1 和 7 的大小。發現  1 小於 7 ，所以要繼續顯示 Fibonacci 數列。
+
+```
+rf> drop  .s
+7 0 1  ok
+```
+由於之後的 `while` 會判斷疊頂的整數是否為真，這整數就被用掉了。因此我們使用一個 drop 來模擬這個行為。
+
+在 `while` 後厡程式執行 `.`。這會把 1 印出來，堆疊上會只剩 7 和 0。可是要得到下一個 Fibonacci 數列的 1，我們需要保留原來的 1。因此這兒少了一個 `dup`。把 `dup` 加進原來的程式裡再測試一遍。
+
+```
+rf> : fibonacci   0 1 begin dup 3 pick < while dup . swap over + repeat drop 2drop ;
+Redefining fibonacci ok
+rf> 17 fibonacci
+1 1 2 3 5 8 13  ok
+```
+
+問題解決了。
+
+### 例五：兩重循環
+
+有時我們需要多重的循環，Forth 的程式師習實將這兩重的循環拆成兩個指令來實現。比如我們想印出如下的九九乘法表。
+
+```
+    1    2    3    4    5    6    7    8    9
+    2    4    6    8   10   12   14   16   18
+    3    6    9   12   15   18   21   24   27
+    4    8   12   16   20   24   28   32   36
+    5   10   15   20   25   30   35   40   45
+    6   12   18   24   30   36   42   48   54
+    7   14   21   28   35   42   49   56   63
+    8   16   24   32   40   48   56   64   72
+    9   18   27   36   45   54   63   72   81
+```
+
+請依以下規格設計指令印出上表：
+```
+\ 印出九九乘法表中的第 n 列
+: .row ( n -- ) ... ;
+\ 使用 .row 印出九九乘法表
+: .table ( -- ) ... ;
+```
+
+請不要參考答案先自行嘗試。
+
+```
+: .row 1 begin dup 9 <= while 2dup *  5 .r  1 + repeat 2drop ;
+: .table 1 begin dup 9 <= while dup .row cr 1 + repeat drop ;
+```
+
+測試一下，
+```
 rf> .table
 
     1    2    3    4    5    6    7    8    9
@@ -230,46 +283,63 @@ rf> .table
  ok
 ```
 
-### 印出所有 3 的倍數
+### 例六：斜方形
+
+以下指令會印出 * 號。
 
 ```
-rf> : .multiple3   0 do i . 3 +loop ;
- ok
-rf> 17 .multiple3
-0 3 6 9 12 15  ok
+: star   [char] * emit ;
+```
+
+其中的 `[char]` 是一個編譯指令，會將它之後的字元的 ASCII 碼編譯進字典中。執行時這 ASCII 碼會被放上堆疊。而指令 `emit` 會取得堆疊上的 ASCII 碼，將它顯示在螢幕上。
+
+請設計程式印出以下形狀：
+
+```
+   ****
+  ****
+ ****
+****
 ```
 
 ### 中途結束
 
-LEAVE
+敘述 `begin ... while ... repeat` 只能在 `while` 的位置結束循環。這這種單一入口單一出口的方式，有助於理解程式。`begin ... until` 的設計也符合這種單一入口單一出口的原則。但在撰寫複雜的循環時有時這原則會使得程式難以撰寫。
+
+一個解決的方法是使用 `exit` 如以下程式：
 
 ```
-rf> : wrong-loop  0 do 42 emit  i 5 > if exit then loop ;
- ok
-rf> 7 wrong-loop
-*******Undefined word
+: exit-between-loop
+  begin
+    ...
+    ( 測試條件一 )
+  while
+    ...
+    ( 測試條件二 )
+    if ... exit then
+    ...
+    ( 測試條件三 )
+    if ... exit then
+    ...
+  repeat ;
 ```
 
-UNLOOP
+當執行到 `exit` 時會結束 `exit-between-loop`，回到呼叫它的指令。
 
-```
-rf> : correct-loop   0 do 42 emit  i 5 > if unloop exit then loop ;
- ok
-rf> 7 correct-loop
-******* ok
-```
-
-### 本節指令集
+### 本章指令集
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `do` | ( -- ) &emsp;  | do |
-| `?do` | ( -- ) &emsp;  | question-do |
-| `loop` | ( -- ) &emsp;  | loop |
-| `+loop` | ( -- ) &emsp;  | plus-loop |
-| `leave` | ( -- ) &emsp;  | leave |
-| `unloop` | ( -- ) &emsp;  | unloop |
-| `i` | ( -- ) &emsp;  | i |
-| `j` | ( -- ) &emsp;  | j |
-| `emit` | ( -- ) &emsp;  | emit |
-| `[char]` | ( "c" -- ) &emsp;  | bracket-care |
+| `space` | ( -- ) &emsp; 印出一個空格 | space |
+| `spaces` | ( n -- ) &emsp; 印出 n 個空格 | spaces |
+| `begin` | ( -- ) &emsp; 標記了不定循環的開始 | begin |
+| `while` | ( flag -- ) &emsp; 測試堆疊上的 flag，如果為假就結束循環 | while |
+| `repeat` | ( -- ) &emsp; 重覆從 `begin` 開始的不定循環 | repeat |
+| `until` | ( -- ) &emsp; 測試堆疊上的 flag，如果為真就結束循環 | until |
+| `again` | ( -- ) &emsp; 重覆由 `begin` 開始的循環 | again |
+| `.r` | ( n1 n2=width -- ) &emsp; 以欄寬為 n2 的方式印出 n1。當 n1 短於欄寬時在左方補上空格，達成對齊右方的顯示效果 | dot-r |
+| `f.r` | ( n1=width n2=precision -- ) ( r -- ) &emsp; 以欄寬為 n1，小數點後有 n2 位數的方式顯示 r。如果顯示字串小於欄寬，在左側補上空格，達成對齊右方的效果  | f-dot-r |
+| `fpick` | ( n -- ) ( F: ... -- ) &emsp; 複製浮點堆疊上從疊頂數來的第 n 個數字。`0 fpick` 相當於 `fdup`，`1 fpick` 相當於 `fover` | f-pick |
+| `emit` | ( n -- ) &emsp; 取得堆疊上的 ASCII 碼，將它顯示在螢幕上 | emit |
+| `[char]` | ( "c" -- ) &emsp; 是一個編譯指令，將它之後的字元的 ASCII 碼編譯進字典中。執行時這 ASCII 碼會被放上堆疊 | bracket-care |
+| `deg` | ( F: r1 -- r2 ) &emsp; 計算角度 r1 的徑度值 r2 | degree |

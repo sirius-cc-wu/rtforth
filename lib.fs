@@ -20,11 +20,9 @@
 : max ( n1 n2 -- n3 )   2dup < if nip else drop then ;
 : min ( n1 n2 -- n3 )   2dup < if drop else nip then ;
 : c, ( char -- )   here 1 chars allot c! ;
-\ Note: DO LOOP is not supported because their implementation is not compatible
-\ to Forth 2012 standard.
-\ : fill ( c-addr u char -- )
-\     swap dup 0> if >r swap r>  0 do 2dup i + c! loop
-\     else drop then 2drop ;
+: fill ( c-addr u char -- )
+    swap dup 0> if >r swap r>  0 do 2dup i + c! loop
+    else drop then 2drop ;
 variable #tib  0 #tib !
 variable tib 256 allot
 : source ( -- c-addr u )   tib #tib @ ;

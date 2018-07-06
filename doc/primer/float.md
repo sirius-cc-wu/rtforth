@@ -52,7 +52,7 @@ rf> 1e100 f.
 rf> 1e1000 f.
 inf  ok
 ```
-從例子中可以看出，電腦無法正確表示 10<sup>100</sup> 次方，只能用一個近似的數字來表示。正確表示的的就只有前面 16 位數。而遇到 10<sup>1000</sup>時，電腦干脆以無限大 (inf) 來表示。
+從例子中可以看出，電腦無法正確表示 10<sup>100</sup> 次方，只能用一個近似的數字來表示。正確表示的就只有前面 16 位數。而遇到 10<sup>1000</sup>時，電腦干脆以無限大 (inf) 來表示。
 
 例六：計算 10<sup>100</sup> + 1。
 ```
@@ -93,7 +93,7 @@ NaN  ok
 | `f*` | ( F:&nbsp; r1 r2 -- r1*r2 ) &emsp; 將浮點堆疊上的 r1 乘以 r2，將結果放回浮點堆疊 | f-star |
 | `f/` | ( F:&nbsp; r1 r2 -- r1/r2 ) &emsp; 將浮點堆疊上的 r1 除以 r2，將結果放回浮點堆疊。 | f-slash |
 | `f**` | ( F:&nbsp; r1 r2 -- r1<sup>r2</sup>) &emsp; 求浮點堆疊上的 r1 的 r2 次方，將結果放回浮點堆疊 | f-star-star |
-| `fsqrt` | ( F:&nbsp; r1 -- r2 ) &emsp; 計算 r1 的平方根 | f-sqrt |
+| `fsqrt` | ( F:&nbsp; r1 -- r1<sup>2</sup> ) &emsp; 計算 r1 的平方根 | f-sqrt |
 
 -----------
 ## 更多的浮點算術指令
@@ -214,7 +214,7 @@ rf> 1e fatan  4e f*  f.
 `fasin` 、 `facos` 、 `fatan` 的值域都無法涵蓋整個 360&deg; 的範圍。
 `fatan2` 則可以從一個二維向量得到角度。而和它對應的 `fsincos` 則可以從一個角度得到一個二維單位向量。
 
-例二十一：求向量 (1, 0) 、 (0, -1) 的角度。注意 fatan2 的堆疊效應是 ( y x -- &theta; ) 。
+例二十一：求向量 (1, 0) 、 (0, -1) 與 x 軸的角度。注意 fatan2 的堆疊效應是 ( y x -- &theta; ) 。
 ```
 rf> 0e 1e fatan2  f.
 0.0000000  ok
@@ -242,7 +242,7 @@ rf> -1.5707963e fsincos f. f.
 | `fasin` | ( F:&nbsp; r1 -- r2 ) &emsp; 計算正弦為 r1 的弳度角 r2 | f-a-sine |
 | `facos` | ( F:&nbsp; r1 -- r2 ) &emsp; 計算餘弦為 r1 的弳度角 r2 | f-a-cos |
 | `fatan` | ( F:&nbsp; r1 -- r2 ) &emsp; 計算正切為 r1 的弳度角 r2 | f-a-tan |
-| `fatan2` | ( F:&nbsp; r1 r2 -- r3 ) &emsp; 從向量 (r1, r2) 得其方向角的弳度 r3 | f-a-tan-two |
+| `fatan2` | ( F:&nbsp; y x -- r ) &emsp; 從向量 (x, y) 得其方向角的弳度 r3 | f-a-tan-two |
 
 -------------
 ## 本章重點整理
@@ -280,4 +280,4 @@ rf> -1.5707963e fsincos f. f.
 | `fasin` | ( F:&nbsp; r1 -- r2 ) &emsp; 計算正弦為 r1 的弳度角 r2 | f-a-sine |
 | `facos` | ( F:&nbsp; r1 -- r2 ) &emsp; 計算餘弦為 r1 的弳度角 r2 | f-a-cos |
 | `fatan` | ( F:&nbsp; r1 -- r2 ) &emsp; 計算正切為 r1 的弳度角 r2 | f-a-tan |
-| `fatan2` | ( F:&nbsp; r1 r2 -- r3 ) &emsp; 從向量 (r1, r2) 得其方向角的弳度 r3 | f-a-tan-two |
+| `fatan2` | ( F:&nbsp; y x -- r ) &emsp; 從向量 (x, y) 得其方向角的弳度 r3 | f-a-tan-two |

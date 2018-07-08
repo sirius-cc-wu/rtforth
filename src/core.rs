@@ -416,27 +416,29 @@ pub trait Core: Sized {
     /// Add core primitives to self.
     fn add_core(&mut self) {
         // Bytecodes
-        self.add_primitive("noop", Core::noop); // j1, Ngaro, jx
-        self.add_compile_only("exit", Core::exit); // j1, jx, eForth
-        self.add_compile_only("lit", Core::lit); // Ngaro, jx, eForth
+        self.add_primitive("noop", Core::noop);
+        self.add_compile_only("exit", Core::exit);
+        self.add_compile_only("lit", Core::lit);
         self.add_compile_only("flit", Core::flit);
         self.add_compile_only("_s\"", Core::p_s_quote);
-        self.add_compile_only("branch", Core::branch); // j1, eForth
-        self.add_compile_only("0branch", Core::zero_branch); // j1, eForth
-        self.add_compile_only("_do", Core::_do); // jx
-        self.add_compile_only("_qdo", Core::_qdo); // jx
-        self.add_compile_only("_loop", Core::_loop); // jx
-        self.add_compile_only("_+loop", Core::_plus_loop); // jx
-        self.add_compile_only("unloop", Core::unloop); // jx
-        self.add_compile_only("leave", Core::leave); // jx
-        self.add_compile_only("i", Core::p_i); // jx
-        self.add_compile_only("j", Core::p_j); // jx
-        self.add_compile_only(">r", Core::p_to_r); // j1, Ngaro, jx, eForth
-        self.add_compile_only("r>", Core::r_from); // j1, Ngaro, jx, eForth
-        self.add_compile_only("r@", Core::r_fetch); // j1, jx, eForth
-        self.add_compile_only("2>r", Core::two_to_r); // jx
-        self.add_compile_only("2r>", Core::two_r_from); // jx
-        self.add_compile_only("2r@", Core::two_r_fetch); // jx
+        self.add_compile_only("branch", Core::branch);
+        self.add_compile_only("0branch", Core::zero_branch);
+        self.add_compile_only("_do", Core::_do);
+        self.add_compile_only("_qdo", Core::_qdo);
+        self.add_compile_only("_loop", Core::_loop);
+        self.add_compile_only("_+loop", Core::_plus_loop);
+        self.add_compile_only("unloop", Core::unloop);
+        self.add_compile_only("leave", Core::leave);
+        self.add_compile_only("i", Core::p_i);
+        self.add_compile_only("j", Core::p_j);
+        self.add_compile_only(">r", Core::p_to_r);
+        self.add_compile_only("r>", Core::r_from);
+        self.add_compile_only("r@", Core::r_fetch);
+        self.add_compile_only("2>r", Core::two_to_r);
+        self.add_compile_only("2r>", Core::two_r_from);
+        self.add_compile_only("2r@", Core::two_r_fetch);
+        self.add_compile_only("compile,", Core::compile_comma);
+        self.add_compile_only("_does", Core::_does);
 
         self.add_primitive("execute", Core::execute); // jx, eForth
         self.add_primitive("dup", Core::dup); // j1, Ngaro, jx, eForth
@@ -472,11 +474,14 @@ pub trait Core: Sized {
         self.add_primitive("c@", Core::c_fetch);
         self.add_primitive("c!", Core::c_store);
         self.add_primitive("base", Core::base);
+        self.add_primitive("immediate", Core::immediate);
+        self.add_primitive("compile-only", Core::compile_only);
 
         // Immediate words
         self.add_immediate("(", Core::imm_paren);
         self.add_immediate("\\", Core::imm_backslash);
         self.add_immediate("[", Core::left_bracket);
+        self.add_immediate_and_compile_only("[']", Core::bracket_tick);
         self.add_immediate_and_compile_only("[char]", Core::bracket_char);
         self.add_immediate_and_compile_only(";", Core::semicolon);
         self.add_immediate_and_compile_only("if", Core::imm_if);
@@ -572,27 +577,35 @@ fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         self.wordlist_mut().push(word);
     }
 
+    /// Set the last definition immediate.
+    primitive!{fn immediate(&mut self) {
+        let def = self.last_definition();
+        self.wordlist_mut()[def].set_immediate(true);
+    }}
+
     /// Add an immediate word to word list.
 fn add_immediate(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         self.add_primitive(name, action);
-        let def = self.last_definition();
-        self.wordlist_mut()[def].set_immediate(true);
+        self.immediate();
     }
+
+    /// Set the last definition compile-only.
+    primitive!{fn compile_only(&mut self) {
+        let def = self.last_definition();
+        self.wordlist_mut()[def].set_compile_only(true);
+    }}
 
     /// Add a compile-only word to word list.
 fn add_compile_only(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         self.add_primitive(name, action);
-        let def = self.last_definition();
-        self.wordlist_mut()[def].set_compile_only(true);
+        self.compile_only();
     }
 
     /// Add an immediate and compile-only word to word list.
 fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         self.add_primitive(name, action);
-        let def = self.last_definition();
-        let w = &mut self.wordlist_mut()[def];
-        w.set_immediate(true);
-        w.set_compile_only(true);
+        self.immediate();
+        self.compile_only();
     }
 
     /// Execute word at position `i`.
@@ -2514,11 +2527,13 @@ compilation_semantics: fn(&mut Self, usize)){
     }}
 
     primitive!{fn create(&mut self) {
+        // pointer for does>
+        self.data_space().compile_i32(0);
         self.define(Core::p_var, Core::compile_var);
     }}
 
     primitive!{fn variable(&mut self) {
-        self.define(Core::p_var, Core::compile_var);
+        self.create();
         if self.last_error().is_none() {
             self.data_space().compile_i32(0);
         }
@@ -2551,6 +2566,55 @@ compilation_semantics: fn(&mut Self, usize)){
 
     primitive!{fn marker(&mut self) {
         self.define(Core::unmark, Core::compile_unmark);
+    }}
+
+    /// Run time behavior of words created by `create` ... `does>`.
+    ///
+    /// Example of does>
+    /// : 2, ( n1 n2 -- )   here 2 cells allot 2! ;
+    /// : 2constant   create 2, does> 2@ ;
+    /// 4 40 2constant range
+    ///
+    /// 2constant
+    /// +--------+----+-------+------+----+------+
+    /// | create | 2, | _does | exit | 2@ | exit |
+    /// +--------+----+-------+------+----+------+
+    ///                                ^
+    /// range                          |
+    ///                                |
+    ///   cfa                          |
+    ///   +------+                     |
+    ///   | does |                     |
+    ///   +------+                     |
+    ///                                |
+    ///     +--------------------------+
+    ///     |  dfa
+    ///   +---+---+----+
+    ///   |   | 4 | 40 |
+    ///   +---+---+----+
+    ///
+    primitive!{fn does(&mut self) {
+        let wp = self.state().word_pointer;
+        let dfa = self.wordlist()[wp].dfa();
+        self.s_stack().push(dfa as isize);
+        let doer = self.data_space().get_i32(dfa - mem::size_of::<i32>()) as usize;
+        let rlen = self.r_stack().len.wrapping_add(1);
+        self.r_stack().len = rlen;
+        self.r_stack()[rlen.wrapping_sub(1)] = self.state().instruction_pointer as isize;
+        self.state().instruction_pointer = doer;
+    }}
+
+    /// Run time behavior of does>.
+    primitive!{fn _does(&mut self) {
+        let doer = self.state().instruction_pointer + mem::size_of::<i32>();
+        let def = self.last_definition();
+        let dfa = {
+            let word = &mut self.wordlist_mut()[def];
+            word.action = Core::does;
+            word.dfa()
+        };
+        // Note: need to change create.
+        self.data_space().put_i32(doer as i32, dfa - mem::size_of::<i32>());
     }}
 
     // -----------
@@ -2984,6 +3048,39 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn execute(&mut self) {
         let t = self.s_stack().pop();
         self.execute_word(t as usize);
+    }}
+
+    /// Compilation: ( "<spaces>name" -- )
+    /// Run-time: ( -- xt )
+    ///
+    /// Forth 2012 6.1.2510
+    primitive!{fn bracket_tick(&mut self) {
+        self.parse_word();
+        let last_token = self.last_token().take().expect("last token");
+        if last_token.is_empty() {
+            self.set_last_token(last_token);
+            self.abort_with(UnexpectedEndOfFile);
+        } else {
+            match self.find(&last_token) {
+                Some(found_index) => {
+                    self.compile_integer(found_index as isize);
+                    self.set_last_token(last_token);
+                }
+                None => {
+                    self.set_last_token(last_token);
+                    self.abort_with(UndefinedWord);
+                }
+            }
+        }
+    }}
+
+    /// Execution: ( xt -- )
+    ///
+    /// Forth 2012 6.2.0945
+    /// Append the execution semantics of the definition represented by xt to the execution semantics of the current definition.
+    primitive!{fn compile_comma(&mut self) {
+        let v = self.s_stack().pop();
+        self.data_space().compile_i32(v as i32);
     }}
 
     /// Run-time: ( -- addr )

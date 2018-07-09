@@ -879,7 +879,6 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         let _ = self.r_stack().pop3();
     }}
 
-
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn leave(&mut self) {
         let (third, _, _) = self.r_stack().pop3();
@@ -2299,7 +2298,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 parser::IResult::Err(e) => {
                     self.set_error(Some(e));
                 }
-            }
+            },
             parser::IResult::Err(e) => {
                 self.set_error(Some(e));
             }
@@ -3297,7 +3296,6 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn abort(&mut self) {
         self.abort_with(Abort);
     }}
-
 }
 
 #[cfg(test)]
@@ -5133,7 +5131,11 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         vm.load("./lib.fs");
         if vm.last_error().is_some() {
-            eprintln!("Error {:?} at {:?}", vm.last_error().unwrap(), vm.last_token());
+            eprintln!(
+                "Error {:?} at {:?}",
+                vm.last_error().unwrap(),
+                vm.last_token()
+            );
         }
         assert_eq!(vm.last_error(), None);
         vm.set_source("CREATE FLAGS 8190 ALLOT   VARIABLE EFLAG");

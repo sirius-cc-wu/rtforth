@@ -182,7 +182,10 @@ mod tests {
     fn test_quoted_char() {
         assert_eq!(quoted_char(b"'''"), IResult::Done(b"", 39));
         assert_eq!(quoted_char(b"'*'"), IResult::Done(b"", 42));
-        assert_eq!(quoted_char(b"''"), IResult::Err(Exception::ResultOutOfRange));
+        assert_eq!(
+            quoted_char(b"''"),
+            IResult::Err(Exception::ResultOutOfRange)
+        );
         assert_eq!(quoted_char(b""), IResult::Err(Exception::ResultOutOfRange));
     }
 

@@ -82,7 +82,6 @@ pub trait Float: Core {
         self.data_space().align_f64();
     }}
 
-
     primitive!{fn pi(&mut self) {
         self.f_stack().push(PI);
     }}

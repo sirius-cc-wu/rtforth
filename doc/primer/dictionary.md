@@ -5,7 +5,16 @@ Forth 系統核心的資料結構有二：
 * 堆疊：參數堆疊、浮點堆疊，以及本書未深入提及的返回堆疊。指令和指令之間的資料透過堆疊傳遞。
 * 字典：記錄 Forth 所有的指令。提供文本解譯器查尋及執行指令的功能。
 
-在之前的章節，我們花了許多篇幅熟悉堆疊的操作。以及熟悉眾多指令中的一種：冒號定義指令。在這章我們把重點放在字典，以及指令存放在字典中的方式。我們將熟悉除了冒號定義之外其他型式的指令：字典標記指令、常數指令、變數指令、自行定義的資料結構指令。我們也將學習如何使用字典中的記憶空間。
+在之前的章節，我們花了許多篇幅熟悉堆疊的操作。以及熟悉眾多指令中的一種：冒號定義指令。在這章我們把重點放在字典，在字典中增加新的指令的方法，以及指令存放在字典中的方式。
+
+想在字典中增加新的指令，可以使用「定義指令」。冒號就是一種定義指令。以下是我們將在這章學到的定義指令：
+
+* 定義字典標記： `marker`
+* 定義常數：`constant` 、 `2constant` 、 `fconstant`
+* 定義變數：`variable` 、 `2variable` 、 `fvariable`
+* 定義資料結構：`create` 、 `+field`
+
+我們也將學習如何使用字典中的記憶空間。
 
 ## 指令 words
 
@@ -143,6 +152,13 @@ marker -program
 \ 執行工件程式
 run
 ```
+
+### 本節指令集
+
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|----------------------------------------|--------|
+| `marker <name>` | ( -- ) &emsp;  | marker |
+
 -----------
 ## 常數
 像 `true` 、 `false` 和 `pi` 這類被賦與固定數值的指令，被稱為常數。Forth 定義整數常數的方法如下：
@@ -151,9 +167,9 @@ run
 <整數> <整數> 2constant <常數名>
 <浮點數> fconstant <常數名>
 ```
-指令 `constant` 從堆疊上取得整數，從輸入緩衝區取得跟在它後面的名稱，然後在字典裡建立了一個同名的常數。指令 `fconstant` 的行為類似，但定義的是浮點數常數。而 2constant 則從堆疊上取得一組兩個整數，為它們定義了一個常數。
+指令 `constant` 從堆疊上取得整數，從輸入緩衝區取得跟在它後面的名稱，然後在字典裡建立了一個同名的常數。指令 `fconstant` 的行為類似，但定義的是浮點數常數。而 `2constant` 則從堆疊上取得兩個整數，為它們定義了一個常數。
 
-例子：定義自己的真、假、圓週率常數
+例一：定義自己的真、假、圓週率常數
 ```
 rf> -1 constant my-true
  ok
@@ -165,14 +181,14 @@ rf> my-true .  my-false .  my-pi f.
 -1 0 3.1415927  ok
 ```
 
-例子：某機器只能在 4 度到 40 度之間工作，超過就要停機，請將 4 和 40 這組數字定為一常數 `range` 並以 `within` 分別判斷 3 度、20 度及 40 度是否落在機器可以工作的範圍內。
+例二：某機器只能大於或等於 4&deg;C ，小於 40&deg;C 時工作，超過就要停機，請將 4 和 40 這組數字定為一常數 `range` 並以 `within` 分別判斷 3 度、20 度及 40 度是否落在機器可以工作的範圍內。
 
 ```
 4 40 2constant range
 : in-range ( n -- )   range within ;
 ```
 
-下圖顯示使用 `constant` 、 `2constant` 和 `fconstant` 定義出來的字在字典中的樣子。這只是一個示意圖。不同的 Forth 版本間差異可能很大。
+以下是使用 `constant` 和 `fconstant` 定義出來的指令在字典中的示意圖。
 
 ```
 -1 constant my-true
@@ -198,37 +214,48 @@ rf> my-true .  my-false .  my-pi f.
             +--------------+   |   +--------------+
                                +-> | 3.141592653e | 資料空間
                                    +--------------+
-4 40 2constant range
 
-            +-----------+
-        名稱 | range     |
-            +-----------+      +---------------------------+
-        行為 | two-const | ---> | 將資料空間內的整數放上資料堆疊 | 程式碼空間
-            +-----------+      +---------------------------+
-        資料 |           | --+
-            +-----------+   |   +----+----+
-                            +-> | 4  | 40 | 資料空間
-                                +----+----+
 ```
 
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `constant` | ( -- ) &emsp; | constant |
-| `2constant` | ( -- ) &emsp; | two-constant |
-| `fconstant` | ( -- ) &emsp; | f-constant |
+| `constant <name>` | ( n -- ) &emsp; | constant |
+| `2constant <name>` | ( n1 n2 -- ) &emsp; | two-constant |
+| `fconstant <name>` | ( F: r -- ) &emsp; | f-constant |
 
 ## 變數
 
-通常 Forth 的程式在計算過程中會將計算結果放在堆疊上，然後很快的再以其他指令處理這些結果。有些時候我們並不想立刻使用這些結果，而希望能將結果放在堆疊以外的地方。變數提供了這樣的機制：一塊能存放資料的記憶體空間。類似常數，Forth 提供了 `variable` 、 `2variable` 及 `fvariable` 讓我們能定義不同種類的變數。
+通常 Forth 的程式在計算過程中會將計算結果放在堆疊上，再以其他指令處理這些結果。有時我們並不想立刻使用這些結果，希望能將結果放在堆疊以外的地方。變數提供了這樣的機制：一塊能存放資料的記憶體空間。Forth 提供了 `variable` 、 `2variable` 及 `fvariable` 等指令讓我們能定義不同種類的變數。
 
-例子：
+例子：之前的章節提到了亂數產生器。那時我們將亂數的種子放在堆疊上。現在讓我們將種子放在變數裡。
+
 ```
-variable 狀態  (　定義一個名為「狀態」的整數變數 )
-%001 constant 冷氣  ( 以右邊數來第一個位元代表冷氣開關 )
-%010 constant 風扇  ( 以右邊數來第二個位元代表風扇開關 )
-%100 constant 冰箱 ( 以右邊數來第三 個位元代表風扇開關 )
-%111 constant 全部
+: xorshift ( n -- x ) dup 13 lshift xor dup 17 rshift xor dup 5 lshift xor ;
+variable seed   2463534242 seed !
+: rnd ( n1 -- n2 )   seed @  xorshift  dup seed !  swap mod abs ;
+```
+以上的 `xorshift` 就是之前的 `xorshift`。我們以 `variable` 定義了一個變數 `seed`，並使用指令 `!` 隨便存了一個整數 2463534242 到這個變數中。之後定了一個指令 `rnd` 使用指令 `@` 從 `seed` 拿出目前的種子，使用 `xorshift` 算出新的種子，複製一份保存在 `seed` 中。然後把這新的種子依前一章的方式求 `n1` 的餘數，並以 `abs` 求正數。
+
+測試一下：
+
+```
+rf> 100 rnd .
+47  ok
+rf> 100 rnd .
+11  ok
+rf> 100 rnd .
+77  ok
+```
+
+在上面的例子中我們學到了三個新的指令：`variable` 、 `@` 及 `!`。
+
+```
+variable status  (　定義一個名為「狀態」的整數變數 )
+%001 constant air-conditioner   ( 以右邊數來第一個位元代表冷氣開關 )
+%010 constant fan  ( 以右邊數來第二個位元代表風扇開關 )
+%100 constant window ( 以右邊數來第三 個位元代表窗戶是否打開 )
+%111 constant all
 %11　狀態　!        ( 目前的狀態是冷氣和風扇都開著、冰箱關著 )
 冷氣 風扇 or　狀態　!        ( 目前的狀態是冷氣和風扇都開著、冰箱關著 )
 冷氣  狀態　@  and  .  ( 檢查冷氣是否開著 )
@@ -240,16 +267,16 @@ variable 狀態  (　定義一個名為「狀態」的整數變數 )
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `variable` | ( -- ) &emsp; | variable |
-| `2variable` | ( -- ) &emsp; | two-variable |
-| `fvariable` | ( -- ) &emsp; | f-variable |
-| `@` | ( -- ) &emsp; | fetch |
-| `!` | ( n a -- ) &emsp; 將 n 存在位址 a  | store |
-| `2@` | ( -- ) &emsp; | two-fetch |
-| `2!` | ( -- ) &emsp; | two-store |
-| `+!` | ( n a -- ) &emsp; 將位址 a 內的整數加 n | plus-store |
-| `f@` | ( -- ) &emsp; | f-fetch |
-| `f!` | ( -- ) &emsp; | f-store |
+| `variable <name>` | ( -- ) &emsp; | variable |
+| `2variable <name>` | ( -- ) &emsp; | two-variable |
+| `fvariable <name>` | ( -- ) &emsp; | f-variable |
+| `@` | ( addr -- ) &emsp; | fetch |
+| `!` | ( n addr -- ) &emsp; 將 n 存在位址 a  | store |
+| `2@` | ( addr -- n1 n2 ) &emsp; | two-fetch |
+| `2!` | ( n1 n2 addr -- ) &emsp; | two-store |
+| `+!` | ( n addr -- ) &emsp; 將位址 a 內的整數加 n | plus-store |
+| `f@` | ( addr -- ) ( F: -- r ) &emsp; | f-fetch |
+| `f!` | ( addr -- ) ( F: r -- ) &emsp; | f-store |
 
 -------------------
 ## 定義自己的資料結構
@@ -321,13 +348,9 @@ rf> falign  here .
 | `f,` | ( -- ) &emsp; | f-comma |
 | `falign` | ( -- ) &emsp; | f-align |
 | `faligned` | ( -- ) &emsp; | f-aligned |
-| `create` | ( -- ) &emsp; | create |
-
-### 本節指令集
-
-| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
-|-----|----------------------------------------|--------|
-| `marker` | ( -- ) &emsp;  | marker |
+| `create <name>` | ( -- ) &emsp; | create |
+| `does>` | ( -- ) &emsp; | does |
+| `+field` | ( -- ) &emsp; | pluse-field |
 
 -------------
 ## 本章重點整理
@@ -344,5 +367,4 @@ rf> falign  here .
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|------------------------------------|--------|
-| `create` | ( -- ) &emsp; | create |
 | `+field` | ( -- ) &emsp; | pluse-field |

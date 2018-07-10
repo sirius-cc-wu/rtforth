@@ -422,12 +422,17 @@ rf> 100 rnd .
 
 CREATE
 
+### 向量執行
+
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
 | `create <name>` | ( -- ) &emsp; | create |
 | `does>` | ( -- ) &emsp; | does |
 | `+field` | ( -- ) &emsp; | pluse-field |
+| `execute` | ( -- ) &emsp; | execute |
+| `'` | ( -- ) &emsp; |  |
+| `[']` | ( -- ) &emsp; | |
 
 -------------
 ## 本章重點整理
@@ -439,6 +444,7 @@ CREATE
 * 資料空間 (data space)
 * 程式碼空間 (code space)
 * 標記指令 (marker)
+* 向量執行 (vector execution)
 
 -----------
 ## 本章指令集

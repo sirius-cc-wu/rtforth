@@ -31,5 +31,6 @@ variable >in  0 >in !
 : does> ( -- ) ['] _does compile,  ['] exit compile, ; immediate compile-only
 : 2constant   create 2, does>  2@ ;
 : 2variable   create  0 , 0 , ;
+: pad ( -- addr )   here 512 + aligned ;
 
 marker -work

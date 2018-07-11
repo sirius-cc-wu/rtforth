@@ -14,6 +14,8 @@
 : cr ( -- )   10 emit ;
 : aligned ( addr -- a-addr )   1 cells 1- +  1 cells 1- invert and ;
 : align ( -- )   here aligned  here - allot ;
+: floats ( n -- n*8 )   8 * ;
+: float+ ( n -- n+8 )   8 + ;
 : 2@ ( a-addr -- x1 x2 )   dup cell+ @ swap @ ;
 : 2! ( x1 x2 a-addr -- )   swap over !  cell+ ! ;
 : +! ( n|u a-addr -- )   dup @ rot + swap ! ;

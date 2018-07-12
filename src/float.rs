@@ -8,7 +8,8 @@ use {FALSE, TRUE};
 pub trait Float: Core {
     fn add_float(&mut self) {
         self.add_primitive("fconstant", Float::fconstant);
-        self.add_primitive("fvariable", Float::fvariable);
+        self.add_primitive("float+", Float::float_plus);
+        self.add_primitive("floats", Float::floats);
         self.add_primitive("faligned", Float::faligned);
         self.add_primitive("falign", Float::falign);
         self.add_primitive("pi", Float::pi);
@@ -59,12 +60,6 @@ pub trait Float: Core {
         self.f_stack().push(v);
     }}
 
-    primitive!{fn fvariable(&mut self) {
-        self.define(Core::p_var, Core::compile_var);
-        self.data_space().align_f64();
-        self.data_space().compile_f64(0.0);
-    }}
-
     primitive!{fn fconstant(&mut self) {
         let v = self.f_stack().pop();
         self.define(Float::p_fconst, Core::compile_fconst);
@@ -72,12 +67,34 @@ pub trait Float: Core {
         self.data_space().compile_f64(v);
     }}
 
+    /// Run-time: ( a-addr1 -- a-addr2 )
+    ///
+    /// Add the size in address units of a float to `a-addr1`, giving `a-addr2`.
+    primitive!{fn float_plus(&mut self) {
+        let v = self.s_stack().pop();
+        self.s_stack().push(v + mem::size_of::<f64>() as isize);
+    }}
+
+    /// Run-time: ( n1 -- n2 )
+    ///
+    /// `n2` is the size in address units of `n1` floats.
+    primitive!{fn floats(&mut self) {
+        let v = self.s_stack().pop();
+        self.s_stack().push(v * mem::size_of::<f64>() as isize);
+    }}
+
+    /// Run-time: ( addr -- a-addr )
+    ///
+    /// Return `a-addr`, the first float-aligned address greater than or equal to `addr`.
     primitive!{fn faligned(&mut self) {
         let pos = self.s_stack().pop();
         let pos = DataSpace::aligned_f64(pos as usize);
         self.s_stack().push(pos as isize);
     }}
 
+    /// Run-time: ( -- )
+    ///
+    /// If the data-space pointer is not float-aligned, reserve enough space to align it.
     primitive!{fn falign(&mut self) {
         self.data_space().align_f64();
     }}
@@ -387,9 +404,9 @@ mod tests {
     }
 
     #[test]
-    fn test_fvariable_and_fstore_ffetch() {
+    fn test_fstore_ffetch() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("fvariable fx  fx f@  3.3E fx f!  fx f@");
+        vm.set_source("3.3e here f!  0.0e  here f@");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [0.0, 3.3]);

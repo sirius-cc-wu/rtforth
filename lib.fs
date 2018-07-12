@@ -12,10 +12,6 @@
 : f> ( -- flag ) ( F: r1 r2 -- )  f< invert ;
 : ?dup ( x -- 0 | x x )   dup if dup then ;
 : cr ( -- )   10 emit ;
-: aligned ( addr -- a-addr )   1 cells 1- +  1 cells 1- invert and ;
-: align ( -- )   here aligned  here - allot ;
-: floats ( n -- n*8 )   8 * ;
-: float+ ( n -- n+8 )   8 + ;
 : f, ( F: r -- )   here  1 floats allot  f! ;
 : 2@ ( a-addr -- x1 x2 )   dup cell+ @ swap @ ;
 : 2! ( x1 x2 a-addr -- )   swap over !  cell+ ! ;
@@ -27,13 +23,15 @@
 : fill ( c-addr u char -- )
     swap dup 0> if >r swap r>  0 do 2dup i + c! loop
     else drop then 2drop ;
+: variable   create  0 , ;
+: does> ( -- ) ['] _does compile,  ['] exit compile, ; immediate compile-only
+: 2constant   create 2, does>  2@ ;
+: 2variable   create  0 , 0 , ;
+: fvariable   create  0e f, ;
 variable #tib  0 #tib !
 variable tib 256 allot
 : source ( -- c-addr u )   tib #tib @ ;
 variable >in  0 >in !
-: does> ( -- ) ['] _does compile,  ['] exit compile, ; immediate compile-only
-: 2constant   create 2, does>  2@ ;
-: 2variable   create  0 , 0 , ;
 : pad ( -- addr )   here 512 + aligned ;
 
 marker -work

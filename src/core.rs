@@ -471,6 +471,8 @@ pub trait Core: Sized {
         self.add_primitive("chars", Core::chars); // eForth
         self.add_primitive("here", Core::here);
         self.add_primitive("allot", Core::allot);
+        self.add_primitive("aligned", Core::aligned);
+        self.add_primitive("align", Core::align);
         self.add_primitive("c@", Core::c_fetch);
         self.add_primitive("c!", Core::c_store);
         self.add_primitive("base", Core::base);
@@ -528,7 +530,6 @@ pub trait Core: Sized {
         self.add_primitive("parse", Core::parse);
         self.add_primitive(":", Core::colon);
         self.add_primitive("constant", Core::constant);
-        self.add_primitive("variable", Core::variable);
         self.add_primitive("create", Core::create);
         self.add_primitive("'", Core::tick);
         self.add_primitive("]", Core::right_bracket);
@@ -2531,13 +2532,6 @@ compilation_semantics: fn(&mut Self, usize)){
         self.define(Core::p_var, Core::compile_var);
     }}
 
-    primitive!{fn variable(&mut self) {
-        self.create();
-        if self.last_error().is_none() {
-            self.data_space().compile_i32(0);
-        }
-    }}
-
     primitive!{fn constant(&mut self) {
         let v = self.s_stack().pop();
         self.define(Core::p_const, Core::compile_const);
@@ -3098,6 +3092,22 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn allot(&mut self) {
         let v = self.s_stack().pop();
         self.data_space().allot(v);
+    }}
+
+    /// Run-time: ( addr -- a-addr )
+    ///
+    /// Return `a-addr`, the first aligned address greater than or equal to `addr`.
+    primitive!{fn aligned(&mut self) {
+        let pos = self.s_stack().pop();
+        let pos = DataSpace::aligned(pos as usize);
+        self.s_stack().push(pos as isize);
+    }}
+
+    /// Run-time: ( -- )
+    ///
+    /// If the data-space pointer is not aligned, reserve enough space to align it.
+    primitive!{fn align(&mut self) {
+        self.data_space().align();
     }}
 
     /// Run-time: ( x -- )
@@ -4606,7 +4616,7 @@ mod tests {
     }
 
     #[test]
-    fn test_variable_and_store_fetch() {
+    fn test_create_and_store_fetch() {
         let vm = &mut VM::new(16, 16);
         // @
         vm.set_source("@");
@@ -4620,14 +4630,14 @@ mod tests {
         assert_eq!(vm.last_error(), Some(InvalidMemoryAddress));
         vm.reset();
         vm.clear_stacks();
-        // variable x x !
-        vm.set_source("variable x x !");
+        // create x  1 cells allot  x !
+        vm.set_source("create x  1 cells allot  x !");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        // variable x  x @  3 x !  x @
-        vm.set_source("variable x  x @  3 x !  x @");
+        // create x  1 cells allot  x @  3 x !  x @
+        vm.set_source("create x  1 cells allot  x @  3 x !  x @");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
@@ -4636,12 +4646,12 @@ mod tests {
     }
 
     #[test]
-    fn test_variable_and_fetch_in_colon() {
+    fn test_create_and_fetch_in_colon() {
         let vm = &mut VM::new(16, 16);
-        // variable x
+        // create x  1 cells allot
         // 7 x !
         // : x@ x @ ; x@
-        vm.set_source("variable x  7 x !  : x@ x @ ;  x@");
+        vm.set_source("create x  1 cells allot  7 x !  : x@ x @ ;  x@");
         vm.evaluate();
         vm.run();
         assert_eq!(vm.s_stack().pop(), 7);
@@ -5138,7 +5148,7 @@ mod tests {
             );
         }
         assert_eq!(vm.last_error(), None);
-        vm.set_source("CREATE FLAGS 8190 ALLOT   VARIABLE EFLAG");
+        vm.set_source("CREATE FLAGS 8190 ALLOT   CREATE EFLAG  1 CELLS ALLOT");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         vm.set_source(

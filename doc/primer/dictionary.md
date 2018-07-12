@@ -386,7 +386,7 @@ Forth 2012 標準並未提供相當於指令 `,` 的雙單元的編譯指令 `2,
 
 ### 對齊
 
-此外，資料放進記憶體的開始位址必須符合 CPU 的對齊 (alignment) 規則。
+資料放進記憶體的開始位址應符合 CPU 的對齊 (alignment) 規則。比如 32 位元的整數因為是由 4 個位元組構成，應該放在開始位址是 4 的倍數的地方。而 64 位元的浮點數則應放在開始址址是 8 的倍數的地方。這方便 CPU 的資料匯流排 (data bus) 一次就存取所有的資料。如果資料沒對齊它該有的位址，因為無法一次存取，指令執行的性能變差。甚至在某些 CPU 會無法正確取得資料。在 ARMv7 以上的版本以及 Intel 的 CPU 上，資料都能正確存取。就是性能需要注意。
 
 | Forth   | 作業系統 | 整數對齊位址 | 浮點數對齊位址 |
 |---------|---------|------------|-------------|
@@ -395,31 +395,75 @@ Forth 2012 標準並未提供相當於指令 `,` 的雙單元的編譯指令 `2,
 | SwiftForth | 64 位元 Linux | 4 的倍數 | 8 的倍數 |
 | gforth | 64 位元 Linux | 8 的倍數 | 8 的倍數 |
 
-在這個例子中，原本未使用的記憶體從 1096 開始，但以 `1 allot` 配置了一個位元組後，改從 1097 開始。本來 1096 同時符合整數和浮點數的對齊原則。現在不合了，我們可以使用指令 `align` 或 `falign` 修正 here ，重新對齊。
+指令 `aligned` 及 `faligned` 分別調整疊頂的整數使其符合整數及浮點的對齊原則。
 
+例子：
 ```
+rf> 0 aligned .   1 aligned .
+0 4  ok
+rf> 0 faligned .   1 faligned .
+0 8  ok
+```
+上例中因為 1 不符合對齊原則而被 `aligned` 及 `faligned` 調整為符合的數值。
+
+指令 `align` 和 `falign` 則分別調整 `here` 的回傳值使其符合整數及浮點數的對齊原則。
+
+例子：
+```
+rf> here .
+1312  ok
+rf> 1312 aligned .   1312 faligned .
+1312 1312  ok
+rf> 1 allot  here .
+1313  ok
+rf> 1313 aligned .   1313 faligned .
+1316 1320  ok
 rf> align  here .
-1100  ok
+1316  ok
 rf> falign  here .
-1104  ok
+1320  ok
 ```
+上例中 1312 符合對齊原則。將過 `1 allot` 後，`here` 變成 1313，不符合對齊原則。我們以 `align` 修正使得 here 變成符合整數對齊原則的 1316，之後又以 `falign` 修正使其變成符合浮點數對齊原則的 1320。
 
 ### 浮點數的資料空間指令
 
 類似 `!` 、 `@` 和 `,`，Forth 提供了浮點數的版本： `f!` 、`f@` 、 `f,` 。
+因為 `f,` 不是 Forth 2012 標準，如果你的系統沒有 `f,`，可以定義 `f,` 如下：
+```
+: f, ( F: r -- )   here  1 floats allot  f! ;
+```
 
 請進行以下練習：
 
 ```
 rf> -work  marker -work  here .
-rf>
+1344  ok
+rf> falign here .
+1344  ok
+rf> 1 floats allot   1e 1344 f!
+ ok
+rf> 1344 f@ f.
+1.0000000  ok
+rf> 3 ,  falign  1e f,  2e f,  3e f,
+ ok
+rf> 1344 float+  dup ?  cell+ faligned dup f@ f.  float+ dup f@ f.  float+ dup f@ f.
+3 1.0000000 2.0000000 3.0000000  ok
 ```
+
+在練習中，我們先以 `falign` 調整 `here` 的位置。然後使用 `1 floats allot` 配置一個浮點數大小的空間，再使用 `f!` 把浮點數 1.0 放進了這個空間。之後使用 `f@` 取出並以 `f.` 印出，確認數值是正確的。之後我們編譯了一個大小為三的浮點數陣列到字典中。首先我們使用 `3 ,` 先編譯了這個陣列的大小，也就是 3。因為這個編譯行為會造成 `here` 不再對齊浮點數所需的位址。所以我們使用 `falign` 調整 `here`，之後再以 `1e f, 2e f, 3e f,` 將三個浮點數編譯到字典中。
+
+要取出那陣列的資料時，我們使用 `1344 float+` 先跳過最早之前使用 `f!` 存放的那個數。然後印出陣列的長度，再以 `cell+ faligned` 跳過陣列的長度到下一個對齊浮點數的位址，以 `f@ f.` 印出，再以 `float+ dup f@ f.` 跳過這個浮點數並印出下一個。
+
+經過這個的練習應該能瞭解如何使用 `faligned` 和 `falign`。這對之後要自行定義有浮點數的資料結構時會有幫助。
 
 ### 本節指令集
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|------------------------------------|--------|
 | `cells` | ( -- ) &emsp; | cells |
+| `cell+` | ( -- ) &emsp; | cell+ |
+| `floats` | ( -- ) &emsp; | floats |
+| `float+` | ( -- ) &emsp; | float+ |
 | `here` | ( -- ) &emsp; | here |
 | `allot` | ( -- ) &emsp; | allot |
 | `!` | ( n addr -- ) &emsp; 將 n 存在位址 addr  | store |
@@ -433,7 +477,6 @@ rf>
 | `f!` | ( addr -- ) ( F: r -- ) &emsp; 將 r 存在位址 addr  | f-store |
 | `f@` | ( addr -- ) ( F: -- r ) &emsp; | f-fetch |
 | `f,` | ( -- ) &emsp; | f-comma |
-| `cell+` | ( -- ) &emsp; | cell+ |
 | `align` | ( -- ) &emsp; | align |
 | `aligned` | ( -- ) &emsp; | aligned |
 | `falign` | ( -- ) &emsp; | f-align |

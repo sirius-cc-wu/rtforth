@@ -2635,7 +2635,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(FALSE);
     }}
 
-    /// Run-time: (c-addr1 -- c-addr2 )
+    /// Run-time: ( c-addr1 -- c-addr2 )
     ///
     ///Add the size in address units of a character to `c-addr1`, giving `c-addr2`.
     primitive!{fn char_plus(&mut self) {
@@ -2643,7 +2643,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(v + mem::size_of::<u8>() as isize);
     }}
 
-    /// Run-time: (n1 -- n2 )
+    /// Run-time: ( n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` characters.
     primitive!{fn chars(&mut self) {
@@ -2651,7 +2651,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(v * mem::size_of::<u8>() as isize);
     }}
 
-    /// Run-time: (a-addr1 -- a-addr2 )
+    /// Run-time: ( a-addr1 -- a-addr2 )
     ///
     /// Add the size in address units of a cell to `a-addr1`, giving `a-addr2`.
     primitive!{fn cell_plus(&mut self) {
@@ -2659,7 +2659,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(v + mem::size_of::<i32>() as isize);
     }}
 
-    /// Run-time: (n1 -- n2 )
+    /// Run-time: ( n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` cells.
     primitive!{fn cells(&mut self) {

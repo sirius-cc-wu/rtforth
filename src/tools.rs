@@ -12,13 +12,22 @@ pub trait Tools: Output {
     ///
     /// Display values on the data stack.
     primitive!{fn dot_s(&mut self) {
-        let mut buf = self.output_buffer().take().unwrap();
-        write!(buf, "TODO: .s").unwrap();
+        match self.output_buffer().take() {
+            Some(mut buf) => {
+                if self.s_stack().len() > 0 {
+                    write!(buf, "{:?}", self.s_stack()).expect("write data stack");
+                }
+                if self.f_stack().len() > 0 {
+                    if self.s_stack().len() > 0 {
+                        write!(buf, " ").unwrap();
+                    }
+                    write!(buf, "F: {:?}", self.f_stack()).expect("write floating stack");
+                }
+                self.set_output_buffer(buf);
+            }
+            None => {}
+        }
         //        write!(buf, "<{}> ", self.s_stack().len()).unwrap();
-        //        for s in self.s_stack().iter() {
-        //            write!(buf, "{} ", s).unwrap();
-        //        }
-        self.set_output_buffer(buf);
     }}
 
     /// Run-time: ( -- )

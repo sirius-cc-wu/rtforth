@@ -17,6 +17,7 @@ use rtforth::tools::Tools;
 use rtforth::units::Units;
 use std::env;
 use std::fmt::Write;
+use std::process;
 
 // Virtual machine
 pub struct VM {
@@ -36,6 +37,7 @@ pub struct VM {
     inbuf: Option<String>,
     tkn: Option<String>,
     outbuf: Option<String>,
+    hldbuf: String,
     state: State,
     references: ForwardReferences,
 }
@@ -59,6 +61,7 @@ impl VM {
             inbuf: Some(String::with_capacity(128)),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
+            hldbuf: String::with_capacity(128),
             state: State::new(),
             references: ForwardReferences::new(),
         };
@@ -70,6 +73,20 @@ impl VM {
         vm.add_float();
         vm.add_units();
         vm.add_primitive("accept", p_accept);
+        vm.add_primitive("bye", bye);
+
+        let libfs = include_str!("../lib.fs");
+        vm.load_str(libfs);
+        if vm.last_error().is_some() {
+	    panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
+        }
+
+        let libfs = include_str!("./lib.fs");
+        vm.load_str(libfs);
+        if vm.last_error().is_some() {
+	    panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
+        }
+
         vm
     }
 }
@@ -98,6 +115,9 @@ impl Core for VM {
     }
     fn code_space_const(&self) -> &CodeSpace {
         &self.code_space
+    }
+    fn hold_buffer(&mut self) -> &mut String {
+        &mut self.hldbuf
     }
     fn output_buffer(&mut self) -> &mut Option<String> {
         &mut self.outbuf
@@ -168,6 +188,7 @@ impl Tools for VM {}
 
 fn main() {
     let vm = &mut VM::new(1024, 1024);
+
     let mut bye = false;
 
     let args: Vec<_> = env::args().collect();
@@ -211,7 +232,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.1.39, Copyright (C) 2017 Mapacode Inc.");
+    println!("rtForth v0.3.0, Copyright (C) 2018 Mapacode Inc.");
 }
 
 primitive!{fn p_accept(vm: &mut VM) {
@@ -221,7 +242,7 @@ primitive!{fn p_accept(vm: &mut VM) {
             vm.set_source(&line);
         }
         Err(rustyline::error::ReadlineError::Eof) => {
-            vm.bye();
+            bye(vm);
         }
         Err(err) => {
             match vm.output_buffer().as_mut() {
@@ -234,27 +255,13 @@ primitive!{fn p_accept(vm: &mut VM) {
     }
 }}
 
+primitive!{fn bye(vm: &mut VM) {
+    vm.p_flush();
+    process::exit(0);
+}}
+
 #[inline(never)]
 fn repl(vm: &mut VM) {
-    vm.set_source(
-        "
-        : EVALUATE
-            BEGIN PARSE-WORD
-            TOKEN-EMPTY? NOT  ERROR? NOT  AND
-            WHILE
-            COMPILING? IF COMPILE-TOKEN ?STACKS ELSE INTERPRET-TOKEN ?STACKS THEN
-            REPEAT ;
-        : QUIT
-            RESET
-            BEGIN ACCEPT EVALUATE
-            .\"  ok\" FLUSH
-            AGAIN ;
-        : (ABORT) HANDLE-ERROR FLUSH QUIT ;
-        ' (ABORT) HANDLER!
-    ",
-    );
-    vm.evaluate();
-    vm.run();
     let quit = vm.find("QUIT").expect("QUIT");
     vm.execute_word(quit);
     vm.run();

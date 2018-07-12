@@ -13,7 +13,6 @@ use std::fmt::Write;
 use std::fmt::{self, Display};
 use std::mem;
 use std::ops::{Index, IndexMut};
-use std::process;
 use std::result;
 use std::str;
 use {FALSE, TRUE};
@@ -234,47 +233,37 @@ impl Index<u8> for Stack<Control> {
 
 impl fmt::Debug for Stack<isize> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match write!(f, "<{}> ", self.len()) {
-            Ok(_) => {
-                if self.len == 0 {
-                } else {
-                    for i in 0..self.len {
-                        let v = self[i];
-                        match write!(f, "{} ", v) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                return Err(e);
-                            }
-                        }
+        if self.len == 0 {
+        } else {
+            for i in 0..self.len {
+                let v = self[i];
+                match write!(f, "{} ", v) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        return Err(e);
                     }
                 }
-                Ok(())
             }
-            Err(e) => Err(e),
         }
+        Ok(())
     }
 }
 
 impl fmt::Debug for Stack<f64> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match write!(f, "<F {}> ", self.len()) {
-            Ok(_) => {
-                if self.len == 0 {
-                } else {
-                    for i in 0..self.len {
-                        let v = self[i];
-                        match write!(f, "{} ", v) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                return Err(e);
-                            }
-                        }
+        if self.len == 0 {
+        } else {
+            for i in 0..self.len {
+                let v = self[i];
+                match write!(f, "{:.7} ", v) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        return Err(e);
                     }
                 }
-                Ok(())
             }
-            Err(e) => Err(e),
         }
+        Ok(())
     }
 }
 
@@ -290,6 +279,9 @@ pub struct ForwardReferences {
     pub idx_plus_loop: usize,
     pub idx_s_quote: usize,
     pub idx_type: usize,
+    pub idx_over: usize,
+    pub idx_equal: usize,
+    pub idx_drop: usize,
 }
 
 impl ForwardReferences {
@@ -306,6 +298,9 @@ impl ForwardReferences {
             idx_plus_loop: 0,
             idx_s_quote: 0,
             idx_type: 0,
+            idx_over: 0,
+            idx_equal: 0,
+            idx_drop: 0,
         }
     }
 }
@@ -352,6 +347,9 @@ pub enum Control {
     Begin(usize),
     While(usize),
     Do(usize, usize),
+    Case,
+    Of(usize),
+    Endof(usize),
 }
 
 impl Default for Control {
@@ -370,6 +368,9 @@ impl Display for Control {
             Control::Begin(_) => "Begin",
             Control::While(_) => "While",
             Control::Do(_, _) => "Do",
+            Control::Case => "Case",
+            Control::Of(_) => "Of",
+            Control::Endof(_) => "Endof",
         };
         write!(f, "{}", s)
     }
@@ -385,6 +386,8 @@ pub trait Core: Sized {
     fn data_space_const(&self) -> &DataSpace;
     fn code_space(&mut self) -> &mut CodeSpace;
     fn code_space_const(&self) -> &CodeSpace;
+    /// Numeric output buffer
+    fn hold_buffer(&mut self) -> &mut String;
     /// Get `output_buffer`.
     fn output_buffer(&mut self) -> &mut Option<String>;
     /// Set `output_buffer` to `Some(buffer)`.
@@ -479,6 +482,10 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("if", Core::imm_if);
         self.add_immediate_and_compile_only("else", Core::imm_else);
         self.add_immediate_and_compile_only("then", Core::imm_then);
+        self.add_immediate_and_compile_only("case", Core::imm_case);
+        self.add_immediate_and_compile_only("of", Core::imm_of);
+        self.add_immediate_and_compile_only("endof", Core::imm_endof);
+        self.add_immediate_and_compile_only("endcase", Core::imm_endcase);
         self.add_immediate_and_compile_only("begin", Core::imm_begin);
         self.add_immediate_and_compile_only("while", Core::imm_while);
         self.add_immediate_and_compile_only("repeat", Core::imm_repeat);
@@ -498,7 +505,10 @@ pub trait Core: Sized {
         self.add_primitive("0<>", Core::zero_not_equals);
         self.add_primitive(">", Core::greater_than);
         self.add_primitive("<>", Core::not_equals);
+        self.add_primitive("within", Core::within);
         self.add_primitive("rot", Core::rot);
+        self.add_primitive("-rot", Core::minus_rot);
+        self.add_primitive("pick", Core::pick);
         self.add_primitive("2dup", Core::two_dup);
         self.add_primitive("2drop", Core::two_drop);
         self.add_primitive("2swap", Core::two_swap);
@@ -507,7 +517,6 @@ pub trait Core: Sized {
         self.add_primitive("mod", Core::p_mod);
         self.add_primitive("abs", Core::abs);
         self.add_primitive("negate", Core::negate);
-        self.add_primitive("between", Core::between);
         self.add_primitive("parse-word", Core::parse_word);
         self.add_primitive("char", Core::char);
         self.add_primitive("parse", Core::parse);
@@ -524,7 +533,6 @@ pub trait Core: Sized {
         self.add_primitive("handle-error", Core::p_handle_error);
         self.add_primitive("reset", Core::reset);
         self.add_primitive("abort", Core::abort);
-        self.add_primitive("bye", Core::bye);
         self.add_primitive("compiling?", Core::p_compiling);
         self.add_primitive("token-empty?", Core::p_token_empty);
         self.add_primitive("compile-token", Core::compile_token);
@@ -539,6 +547,9 @@ pub trait Core: Sized {
         self.references().idx_qdo = self.find("_qdo").expect("_qdo undefined");
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
+        self.references().idx_over = self.find("over").expect("over undefined");
+        self.references().idx_equal = self.find("=").expect("= undefined");
+        self.references().idx_drop = self.find("drop").expect("drop undefined");
 
         self.patch_compilation_semanticses();
     }
@@ -546,6 +557,8 @@ pub trait Core: Sized {
     /// Add a primitive word to word list.
 fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         let symbol = self.new_symbol(name);
+        self.data_space().align();
+        self.code_space().align();
         let word = Word::new(
             symbol,
             action,
@@ -899,6 +912,18 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }
 
+    /// IF A THEN
+    ///
+    ///         +------+
+    ///         |      |
+    ///         |      v
+    /// +-----+---+---+--
+    /// | _if | x | A |
+    /// +-----+---+---+--
+    ///         ^
+    ///         |
+    ///         ip
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_if(&mut self) {
         let idx = self.references().idx_zero_branch;
@@ -908,6 +933,18 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.c_stack().push(Control::If(here));
     }}
 
+    /// IF A ELSE B THEN
+    ///
+    ///             +--------------------+
+    ///             |                    |
+    ///             |                    v
+    /// +---------+---+---+--------+---+---+--
+    /// | ?branch | x | A | branch | x | B |
+    /// +---------+---+---+--------+---+---+--
+    ///             ^                |       ^
+    ///             |                |       |
+    ///             ip               +-------+
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
@@ -946,6 +983,115 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.data_space().len();
             self.data_space()
                 .put_i32(here as i32, branch_part - mem::size_of::<i32>());
+        }
+    }}
+
+    /// n1 CASE
+    ///   n2 OF A ENDOF
+    ///   n3 OF B ENDOF
+    ///   C
+    /// ENDCASE
+    /// D
+    ///
+    /// +-----+----+------+---+---------+---+------+---+--------+---+
+    /// | lit | n2 | over | = | 0branch | x | drop | A | branch | x |
+    /// +-----+----+------+---+---------+---+------+---+--------+---+
+    ///                                   |                       |
+    ///   +-------------------------------+                       +--------------+
+    ///   |                                                       |              |
+    ///   v                                                       |              v
+    /// +-----+----+------+---+---------+---+------+---+--------+---+---+------+---+
+    /// | lit | n3 | over | = | 0branch | x | drop | B | branch | x | C | drop | D |
+    /// +-----+----+------+---+---------+---+------+---+--------+---+---+------+---+
+    ///                                   |                           ^
+    ///                                   |                           |
+    ///                                   +---------------------------+
+    ///
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_case(&mut self) {
+        self.c_stack().push(Control::Case);
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_of(&mut self) {
+        match self.c_stack().pop() {
+            Control::Case => {
+                self.c_stack().push(Control::Case);
+            },
+            Control::Endof(n) => {
+                self.c_stack().push(Control::Endof(n));
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_over;
+            self.compile_word(idx);
+            let idx = self.references().idx_equal;
+            self.compile_word(idx);
+            let idx = self.references().idx_zero_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(0);
+            let here = self.data_space().len();
+            self.c_stack().push(Control::Of(here));
+            let idx = self.references().idx_drop;
+            self.compile_word(idx);
+        }
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_endof(&mut self) {
+        let of_part = match self.c_stack().pop() {
+            Control::Of(of_part) => {
+                of_part
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(0);
+            let here = self.data_space().len();
+            self.c_stack().push(Control::Endof(here));
+            self.data_space()
+                .put_i32(here as i32, of_part - mem::size_of::<i32>());
+        }
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_endcase(&mut self) {
+        let idx = self.references().idx_drop;
+        self.compile_word(idx);
+        loop {
+            let endof_part = match self.c_stack().pop() {
+                Control::Case => { break; }
+                Control::Endof(endof_part) => {
+                    endof_part
+                }
+                _ => {
+                    self.abort_with(ControlStructureMismatch);
+                    return;
+                }
+            };
+            if self.c_stack().underflow() {
+                self.abort_with(ControlStructureMismatch);
+            } else {
+                let here = self.data_space().len();
+                self.data_space()
+                    .put_i32(here as i32, endof_part - mem::size_of::<i32>());
+            }
+        }
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
         }
     }}
 
@@ -2007,7 +2153,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.s_stack().push(value);
     }}
 
-    primitive!{fn evaluate(&mut self) {
+    fn evaluate(&mut self) {
         loop {
             self.parse_word();
             match self.last_token().as_ref() {
@@ -2035,7 +2181,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 break;
             }
         }
-    }}
+    }
 
     primitive!{fn base(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
@@ -2044,22 +2190,40 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     fn evaluate_integer(&mut self, token: &str) {
         let base_addr = self.data_space().system_variables().base_addr();
-        let base = self.data_space().get_isize(base_addr);
-        match parser::sign(&token.as_bytes()) {
-            parser::IResult::Done(bytes, sign) => match parser::uint_in_base(&bytes, base) {
-                parser::IResult::Done(bytes, value) => {
-                    if bytes.len() != 0 {
-                        self.set_error(Some(UnsupportedOperation));
-                    } else {
-                        if self.state().is_compiling {
-                            self.compile_integer(sign * value);
+        let default_base = self.data_space().get_isize(base_addr);
+        match parser::quoted_char(&token.as_bytes()) {
+            parser::IResult::Done(_bytes, c) => {
+                if self.state().is_compiling {
+                    self.compile_integer(c);
+                } else {
+                    self.s_stack().push(c);
+                }
+                return;
+            }
+            parser::IResult::Err(_) => {
+                // Do nothing.
+            }
+        }
+        match parser::base(&token.as_bytes(), default_base) {
+            parser::IResult::Done(bytes, base) => match parser::sign(&bytes) {
+                parser::IResult::Done(bytes, sign) => match parser::uint_in_base(&bytes, base) {
+                    parser::IResult::Done(bytes, value) => {
+                        if bytes.len() != 0 {
+                            self.set_error(Some(UnsupportedOperation));
                         } else {
-                            self.s_stack().push(sign * value);
+                            if self.state().is_compiling {
+                                self.compile_integer(sign * value);
+                            } else {
+                                self.s_stack().push(sign * value);
+                            }
                         }
                     }
+                    parser::IResult::Err(e) => self.set_error(Some(e)),
+                },
+                parser::IResult::Err(e) => {
+                    self.set_error(Some(e));
                 }
-                parser::IResult::Err(e) => self.set_error(Some(e)),
-            },
+            }
             parser::IResult::Err(e) => {
                 self.set_error(Some(e));
             }
@@ -2245,6 +2409,8 @@ compilation_semantics: fn(&mut Self, usize)){
             self.abort_with(UnexpectedEndOfFile);
         } else {
             let symbol = self.new_symbol(&last_token);
+            self.data_space().align();
+            self.code_space().align();
             let word = Word::new(
                 symbol,
                 action,
@@ -2429,6 +2595,25 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack()[slen.wrapping_sub(3)] = n;
     }}
 
+    primitive!{fn minus_rot(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(3)];
+        self.s_stack()[slen.wrapping_sub(3)] = t;
+        self.s_stack()[slen.wrapping_sub(1)] = n;
+    }}
+
+    /// Place a copy of the nth stack entry on top of the stack. `pick ( ... n -- x )`
+    ///
+    /// `0 pick` is equivalent to `dup`.
+    primitive!{fn pick(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)] as u8;
+        let x = self.s_stack()[slen.wrapping_sub(t.wrapping_add(2))];
+        self.s_stack()[slen.wrapping_sub(1)] = x;
+    }}
+
     primitive!{fn two_drop(&mut self) {
         let slen = self.s_stack().len.wrapping_sub(2);
         self.s_stack().len = slen;
@@ -2585,10 +2770,14 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(if n == t { FALSE } else { TRUE });
     }}
 
-    primitive!{fn between(&mut self) {
+    /// `within` ( n1 n2 n3 -- flag )  true if n2 <= n1 and n1 < n3.
+    ///
+    /// Note: implmenetation incompatible with Forth 2012 standards
+    /// when n2 > n3.
+    primitive!{fn within(&mut self) {
         let (x1, x2, x3) = self.s_stack().pop3();
         self.s_stack()
-            .push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE });
+            .push(if x2 <= x1 && x1 < x3 { TRUE } else { FALSE });
     }}
 
     primitive!{fn invert(&mut self) {
@@ -2949,9 +3138,6 @@ compilation_semantics: fn(&mut Self, usize)){
         self.abort_with(Abort);
     }}
 
-    primitive!{fn bye(&mut self) {
-        process::exit(0);
-    }}
 }
 
 #[cfg(test)]
@@ -2990,12 +3176,6 @@ mod tests {
     fn bench_find_word_at_beginning_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
         b.iter(|| vm.find("noop"));
-    }
-
-    #[bench]
-    fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16, 16);
-        b.iter(|| vm.find("bye"));
     }
 
     #[bench]
@@ -3223,6 +3403,36 @@ mod tests {
         vm.s_stack().push(2);
         vm.s_stack().push(3);
         b.iter(|| vm.rot());
+    }
+
+    #[test]
+    fn test_pick() {
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
+        vm.pick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), [0, 0]);
+
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(1);
+        vm.pick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), [1, 0, 1]);
+
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(2);
+        vm.pick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), [2, 1, 0, 2]);
     }
 
     #[test]
@@ -3912,22 +4122,22 @@ mod tests {
     }
 
     #[test]
-    fn test_between() {
+    fn test_within() {
         let vm = &mut VM::new(16, 16);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(1);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
@@ -3935,7 +4145,7 @@ mod tests {
         vm.s_stack().push(1);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
@@ -3943,15 +4153,15 @@ mod tests {
         vm.s_stack().push(1);
         vm.s_stack().push(0);
         vm.s_stack().push(1);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), -1);
+        assert_eq!(vm.s_stack().pop(), 0);
         vm.s_stack().push(0);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
@@ -3959,7 +4169,7 @@ mod tests {
         vm.s_stack().push(3);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
@@ -4762,6 +4972,9 @@ mod tests {
     fn bench_sieve(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
         vm.load("./lib.fs");
+        if vm.last_error().is_some() {
+            eprintln!("Error {:?} at {:?}", vm.last_error().unwrap(), vm.last_token());
+        }
         assert_eq!(vm.last_error(), None);
         vm.set_source("CREATE FLAGS 8190 ALLOT   VARIABLE EFLAG");
         vm.evaluate();

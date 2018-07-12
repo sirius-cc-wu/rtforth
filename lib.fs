@@ -16,6 +16,7 @@
 : align ( -- )   here aligned  here - allot ;
 : floats ( n -- n*8 )   8 * ;
 : float+ ( n -- n+8 )   8 + ;
+: f, ( F: r -- )   here  1 floats allot  f! ;
 : 2@ ( a-addr -- x1 x2 )   dup cell+ @ swap @ ;
 : 2! ( x1 x2 a-addr -- )   swap over !  cell+ ! ;
 : +! ( n|u a-addr -- )   dup @ rot + swap ! ;

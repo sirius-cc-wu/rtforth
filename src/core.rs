@@ -2111,6 +2111,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.parse();
     }}
 
+    /// Begin a comment that includes the entire remainder of the current line.
     primitive!{fn imm_backslash(&mut self) {
         self.s_stack().push('\n' as isize);
         self.parse();

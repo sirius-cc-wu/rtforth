@@ -540,6 +540,123 @@ rf> 100 rnd .
 | `2variable <name>` | ( -- ) &emsp; | two-variable |
 | `fvariable <name>` | ( -- ) &emsp; | f-variable |
 
+----------
+## 向量執行
+
+先看一段處理語言的程式。
+```
+0 constant english
+1 constant italian
+variable language   english language !
+: greet   language @
+    case
+      english of ." Hello!" endof
+      italian of ." Ciao!" endof
+      ." 哈囉"
+    endcase
+;
+```
+
+執行一下，
+```
+rf> greet
+Hello! ok
+rf> italian language !
+ ok
+rf> greet
+Ciao! ok
+```
+
+這程式雖然符合我們的預期，但有個缺點：每增加一種語言我們就需要修改 `greet` 這個指令。如果這是我們提供給別人的函ft式庫，那麼別人必須修改我們提供的指令。
+
+一個解決的方法是使用「令牌」(execution token)。所謂的令牌是一個代表 Forth 指令的數字。我們可以使用這個數字來執行對應的指令。
+
+先定義以下兩個指令，
+```
+: hello   ." Hello!" ;
+: ciao    ." Ciao!" ;
+```
+
+我們可以使用指令 `'` 得到 `hello` 或 `ciao` 的執行令牌，再以 `execute` 執行它們。
+```
+rf> ' hello .   ' ciao .
+219 220  ok
+rf> ' hello execute
+Hello! ok
+rf> ' ciao execute
+Ciao! ok
+```
+
+我們可以將對應不同語言的問候指令的令牌放進變數中，
+```
+variable 'greet
+: greet   'greet @ execute ;
+```
+在這兒我們遵照 Forth 的習慣。以 `'` 開始的變數名代表用來存放令牌的變數。
+指令 `greet` 會從變數 `'greet` 中取出令牌來執行。因此我們只要改變變數 `'greet` 的內容，就可以改變指令 `greet` 的行為。
+
+測試一下：
+```
+rf> ' hello  'greet !
+ ok
+rf> greet
+Hello! ok
+rf> ' ciao  'greet !
+ ok
+rf> greet
+Ciao! ok
+```
+
+然後我們可以定義語言切換的指令。
+```
+: english   ['] hello  'greet ! ;
+: italian   ['] ciao  'greet ! ;
+```
+在這兒，我們使用指令 `'` 的編譯版本 `[']`。指令 `[']` 會取得其後指令的令牌，編譯進字典中，在執行 `english` 或 `italian` 時這令牌會被推上堆疊。
+
+當某種行為有直譯和編譯兩種版本時，Forth 習慣在直譯的版本外加上`[`和`]`來命名編譯的版本。像之前提過的 `[char]`，它的直譯版本是 `char`。測試一下：
+```
+rf> char * emit
+* ok
+```
+
+我們以以下兩個程式說明直譯版和编譯本的不同：
+```
+: ex1   [char] * emit ;
+: ex2   char * emit ;
+```
+以下是編譯的結果：
+
+```
++-----+----+------+------+
+| lit | 42 | emit | exit | ex1 的資料空間
++-----+----+------+------+
++------+---+------+------+
+| char | * | emit | exit | ex2 的資料空間
++------+---+------+------+
+```
+所謂的冒號定義其實就是把定義中的 Forth 指令的令牌編到字典裡。執行一個冒號定義指令時，Forth 的內層直譯器 (inner interpreter) 會取得定義內的令牌，順序執行。
+
+在定義 `ex1` 的時候，指令 `[char]` 會執行，得到之後 `*` 的 ASCII 碼 42 後，編了 `lit` 的令牌和數字 42 進字典裡。當 `ex1` 執行到 `lit` 時，指令 `lit` 會將之後的 42 放上堆疊。
+
+在定義 `ex2` 時，指令 `char` 被編譯到字典中，因此並沒有取得之後 `*` 的 ASCII 碼。於是之後的 `*` 被認為是乘法指令，被編進字典中。直到 `ex2` 執行時，`char` 才會執行，並且取得在 `ex2` 之後的字元的 ASCII 碼放上堆疊。測試一下：
+```
+rf> 2 ex2 1
+b ok
+```
+我們先放了一個數字 2，才執行 `ex2`。`ex2` 會得到之後的字元 `1` 的 ASCII 碼 49，將它乘以 2，得到 98，再以 `emit` 顯示得到 `b`。
+
+將令牌放進記憶體中，留待未來執行的技巧被稱為向量執行 (vectored execution)。
+冒號定義本身就是向量執行的一個例子。在下一章中的異常處理是另一個例子。
+
+### 本節指令集
+| 指令 | 堆疊效果及指令說明                        | 口語唸法 |
+|-----|----------------------------------------|--------|
+| `[']` | ( -- ) &emsp; | bracket-tick |
+| `execute` | ( -- ) &emsp; | execute |
+| `'` | ( -- ) &emsp; | tick |
+| `char <name>` | ( -- ) &emsp; | char |
+
 -------------------
 ## 定義自己的資料結構
 
@@ -548,7 +665,29 @@ rf> 100 rnd .
 : 2variable   create  0 , 0 , ;
 ```
 
-### 向量執行
+```
+\ 定義時： ( n -- )
+\ 執行時： ( -- a )
+: unindexed-array
+    create allot ;
+```
+
+```
+\ 定義時： ( n -- )
+\ 執行時： ( n -- addr )
+: array
+     create cells allot
+     does> cells + ;
+```
+
+執行陣列
+```
+0 constant english
+1 constant italian
+variable laiguage   english language !
+create 'greet   ' hello ,  ' ciao ,
+: greet    language @ cells  'greet + @ execute ;
+```
 
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
@@ -570,7 +709,9 @@ rf> 100 rnd .
 * 資料空間 (data space)
 * 程式碼空間 (code space)
 * 標記指令 (marker)
-* 向量執行 (vector execution)
+* 執行令牌 (execution token)
+* 內層直譯器 (inner interpreter)
+* 向量執行 (vectored execution)
 
 -----------
 ## 本章指令集

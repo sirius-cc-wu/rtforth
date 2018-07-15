@@ -2,6 +2,15 @@
 
 TODO
 
+```
+: array ( n -- )
+    create  dup , cells allot
+    does> ( n -- a )
+      ( n addr ) swap over @ ( addr n count )
+      over < over 1 < ( addr n n<count n<1 )
+      or if ." Array index out of range." cr abort then
+      cells + ;
+```
 -------------------------------------
 ## 本章指令集
 

@@ -587,12 +587,12 @@ rf> ' ciao execute
 Ciao! ok
 ```
 
-我們可以將對應不同語言的問候指令的令牌放進變數中，
+我們可以將不同語言問候指令的令牌放進變數中，
 ```
 variable 'greet
 : greet   'greet @ execute ;
 ```
-在這兒我們遵照 Forth 的習慣。以 `'` 開始的變數名代表用來存放令牌的變數。
+在這兒我們遵照 Forth 的習慣：以 `'` 開始的名稱代表用來存放令牌的變數。
 指令 `greet` 會從變數 `'greet` 中取出令牌來執行。因此我們只要改變變數 `'greet` 的內容，就可以改變指令 `greet` 的行為。
 
 測試一下：
@@ -660,34 +660,155 @@ b ok
 -------------------
 ## 定義自己的資料結構
 
+### 使用 CREATE 定義新的資料結構
+
+之前我們學到了定義指令 `variable`, `2variable` 和 `fvariable` 這幾個指令。在 rtForth 中，他們都是使用冒號定義出來的：
 ```
-: 2constant   create 2, does>  2@ ;
+: variable   create  0 , ;
 : 2variable   create  0 , 0 , ;
+: fvariable   create  0e f, ;
+```
+
+指令 `create` 是最基本的定義資料結構的指令。它可以定義一個新的指令，當這指令執行時就會回傳資料空間下一個可配置的記憶體位址，指令 `create` 不配置任何記憶體給這新的指令使用。我們可以用 `allot` 、 `,` 、 `f,` 等配置適當的記憶理給這個指令使用。比如指令 `variable`，就是先用 `create` 建立了一個能回傳資料空間下一個可配置記憶體位址的指令，然後用 `0 ,` 在之後附加了一個長度為一個單元，內容為 0 的記憶體。
+
+例子：用 `create` 定義一個 3&times;3 的單位浮點數矩陣。
+一個 3&times;3 的單位矩陣總共有 9 個元素，其中有三個元素為 1.0，其他為 0.0。
+```
+\ 定義一個名為 m 的 3x3 浮點矩陣
+create m
+    falign
+    1e f, 0e f, 0e f,
+    0e f, 1e f, 0e f,
+    0e f, 0e f, 1e f,
+\ 將 matrix 的第 row 列第 col 行的內容取出
+: m@ ( row col matrix -- ) ( F: -- value )
+    faligned -rot
+    swap 3 * +  floats +  f@ ;
+\ 將 value 放進 matrix 的第 row 列第 col 行
+: m! ( row col matrix -- ) ( F: value -- )
+    faligned -rot
+    swap 3 * +  floats +  f! ;
+\ 印出 matrix 的所有元素
+: .m ( matrix -- )
+    0
+    begin
+      dup 9 <
+    while
+      ( matrix index ) dup floats  2 pick + f@
+      9 3 f.r
+      ( matrix index ) 1+
+      ( matrix index ) dup 3 = over 6 = or if cr then
+    repeat ( matrix index ) 2drop ;
+```
+
+指令 `create` 只會將資料空間的可配置位址，也就是 `here` 會回傳的位置，調整到對齊單元的位置。透過指令 `falign` 可對齊到浮點數所需的位置。因此在存取時也必須使用 faligned 來計算出這個經調整過的位置。雖然在目前的 rtForth 中，這帶來的性能改進不大。但在未來最佳化的 rtForth 版本，這可能會對程式執行效率有很大影響。
+
+測試一下：
+```
+rf> 0 0 m m@ f.
+1.0000000  ok
+rf> 1 1 m m@ f.
+1.0000000  ok
+rf> 2 2 m m@ f.
+1.0000000  ok
+rf> 0 1 m m@ f.
+0.0000000  ok
+rf> 3e 0 1 m m! 
+ ok
+rf> m .m
+    1.000    3.000    0.000
+    0.000    1.000    0.000
+    0.000    0.000    1.000 ok
+rf> .s
+ ok
+```
+
+最後我們使用 `.s` 檢查一下設計沒有不小心漏了一些資料在堆疊上。
+
+###  定義自己的定義指令
+
+上面的例子中我們使用 `create` 直接定義了矩陣 `m`，現在設計我們的第一個定義指令 `matrix`：
+```
+: matrix   create 
+    falign
+    1e f, 0e f, 0e f,
+    0e f, 1e f, 0e f,
+    0e f, 0e f, 1e f, ;
+```
+
+用它來定義多個矩陣：
+```
+rf> matrix m1
+ ok
+rf> matrix m2
+ ok
+rf> m1 .m
+    1.000    0.000    0.000
+    0.000    1.000    0.000
+    0.000    0.000    1.000 ok
+rf> m2 .m
+    1.000    0.000    0.000
+    0.000    1.000    0.000
+    0.000    0.000    1.000 ok
+```
+
+### 使用 DOES> 定義資料結構的行為
+
+```
+: 2constant ( n1 n2 -- )
+    create  , ,
+    does> ( -- n1 n2 )
+      ( n1 n2 addr ) 2@ ;
 ```
 
 ```
-\ 定義時： ( n -- )
-\ 執行時： ( -- a )
-: unindexed-array
-    create allot ;
-```
-
-```
-\ 定義時： ( n -- )
-\ 執行時： ( n -- addr )
-: array
+: array ( size -- )
      create cells allot
-     does> cells + ;
+     does> ( index addr ) swap cells + ;
 ```
 
-執行陣列
 ```
-0 constant english
-1 constant italian
-variable laiguage   english language !
-create 'greet   ' hello ,  ' ciao ,
-: greet    language @ cells  'greet + @ execute ;
+0 constant red#
+1 constant green#
+2 constant yellow#
+
+: seconds begin dup 0> while [char] . emit 1- repeat drop ;
+
+: red ( -- green# ) ." red"   5 seconds  green# ;
+: green  ( -- yellow# ) ." green" 5 seconds  yellow# ;
+: yellow  ( -- red# ) ." yellow"  3 seconds  red# ;
+
+3 array vector
+
+' red     0 vector !
+' green   1 vector !
+' yellow  2 vector !
+
+variable down-counter  0 down-counter !
+: control ( state# #count -- )
+    down-counter !
+    begin
+      down-counter @ 0>
+    while
+      ( state# )
+      -1 down-counter +!
+      vector  @ execute ( state# )
+    repeat ( state# )  drop ;
 ```
+
+測試一下：
+```
+rf> red# 1 control
+red..... ok
+rf> red# 2 control
+red.....green..... ok
+rf> red# 3 control
+red.....green.....yellow... ok
+rf> red# 8 control
+red.....green.....yellow...red.....green.....yellow...red.....green..... ok
+```
+
+浮點對齊
 
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
@@ -695,9 +816,6 @@ create 'greet   ' hello ,  ' ciao ,
 | `create <name>` | ( -- ) &emsp; | create |
 | `does>` | ( -- ) &emsp; | does |
 | `+field` | ( -- ) &emsp; | pluse-field |
-| `execute` | ( -- ) &emsp; | execute |
-| `'` | ( -- ) &emsp; |  |
-| `[']` | ( -- ) &emsp; | |
 
 -------------
 ## 本章重點整理

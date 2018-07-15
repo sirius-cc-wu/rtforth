@@ -28,6 +28,7 @@
 : 2constant   create 2, does>  2@ ;
 : 2variable   create  0 , 0 , ;
 : fvariable   create  0e f, ;
+: +field ( n1 n2 -- n3 )   create over , + does> @ + ;
 variable #tib  0 #tib !
 variable tib 256 allot
 : source ( -- c-addr u )   tib #tib @ ;

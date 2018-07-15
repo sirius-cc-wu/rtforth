@@ -725,7 +725,7 @@ rf> .s
 
 最後我們使用 `.s` 檢查一下設計沒有不小心漏了一些資料在堆疊上。
 
-###  定義自己的定義指令
+### 定義自己的定義指令
 
 上面的例子中我們使用 `create` 直接定義了矩陣 `m`，現在設計我們的第一個定義指令 `matrix`：
 ```
@@ -754,12 +754,63 @@ rf> m2 .m
 
 ### 使用 DOES> 定義資料結構的行為
 
+如何定義一個定義指令 (defining word)？
+```
+: <name>   <定義時的行為>
+   does>   <被定義出來的指令執行時的行為> ;
+```
+
 ```
 : 2constant ( n1 n2 -- )
     create  , ,
     does> ( -- n1 n2 )
       ( n1 n2 addr ) 2@ ;
 ```
+### 使用 +FIELD 定義欄位
+
+```
+: +field ( n1 n2 -- n3 )
+    create over , +
+    does> ( addr -- addr' )   @ + ;
+```
+
+```
+0                               \ 第一個欄位的位元組偏移量
+  <位元組數一> +field <欄位名稱一> \ 定義第一個欄位
+  <位元組數二> +field <欄位名稱二> \ 定義第二個欄位
+constant <資料結構的位元組數名稱>   \ 為資料結構的大小取個名字
+```
+注意當有必要是使用 `aligned` 或 `faligned` 來調整偏移量。
+
+例子：定義一個二維的點。
+```
+\ 定義二維點的各欄位
+0                         \ 第一個欄位的位元組偏移量
+   1 floats +field p.x    \ 欄位 p.x 佔了一個浮點數大小
+   1 floats +field p.y    \ 欄位 p.y 佔了一個浮點數大小
+constant p.bytes          \ 點的位元組數
+
+\ point2 <name> 定義一個二維的點。
+: point2   create  falign  p.bytes allot  does> faligned ;
+\ 印出點 p 的內容。
+: .point ( p -- )
+    [char] ( emit  dup p.x f@ f.
+    [char] , emit      p.y f@ f.  [char] ) emit ;
+```
+
+測試一下：
+```
+rf> point2 p1
+  ok
+rf> 1e p1 p.x f!
+  ok
+rf> 2e p1 p.y f!
+  ok
+rf> p1 .point
+(1.0000000 ,2.0000000 )  ok
+```
+
+### 陣列
 
 ```
 : array ( size -- )
@@ -767,6 +818,7 @@ rf> m2 .m
      does> ( index addr ) swap cells + ;
 ```
 
+以下我們使用一個控制紅綠燈的例子來展示這個陣列指令，以及之前提及的向量執行。
 ```
 0 constant red#
 1 constant green#
@@ -808,14 +860,12 @@ rf> red# 8 control
 red.....green.....yellow...red.....green.....yellow...red.....green..... ok
 ```
 
-浮點對齊
-
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
 | `create <name>` | ( -- ) &emsp; | create |
 | `does>` | ( -- ) &emsp; | does |
-| `+field` | ( -- ) &emsp; | pluse-field |
+| `+field <name>` | ( offset size -- offset' ) &emsp; | plus-field |
 
 -------------
 ## 本章重點整理

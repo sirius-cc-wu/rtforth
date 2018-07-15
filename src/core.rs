@@ -2038,18 +2038,26 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         last_token.clear();
         if let Some(input_buffer) = self.input_buffer().take() {
             if self.state().source_index < input_buffer.len() {
-                let source = &input_buffer[self.state().source_index..input_buffer.len()];
-                let mut cnt = 0;
-                for ch in source.chars() {
-                    cnt = cnt + 1;
-                    match ch {
-                        '\t' | '\n' | '\r' | ' ' => {
-                            if !last_token.is_empty() {
-                                break;
-                            }
+                let source = &input_buffer[self.state().source_index..];
+                let mut cnt = source.len();
+                let mut char_indices = source.char_indices();
+                loop {
+                    match char_indices.next() {
+                        Some((idx, ch)) => {
+                            match ch {
+                                '\t' | '\n' | '\r' | ' ' => {
+                                    if !last_token.is_empty() {
+                                        cnt = idx;
+                                        break;
+                                    }
+                                }
+                                _ => last_token.push(ch),
+                            };
                         }
-                        _ => last_token.push(ch),
-                    };
+                        None => {
+                            break;
+                        }
+                    }
                 }
                 self.state().source_index = self.state().source_index + cnt;
             }
@@ -2103,14 +2111,28 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         let mut last_token = self.last_token().take().expect("token");
         last_token.clear();
         {
-            let source = &input_buffer[self.state().source_index..input_buffer.len()];
-            let mut cnt = 0;
-            for ch in source.chars() {
-                cnt = cnt + 1;
-                if ch as isize == v {
-                    break;
-                } else {
-                    last_token.push(ch);
+
+            let source = &input_buffer[self.state().source_index..];
+            let mut cnt = source.len();
+            let mut char_indices = source.char_indices();
+            loop {
+                match char_indices.next() {
+                    Some((idx, ch)) => {
+                        if ch as isize == v {
+                            match char_indices.next() {
+                                Some((idx, _)) => {
+                                    cnt = idx;
+                                }
+                                None => {}
+                            }
+                            break;
+                        } else {
+                            last_token.push(ch);
+                        }
+                    }
+                    None => {
+                        break;
+                    }
                 }
             }
             self.state().source_index = self.state().source_index + cnt;

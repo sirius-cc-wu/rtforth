@@ -662,7 +662,7 @@ b ok
 
 ### 使用 CREATE 定義新的資料結構
 
-之前我們學到了定義指令 `variable`, `2variable` 和 `fvariable` 這幾個指令。在 rtForth 中，他們都是使用冒號定義出來的：
+之前我們學到了幾個定義指令： `variable`, `2variable` 和 `fvariable`。在 rtForth 中，他們都是使用冒號定義出來的：
 ```
 : variable   create  0 , ;
 : 2variable   create  0 , 0 , ;
@@ -754,26 +754,58 @@ rf> m2 .m
 
 ### 使用 DOES> 定義資料結構的行為
 
-如何定義一個定義指令 (defining word)？
-```
-: <name>   <定義時的行為>
-   does>   <被定義出來的指令執行時的行為> ;
-```
+指令 `2variable` 可以由冒號定義出來。但是指令 `2constant` 呢？指令 `2variable` 和 `2constant` 都會記住兩個整數。只是 `2variable` 回傳了存放整數資料的記憶體位址，而 `2constant` 會將這兩個數字從記憶體中拿出來放上堆疊。因此 `2constant` 和 `2variable` 只差在行為不同。以下是 `2constant` 的定義。
 
 ```
 : 2constant ( n1 n2 -- )
-    create  , ,
-    does> ( -- n1 n2 )
-      ( n1 n2 addr ) 2@ ;
+    create  , ,              \ 定義時的行為
+    does> ( -- n1 n2 )   2@  \ 被定義出來的執行執行時的行為
+;
 ```
+當執行 `2constant <name>` 時，`2constant` 使用 `create` 建造一個名為 `<name>` 的指令，同時以 `, ,` 將堆疊上的兩個數字編進字典。當這個被建造出來的新指令 `<name>` 執行時，被 `create , ,` 配置的記憶體開始位址被放上堆疊。這和沒有 `does>` 時是一樣的。然後，`does>` 之後的指令被執行， `2@` 那記憶體中拿出了兩個整數放在堆疊上。
+
+所以，執行 `2@` 前一瞬間，堆疊上的內容是 `( addr )`，是使用 `create , ,` 配置的位址。但在 `does>` 後的堆疊註解不寫 `( addr -- n1 n2 )`，因為在 `does>` 的這個註解說明的是如何使用這被建造出來的指令 `<name>`。
+
+下圖是 `2constant` 本身以及被它定義出來的指令在字典中的示意圖。
+```
+: 2constant   create , , does> 2@ ;
+4 40 2constant range
+
+2constant
++--------+---+---+-------+------+----+------+
+| create | , | , | _does | exit | 2@ | exit |
++--------+---+---+-------+------+----+------+
+                                  ^
+range                             |
+                                  |
+  解碼欄                           |
+  +------+                        |
+  | does |                        |
+  +------+                        |
+                                  |
+    +-----------------------------+
+    |  資料空間
+  +---+---+----+
+  |   | 4 | 40 |
+  +---+---+----+
+```
+在 rtForth 目前的設計中，在被 create 建造出來的指令的資料空間之前有一隱藏的欄位指向 `does>` 後要執行的指令。圖中的 `2constant` 執行時，會執行 `create , ,`，然後執行一個由編譯指令 `does>` 編進字典的 `_does` 指令。這個指令會修改被定義出來的指令的解碼欄，使解碼欄指向另一個函式 `does`。並且修改那隱藏的欄位使其指向 `does>` 後的 `2@`。然後 `does>` 還會編譯一個 `exit` 到 2constant 的資料空間內，使用 `2constant` 執行完 `_does` 後就停止。但冒號定義還是會把之後的 `2@` 編進字典中，並執行了編譯指令 `;` 結束 `2constant` 的定義。
+
+當 `range` 執行時，因為它的解碼欄是 `does`，它會把資料空間的起始位址放上堆疊。同起將那起始位址減一個 cell 得到那隱藏的欄位，找到 `does>` 之後的 `2@` 從那兒開始執行。
+
 ### 使用 +FIELD 定義欄位
 
+之前定義矩陣時，我們並未定義距陣的各個欄位。這在 Forth 是常見的作法。但有的時候我們還是希望能為各個欄位取個容易記憶的名稱。Forth 2012 標準中提到了一個指令 `+field` 可以滿足我們的期望。它也是一個可以使用 `create ... does> ... ;` 定義出來的指令。
+
 ```
-: +field ( n1 n2 -- n3 )
+\ 定義時建立一個欄位，記住欄位在資料結構中的偏移量 offset，然後計算出下一個偏移量 offset' = offset+size，留給之後的指令使用。
+\ 被定義出來的指令執時，會將資料結構的開始位址 addr 加上之前記住的偏移量 offset，得到資料結構中所在欄位的位址 addr' = addr + offset。
+: +field ( offset size -- offset' )
     create over , +
     does> ( addr -- addr' )   @ + ;
 ```
 
+以下是 `+field` 的用法。
 ```
 0                               \ 第一個欄位的位元組偏移量
   <位元組數一> +field <欄位名稱一> \ 定義第一個欄位
@@ -781,6 +813,30 @@ rf> m2 .m
 constant <資料結構的位元組數名稱>   \ 為資料結構的大小取個名字
 ```
 注意當有必要是使用 `aligned` 或 `faligned` 來調整偏移量。
+
+例子：定義一個很簡單的資料結構 `person`。結構 `person` 有兩個欄位，第一個欄位是這個人的年齡，是一個整數。第二個欄位是他的月薪，是一個浮點數。
+```
+0
+   1 cells +field person.age
+   faligned
+   1 floats +field person.salary
+constant person.bytes
+
+: person   create person.bytes allot ;
+: .person ( 'person -- )  ." age: " dup person.age @ .  ." salary: " person.salary f@ f. ;
+```
+
+測試一下：
+```
+rf> person John
+  ok
+rf> 23 John person.age !
+  ok
+rf> 35000e John person.salary f!
+  ok
+rf> John .person
+ age: 23  salary: 35000.0000000   ok
+```
 
 例子：定義一個二維的點。
 ```

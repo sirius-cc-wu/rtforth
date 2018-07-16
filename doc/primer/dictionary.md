@@ -552,7 +552,7 @@ variable language   english language !
     case
       english of ." Hello!" endof
       italian of ." Ciao!" endof
-      ." 哈囉"
+      ." Unknown language"
     endcase
 ;
 ```
@@ -569,7 +569,7 @@ Ciao! ok
 
 這程式雖然符合我們的預期，但有個缺點：每增加一種語言我們就需要修改 `greet` 這個指令。如果這是我們提供給別人的函ft式庫，那麼別人必須修改我們提供的指令。
 
-一個解決的方法是使用「令牌」(execution token)。所謂的令牌是一個代表 Forth 指令的數字。我們可以使用這個數字來執行對應的指令。
+一個解決的方法是使用「令牌」(execution token)。令牌是一個代表 Forth 指令的數字。我們可以使用這個數字來執行對應的指令。
 
 先定義以下兩個指令，
 ```

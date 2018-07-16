@@ -868,31 +868,74 @@ rf> p1 .point
 
 ### 陣列
 
+Forth 2012 標準中並未提供定義陣列的指令。因為 Forth 的使用者很容易依自己的需求定義自己的陣列定義指令。
+初學 Forth 的人可以從以下的兩種定義方式開始。其中較簡單版本的陣列索引從 0 開始，不做索引範圍檢查，因此性能比較好但使用者要注意安全。較複雜版本的索引從 1 開始，會檢查索引範圍，範圍有問題時會結束程式執行。因為在下一章才會說明程式遇到異常狀況的處理方式，本節的例子使用不做範圍檢查的陣列定義指令。
+
+不檢查範圍，索引從 0 開始的版本：
 ```
-: array ( size -- )
-     create cells allot
-     does> ( index addr ) swap cells + ;
+: array ( capacity -- )
+    create cells allot
+    does> ( n -- a ) swap cells + ;
+```
+檢查範圍，索引從 1 開始的版本：
+```
+: array ( capacity -- )
+    create  dup , cells allot
+    does> ( n -- a )
+      tuck  @ over <  over 1 <  or
+      if ." Index out of range, " abort then
+      cells + ;
 ```
 
 以下我們使用一個控制紅綠燈的例子來展示這個陣列指令，以及之前提及的向量執行。
+
+首先我們使用整數代表紅紅黃綠三種燈號。以下我們使用 `#` 代表數字或識別碼。這是常見的 Forth 風格。如果 `#` 出現在名稱開頭，曾常代表總數或大小。
 ```
 0 constant red#
 1 constant green#
 2 constant yellow#
+```
 
-: seconds begin dup 0> while [char] . emit 1- repeat drop ;
+再來我們希望紅燈停 80 秒，緣燈行 50 秒，黃燈閃 30 秒。許多 Forth 系統會提供一個名為 `ms` 的指令，用來等待指定的毫秒數。我們在此使用一個點 `.` 來模擬 10 秒鐘。
+```
+\ 等待 n 個 10 秒
+: 10-seconds ( n -- )
+    begin dup 0>
+    while [char] . emit  1-
+    repeat drop ;
+\ 亮紅燈並等待 80 秒後，將下一個狀態 ( green# ) 留在堆疊上。
+: red ( -- green# ) ." red"   8 10-seconds  green# ;
+\ 亮綠燈並等待 50 秒後，將下一個狀態 ( yellow# ) 留在堆疊上。
+: green  ( -- yellow# ) ." green" 5 10-seconds  yellow# ;
+\ 閃黃燈並等待 30 秒後，將下一個狀態 ( red# ) 留在堆疊上。
+: yellow  ( -- red# ) ." yellow"  3 10-seconds  red# ;
+```
+上面的指令 `red` 、 `green` 和 `yellow` 有兩個作用，
+* 執行在對應狀態所需的行為。
+* 決定下一個狀況。
 
-: red ( -- green# ) ." red"   5 seconds  green# ;
-: green  ( -- yellow# ) ." green" 5 seconds  yellow# ;
-: yellow  ( -- red# ) ." yellow"  3 seconds  red# ;
+在較複雜的系統，這兩個作用常使用兩個不同的指令實作。
 
+再來我們使用先前提過的向量執行技巧，但這次我們使用陣列而非變數。先定一個向量執行的陣列，
+```
 3 array vector
 
 ' red     0 vector !
 ' green   1 vector !
 ' yellow  2 vector !
+```
+使用向量執行的好處時，當有必要時我們可以很容易的改變執行的行為。比如我們可以設計一個除錯版的 `red-debug`，再使用以下方式改變紅燈的行為：
 
+```
+: red-debug ... ; \ 定義一個除錯版的紅燈處理指令
+' red-debug   0 vector !
+```
+
+然後，我們要從紅燈開始，依照規則切換燈號。在這兒我們不想使用一個無窮迴圈，以免程式尚未測試完整一執行就停不下來。所以我們使用一個計算次數的變數，在執行到指定的次數時就停止。
+```
 variable down-counter  0 down-counter !
+\ 控制燈號，初始狀態為 state#，狀態切換 #count 次就停止。
+\ 參數 state# 可以是 red# 、 green# 、 yellow# 中的一個。
 : control ( state# #count -- )
     down-counter !
     begin
@@ -906,15 +949,17 @@ variable down-counter  0 down-counter !
 
 測試一下：
 ```
-rf> red# 1 control
-red..... ok
+f> red# 1 control
+ red........  ok
 rf> red# 2 control
-red.....green..... ok
+ red........ green.....  ok
 rf> red# 3 control
-red.....green.....yellow... ok
-rf> red# 8 control
-red.....green.....yellow...red.....green.....yellow...red.....green..... ok
+ red........ green..... yellow...  ok
+rf> red# 4 control
+ red........ green..... yellow... red........  ok
 ```
+
+Forth 的一大好處就是它能即寫即測。使用 Forth 的工程師常能很快的用 Forth 指令檢查設備的狀態，快速找出設備的軟硬體問題。
 
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
@@ -932,10 +977,12 @@ red.....green.....yellow...red.....green.....yellow...red.....green..... ok
 * 單元 (cell)
 * 資料空間 (data space)
 * 程式碼空間 (code space)
+* 對齊 (alignment)
 * 標記指令 (marker)
 * 執行令牌 (execution token)
 * 內層直譯器 (inner interpreter)
 * 向量執行 (vectored execution)
+* 定義指令 (defining word)
 
 -----------
 ## 本章指令集

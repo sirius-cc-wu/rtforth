@@ -176,7 +176,7 @@ Forth 程式三：工件程式，在操作員選擇加工程式時載入。
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `marker <name>` | ( -- ) &emsp;  | marker |
+| `marker <name>` | ( -- ) &emsp; 定義一個用來刪除一群指令，名為 `name` 的標記指令。執行此一指令時，會刪除自己以及其後定義的所有指令，並釋放所有這些指令配置的記憶體。 | marker |
 
 -----------
 ## 常數
@@ -239,9 +239,9 @@ rf> my-true .  my-false .  my-pi f.
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `constant <name>` | ( n -- ) &emsp; | constant |
-| `2constant <name>` | ( n1 n2 -- ) &emsp; | two-constant |
-| `fconstant <name>` | ( F: r -- ) &emsp; | f-constant |
+| `constant <name>` | ( n -- ) &emsp; 使用 n 來定義一個名為 `name` 的指令。當這指令執行時，數字 n 會被放上堆疊。| constant |
+| `2constant <name>` | ( n1 n2 -- ) &emsp; 使用 n1 n2 來定義一個名為 `name` 的指令。當這指令執行時，數字 n1 和 n2 會被放上堆疊。 | two-constant |
+| `fconstant <name>` | ( F: r -- ) &emsp; 使用浮點數 r 來定義一個名為 `name` 的指令。當這指令執行時，浮點數 r 會被放上浮點堆疊。| f-constant |
 
 -----------
 ## 資料空間
@@ -458,27 +458,27 @@ rf> 1344 float+  dup ?  cell+ faligned dup f@ f.  float+ dup f@ f.  float+ dup f
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|------------------------------------|--------|
-| `cells` | ( -- ) &emsp; | cells |
-| `cell+` | ( -- ) &emsp; | cell+ |
-| `floats` | ( -- ) &emsp; | floats |
-| `float+` | ( -- ) &emsp; | float+ |
-| `here` | ( -- ) &emsp; | here |
-| `allot` | ( -- ) &emsp; | allot |
-| `!` | ( n addr -- ) &emsp; 將 n 存在位址 addr  | store |
-| `@` | ( addr -- ) &emsp; | fetch |
-| `?` | ( addr -- ) &emsp; | question |
+| `cells` | ( n1 -- n2 ) &emsp; 傳回 n1 個單元所佔的位元組數 n2 | cells |
+| `cell+` | ( a1 -- a2 ) &emsp; 將位址 a1 加上一個單元所佔的位元組數，結果是 a2 | cell+ |
+| `floats` | ( n1 -- n2 ) &emsp; 傳回 n1 個浮點數所佔的位元組數 n2 | floats |
+| `float+` | ( -- ) &emsp; 將位址 a1 加上一個浮點數所佔的位元組數，結果是 a2| float+ |
+| `here` | ( -- ) &emsp; 將資料空間的下一個未被使用的位址放上堆疊 | here |
+| `allot` | ( n -- ) &emsp; 從未被使用的資料空間中配置一下塊 n 個位元組的空間，常在 create 之後使用 | allot |
+| `!` | ( n addr -- ) &emsp; 將 n 存在資料空間位址 addr 內 | store |
+| `@` | ( addr -- n ) &emsp; 從資料空間位址 addr 取出一個單元大小的整數放上堆疊 | fetch |
+| `?` | ( addr -- ) &emsp; 印出資料空間位址 addr 內一個單元大小的整數 | question |
 | `+!` | ( n addr -- ) &emsp; 將位址 addr 內的整數加 n | plus-store |
-| `,` | ( -- ) &emsp; | comma |
-| `2@` | ( addr -- n1 n2 ) &emsp; | two-fetch |
-| `2!` | ( n1 n2 addr -- ) &emsp; | two-store |
-| `2,` | ( n1 n2 -- ) &emsp; | two-comma |
-| `f!` | ( addr -- ) ( F: r -- ) &emsp; 將 r 存在位址 addr  | f-store |
-| `f@` | ( addr -- ) ( F: -- r ) &emsp; | f-fetch |
-| `f,` | ( -- ) &emsp; | f-comma |
-| `align` | ( -- ) &emsp; | align |
-| `aligned` | ( -- ) &emsp; | aligned |
-| `falign` | ( -- ) &emsp; | f-align |
-| `faligned` | ( -- ) &emsp; | f-aligned |
+| `,` | ( n -- ) &emsp; 從未被使用的資料空間中配置下一塊大小為一個單元的空間，並將 n 放進這個空間 | comma |
+| `2@` | ( addr -- n1 n2 ) &emsp; 從資料空間位址 addr 處拿出兩個整數放上堆疊 | two-fetch |
+| `2!` | ( n1 n2 addr -- ) &emsp; 將 n1 和 n2 放進資料空間位址 addr 處 | two-store |
+| `2,` | ( n1 n2 -- ) &emsp; 從未被使用的資料空間中配置下一塊大小為兩個單元的空間，並將 n1 和 n2 放進這個空間 | two-comma |
+| `f!` | ( addr -- ) ( F: r -- ) &emsp; 將 r 放進資料空間位址 addr 處  | f-store |
+| `f@` | ( addr -- ) ( F: -- r ) &emsp; 從資料空間位址 addr 處拿出一個浮點數放上浮點堆疊 | f-fetch |
+| `f,` | ( F: r -- ) &emsp; 從未被使用的資料空間中配置下一塊大小能容一個浮點數的空間，並將 r 放進這個空間 | f-comma |
+| `align` | ( -- ) &emsp; 如果資料空間下一未被使用的位址不符合單元的對齊原則，修正使其對齊 | align |
+| `aligned` | ( addr -- addr' ) &emsp; 如果資料空間的位址 addr 不符合單元的對齊原則，修正使其對齊 | aligned |
+| `falign` | ( -- ) &emsp; 如果資料空間下一未被使用的位址不符合浮點數的對齊原則，修正使其對齊 | f-align |
+| `faligned` | ( addr -- addr' ) &emsp; 如果資料空間的位址 addr 不符合浮點數的對齊原則，修正使其對齊 | f-aligned |
 
 ------
 ## 變數
@@ -536,9 +536,9 @@ rf> 100 rnd .
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `variable <name>` | ( -- ) &emsp; | variable |
-| `2variable <name>` | ( -- ) &emsp; | two-variable |
-| `fvariable <name>` | ( -- ) &emsp; | f-variable |
+| `variable <name>` | ( -- ) &emsp; 定義一個名為 `name` 的指令，並配給它一個單元的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊 | variable |
+| `2variable <name>` | ( -- ) &emsp; 定義一個名為 `name` 的指令，並配給它兩個單元的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊 | two-variable |
+| `fvariable <name>` | ( -- ) &emsp; 定義一個名為 `name` 的指令，並配給它可容一個浮點數的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊 | f-variable |
 
 ----------
 ## 向量執行
@@ -652,10 +652,10 @@ b ok
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `[']` | ( -- ) &emsp; | bracket-tick |
-| `execute` | ( -- ) &emsp; | execute |
-| `'` | ( -- ) &emsp; | tick |
-| `char <name>` | ( -- ) &emsp; | char |
+| `['] <name>` | ( -- ) &emsp; 在冒號定義中使用，是一個編譯指令。會在字典中找尋名為 `name` 的指令，將其令牌編進冒號定義內。當之後冒號定義執行時，會將此一令牌推上堆疊 | bracket-tick |
+| `execute` | ( xt -- ) &emsp; 執行令牌 xt 對應的指令 | execute |
+| `' <name>` | ( -- xt ) &emsp; 在字典中找尋名為 `name` 的指令，將其令牌推上堆疊 | tick |
+| `char <name>` | ( -- ) &emsp; 解析在 `char` 之後的輸入文字 `name`，將其第一個字元的 ASCII 碼放上堆疊 | char |
 
 -------------------
 ## 定義自己的資料結構
@@ -964,9 +964,9 @@ Forth 的一大好處就是它能即寫即測。使用 Forth 的工程師常能�
 ### 本節指令集
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|----------------------------------------|--------|
-| `create <name>` | ( -- ) &emsp; | create |
-| `does>` | ( -- ) &emsp; | does |
-| `+field <name>` | ( offset size -- offset' ) &emsp; | plus-field |
+| `create <name>` | ( -- ) &emsp; 以資料空間中下一個未被使用的位址來建立一個名稱為 `name` 的指令，當這指令執行時會將這個位址放上堆疊，在指令 `create` 之後通常會使用 `allot` 或是 `,` 等配置更多的空間 | create |
+| `does>` | ( -- ) &emsp; 使用 Forth 指令來定義某個以 `create` 建造的指令的行為。當這個被 `create` 建造出來的指令執行時，和這指令結合的那塊資料空間的位址會先被放上堆疊，然後才執行 `does>` 之後的指令。 | does |
+| `+field <name>` | ( n1 n2 -- n3 ) &emsp; 定義一個名稱為 `name` 的欄位，此欄位的偏移量為 n1 個位元組，大小為 n2 個位元組。定義好欄位後會在堆疊上留下下一個欄位的偏移量， n3 = n1 + n2 | plus-field |
 
 -------------
 ## 本章重點整理
@@ -989,4 +989,41 @@ Forth 的一大好處就是它能即寫即測。使用 Forth 的工程師常能�
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
 |-----|------------------------------------|--------|
-| `+field` | ( -- ) &emsp; | pluse-field |
+| `words` | ( -- ) &emsp; 顯示字典中目前能使用的指令 | words |
+| `s" <string>"` | ( -- ) &emsp;  編譯其後的字串直到下一個 "。 | s-quote |
+| `type` | ( addr n -- ) &emsp; 印出資料空間位置 addr 處，長度為 n 的字串 | type |
+| `marker <name>` | ( -- ) &emsp; 定義一個用來刪除一群指令，名為 `name` 的標記指令。執行此一指令時，會刪除自己以及其後定義的所有指令，並釋放所有這些指令配置的記憶體。 | marker |
+| `constant <name>` | ( n -- ) &emsp; 使用 n 來定義一個名為 `name` 的指令。當這指令執行時，數字 n 會被放上堆疊。| constant |
+| `2constant <name>` | ( n1 n2 -- ) &emsp; 使用 n1 n2 來定義一個名為 `name` 的指令。當這指令執行時，數字 n1 和 n2 會被放上堆疊。 | two-constant |
+| `fconstant <name>` | ( F: r -- ) &emsp; 使用浮點數 r 來定義一個名為 `name` 的指令。當這指令執行時，浮點數 r 會被放上浮點堆疊。| f-constant |
+| `cells` | ( n1 -- n2 ) &emsp; 傳回 n1 個單元所佔的位元組數 n2 | cells |
+| `cell+` | ( a1 -- a2 ) &emsp; 將位址 a1 加上一個單元所佔的位元組數，結果是 a2 | cell+ |
+| `floats` | ( n1 -- n2 ) &emsp; 傳回 n1 個浮點數所佔的位元組數 n2 | floats |
+| `float+` | ( -- ) &emsp; 將位址 a1 加上一個浮點數所佔的位元組數，結果是 a2| float+ |
+| `here` | ( -- ) &emsp; 將資料空間的下一個未被使用的位址放上堆疊 | here |
+| `allot` | ( n -- ) &emsp; 從未被使用的資料空間中配置一下塊 n 個位元組的空間，常在 create 之後使用 | allot |
+| `!` | ( n addr -- ) &emsp; 將 n 存在資料空間位址 addr 內 | store |
+| `@` | ( addr -- n ) &emsp; 從資料空間位址 addr 取出一個單元大小的整數放上堆疊 | fetch |
+| `?` | ( addr -- ) &emsp; 印出資料空間位址 addr 內一個單元大小的整數 | question |
+| `+!` | ( n addr -- ) &emsp; 將位址 addr 內的整數加 n | plus-store |
+| `,` | ( n -- ) &emsp; 從未被使用的資料空間中配置下一塊大小為一個單元的空間，並將 n 放進這個空間 | comma |
+| `2@` | ( addr -- n1 n2 ) &emsp; 從資料空間位址 addr 處拿出兩個整數放上堆疊 | two-fetch |
+| `2!` | ( n1 n2 addr -- ) &emsp; 將 n1 和 n2 放進資料空間位址 addr 處 | two-store |
+| `2,` | ( n1 n2 -- ) &emsp; 從未被使用的資料空間中配置下一塊大小為兩個單元的空間，並將 n1 和 n2 放進這個空間 | two-comma |
+| `f!` | ( addr -- ) ( F: r -- ) &emsp; 將 r 放進資料空間位址 addr 處  | f-store |
+| `f@` | ( addr -- ) ( F: -- r ) &emsp; 從資料空間位址 addr 處拿出一個浮點數放上浮點堆疊 | f-fetch |
+| `f,` | ( F: r -- ) &emsp; 從未被使用的資料空間中配置下一塊大小能容一個浮點數的空間，並將 r 放進這個空間 | f-comma |
+| `align` | ( -- ) &emsp; 如果資料空間下一未被使用的位址不符合單元的對齊原則，修正使其對齊 | align |
+| `aligned` | ( addr -- addr' ) &emsp; 如果資料空間的位址 addr 不符合單元的對齊原則，修正使其對齊 | aligned |
+| `falign` | ( -- ) &emsp; 如果資料空間下一未被使用的位址不符合浮點數的對齊原則，修正使其對齊 | f-align |
+| `faligned` | ( addr -- addr' ) &emsp; 如果資料空間的位址 addr 不符合浮點數的對齊原則，修正使其對齊 | f-aligned |
+| `variable <name>` | ( -- ) &emsp; 定義一個名為 `name` 的指令，並配給它一個單元的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊 | variable |
+| `2variable <name>` | ( -- ) &emsp; 定義一個名為 `name` 的指令，並配給它兩個單元的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊 | two-variable |
+| `fvariable <name>` | ( -- ) &emsp; 定義一個名為 `name` 的指令，並配給它可容一個浮點數的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊 | f-variable |
+| `['] <name>` | ( -- ) &emsp; 在冒號定義中使用，是一個編譯指令。會在字典中找尋名為 `name` 的指令，將其令牌編進冒號定義內。當之後冒號定義執行時，會將此一令牌推上堆疊 | bracket-tick |
+| `execute` | ( xt -- ) &emsp; 執行令牌 xt 對應的指令 | execute |
+| `' <name>` | ( -- xt ) &emsp; 在字典中找尋名為 `name` 的指令，將其令牌推上堆疊 | tick |
+| `char <name>` | ( -- ) &emsp; 解析在 `char` 之後的輸入文字 `name`，將其第一個字元的 ASCII 碼放上堆疊 | char |
+| `create <name>` | ( -- ) &emsp; 以資料空間中下一個未被使用的位址來建立一個名稱為 `name` 的指令，當這指令執行時會將這個位址放上堆疊，在指令 `create` 之後通常會使用 `allot` 或是 `,` 等配置更多的空間 | create |
+| `does>` | ( -- ) &emsp; 使用 Forth 指令來定義某個以 `create` 建造的指令的行為。當這個被 `create` 建造出來的指令執行時，和這指令結合的那塊資料空間的位址會先被放上堆疊，然後才執行 `does>` 之後的指令。 | does |
+| `+field <name>` | ( n1 n2 -- n3 ) &emsp; 定義一個名稱為 `name` 的欄位，此欄位的偏移量為 n1 個位元組，大小為 n2 個位元組。定義好欄位後會在堆疊上留下下一個欄位的偏移量， n3 = n1 + n2 | plus-field |

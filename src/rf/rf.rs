@@ -75,17 +75,19 @@ impl VM {
         vm.add_primitive("accept", p_accept);
         vm.add_primitive("bye", bye);
 
-        let libfs = include_str!("../lib.fs");
+        let libfs = include_str!("../../lib.fs");
         vm.load_str(libfs);
         if vm.last_error().is_some() {
-	    panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
+            panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
         }
 
         let libfs = include_str!("./lib.fs");
         vm.load_str(libfs);
         if vm.last_error().is_some() {
-	    panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
+            panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
         }
+
+        vm.flush();
 
         vm
     }
@@ -256,7 +258,7 @@ primitive!{fn p_accept(vm: &mut VM) {
 }}
 
 primitive!{fn bye(vm: &mut VM) {
-    vm.p_flush();
+    vm.flush();
     process::exit(0);
 }}
 

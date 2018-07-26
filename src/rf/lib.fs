@@ -2,9 +2,9 @@
 
 : evaluate
     begin parse-word
-    token-empty? not  error? not  and
+      token-empty? not  error? not  and
     while
-    compiling? if compile-token ?stacks else interpret-token ?stacks then
+      compiling? if compile-token ?stacks else interpret-token ?stacks then
     repeat ;
 : quit
     reset

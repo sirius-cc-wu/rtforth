@@ -489,6 +489,7 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("begin", Core::imm_begin);
         self.add_immediate_and_compile_only("while", Core::imm_while);
         self.add_immediate_and_compile_only("repeat", Core::imm_repeat);
+        self.add_immediate_and_compile_only("until", Core::imm_until);
         self.add_immediate_and_compile_only("again", Core::imm_again);
         self.add_immediate_and_compile_only("recurse", Core::imm_recurse);
         self.add_immediate_and_compile_only("do", Core::imm_do);
@@ -1095,12 +1096,29 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
+    /// Begin a structure that is terminated by `repeat`, `until`, or `again`. `begin ( -- )`.
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_begin(&mut self) {
         let here = self.data_space().len();
         self.c_stack().push(Control::Begin(here));
     }}
 
+    /// Begin the conditional part of a `begin ... while ... repeat` structure. `while ( flag -- )`.
+    ///
+    /// If all bits of `flag` are zero, continue execution at the location following `repeat`.
+    ///
+    /// begin A while B repeat C
+    ///
+    ///                +--------------------+
+    ///                |                    |
+    ///                |                    v
+    /// +---+---------+---+---+--------+---+---+
+    /// | A | 0branch | x | B | branch | x | C |
+    /// +---+---------+---+---+--------+---+---+
+    ///   ^                              |
+    ///   |                              |
+    ///   +------------------------------+
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_while(&mut self) {
         let idx = self.references().idx_zero_branch;
@@ -1110,6 +1128,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.c_stack().push(Control::While(here));
     }}
 
+    /// Terminate a `begin ... while ... repeat` structure. `repeat ( -- )`.
+    ///
+    /// Continue execution at the location following `begin`.
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_repeat(&mut self) {
         let (begin_part, while_part) = match self.c_stack().pop2() {
@@ -1133,6 +1154,50 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
+    /// Terminate a `begin ... until` structure. `until ( flag -- )`.
+    ///
+    /// If all bits of `flag` are zero, continue execution at the location following `begin`.
+    ///
+    /// begin A until C
+    ///
+    /// +---+---------+---+---+
+    /// | A | 0branch | x | C |
+    /// +---+---------+---+---+
+    ///   ^             |
+    ///   |             |
+    ///   +-------------+
+    ///
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_until(&mut self) {
+        let begin_part = match self.c_stack().pop() {
+            Control::Begin(begin_part) => begin_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_zero_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(begin_part as i32);
+        }
+    }}
+
+    /// Terminate a `begin ... again` structure. `again ( -- )`.
+    ///
+    /// Continue execution at the location following `begin`.
+    ///
+    /// begin A again C
+    ///
+    /// +---+--------+---+---+
+    /// | A | branch | x | C |
+    /// +---+--------+---+---+
+    ///   ^            |
+    ///   |            |
+    ///   +------------+
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
@@ -2046,11 +2111,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.parse();
     }}
 
+    /// Begin a comment that includes the entire remainder of the current line.
     primitive!{fn imm_backslash(&mut self) {
-        self.state().source_index = match *self.input_buffer() {
-            Some(ref buf) => buf.len(),
-            None => 0,
-        };
+        self.s_stack().push('\n' as isize);
+        self.parse();
     }}
 
     primitive!{fn compile_token(&mut self) {

@@ -190,8 +190,9 @@ impl CodeSpace {
         unsafe { self.inner.offset(len as isize) as usize }
     }
 
+    /// If the code-space pointer is not aligned, reserve enough space to align it.
     pub fn align(&mut self) {
-        let align = mem::align_of::<usize>();
+        let align = mem::align_of::<i32>();
         self.len = (self.len + align - 1) & align.wrapping_neg();
     }
 

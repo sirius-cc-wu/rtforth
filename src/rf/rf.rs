@@ -75,17 +75,15 @@ impl VM {
         vm.add_primitive("accept", p_accept);
         vm.add_primitive("bye", bye);
 
-        let libfs = include_str!("../lib.fs");
-        vm.load_str(libfs);
-        if vm.last_error().is_some() {
-	    panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
-        }
+        vm.load_core_fs();
 
         let libfs = include_str!("./lib.fs");
         vm.load_str(libfs);
         if vm.last_error().is_some() {
-	    panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
+            panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
         }
+
+        vm.flush();
 
         vm
     }
@@ -232,7 +230,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.3.0, Copyright (C) 2018 Mapacode Inc.");
+    println!("rtForth v0.4.0, Copyright (C) 2018 Mapacode Inc.");
 }
 
 primitive!{fn p_accept(vm: &mut VM) {
@@ -255,8 +253,9 @@ primitive!{fn p_accept(vm: &mut VM) {
     }
 }}
 
+/// Terminate process. 
 primitive!{fn bye(vm: &mut VM) {
-    vm.p_flush();
+    vm.flush();
     process::exit(0);
 }}
 

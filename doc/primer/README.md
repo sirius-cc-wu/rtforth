@@ -19,7 +19,11 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 
 「rtForth 入門」的撰寫參考了以下文獻，謹在此表達感謝，
 * J.V. Noble 的 [A Beginner's Guide to Forth](http://galileo.phys.virginia.edu/classes/551.jvn.fall01/primer.htm)
+* J.L. Bezemer 的 [And so forth...](https://thebeez.home.xs4all.nl/ForthPrimer/Forth_primer.html)
 * Forth Inc. Leo Brodie 的 [Starting Forth](https://www.forth.com/starting-forth/)
+* Forth Inc. Elizabeth D. Rather 的 [Forth Application Techniques](https://www.forth.com/forth-books/)
+* Forth Inc. Edward K. Conklin 及 Elizabeth D. Rather 的  [Forth Programmer's Handbook](https://www.forth.com/forth-books/)
+* Leonard Morgenstern 的 [Len's Forth Tutorial](http://www.forth.org/svfig/Len/Tutorils.htm)
 * [FORTH 標準](https://forth-standard.org/standard/index)
 
 -------------
@@ -40,9 +44,10 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 * [Forth 程式入門](programming.md)
   * [選擇](selection.md)
   * [循環](repetition.md)
-  * [WIP: 字典](dictionary.md)
-  * [TODO: 多工、異常處理與文本解譯器](tasking.md)
+  * [字典](dictionary.md)
+  * [WIP: 多工、異常處理與文本解譯器](tasking.md)
   * [TODO: 錯誤訊息說明](errors.md)
+  * [TODO: 程式碼風格](style.md)
 * [進階課題](advanced.md)
   * [TODO: Modbus RTU](modbus.md)
   * [TODO: 矩陣運算](matrix.md)

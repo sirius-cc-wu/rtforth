@@ -11,7 +11,7 @@ Documentation at [rtForth Primer](http://chengchangwu.github.io/rtforth/).
 
 ## Usage
 
-Install Rust: 
+Install Rust:
 
 [Installing Rust](https://doc.rust-lang.org/book/installing-rust.html)
 
@@ -53,7 +53,7 @@ SwiftForth vs gforth vs rtForth:
 
 benchmark   | SwiftForth | gforth-fast |  gforth  | rtForth
 ----------- | ---------- | ----------- | -------- | -------
-bubble-sort |    1       |     x       |     x    |     x        
+bubble-sort |    1       |     x       |     x    |     x
 fib         |    1       |   3.6       |   5.77   |   6.8
 matrix-mult |    1       |     x       |     x    |     x
 mm-rtcg     |    1       |     x       |     x    |     x

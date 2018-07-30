@@ -4507,10 +4507,10 @@ mod tests {
         vm.set_source("hello world\t\r\n\"");
         vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "hello");
-        assert_eq!(vm.state().source_index, 6);
+        assert_eq!(vm.state().source_index, 5);
         vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "world");
-        assert_eq!(vm.state().source_index, 12);
+        assert_eq!(vm.state().source_index, 11);
         vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "\"");
     }

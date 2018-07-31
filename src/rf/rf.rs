@@ -207,16 +207,12 @@ fn main() {
         print_version();
     } else if !matches.free.is_empty() {
         for file in matches.free {
-            vm.load(&file);
-            match vm.last_error() {
-                None => {}
-                Some(e) => {
-                    vm.clear_stacks();
-                    vm.reset();
-                    println!("{} ", e.description());
-                    bye = true;
-                    break;
-                }
+            if let Err(e) = vm.load(&file) {
+                vm.clear_stacks();
+                vm.reset();
+                println!("{} ", e.description());
+                bye = true;
+                break;
             }
         }
         if !bye {

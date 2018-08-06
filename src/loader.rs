@@ -1,5 +1,5 @@
 use core::Core;
-use exception::Exception::FileIOException;
+use exception::Exception;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -14,11 +14,10 @@ pub trait HasLoader: Core {
         self.evaluate();
     }
 
-    fn load(&mut self, path_name: &str) {
+    fn load(&mut self, path_name: &str) -> Result<(), Exception> {
         let mut reader = match File::open(&path_name) {
             Err(_) => {
-                self.abort_with(FileIOException);
-                return;
+                return Err(Exception::FileIOException);
             }
             Ok(file) => BufReader::new(file),
         };
@@ -31,19 +30,18 @@ pub trait HasLoader: Core {
                 Ok(_) => {
                     if input_buffer.is_empty() {
                         self.set_input_buffer(input_buffer);
-                        return;
+                        return Ok(());
                     } else {
                         self.set_input_buffer(input_buffer);
                         self.evaluate();
-                        if self.last_error().is_some() {
-                            return;
+                        if let Some(e) = self.last_error() {
+                            return Err(e);
                         }
                     }
                 }
                 Err(_) => {
                     self.set_input_buffer(input_buffer);
-                    self.abort_with(FileIOException);
-                    return;
+                    return Err(Exception::FileIOException);
                 }
             };
         }

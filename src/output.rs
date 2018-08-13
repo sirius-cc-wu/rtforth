@@ -65,10 +65,10 @@ pub trait Output: Core {
     primitive!{fn s_quote(&mut self) {
         let input_buffer = self.input_buffer().take().unwrap();
         {
-            let source = &input_buffer[self.state().source_index..input_buffer.len()];
+            let source = &input_buffer[self.state().source_index+1..input_buffer.len()];
             let (s, cnt) = match source.find('"') {
                 Some(n) => {
-                    (&input_buffer[self.state().source_index..self.state().source_index + n], n)
+                    (&input_buffer[self.state().source_index+1..self.state().source_index + 1 + n], n)
                 }
                 None => (source, source.len()),
             };

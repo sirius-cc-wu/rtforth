@@ -763,6 +763,14 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(not(feature = "subroutine-threaded"))]
+    fn compile_branch(&mut self, destination: usize) -> usize {
+        let idx = self.references().idx_branch;
+        self.compile_word(idx);
+        self.data_space().compile_i32(destination as i32);
+        self.data_space().len()
+    }
+
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn zero_branch(&mut self) {
         let v = self.s_stack().pop();
         if v == 0 {
@@ -771,6 +779,14 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.state().instruction_pointer += mem::size_of::<i32>();
         }
     }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn compile_zero_branch(&mut self, destination: usize) -> usize {
+        let idx = self.references().idx_zero_branch;
+        self.compile_word(idx);
+        self.data_space().compile_i32(destination as i32);
+        self.data_space().len()
+    }
 
     /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
     ///
@@ -940,10 +956,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_if(&mut self) {
-        let idx = self.references().idx_zero_branch;
-        self.compile_word(idx);
-        self.data_space().compile_i32(0);
-        let here = self.data_space().len();
+        let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
     }}
 
@@ -971,10 +984,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch;
-            self.compile_word(idx);
-            self.data_space().compile_i32(0);
-            let here = self.data_space().len();
+            let here = self.compile_branch(0);
             self.c_stack().push(Control::Else(here));
             self.data_space()
                 .put_i32(here as i32, if_part - mem::size_of::<i32>());
@@ -1047,10 +1057,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.compile_word(idx);
             let idx = self.references().idx_equal;
             self.compile_word(idx);
-            let idx = self.references().idx_zero_branch;
-            self.compile_word(idx);
-            self.data_space().compile_i32(0);
-            let here = self.data_space().len();
+            let here = self.compile_zero_branch(0);
             self.c_stack().push(Control::Of(here));
             let idx = self.references().idx_drop;
             self.compile_word(idx);
@@ -1071,10 +1078,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch;
-            self.compile_word(idx);
-            self.data_space().compile_i32(0);
-            let here = self.data_space().len();
+            let here = self.compile_branch(0);
             self.c_stack().push(Control::Endof(here));
             self.data_space()
                 .put_i32(here as i32, of_part - mem::size_of::<i32>());
@@ -1134,10 +1138,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_while(&mut self) {
-        let idx = self.references().idx_zero_branch;
-        self.compile_word(idx);
-        self.data_space().compile_i32(0);
-        let here = self.data_space().len();
+        let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(here));
     }}
 
@@ -1158,10 +1159,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch;
-            self.compile_word(idx);
-            self.data_space().compile_i32(begin_part as i32);
-            let here = self.data_space().len();
+            let here = self.compile_branch(begin_part);
             self.data_space()
                 .put_i32(here as i32, while_part - mem::size_of::<i32>());
         }
@@ -1192,9 +1190,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_zero_branch;
-            self.compile_word(idx);
-            self.data_space().compile_i32(begin_part as i32);
+            self.compile_zero_branch(begin_part);
         }
     }}
 
@@ -1223,9 +1219,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch;
-            self.compile_word(idx);
-            self.data_space().compile_i32(begin_part as i32);
+            self.compile_branch(begin_part);
         }
     }}
 
@@ -1812,6 +1806,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 }
             }
         }
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_case(&mut self) {
+        self.c_stack().push(Control::Case);
     }}
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]

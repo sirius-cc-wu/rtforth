@@ -3301,7 +3301,7 @@ compilation_semantics: fn(&mut Self, usize)){
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_reset(&mut self, _: usize) {
-        //      ; Make a copy of vm in %esi because %ecx may be destropyed by
+        //      ; Make a copy of vm in %esi because %ecx may be destroyed by
         //      ; subroutine call.
         //      ; Note that RESET is the first Forth instruction in QUIT.
         //      ; Also note that %esi is not saved here because QUIT doesn't

@@ -1776,7 +1776,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_i32((here - (if_part + 2 + mem::size_of::<i32>())) as i32, (if_part + 2));
+                    .put_i32((here - (if_part + 2 + mem::size_of::<i32>())) as i32, if_part + 2);
             }
         }
     }}
@@ -1804,11 +1804,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 if c == 0x0f {
                     self.code_space()
                         .put_i32((here - (branch_part + 2 +
-                         mem::size_of::<i32>())) as i32, (branch_part + 2));
+                         mem::size_of::<i32>())) as i32, branch_part + 2);
                 } else {
                     self.code_space()
                         .put_i32((here - (branch_part +
-                         1 + mem::size_of::<i32>())) as i32, (branch_part + 1));
+                         1 + mem::size_of::<i32>())) as i32, branch_part + 1);
                 }
             }
         }
@@ -1844,7 +1844,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             unsafe{
                 self.code_space()
                     .put_i32((here - (while_part +
-                     2 + mem::size_of::<i32>())) as i32, (while_part + 2));
+                     2 + mem::size_of::<i32>())) as i32, while_part + 2);
             }
         }
     }}

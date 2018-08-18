@@ -1850,6 +1850,22 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_until(&mut self) {
+        let begin_part = match self.c_stack().pop() {
+            Control::Begin(begin_part) => begin_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let _ = self.compile_zero_branch(begin_part);
+        }
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     primitive!{fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,

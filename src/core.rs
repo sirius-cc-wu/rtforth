@@ -468,7 +468,6 @@ pub trait Core: Sized {
         self.add_primitive("@", Core::fetch); // j1, jx, eForth
         self.add_primitive("!", Core::store); // j1, jx, eForth
         self.add_primitive("char+", Core::char_plus); // eForth
-        self.add_primitive("chars", Core::chars); // eForth
         self.add_primitive("here", Core::here);
         self.add_primitive("allot", Core::allot);
         self.add_primitive("aligned", Core::aligned);
@@ -746,8 +745,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
         self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
-        self.state().instruction_pointer =
-            self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize;
+        self.state().instruction_pointer = DataSpace::aligned(
+            self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize
+        );
     }}
 
     #[cfg(not(feature = "subroutine-threaded"))]
@@ -2707,14 +2707,6 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn char_plus(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v + mem::size_of::<u8>() as isize);
-    }}
-
-    /// Run-time: ( n1 -- n2 )
-    ///
-    /// `n2` is the size in address units of `n1` characters.
-    primitive!{fn chars(&mut self) {
-        let v = self.s_stack().pop();
-        self.s_stack().push(v * mem::size_of::<u8>() as isize);
     }}
 
     /// Run-time: ( a-addr1 -- a-addr2 )
@@ -4742,22 +4734,17 @@ mod tests {
     }
 
     #[test]
-    fn test_char_plus_and_chars() {
+    fn test_char_plus() {
         let vm = &mut VM::new(16, 16);
         vm.char_plus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
-        vm.chars();
-        vm.check_stacks();
-        // Note: Cannot detecht underflow because size of char is 1.
-        // assert_eq!(vm.last_error(), Some(StackUnderflow));
-        vm.reset();
-        // 2 char+  9 chars
-        vm.set_source("2 char+  9 chars");
+        // 2 char+
+        vm.set_source("2 char+");
         vm.evaluate();
         assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().as_slice(), [3, 9]);
+        assert_eq!(vm.s_stack().as_slice(), [3]);
     }
 
     #[test]
@@ -5210,7 +5197,7 @@ mod tests {
     #[bench]
     fn bench_sieve(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
-        vm.load("./lib.fs");
+        vm.load_core_fs();
         if vm.last_error().is_some() {
             eprintln!(
                 "Error {:?} at {:?}",

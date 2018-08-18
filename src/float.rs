@@ -2,18 +2,24 @@ use core::Core;
 use dataspace::DataSpace;
 use exception::Exception::InvalidMemoryAddress;
 use std::mem;
+use std::f64::consts::PI;
 use {FALSE, TRUE};
 
 pub trait Float: Core {
     fn add_float(&mut self) {
         self.add_primitive("fconstant", Float::fconstant);
-        self.add_primitive("fvariable", Float::fvariable);
+        self.add_primitive("float+", Float::float_plus);
+        self.add_primitive("floats", Float::floats);
+        self.add_primitive("faligned", Float::faligned);
+        self.add_primitive("falign", Float::falign);
+        self.add_primitive("pi", Float::pi);
         self.add_primitive("f!", Float::fstore);
         self.add_primitive("f@", Float::ffetch);
         self.add_primitive("fabs", Float::fabs);
         self.add_primitive("fsin", Float::fsin);
         self.add_primitive("fcos", Float::fcos);
         self.add_primitive("ftan", Float::ftan);
+        self.add_primitive("fsincos", Float::fsincos);
         self.add_primitive("fasin", Float::fasin);
         self.add_primitive("facos", Float::facos);
         self.add_primitive("fatan", Float::fatan);
@@ -23,14 +29,16 @@ pub trait Float: Core {
         self.add_primitive("fdup", Float::fdup);
         self.add_primitive("fswap", Float::fswap);
         self.add_primitive("fnip", Float::fnip);
-        self.add_primitive("frot", Float::frot);
         self.add_primitive("fover", Float::fover);
-        self.add_primitive("n>f", Float::n_to_f);
-        self.add_primitive("f>n", Float::f_to_n);
+        self.add_primitive("frot", Float::frot);
+        self.add_primitive("fpick", Float::fpick);
+        self.add_primitive("s>f", Float::s_to_f);
+        self.add_primitive("f>s", Float::f_to_s);
         self.add_primitive("f+", Float::fplus);
         self.add_primitive("f-", Float::fminus);
         self.add_primitive("f*", Float::fstar);
         self.add_primitive("f/", Float::fslash);
+        self.add_primitive("f**", Float::fpowf);
         self.add_primitive("f~", Float::fproximate);
         self.add_primitive("f0<", Float::f_zero_less_than);
         self.add_primitive("f0=", Float::f_zero_equals);
@@ -52,17 +60,47 @@ pub trait Float: Core {
         self.f_stack().push(v);
     }}
 
-    primitive!{fn fvariable(&mut self) {
-        self.define(Core::p_var, Core::compile_var);
-        self.data_space().align_f64();
-        self.data_space().compile_f64(0.0);
-    }}
-
     primitive!{fn fconstant(&mut self) {
         let v = self.f_stack().pop();
         self.define(Float::p_fconst, Core::compile_fconst);
         self.data_space().align_f64();
         self.data_space().compile_f64(v);
+    }}
+
+    /// Run-time: ( a-addr1 -- a-addr2 )
+    ///
+    /// Add the size in address units of a float to `a-addr1`, giving `a-addr2`.
+    primitive!{fn float_plus(&mut self) {
+        let v = self.s_stack().pop();
+        self.s_stack().push(v + mem::size_of::<f64>() as isize);
+    }}
+
+    /// Run-time: ( n1 -- n2 )
+    ///
+    /// `n2` is the size in address units of `n1` floats.
+    primitive!{fn floats(&mut self) {
+        let v = self.s_stack().pop();
+        self.s_stack().push(v * mem::size_of::<f64>() as isize);
+    }}
+
+    /// Run-time: ( addr -- a-addr )
+    ///
+    /// Return `a-addr`, the first float-aligned address greater than or equal to `addr`.
+    primitive!{fn faligned(&mut self) {
+        let pos = self.s_stack().pop();
+        let pos = DataSpace::aligned_f64(pos as usize);
+        self.s_stack().push(pos as isize);
+    }}
+
+    /// Run-time: ( -- )
+    ///
+    /// If the data-space pointer is not float-aligned, reserve enough space to align it.
+    primitive!{fn falign(&mut self) {
+        self.data_space().align_f64();
+    }}
+
+    primitive!{fn pi(&mut self) {
+        self.f_stack().push(PI);
     }}
 
     // Floating point primitives
@@ -105,6 +143,12 @@ pub trait Float: Core {
     primitive!{fn ftan(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.tan());
+    }}
+
+    primitive!{fn fsincos(&mut self) {
+        let t = self.f_stack().pop();
+        let (s, c) = t.sin_cos();
+        self.f_stack().push2(s, c);
     }}
 
     primitive!{fn fasin(&mut self) {
@@ -167,12 +211,22 @@ pub trait Float: Core {
         self.f_stack().push3(n, t, n);
     }}
 
-    primitive!{fn n_to_f(&mut self) {
+    /// Place a copy of the nth floating point stack entry on top of the floating point stack. `fpick ( n -- ) ( F: ... -- x )`
+    ///
+    /// `0 fpick` is equivalent to `fdup`.
+    primitive!{fn fpick(&mut self) {
+        let t = self.s_stack().pop() as u8;
+        let len = self.f_stack().len;
+        let x = self.f_stack()[len.wrapping_sub(t.wrapping_add(1))];
+        self.f_stack().push(x);
+    }}
+
+    primitive!{fn s_to_f(&mut self) {
         let t = self.s_stack().pop();
         self.f_stack().push(t as f64);
     }}
 
-    primitive!{fn f_to_n(&mut self) {
+    primitive!{fn f_to_s(&mut self) {
         let t = self.f_stack().pop();
         self.s_stack().push(t as isize);
     }}
@@ -199,6 +253,12 @@ pub trait Float: Core {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n / t);
+    }}
+
+    primitive!{fn fpowf(&mut self) {
+        let t = self.f_stack().pop();
+        let n = self.f_stack().pop();
+        self.f_stack().push(n.powf(t));
     }}
 
     primitive!{fn fproximate(&mut self) {
@@ -344,9 +404,9 @@ mod tests {
     }
 
     #[test]
-    fn test_fvariable_and_fstore_ffetch() {
+    fn test_fstore_ffetch() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("fvariable fx  fx f@  3.3E fx f!  fx f@");
+        vm.set_source("3.3e here f!  0.0e  here f@");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [0.0, 3.3]);
@@ -528,6 +588,28 @@ mod tests {
     }
 
     #[test]
+    fn test_fpick() {
+        let vm = &mut VM::new(16, 16);
+        vm.f_stack().push(1.0);
+        vm.s_stack().push(0);
+        vm.fpick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), [1.0, 1.0]);
+
+        let vm = &mut VM::new(16, 16);
+        vm.f_stack().push(1.0);
+        vm.f_stack().push(0.0);
+        vm.s_stack().push(1);
+        vm.fpick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), []);
+        assert_eq!(vm.f_stack().as_slice(), [1.0, 0.0, 1.0]);
+    }
+
+    #[test]
     fn test_fplus_fminus_fstar_fslash() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("9.0e 10.0e f+ 11.0e f- 12.0e f* 13.0e f/");
@@ -645,7 +727,7 @@ mod tests {
     #[test]
     fn test_n_to_f() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("0 n>f -1 n>f 1 n>f");
+        vm.set_source("0 s>f -1 s>f 1 s>f");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [0.0, -1.0, 1.0]);
@@ -654,7 +736,7 @@ mod tests {
     #[test]
     fn test_f_to_n() {
         let vm = &mut VM::new(16, 16);
-        vm.set_source("0.0e f>n -1.0e f>n 1.0e f>n");
+        vm.set_source("0.0e f>s -1.0e f>s 1.0e f>s");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().as_slice(), [0, -1, 1]);

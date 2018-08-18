@@ -17,9 +17,7 @@ use rtforth::tools::Tools;
 use rtforth::units::Units;
 use std::env;
 use std::fmt::Write;
-
-#[cfg(not(test))]
-#[cfg(not(test))]
+use std::process;
 
 // Virtual machine
 pub struct VM {
@@ -39,6 +37,7 @@ pub struct VM {
     inbuf: Option<String>,
     tkn: Option<String>,
     outbuf: Option<String>,
+    hldbuf: String,
     state: State,
     references: ForwardReferences,
 }
@@ -62,6 +61,7 @@ impl VM {
             inbuf: Some(String::with_capacity(128)),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
+            hldbuf: String::with_capacity(128),
             state: State::new(),
             references: ForwardReferences::new(),
         };
@@ -73,6 +73,18 @@ impl VM {
         vm.add_float();
         vm.add_units();
         vm.add_primitive("accept", p_accept);
+        vm.add_primitive("bye", bye);
+
+        vm.load_core_fs();
+
+        let libfs = include_str!("./lib.fs");
+        vm.load_str(libfs);
+        if vm.last_error().is_some() {
+            panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
+        }
+
+        vm.flush();
+
         vm
     }
 }
@@ -101,6 +113,9 @@ impl Core for VM {
     }
     fn code_space_const(&self) -> &CodeSpace {
         &self.code_space
+    }
+    fn hold_buffer(&mut self) -> &mut String {
+        &mut self.hldbuf
     }
     fn output_buffer(&mut self) -> &mut Option<String> {
         &mut self.outbuf
@@ -171,6 +186,7 @@ impl Tools for VM {}
 
 fn main() {
     let vm = &mut VM::new(1024, 1024);
+
     let mut bye = false;
 
     let args: Vec<_> = env::args().collect();
@@ -191,16 +207,12 @@ fn main() {
         print_version();
     } else if !matches.free.is_empty() {
         for file in matches.free {
-            vm.load(&file);
-            match vm.last_error() {
-                None => {}
-                Some(e) => {
-                    vm.clear_stacks();
-                    vm.reset();
-                    println!("{} ", e.description());
-                    bye = true;
-                    break;
-                }
+            if let Err(e) = vm.load(&file) {
+                vm.clear_stacks();
+                vm.reset();
+                println!("{} ", e.description());
+                bye = true;
+                break;
             }
         }
         if !bye {
@@ -214,7 +226,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.1.39, Copyright (C) 2017 Mapacode Inc.");
+    println!("rtForth v0.4.0, Copyright (C) 2018 Mapacode Inc.");
 }
 
 primitive!{fn p_accept(vm: &mut VM) {
@@ -224,7 +236,7 @@ primitive!{fn p_accept(vm: &mut VM) {
             vm.set_source(&line);
         }
         Err(rustyline::error::ReadlineError::Eof) => {
-            vm.bye();
+            bye(vm);
         }
         Err(err) => {
             match vm.output_buffer().as_mut() {
@@ -237,33 +249,19 @@ primitive!{fn p_accept(vm: &mut VM) {
     }
 }}
 
+/// Terminate process. 
+primitive!{fn bye(vm: &mut VM) {
+    vm.flush();
+    process::exit(0);
+}}
+
 #[inline(never)]
 fn repl(vm: &mut VM) {
-    vm.set_source(
-        "
-        : EVALUATE
-            BEGIN PARSE-WORD
-            TOKEN-EMPTY? NOT  ERROR? NOT  AND
-            WHILE
-            COMPILING? IF COMPILE-TOKEN ?STACKS ELSE INTERPRET-TOKEN ?STACKS THEN
-            REPEAT ;
-        : QUIT
-            RESET
-            BEGIN ACCEPT EVALUATE
-            .\"  ok\" FLUSH
-            AGAIN ;
-        : (ABORT) HANDLE-ERROR FLUSH QUIT ;
-        ' (ABORT) HANDLER!
-    ",
-    );
-    vm.evaluate();
-    vm.run();
     let quit = vm.find("QUIT").expect("QUIT");
     vm.execute_word(quit);
     vm.run();
 }
 
-#[cfg(not(test))]
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} [files] [options]", program);
     print!("{}", opts.usage(&brief));

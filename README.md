@@ -2,6 +2,8 @@
 
 Forth implemented in Rust, designed for real-time applications.
 
+Documentation at [rtForth Primer](https://mapacode.github.io/rtforth/).
+
 ## Design decisions:
 
 * Safe first, performance later
@@ -9,7 +11,7 @@ Forth implemented in Rust, designed for real-time applications.
 
 ## Usage
 
-Install Rust: 
+Install Rust:
 
 [Installing Rust](https://doc.rust-lang.org/book/installing-rust.html)
 
@@ -51,7 +53,7 @@ SwiftForth vs gforth vs rtForth:
 
 benchmark   | SwiftForth | gforth-fast |  gforth  | rtForth
 ----------- | ---------- | ----------- | -------- | -------
-bubble-sort |    1       |     x       |     x    |     x        
+bubble-sort |    1       |     x       |     x    |     x
 fib         |    1       |   3.6       |   5.77   |   6.8
 matrix-mult |    1       |     x       |     x    |     x
 mm-rtcg     |    1       |     x       |     x    |     x

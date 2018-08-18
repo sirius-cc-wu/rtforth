@@ -190,20 +190,24 @@ impl CodeSpace {
         unsafe { self.inner.offset(len as isize) as usize }
     }
 
+    /// First aligned address greater than or equal to `pos`.
     pub fn aligned(pos: usize) -> usize {
-        let align = mem::align_of::<usize>();
+        let align = mem::align_of::<i32>();
         (pos + align - 1) & align.wrapping_neg()
     }
 
+    /// If the code-space pointer is not aligned, reserve enough space to align it.
     pub fn align(&mut self) {
         self.len = Self::aligned(self.len);
     }
 
+    /// First address aligned to 16-byte boundary greater than or equal to `pos`.
     pub fn aligned_16bytes(pos: usize) -> usize {
         let align = 16;
         (pos + align - 1) & align.wrapping_neg()
     }
 
+    /// If the code-space pointer is not aligned to 16-byte boundary, reserve enough space to align it.
     pub fn align_16bytes(&mut self) {
         self.len = Self::aligned_16bytes(self.len);
     }

@@ -171,20 +171,24 @@ impl DataSpace {
         self.len += bytes.len();
     }
 
+    /// First aligned address greater than or equal to `pos`.
     pub fn aligned(pos: usize) -> usize {
-        let align = mem::align_of::<usize>();
+        let align = mem::align_of::<i32>();
         (pos + align - 1) & align.wrapping_neg()
     }
 
+    /// If the data-space pointer is not aligned, reserve enough space to align it.
     pub fn align(&mut self) {
         self.len = Self::aligned(self.len);
     }
 
+    /// First float-aligned address greater than or equal to `pos`.
     pub fn aligned_f64(pos: usize) -> usize {
         let align = mem::align_of::<f64>();
         (pos + align - 1) & align.wrapping_neg()
     }
 
+    /// If the data-space pointer is not float-aligned, reserve enough space to align it.
     pub fn align_f64(&mut self) {
         self.len = Self::aligned_f64(self.len);
     }

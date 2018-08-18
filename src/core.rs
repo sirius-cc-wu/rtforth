@@ -13,7 +13,6 @@ use std::fmt::Write;
 use std::fmt::{self, Display};
 use std::mem;
 use std::ops::{Index, IndexMut};
-use std::process;
 use std::result;
 use std::str;
 use {FALSE, TRUE};
@@ -234,47 +233,37 @@ impl Index<u8> for Stack<Control> {
 
 impl fmt::Debug for Stack<isize> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match write!(f, "<{}> ", self.len()) {
-            Ok(_) => {
-                if self.len == 0 {
-                } else {
-                    for i in 0..self.len {
-                        let v = self[i];
-                        match write!(f, "{} ", v) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                return Err(e);
-                            }
-                        }
+        if self.len == 0 {
+        } else {
+            for i in 0..self.len {
+                let v = self[i];
+                match write!(f, "{} ", v) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        return Err(e);
                     }
                 }
-                Ok(())
             }
-            Err(e) => Err(e),
         }
+        Ok(())
     }
 }
 
 impl fmt::Debug for Stack<f64> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match write!(f, "<F {}> ", self.len()) {
-            Ok(_) => {
-                if self.len == 0 {
-                } else {
-                    for i in 0..self.len {
-                        let v = self[i];
-                        match write!(f, "{} ", v) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                return Err(e);
-                            }
-                        }
+        if self.len == 0 {
+        } else {
+            for i in 0..self.len {
+                let v = self[i];
+                match write!(f, "{:.7} ", v) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        return Err(e);
                     }
                 }
-                Ok(())
             }
-            Err(e) => Err(e),
         }
+        Ok(())
     }
 }
 
@@ -290,6 +279,9 @@ pub struct ForwardReferences {
     pub idx_plus_loop: usize,
     pub idx_s_quote: usize,
     pub idx_type: usize,
+    pub idx_over: usize,
+    pub idx_equal: usize,
+    pub idx_drop: usize,
 }
 
 impl ForwardReferences {
@@ -306,6 +298,9 @@ impl ForwardReferences {
             idx_plus_loop: 0,
             idx_s_quote: 0,
             idx_type: 0,
+            idx_over: 0,
+            idx_equal: 0,
+            idx_drop: 0,
         }
     }
 }
@@ -352,6 +347,9 @@ pub enum Control {
     Begin(usize),
     While(usize),
     Do(usize, usize),
+    Case,
+    Of(usize),
+    Endof(usize),
 }
 
 impl Default for Control {
@@ -370,6 +368,9 @@ impl Display for Control {
             Control::Begin(_) => "Begin",
             Control::While(_) => "While",
             Control::Do(_, _) => "Do",
+            Control::Case => "Case",
+            Control::Of(_) => "Of",
+            Control::Endof(_) => "Endof",
         };
         write!(f, "{}", s)
     }
@@ -385,6 +386,8 @@ pub trait Core: Sized {
     fn data_space_const(&self) -> &DataSpace;
     fn code_space(&mut self) -> &mut CodeSpace;
     fn code_space_const(&self) -> &CodeSpace;
+    /// Numeric output buffer
+    fn hold_buffer(&mut self) -> &mut String;
     /// Get `output_buffer`.
     fn output_buffer(&mut self) -> &mut Option<String>;
     /// Set `output_buffer` to `Some(buffer)`.
@@ -413,27 +416,29 @@ pub trait Core: Sized {
     /// Add core primitives to self.
     fn add_core(&mut self) {
         // Bytecodes
-        self.add_primitive("noop", Core::noop); // j1, Ngaro, jx
-        self.add_compile_only("exit", Core::exit); // j1, jx, eForth
-        self.add_compile_only("lit", Core::lit); // Ngaro, jx, eForth
+        self.add_primitive("noop", Core::noop);
+        self.add_compile_only("exit", Core::exit);
+        self.add_compile_only("lit", Core::lit);
         self.add_compile_only("flit", Core::flit);
         self.add_compile_only("_s\"", Core::p_s_quote);
-        self.add_compile_only("branch", Core::branch); // j1, eForth
-        self.add_compile_only("0branch", Core::zero_branch); // j1, eForth
-        self.add_compile_only("_do", Core::_do); // jx
-        self.add_compile_only("_qdo", Core::_qdo); // jx
-        self.add_compile_only("_loop", Core::_loop); // jx
-        self.add_compile_only("_+loop", Core::_plus_loop); // jx
-        self.add_compile_only("unloop", Core::unloop); // jx
-        self.add_compile_only("leave", Core::leave); // jx
-        self.add_compile_only("i", Core::p_i); // jx
-        self.add_compile_only("j", Core::p_j); // jx
-        self.add_compile_only(">r", Core::p_to_r); // j1, Ngaro, jx, eForth
-        self.add_compile_only("r>", Core::r_from); // j1, Ngaro, jx, eForth
-        self.add_compile_only("r@", Core::r_fetch); // j1, jx, eForth
-        self.add_compile_only("2>r", Core::two_to_r); // jx
-        self.add_compile_only("2r>", Core::two_r_from); // jx
-        self.add_compile_only("2r@", Core::two_r_fetch); // jx
+        self.add_compile_only("branch", Core::branch);
+        self.add_compile_only("0branch", Core::zero_branch);
+        self.add_compile_only("_do", Core::_do);
+        self.add_compile_only("_qdo", Core::_qdo);
+        self.add_compile_only("_loop", Core::_loop);
+        self.add_compile_only("_+loop", Core::_plus_loop);
+        self.add_compile_only("unloop", Core::unloop);
+        self.add_compile_only("leave", Core::leave);
+        self.add_compile_only("i", Core::p_i);
+        self.add_compile_only("j", Core::p_j);
+        self.add_compile_only(">r", Core::p_to_r);
+        self.add_compile_only("r>", Core::r_from);
+        self.add_compile_only("r@", Core::r_fetch);
+        self.add_compile_only("2>r", Core::two_to_r);
+        self.add_compile_only("2r>", Core::two_r_from);
+        self.add_compile_only("2r@", Core::two_r_fetch);
+        self.add_compile_only("compile,", Core::compile_comma);
+        self.add_compile_only("_does", Core::_does);
 
         self.add_primitive("execute", Core::execute); // jx, eForth
         self.add_primitive("dup", Core::dup); // j1, Ngaro, jx, eForth
@@ -466,22 +471,32 @@ pub trait Core: Sized {
         self.add_primitive("chars", Core::chars); // eForth
         self.add_primitive("here", Core::here);
         self.add_primitive("allot", Core::allot);
+        self.add_primitive("aligned", Core::aligned);
+        self.add_primitive("align", Core::align);
         self.add_primitive("c@", Core::c_fetch);
         self.add_primitive("c!", Core::c_store);
         self.add_primitive("base", Core::base);
+        self.add_primitive("immediate", Core::immediate);
+        self.add_primitive("compile-only", Core::compile_only);
 
         // Immediate words
         self.add_immediate("(", Core::imm_paren);
         self.add_immediate("\\", Core::imm_backslash);
         self.add_immediate("[", Core::left_bracket);
+        self.add_immediate_and_compile_only("[']", Core::bracket_tick);
         self.add_immediate_and_compile_only("[char]", Core::bracket_char);
         self.add_immediate_and_compile_only(";", Core::semicolon);
         self.add_immediate_and_compile_only("if", Core::imm_if);
         self.add_immediate_and_compile_only("else", Core::imm_else);
         self.add_immediate_and_compile_only("then", Core::imm_then);
+        self.add_immediate_and_compile_only("case", Core::imm_case);
+        self.add_immediate_and_compile_only("of", Core::imm_of);
+        self.add_immediate_and_compile_only("endof", Core::imm_endof);
+        self.add_immediate_and_compile_only("endcase", Core::imm_endcase);
         self.add_immediate_and_compile_only("begin", Core::imm_begin);
         self.add_immediate_and_compile_only("while", Core::imm_while);
         self.add_immediate_and_compile_only("repeat", Core::imm_repeat);
+        self.add_immediate_and_compile_only("until", Core::imm_until);
         self.add_immediate_and_compile_only("again", Core::imm_again);
         self.add_immediate_and_compile_only("recurse", Core::imm_recurse);
         self.add_immediate_and_compile_only("do", Core::imm_do);
@@ -498,7 +513,10 @@ pub trait Core: Sized {
         self.add_primitive("0<>", Core::zero_not_equals);
         self.add_primitive(">", Core::greater_than);
         self.add_primitive("<>", Core::not_equals);
+        self.add_primitive("within", Core::within);
         self.add_primitive("rot", Core::rot);
+        self.add_primitive("-rot", Core::minus_rot);
+        self.add_primitive("pick", Core::pick);
         self.add_primitive("2dup", Core::two_dup);
         self.add_primitive("2drop", Core::two_drop);
         self.add_primitive("2swap", Core::two_swap);
@@ -507,13 +525,11 @@ pub trait Core: Sized {
         self.add_primitive("mod", Core::p_mod);
         self.add_primitive("abs", Core::abs);
         self.add_primitive("negate", Core::negate);
-        self.add_primitive("between", Core::between);
         self.add_primitive("parse-word", Core::parse_word);
         self.add_primitive("char", Core::char);
         self.add_primitive("parse", Core::parse);
         self.add_primitive(":", Core::colon);
         self.add_primitive("constant", Core::constant);
-        self.add_primitive("variable", Core::variable);
         self.add_primitive("create", Core::create);
         self.add_primitive("'", Core::tick);
         self.add_primitive("]", Core::right_bracket);
@@ -524,7 +540,6 @@ pub trait Core: Sized {
         self.add_primitive("handle-error", Core::p_handle_error);
         self.add_primitive("reset", Core::reset);
         self.add_primitive("abort", Core::abort);
-        self.add_primitive("bye", Core::bye);
         self.add_primitive("compiling?", Core::p_compiling);
         self.add_primitive("token-empty?", Core::p_token_empty);
         self.add_primitive("compile-token", Core::compile_token);
@@ -539,6 +554,9 @@ pub trait Core: Sized {
         self.references().idx_qdo = self.find("_qdo").expect("_qdo undefined");
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
+        self.references().idx_over = self.find("over").expect("over undefined");
+        self.references().idx_equal = self.find("=").expect("= undefined");
+        self.references().idx_drop = self.find("drop").expect("drop undefined");
 
         self.patch_compilation_semanticses();
     }
@@ -546,6 +564,8 @@ pub trait Core: Sized {
     /// Add a primitive word to word list.
 fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         let symbol = self.new_symbol(name);
+        self.data_space().align();
+        self.code_space().align();
         let word = Word::new(
             symbol,
             action,
@@ -558,27 +578,35 @@ fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         self.wordlist_mut().push(word);
     }
 
+    /// Set the last definition immediate.
+    primitive!{fn immediate(&mut self) {
+        let def = self.last_definition();
+        self.wordlist_mut()[def].set_immediate(true);
+    }}
+
     /// Add an immediate word to word list.
 fn add_immediate(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         self.add_primitive(name, action);
-        let def = self.last_definition();
-        self.wordlist_mut()[def].set_immediate(true);
+        self.immediate();
     }
+
+    /// Set the last definition compile-only.
+    primitive!{fn compile_only(&mut self) {
+        let def = self.last_definition();
+        self.wordlist_mut()[def].set_compile_only(true);
+    }}
 
     /// Add a compile-only word to word list.
 fn add_compile_only(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         self.add_primitive(name, action);
-        let def = self.last_definition();
-        self.wordlist_mut()[def].set_compile_only(true);
+        self.compile_only();
     }
 
     /// Add an immediate and compile-only word to word list.
 fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         self.add_primitive(name, action);
-        let def = self.last_definition();
-        let w = &mut self.wordlist_mut()[def];
-        w.set_immediate(true);
-        w.set_compile_only(true);
+        self.immediate();
+        self.compile_only();
     }
 
     /// Execute word at position `i`.
@@ -852,7 +880,6 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         let _ = self.r_stack().pop3();
     }}
 
-
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn leave(&mut self) {
         let (third, _, _) = self.r_stack().pop3();
@@ -899,6 +926,18 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }
 
+    /// IF A THEN
+    ///
+    ///         +------+
+    ///         |      |
+    ///         |      v
+    /// +-----+---+---+--
+    /// | _if | x | A |
+    /// +-----+---+---+--
+    ///         ^
+    ///         |
+    ///         ip
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_if(&mut self) {
         let idx = self.references().idx_zero_branch;
@@ -908,6 +947,18 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.c_stack().push(Control::If(here));
     }}
 
+    /// IF A ELSE B THEN
+    ///
+    ///             +--------------------+
+    ///             |                    |
+    ///             |                    v
+    /// +---------+---+---+--------+---+---+--
+    /// | ?branch | x | A | branch | x | B |
+    /// +---------+---+---+--------+---+---+--
+    ///             ^                |       ^
+    ///             |                |       |
+    ///             ip               +-------+
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
@@ -949,12 +1000,138 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
+    /// n1 CASE
+    ///   n2 OF A ENDOF
+    ///   n3 OF B ENDOF
+    ///   C
+    /// ENDCASE
+    /// D
+    ///
+    /// +-----+----+------+---+---------+---+------+---+--------+---+
+    /// | lit | n2 | over | = | 0branch | x | drop | A | branch | x |
+    /// +-----+----+------+---+---------+---+------+---+--------+---+
+    ///                                   |                       |
+    ///   +-------------------------------+                       +--------------+
+    ///   |                                                       |              |
+    ///   v                                                       |              v
+    /// +-----+----+------+---+---------+---+------+---+--------+---+---+------+---+
+    /// | lit | n3 | over | = | 0branch | x | drop | B | branch | x | C | drop | D |
+    /// +-----+----+------+---+---------+---+------+---+--------+---+---+------+---+
+    ///                                   |                           ^
+    ///                                   |                           |
+    ///                                   +---------------------------+
+    ///
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_case(&mut self) {
+        self.c_stack().push(Control::Case);
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_of(&mut self) {
+        match self.c_stack().pop() {
+            Control::Case => {
+                self.c_stack().push(Control::Case);
+            },
+            Control::Endof(n) => {
+                self.c_stack().push(Control::Endof(n));
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_over;
+            self.compile_word(idx);
+            let idx = self.references().idx_equal;
+            self.compile_word(idx);
+            let idx = self.references().idx_zero_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(0);
+            let here = self.data_space().len();
+            self.c_stack().push(Control::Of(here));
+            let idx = self.references().idx_drop;
+            self.compile_word(idx);
+        }
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_endof(&mut self) {
+        let of_part = match self.c_stack().pop() {
+            Control::Of(of_part) => {
+                of_part
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(0);
+            let here = self.data_space().len();
+            self.c_stack().push(Control::Endof(here));
+            self.data_space()
+                .put_i32(here as i32, of_part - mem::size_of::<i32>());
+        }
+    }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_endcase(&mut self) {
+        let idx = self.references().idx_drop;
+        self.compile_word(idx);
+        loop {
+            let endof_part = match self.c_stack().pop() {
+                Control::Case => { break; }
+                Control::Endof(endof_part) => {
+                    endof_part
+                }
+                _ => {
+                    self.abort_with(ControlStructureMismatch);
+                    return;
+                }
+            };
+            if self.c_stack().underflow() {
+                self.abort_with(ControlStructureMismatch);
+            } else {
+                let here = self.data_space().len();
+                self.data_space()
+                    .put_i32(here as i32, endof_part - mem::size_of::<i32>());
+            }
+        }
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        }
+    }}
+
+    /// Begin a structure that is terminated by `repeat`, `until`, or `again`. `begin ( -- )`.
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_begin(&mut self) {
         let here = self.data_space().len();
         self.c_stack().push(Control::Begin(here));
     }}
 
+    /// Begin the conditional part of a `begin ... while ... repeat` structure. `while ( flag -- )`.
+    ///
+    /// If all bits of `flag` are zero, continue execution at the location following `repeat`.
+    ///
+    /// begin A while B repeat C
+    ///
+    ///                +--------------------+
+    ///                |                    |
+    ///                |                    v
+    /// +---+---------+---+---+--------+---+---+
+    /// | A | 0branch | x | B | branch | x | C |
+    /// +---+---------+---+---+--------+---+---+
+    ///   ^                              |
+    ///   |                              |
+    ///   +------------------------------+
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_while(&mut self) {
         let idx = self.references().idx_zero_branch;
@@ -964,6 +1141,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.c_stack().push(Control::While(here));
     }}
 
+    /// Terminate a `begin ... while ... repeat` structure. `repeat ( -- )`.
+    ///
+    /// Continue execution at the location following `begin`.
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_repeat(&mut self) {
         let (begin_part, while_part) = match self.c_stack().pop2() {
@@ -987,6 +1167,50 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
+    /// Terminate a `begin ... until` structure. `until ( flag -- )`.
+    ///
+    /// If all bits of `flag` are zero, continue execution at the location following `begin`.
+    ///
+    /// begin A until C
+    ///
+    /// +---+---------+---+---+
+    /// | A | 0branch | x | C |
+    /// +---+---------+---+---+
+    ///   ^             |
+    ///   |             |
+    ///   +-------------+
+    ///
+    #[cfg(not(feature = "subroutine-threaded"))]
+    primitive!{fn imm_until(&mut self) {
+        let begin_part = match self.c_stack().pop() {
+            Control::Begin(begin_part) => begin_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_zero_branch;
+            self.compile_word(idx);
+            self.data_space().compile_i32(begin_part as i32);
+        }
+    }}
+
+    /// Terminate a `begin ... again` structure. `again ( -- )`.
+    ///
+    /// Continue execution at the location following `begin`.
+    ///
+    /// begin A again C
+    ///
+    /// +---+--------+---+---+
+    /// | A | branch | x | C |
+    /// +---+--------+---+---+
+    ///   ^            |
+    ///   |            |
+    ///   +------------+
+    ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
@@ -1843,18 +2067,26 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         last_token.clear();
         if let Some(input_buffer) = self.input_buffer().take() {
             if self.state().source_index < input_buffer.len() {
-                let source = &input_buffer[self.state().source_index..input_buffer.len()];
-                let mut cnt = 0;
-                for ch in source.chars() {
-                    cnt = cnt + 1;
-                    match ch {
-                        '\t' | '\n' | '\r' | ' ' => {
-                            if !last_token.is_empty() {
-                                break;
-                            }
+                let source = &input_buffer[self.state().source_index..];
+                let mut cnt = source.len();
+                let mut char_indices = source.char_indices();
+                loop {
+                    match char_indices.next() {
+                        Some((idx, ch)) => {
+                            match ch {
+                                '\t' | '\n' | '\r' | ' ' => {
+                                    if !last_token.is_empty() {
+                                        cnt = idx;
+                                        break;
+                                    }
+                                }
+                                _ => last_token.push(ch),
+                            };
                         }
-                        _ => last_token.push(ch),
-                    };
+                        None => {
+                            break;
+                        }
+                    }
                 }
                 self.state().source_index = self.state().source_index + cnt;
             }
@@ -1908,14 +2140,28 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         let mut last_token = self.last_token().take().expect("token");
         last_token.clear();
         {
-            let source = &input_buffer[self.state().source_index..input_buffer.len()];
-            let mut cnt = 0;
-            for ch in source.chars() {
-                cnt = cnt + 1;
-                if ch as isize == v {
-                    break;
-                } else {
-                    last_token.push(ch);
+
+            let source = &input_buffer[self.state().source_index..];
+            let mut cnt = source.len();
+            let mut char_indices = source.char_indices();
+            loop {
+                match char_indices.next() {
+                    Some((idx, ch)) => {
+                        if ch as isize == v {
+                            match char_indices.next() {
+                                Some((idx, _)) => {
+                                    cnt = idx;
+                                }
+                                None => {}
+                            }
+                            break;
+                        } else {
+                            last_token.push(ch);
+                        }
+                    }
+                    None => {
+                        break;
+                    }
                 }
             }
             self.state().source_index = self.state().source_index + cnt;
@@ -1929,11 +2175,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.parse();
     }}
 
+    /// Begin a comment that includes the entire remainder of the current line.
     primitive!{fn imm_backslash(&mut self) {
-        self.state().source_index = match *self.input_buffer() {
-            Some(ref buf) => buf.len(),
-            None => 0,
-        };
+        self.s_stack().push('\n' as isize);
+        self.parse();
     }}
 
     primitive!{fn compile_token(&mut self) {
@@ -2036,7 +2281,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.s_stack().push(value);
     }}
 
-    primitive!{fn evaluate(&mut self) {
+    fn evaluate(&mut self) {
         loop {
             self.parse_word();
             match self.last_token().as_ref() {
@@ -2064,7 +2309,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 break;
             }
         }
-    }}
+    }
 
     primitive!{fn base(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
@@ -2073,21 +2318,39 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     fn evaluate_integer(&mut self, token: &str) {
         let base_addr = self.data_space().system_variables().base_addr();
-        let base = self.data_space().get_isize(base_addr);
-        match parser::sign(&token.as_bytes()) {
-            parser::IResult::Done(bytes, sign) => match parser::uint_in_base(&bytes, base) {
-                parser::IResult::Done(bytes, value) => {
-                    if bytes.len() != 0 {
-                        self.set_error(Some(UnsupportedOperation));
-                    } else {
-                        if self.state().is_compiling {
-                            self.compile_integer(sign * value);
+        let default_base = self.data_space().get_isize(base_addr);
+        match parser::quoted_char(&token.as_bytes()) {
+            parser::IResult::Done(_bytes, c) => {
+                if self.state().is_compiling {
+                    self.compile_integer(c);
+                } else {
+                    self.s_stack().push(c);
+                }
+                return;
+            }
+            parser::IResult::Err(_) => {
+                // Do nothing.
+            }
+        }
+        match parser::base(&token.as_bytes(), default_base) {
+            parser::IResult::Done(bytes, base) => match parser::sign(&bytes) {
+                parser::IResult::Done(bytes, sign) => match parser::uint_in_base(&bytes, base) {
+                    parser::IResult::Done(bytes, value) => {
+                        if bytes.len() != 0 {
+                            self.set_error(Some(UnsupportedOperation));
                         } else {
-                            self.s_stack().push(sign * value);
+                            if self.state().is_compiling {
+                                self.compile_integer(sign * value);
+                            } else {
+                                self.s_stack().push(sign * value);
+                            }
                         }
                     }
+                    parser::IResult::Err(e) => self.set_error(Some(e)),
+                },
+                parser::IResult::Err(e) => {
+                    self.set_error(Some(e));
                 }
-                parser::IResult::Err(e) => self.set_error(Some(e)),
             },
             parser::IResult::Err(e) => {
                 self.set_error(Some(e));
@@ -2274,6 +2537,8 @@ compilation_semantics: fn(&mut Self, usize)){
             self.abort_with(UnexpectedEndOfFile);
         } else {
             let symbol = self.new_symbol(&last_token);
+            self.data_space().align();
+            self.code_space().align();
             let word = Word::new(
                 symbol,
                 action,
@@ -2314,14 +2579,9 @@ compilation_semantics: fn(&mut Self, usize)){
     }}
 
     primitive!{fn create(&mut self) {
+        // pointer for does>
+        self.data_space().compile_i32(0);
         self.define(Core::p_var, Core::compile_var);
-    }}
-
-    primitive!{fn variable(&mut self) {
-        self.define(Core::p_var, Core::compile_var);
-        if self.last_error().is_none() {
-            self.data_space().compile_i32(0);
-        }
     }}
 
     primitive!{fn constant(&mut self) {
@@ -2353,6 +2613,54 @@ compilation_semantics: fn(&mut Self, usize)){
         self.define(Core::unmark, Core::compile_unmark);
     }}
 
+    /// Run time behavior of words created by `create` ... `does>`.
+    ///
+    /// Example of does>
+    /// : 2constant   create , , does> 2@ ;
+    /// 4 40 2constant range
+    ///
+    /// 2constant
+    /// +--------+---+---+-------+------+----+------+
+    /// | create | , | , | _does | exit | 2@ | exit |
+    /// +--------+---+---+-------+------+----+------+
+    ///                                   ^
+    /// range                             |
+    ///                                   |
+    ///   cfa                             |
+    ///   +------+                        |
+    ///   | does |                        |
+    ///   +------+                        |
+    ///                                   |
+    ///     +-----------------------------+
+    ///     |  dfa
+    ///   +---+---+----+
+    ///   |   | 4 | 40 |
+    ///   +---+---+----+
+    ///
+    primitive!{fn does(&mut self) {
+        let wp = self.state().word_pointer;
+        let dfa = self.wordlist()[wp].dfa();
+        self.s_stack().push(dfa as isize);
+        let doer = self.data_space().get_i32(dfa - mem::size_of::<i32>()) as usize;
+        let rlen = self.r_stack().len.wrapping_add(1);
+        self.r_stack().len = rlen;
+        self.r_stack()[rlen.wrapping_sub(1)] = self.state().instruction_pointer as isize;
+        self.state().instruction_pointer = doer;
+    }}
+
+    /// Run time behavior of does>.
+    primitive!{fn _does(&mut self) {
+        let doer = self.state().instruction_pointer + mem::size_of::<i32>();
+        let def = self.last_definition();
+        let dfa = {
+            let word = &mut self.wordlist_mut()[def];
+            word.action = Core::does;
+            word.dfa()
+        };
+        // Note: need to change create.
+        self.data_space().put_i32(doer as i32, dfa - mem::size_of::<i32>());
+    }}
+
     // -----------
     // Primitives
     // -----------
@@ -2378,7 +2686,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(FALSE);
     }}
 
-    /// Run-time: (c-addr1 -- c-addr2 )
+    /// Run-time: ( c-addr1 -- c-addr2 )
     ///
     ///Add the size in address units of a character to `c-addr1`, giving `c-addr2`.
     primitive!{fn char_plus(&mut self) {
@@ -2386,7 +2694,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(v + mem::size_of::<u8>() as isize);
     }}
 
-    /// Run-time: (n1 -- n2 )
+    /// Run-time: ( n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` characters.
     primitive!{fn chars(&mut self) {
@@ -2394,7 +2702,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(v * mem::size_of::<u8>() as isize);
     }}
 
-    /// Run-time: (a-addr1 -- a-addr2 )
+    /// Run-time: ( a-addr1 -- a-addr2 )
     ///
     /// Add the size in address units of a cell to `a-addr1`, giving `a-addr2`.
     primitive!{fn cell_plus(&mut self) {
@@ -2402,7 +2710,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(v + mem::size_of::<i32>() as isize);
     }}
 
-    /// Run-time: (n1 -- n2 )
+    /// Run-time: ( n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` cells.
     primitive!{fn cells(&mut self) {
@@ -2456,6 +2764,25 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
         self.s_stack()[slen.wrapping_sub(2)] = t;
         self.s_stack()[slen.wrapping_sub(3)] = n;
+    }}
+
+    primitive!{fn minus_rot(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)];
+        let n = self.s_stack()[slen.wrapping_sub(2)];
+        self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(3)];
+        self.s_stack()[slen.wrapping_sub(3)] = t;
+        self.s_stack()[slen.wrapping_sub(1)] = n;
+    }}
+
+    /// Place a copy of the nth stack entry on top of the stack. `pick ( ... n -- x )`
+    ///
+    /// `0 pick` is equivalent to `dup`.
+    primitive!{fn pick(&mut self) {
+        let slen = self.s_stack().len;
+        let t = self.s_stack()[slen.wrapping_sub(1)] as u8;
+        let x = self.s_stack()[slen.wrapping_sub(t.wrapping_add(2))];
+        self.s_stack()[slen.wrapping_sub(1)] = x;
     }}
 
     primitive!{fn two_drop(&mut self) {
@@ -2614,10 +2941,14 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().push(if n == t { FALSE } else { TRUE });
     }}
 
-    primitive!{fn between(&mut self) {
+    /// `within` ( n1 n2 n3 -- flag )  true if n2 <= n1 and n1 < n3.
+    ///
+    /// Note: implmenetation incompatible with Forth 2012 standards
+    /// when n2 > n3.
+    primitive!{fn within(&mut self) {
         let (x1, x2, x3) = self.s_stack().pop3();
         self.s_stack()
-            .push(if x2 <= x1 && x1 <= x3 { TRUE } else { FALSE });
+            .push(if x2 <= x1 && x1 < x3 { TRUE } else { FALSE });
     }}
 
     primitive!{fn invert(&mut self) {
@@ -2763,6 +3094,39 @@ compilation_semantics: fn(&mut Self, usize)){
         self.execute_word(t as usize);
     }}
 
+    /// Compilation: ( "<spaces>name" -- )
+    /// Run-time: ( -- xt )
+    ///
+    /// Forth 2012 6.1.2510
+    primitive!{fn bracket_tick(&mut self) {
+        self.parse_word();
+        let last_token = self.last_token().take().expect("last token");
+        if last_token.is_empty() {
+            self.set_last_token(last_token);
+            self.abort_with(UnexpectedEndOfFile);
+        } else {
+            match self.find(&last_token) {
+                Some(found_index) => {
+                    self.compile_integer(found_index as isize);
+                    self.set_last_token(last_token);
+                }
+                None => {
+                    self.set_last_token(last_token);
+                    self.abort_with(UndefinedWord);
+                }
+            }
+        }
+    }}
+
+    /// Execution: ( xt -- )
+    ///
+    /// Forth 2012 6.2.0945
+    /// Append the execution semantics of the definition represented by xt to the execution semantics of the current definition.
+    primitive!{fn compile_comma(&mut self) {
+        let v = self.s_stack().pop();
+        self.data_space().compile_i32(v as i32);
+    }}
+
     /// Run-time: ( -- addr )
     ///
     /// `addr` is the data-space pointer.
@@ -2779,6 +3143,22 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn allot(&mut self) {
         let v = self.s_stack().pop();
         self.data_space().allot(v);
+    }}
+
+    /// Run-time: ( addr -- a-addr )
+    ///
+    /// Return `a-addr`, the first aligned address greater than or equal to `addr`.
+    primitive!{fn aligned(&mut self) {
+        let pos = self.s_stack().pop();
+        let pos = DataSpace::aligned(pos as usize);
+        self.s_stack().push(pos as isize);
+    }}
+
+    /// Run-time: ( -- )
+    ///
+    /// If the data-space pointer is not aligned, reserve enough space to align it.
+    primitive!{fn align(&mut self) {
+        self.data_space().align();
     }}
 
     /// Run-time: ( x -- )
@@ -2982,10 +3362,6 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn abort(&mut self) {
         self.abort_with(Abort);
     }}
-
-    primitive!{fn bye(&mut self) {
-        process::exit(0);
-    }}
 }
 
 #[cfg(test)]
@@ -3024,12 +3400,6 @@ mod tests {
     fn bench_find_word_at_beginning_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
         b.iter(|| vm.find("noop"));
-    }
-
-    #[bench]
-    fn bench_find_word_at_end_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16, 16);
-        b.iter(|| vm.find("bye"));
     }
 
     #[bench]
@@ -3257,6 +3627,36 @@ mod tests {
         vm.s_stack().push(2);
         vm.s_stack().push(3);
         b.iter(|| vm.rot());
+    }
+
+    #[test]
+    fn test_pick() {
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(0);
+        vm.s_stack().push(0);
+        vm.pick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), [0, 0]);
+
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(1);
+        vm.pick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), [1, 0, 1]);
+
+        let vm = &mut VM::new(16, 16);
+        vm.s_stack().push(2);
+        vm.s_stack().push(1);
+        vm.s_stack().push(0);
+        vm.s_stack().push(2);
+        vm.pick();
+        vm.check_stacks();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.s_stack().as_slice(), [2, 1, 0, 2]);
     }
 
     #[test]
@@ -3946,22 +4346,22 @@ mod tests {
     }
 
     #[test]
-    fn test_between() {
+    fn test_within() {
         let vm = &mut VM::new(16, 16);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(1);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
@@ -3969,7 +4369,7 @@ mod tests {
         vm.s_stack().push(1);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
@@ -3977,15 +4377,15 @@ mod tests {
         vm.s_stack().push(1);
         vm.s_stack().push(0);
         vm.s_stack().push(1);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), -1);
+        assert_eq!(vm.s_stack().pop(), 0);
         vm.s_stack().push(0);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
@@ -3993,7 +4393,7 @@ mod tests {
         vm.s_stack().push(3);
         vm.s_stack().push(1);
         vm.s_stack().push(2);
-        vm.between();
+        vm.within();
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
@@ -4142,10 +4542,10 @@ mod tests {
         vm.set_source("hello world\t\r\n\"");
         vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "hello");
-        assert_eq!(vm.state().source_index, 6);
+        assert_eq!(vm.state().source_index, 5);
         vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "world");
-        assert_eq!(vm.state().source_index, 12);
+        assert_eq!(vm.state().source_index, 11);
         vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "\"");
     }
@@ -4272,7 +4672,7 @@ mod tests {
     }
 
     #[test]
-    fn test_variable_and_store_fetch() {
+    fn test_create_and_store_fetch() {
         let vm = &mut VM::new(16, 16);
         // @
         vm.set_source("@");
@@ -4286,14 +4686,14 @@ mod tests {
         assert_eq!(vm.last_error(), Some(InvalidMemoryAddress));
         vm.reset();
         vm.clear_stacks();
-        // variable x x !
-        vm.set_source("variable x x !");
+        // create x  1 cells allot  x !
+        vm.set_source("create x  1 cells allot  x !");
         vm.evaluate();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
-        // variable x  x @  3 x !  x @
-        vm.set_source("variable x  x @  3 x !  x @");
+        // create x  1 cells allot  x @  3 x !  x @
+        vm.set_source("create x  1 cells allot  x @  3 x !  x @");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
@@ -4302,12 +4702,12 @@ mod tests {
     }
 
     #[test]
-    fn test_variable_and_fetch_in_colon() {
+    fn test_create_and_fetch_in_colon() {
         let vm = &mut VM::new(16, 16);
-        // variable x
+        // create x  1 cells allot
         // 7 x !
         // : x@ x @ ; x@
-        vm.set_source("variable x  7 x !  : x@ x @ ;  x@");
+        vm.set_source("create x  1 cells allot  7 x !  : x@ x @ ;  x@");
         vm.evaluate();
         vm.run();
         assert_eq!(vm.s_stack().pop(), 7);
@@ -4796,8 +5196,15 @@ mod tests {
     fn bench_sieve(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
         vm.load("./lib.fs");
+        if vm.last_error().is_some() {
+            eprintln!(
+                "Error {:?} at {:?}",
+                vm.last_error().unwrap(),
+                vm.last_token()
+            );
+        }
         assert_eq!(vm.last_error(), None);
-        vm.set_source("CREATE FLAGS 8190 ALLOT   VARIABLE EFLAG");
+        vm.set_source("CREATE FLAGS 8190 ALLOT   CREATE EFLAG  1 CELLS ALLOT");
         vm.evaluate();
         assert_eq!(vm.last_error(), None);
         vm.set_source(

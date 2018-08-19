@@ -1593,10 +1593,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         // e9 xx xx xx xx      jmp xxxx
-        let here = self.code_space().here();
         self.code_space().compile_u8(0xe9);
         self.code_space().compile_relative(destination);
-        here
+        self.code_space().here()
     }
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
@@ -1617,11 +1616,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             .compile_relative(Self::pop_s_stack as usize);
         self.code_space().compile_u8(0x85);
         self.code_space().compile_u8(0xc0);
-        let here = self.code_space().here();
         self.code_space().compile_u8(0x0f);
         self.code_space().compile_u8(0x84);
         self.code_space().compile_relative(destination);
-        here
+        self.code_space().here()
     }
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
@@ -1770,7 +1768,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_i32((here - (if_part + 2 + mem::size_of::<i32>())) as i32, if_part + 2);
+                    .put_i32((here - if_part) as i32, if_part - mem::size-of::<i32>());
             }
         }
     }}
@@ -1794,16 +1792,8 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             //      e9 xx xx xx xx      jmp xxxx
             let here = self.code_space().here();
             unsafe{
-                let c = self.code_space().get_u8(branch_part);
-                if c == 0x0f {
-                    self.code_space()
-                        .put_i32((here - (branch_part + 2 +
-                         mem::size_of::<i32>())) as i32, branch_part + 2);
-                } else {
-                    self.code_space()
-                        .put_i32((here - (branch_part +
-                         1 + mem::size_of::<i32>())) as i32, branch_part + 1);
-                }
+                self.code_space()
+                    .put_i32((here - branch_part) as i32, branch_part - mem::size_of::<i32>());
             }
         }
     }}
@@ -1842,8 +1832,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_i32((here - (while_part +
-                     2 + mem::size_of::<i32>())) as i32, while_part + 2);
+                    .put_i32((here - while_part) as i32, while_part - mem::size_of::<i32>());
             }
         }
     }}

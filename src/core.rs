@@ -1768,7 +1768,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_i32((here - if_part) as i32, if_part - mem::size-of::<i32>());
+                    .put_i32((here - if_part) as i32, if_part - mem::size_of::<i32>());
             }
         }
     }}
@@ -1801,6 +1801,89 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     primitive!{fn imm_case(&mut self) {
         self.c_stack().push(Control::Case);
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_of(&mut self) {
+        match self.c_stack().pop() {
+            Control::Case => {
+                self.c_stack().push(Control::Case);
+            },
+            Control::Endof(n) => {
+                self.c_stack().push(Control::Endof(n));
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_over;
+            self.compile_word(idx);
+            let idx = self.references().idx_equal;
+            self.compile_word(idx);
+            let here = self.compile_zero_branch(0);
+            self.c_stack().push(Control::Of(here));
+            let idx = self.references().idx_drop;
+            self.compile_word(idx);
+        }
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_endof(&mut self) {
+        let of_part = match self.c_stack().pop() {
+            Control::Of(of_part) => {
+                of_part
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let endof_part = self.compile_branch(0);
+            self.c_stack().push(Control::Endof(endof_part));
+            // of_part: 0f 84 yy yy yy yy    je yyyy
+            let here = self.code_space().here();
+            unsafe{
+                self.code_space()
+                    .put_i32((here - of_part) as i32, of_part - mem::size_of::<i32>());
+            }
+        }
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_endcase(&mut self) {
+        let idx = self.references().idx_drop;
+        self.compile_word(idx);
+        loop {
+            let endof_part = match self.c_stack().pop() {
+                Control::Case => { break; }
+                Control::Endof(endof_part) => {
+                    endof_part
+                }
+                _ => {
+                    self.abort_with(ControlStructureMismatch);
+                    return;
+                }
+            };
+            if self.c_stack().underflow() {
+                self.abort_with(ControlStructureMismatch);
+            } else {
+                let here = self.code_space().here();
+                unsafe{
+                    self.code_space()
+                        .put_i32((here - endof_part) as i32, endof_part - mem::size_of::<i32>());
+                }
+            }
+        }
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        }
     }}
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]

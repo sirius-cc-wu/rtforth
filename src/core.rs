@@ -1383,8 +1383,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     //   %esp: return stack pointer for colon definitions
     //
     // RtForth seperates stack for primitives implemented in rust from that for
-    // colon definitions because these two stacks have different depth
-    // requirement. The stack for colon definitions is shallow if no RECURSE is used.。
+    // colon definitions for two reasons:
+    //
+    // * Different depth requirement. The stack for colon definitions is
+    //   shallow if no RECURSE is used.。
+    // * Task-switch. Task-switch only occurs in colon definitions.
     //
     // Frame pointer in %ebp should be saved in memory upon RESET.
     // Before call to primitives implemented in rust,
@@ -1393,11 +1396,21 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     //    xchg %eax,%ebp
     //    xchg %eax,%esp
     //    xchg %eax,%ebp
-    //    call primitive1
-    //    call primitive2
+    //    mov  %esi,%ecx
+    //    call primitive_which_needs_deep_stack
     //    xchg %eax,%ebp
     //    xchg %eax,%esp
     //    xchg %eax,%ebp
+    //
+    // Primitives which need only shallow stack space can be marked so that
+    // they use return stack for colon definitions to reduce frequency of stack
+    // exchange.
+    //
+    // A command SHALLOW is proposed to mark those primitives which need only shallow stack.
+    //
+    // SHALLOW +
+    // SHALLOW -
+    // SHALLOW @
 
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.

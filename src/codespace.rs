@@ -218,6 +218,6 @@ impl CodeSpace {
     }
 
     pub fn truncate(&mut self, i: usize) {
-        self.len = i;
+        self.len = i - unsafe { self.inner.offset(0) as usize };
     }
 }

@@ -1376,11 +1376,16 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     //   %ebp: frame pointer
     //   %esp: stack pointer
     //
-    // In future, for multitasking:
-    //   %ebx: top of data stack
+    // For multitasking:
     //   %edi: data stack pointer
     //   %ebp: return stack pointer for primitives implemented in rust
     //   %esp: return stack pointer for colon definitions
+    //
+    // For optimization:
+    //   %ebx, %ecx, %eax, %edx: cache registers
+    //
+    // The top few items of the data stack will be cached in the CPU registers
+    // using optimization strategy developed by FLK.
     //
     // RtForth seperates stack for primitives implemented in rust from that for
     // colon definitions for two reasons:

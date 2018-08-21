@@ -3349,7 +3349,7 @@ compilation_semantics: fn(&mut Self, usize)){
 mod tests {
     extern crate test;
     use self::test::Bencher;
-    use super::Core;
+    use super::{Core, Memory};
     use exception::Exception::{Abort, ControlStructureMismatch, InterpretingACompileOnlyWord,
                                InvalidMemoryAddress, ReturnStackUnderflow, StackUnderflow,
                                UndefinedWord, UnexpectedEndOfFile};
@@ -3386,7 +3386,7 @@ mod tests {
     #[bench]
     fn bench_inner_interpreter_without_nest(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
-        let ip = vm.data_space().len();
+        let ip = vm.data_space().here();
         let idx = vm.find("noop").expect("noop not exists");
         vm.compile_word(idx);
         vm.compile_word(idx);
@@ -5241,7 +5241,7 @@ mod tests {
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         // here 1 , 2 , ] lit exit [ here
-        let here = vm.data_space().len();
+        let here = vm.data_space().here();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
         vm.evaluate();
         assert!(vm.last_error().is_none());
@@ -5249,16 +5249,18 @@ mod tests {
         let (n, t) = vm.s_stack().pop2();
         assert!(!vm.s_stack().underflow());
         assert_eq!(t - n, 4 * mem::size_of::<u32>() as isize);
-        assert_eq!(vm.data_space().get_i32(here + 0), 1);
-        assert_eq!(vm.data_space().get_i32(here + 4), 2);
-        assert_eq!(
-            vm.data_space().get_i32(here + 8),
-            vm.references().idx_lit as i32
-        );
-        assert_eq!(
-            vm.data_space().get_i32(here + 12),
-            vm.references().idx_exit as i32
-        );
+        unsafe{
+            assert_eq!(vm.data_space().get_i32(here + 0), 1);
+            assert_eq!(vm.data_space().get_i32(here + 4), 2);
+            assert_eq!(
+                vm.data_space().get_i32(here + 8),
+                vm.references().idx_lit as i32
+            );
+            assert_eq!(
+                vm.data_space().get_i32(here + 12),
+                vm.references().idx_exit as i32
+            );
+        }
     }
 
     #[test]

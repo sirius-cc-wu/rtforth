@@ -95,7 +95,7 @@ pub struct SystemVariables {
 
 impl SystemVariables {
     pub fn base_addr(&self) -> usize {
-        (&self.base as *const _ as usize) - (&self.null as *const _ as usize)
+        &self.base as *const _ as usize
     }
 }
 

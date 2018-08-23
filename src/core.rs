@@ -110,7 +110,7 @@ impl<T: Default + Copy + PartialEq + Display> Stack<T> {
 
     pub fn reset(&mut self) {
         self.len = 0;
-        for i in 32..256 {
+        for i in 0..256 {
             self.inner[i] = self.canary;
         }
     }
@@ -120,7 +120,7 @@ impl<T: Default + Copy + PartialEq + Display> Stack<T> {
     }
 
     pub fn overflow(&self) -> bool {
-        (self.inner[32] != self.canary) || (self.len > 32 && self.len <= 128)
+        (self.inner[64] != self.canary) || (self.len > 64 && self.len <= 128)
     }
 
     pub fn push(&mut self, v: T) {

@@ -655,8 +655,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(not(feature = "subroutine-threaded"))]
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
-        while self.data_space().start() <= ip && ip + mem::size_of::<isize>() <= self.data_space().limit() {
-            let w = unsafe{ self.data_space().get_isize(ip) as usize };
+        while self.data_space().start() <= ip
+            && ip + mem::size_of::<isize>() <= self.data_space().limit()
+        {
+            let w = unsafe { self.data_space().get_isize(ip) as usize };
             self.state().instruction_pointer += mem::size_of::<isize>();
             self.execute_word(w);
             ip = self.state().instruction_pointer;
@@ -705,7 +707,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = v;
-        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<isize>();
+        self.state().instruction_pointer += mem::size_of::<isize>();
     }}
 
     /// Compile integer `i`.
@@ -886,7 +888,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.abort_with(ReturnStackUnderflow);
             return;
         }
-        self.state().instruction_pointer = unsafe{ self.data_space().get_isize(third as usize) as usize };
+        self.state().instruction_pointer = unsafe{
+            self.data_space().get_isize(third as usize) as usize
+        };
     }}
 
     #[cfg(not(feature = "subroutine-threaded"))]
@@ -1760,7 +1764,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_isize((here - (if_part + 2 + mem::size_of::<isize>())) as isize, if_part + 2);
+                    .put_isize(
+                        (here - (if_part + 2 + mem::size_of::<isize>())) as isize,
+                        if_part + 2);
             }
         }
     }}
@@ -2302,7 +2308,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     fn evaluate_integer(&mut self, token: &str) {
         let base_addr = self.data_space().system_variables().base_addr();
-        let default_base = unsafe{ self.data_space().get_isize(base_addr) };
+        let default_base = unsafe { self.data_space().get_isize(base_addr) };
         match parser::quoted_char(&token.as_bytes()) {
             parser::IResult::Done(_bytes, c) => {
                 if self.state().is_compiling {
@@ -2996,7 +3002,9 @@ compilation_semantics: fn(&mut Self, usize)){
     /// `x` is the value stored at `a-addr`.
     primitive!{fn fetch(&mut self) {
         let t = self.s_stack().pop() as usize;
-        if self.data_space().start() < t && t + mem::size_of::<isize>() <= self.data_space().limit() {
+        if self.data_space().start() < t &&
+            t + mem::size_of::<isize>() <= self.data_space().limit()
+        {
             let value = unsafe{ self.data_space().get_isize(t as usize) as isize };
             self.s_stack().push(value);
         } else {
@@ -3010,7 +3018,9 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn store(&mut self) {
         let (n, t) = self.s_stack().pop2();
         let t = t as usize;
-        if self.data_space().start() < t && t + mem::size_of::<isize>() <= self.data_space().limit() {
+        if self.data_space().start() < t &&
+            t + mem::size_of::<isize>() <= self.data_space().limit()
+        {
             unsafe{ self.data_space().put_isize(n as isize, t as usize) };
         } else {
             self.abort_with(InvalidMemoryAddress);
@@ -3023,7 +3033,9 @@ compilation_semantics: fn(&mut Self, usize)){
     /// character size, the unused high-order bits are all zeroes.
     primitive!{fn c_fetch(&mut self) {
         let t = self.s_stack().pop() as usize;
-        if self.data_space().start() <= t && t + mem::size_of::<u8>() <= self.data_space().limit() {
+        if self.data_space().start() <= t &&
+            t + mem::size_of::<u8>() <= self.data_space().limit()
+        {
             let value = unsafe{ self.data_space().get_u8(t as usize) as isize };
             self.s_stack().push(value);
         } else {
@@ -4740,7 +4752,13 @@ mod tests {
         vm.set_source("2 cell+  9 cells");
         vm.evaluate();
         assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().as_slice(), [2+mem::size_of::<isize>() as isize, 9*mem::size_of::<isize>() as isize]);
+        assert_eq!(
+            vm.s_stack().as_slice(),
+            [
+                2 + mem::size_of::<isize>() as isize,
+                9 * mem::size_of::<isize>() as isize
+            ]
+        );
     }
 
     #[test]
@@ -4802,7 +4820,10 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), -((mem::size_of::<isize>() * 2) as isize));
+        assert_eq!(
+            vm.s_stack().pop(),
+            -((mem::size_of::<isize>() * 2) as isize)
+        );
     }
 
     #[test]
@@ -5249,15 +5270,17 @@ mod tests {
         let (n, t) = vm.s_stack().pop2();
         assert!(!vm.s_stack().underflow());
         assert_eq!(t - n, 4 * mem::size_of::<usize>() as isize);
-        unsafe{
+        unsafe {
             assert_eq!(vm.data_space().get_isize(here + 0), 1);
             assert_eq!(vm.data_space().get_isize(here + mem::size_of::<isize>()), 2);
             assert_eq!(
-                vm.data_space().get_isize(here + 2*mem::size_of::<isize>()),
+                vm.data_space()
+                    .get_isize(here + 2 * mem::size_of::<isize>()),
                 vm.references().idx_lit as isize
             );
             assert_eq!(
-                vm.data_space().get_isize(here + 3*mem::size_of::<isize>()),
+                vm.data_space()
+                    .get_isize(here + 3 * mem::size_of::<isize>()),
                 vm.references().idx_exit as isize
             );
         }

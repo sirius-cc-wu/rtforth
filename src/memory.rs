@@ -61,20 +61,19 @@ impl CodeSpace {
         };
         result
     }
-
 }
 
 impl Memory for CodeSpace {
     fn start(&self) -> usize {
-        unsafe{ self.inner.offset(0) as usize }
+        unsafe { self.inner.offset(0) as usize }
     }
 
     fn limit(&self) -> usize {
-        unsafe{ self.inner.offset(self.cap as isize) as usize }
+        unsafe { self.inner.offset(self.cap as isize) as usize }
     }
 
     fn here(&mut self) -> usize {
-        unsafe{ self.inner.offset(self.len as isize) as usize }
+        unsafe { self.inner.offset(self.len as isize) as usize }
     }
 
     fn set_here(&mut self, pos: usize) -> Result<(), Exception> {
@@ -132,26 +131,25 @@ impl DataSpace {
     // Getter
 
     pub fn system_variables(&self) -> &SystemVariables {
-        unsafe{ &*(self.inner.offset(0) as *const SystemVariables) }
+        unsafe { &*(self.inner.offset(0) as *const SystemVariables) }
     }
 
     pub fn system_variables_mut(&mut self) -> &mut SystemVariables {
-        unsafe{ &mut *(self.inner.offset(0) as *mut SystemVariables) }
+        unsafe { &mut *(self.inner.offset(0) as *mut SystemVariables) }
     }
-
 }
 
 impl Memory for DataSpace {
     fn start(&self) -> usize {
-        unsafe{ self.inner.offset(0) as usize }
+        unsafe { self.inner.offset(0) as usize }
     }
 
     fn limit(&self) -> usize {
-        unsafe{ self.inner.offset(self.cap as isize) as usize }
+        unsafe { self.inner.offset(self.cap as isize) as usize }
     }
 
     fn here(&mut self) -> usize {
-        unsafe{ self.inner.offset(self.len as isize) as usize }
+        unsafe { self.inner.offset(self.len as isize) as usize }
     }
 
     fn set_here(&mut self, pos: usize) -> Result<(), Exception> {

@@ -69,7 +69,9 @@ pub trait Output: Core {
             let source = &input_buffer[self.state().source_index+1..input_buffer.len()];
             let (s, cnt) = match source.find('"') {
                 Some(n) => {
-                    (&input_buffer[self.state().source_index+1..self.state().source_index + 1 + n], n)
+                    (&input_buffer[
+                        self.state().source_index+1..
+                        self.state().source_index + 1 + n], n)
                 }
                 None => (source, source.len()),
             };

@@ -80,6 +80,7 @@ pub trait Output: Core {
             compilation_semantics(self, idx);
             self.data_space().compile_isize(cnt as isize);
             self.data_space().compile_str(s);
+            self.data_space().align();
             // ignore the space following S"
             self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;
         }

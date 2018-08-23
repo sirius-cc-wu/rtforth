@@ -1,7 +1,6 @@
 extern crate libc;
 
-use codespace::CodeSpace;
-use dataspace::DataSpace;
+use memory::{CodeSpace, DataSpace, Memory};
 use exception::Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
                            FloatingPointStackOverflow, FloatingPointStackUnderflow,
                            InterpretingACompileOnlyWord, InvalidMemoryAddress,
@@ -569,7 +568,7 @@ fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
             symbol,
             action,
             Core::compile_word,
-            self.data_space().len(),
+            self.data_space().here(),
             self.code_space().here(),
         );
         let len = self.wordlist().len();
@@ -655,9 +654,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(not(feature = "subroutine-threaded"))]
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
-        while 0 < ip && ip < self.data_space().len() {
-            let w = self.data_space().get_i32(ip) as usize;
-            self.state().instruction_pointer += mem::size_of::<i32>();
+        while self.data_space().start() <= ip
+            && ip + mem::size_of::<isize>() <= self.data_space().limit()
+        {
+            let w = unsafe { self.data_space().get_isize(ip) as usize };
+            self.state().instruction_pointer += mem::size_of::<isize>();
             self.execute_word(w);
             ip = self.state().instruction_pointer;
         }
@@ -665,7 +666,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(not(feature = "subroutine-threaded"))]
     fn compile_word(&mut self, word_index: usize) {
-        self.data_space().compile_u32(word_index as u32);
+        self.data_space().compile_usize(word_index as usize);
     }
 
     #[cfg(not(feature = "subroutine-threaded"))]
@@ -701,11 +702,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn lit(&mut self) {
         let ip = self.state().instruction_pointer;
-        let v = self.data_space().get_i32(ip) as isize;
+        let v = unsafe{ self.data_space().get_isize(ip) as isize };
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = v;
-        self.state().instruction_pointer = self.state().instruction_pointer + mem::size_of::<i32>();
+        self.state().instruction_pointer += mem::size_of::<isize>();
     }}
 
     /// Compile integer `i`.
@@ -713,13 +714,13 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     fn compile_integer(&mut self, i: isize) {
         let idx = self.references().idx_lit;
         self.compile_word(idx);
-        self.data_space().compile_i32(i as i32);
+        self.data_space().compile_isize(i as isize);
     }
 
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn flit(&mut self) {
         let ip = DataSpace::aligned_f64(self.state().instruction_pointer as usize);
-        let v = self.data_space().get_f64(ip);
+        let v = unsafe{ self.data_space().get_f64(ip) };
         let flen = self.f_stack().len.wrapping_add(1);
         self.f_stack().len = flen;
         self.f_stack()[flen.wrapping_sub(1)] = v;
@@ -739,14 +740,14 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn p_s_quote(&mut self) {
         let ip = self.state().instruction_pointer;
-        let cnt = self.data_space().get_i32(ip);
-        let addr = self.state().instruction_pointer + mem::size_of::<i32>();
+        let cnt = unsafe{ self.data_space().get_isize(ip) };
+        let addr = self.state().instruction_pointer + mem::size_of::<isize>();
         let slen = self.s_stack().len.wrapping_add(2);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
         self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
         self.state().instruction_pointer = DataSpace::aligned(
-            self.state().instruction_pointer + mem::size_of::<i32>() + cnt as usize
+            self.state().instruction_pointer + mem::size_of::<isize>() + cnt as usize
         );
     }}
 
@@ -759,15 +760,15 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
-        self.state().instruction_pointer = self.data_space().get_i32(ip) as usize;
+        self.state().instruction_pointer = unsafe{ self.data_space().get_isize(ip) as usize };
     }}
 
     #[cfg(not(feature = "subroutine-threaded"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_branch;
         self.compile_word(idx);
-        self.data_space().compile_i32(destination as i32);
-        self.data_space().len()
+        self.data_space().compile_isize(destination as isize);
+        self.data_space().here()
     }
 
     #[cfg(not(feature = "subroutine-threaded"))]
@@ -776,7 +777,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if v == 0 {
             self.branch();
         } else {
-            self.state().instruction_pointer += mem::size_of::<i32>();
+            self.state().instruction_pointer += mem::size_of::<isize>();
         }
     }}
 
@@ -784,8 +785,8 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     fn compile_zero_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
-        self.data_space().compile_i32(destination as i32);
-        self.data_space().len()
+        self.data_space().compile_isize(destination as isize);
+        self.data_space().here()
     }
 
     /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
@@ -809,7 +810,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     primitive!{fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
-        self.state().instruction_pointer += mem::size_of::<i32>();
+        self.state().instruction_pointer += mem::size_of::<isize>();
         self.two_to_r();
     }}
 
@@ -840,7 +841,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         } else {
             let ip = self.state().instruction_pointer as isize;
             self.r_stack().push(ip);
-            self.state().instruction_pointer += mem::size_of::<i32>();
+            self.state().instruction_pointer += mem::size_of::<isize>();
             self.r_stack().push2(n1, n2);
         }
     }}
@@ -860,7 +861,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.branch();
         } else {
             let _ = self.r_stack().pop();
-            self.state().instruction_pointer += mem::size_of::<i32>();
+            self.state().instruction_pointer += mem::size_of::<isize>();
         }
     }}
 
@@ -881,7 +882,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.branch();
         } else {
             let _ = self.r_stack().pop();
-            self.state().instruction_pointer += mem::size_of::<i32>();
+            self.state().instruction_pointer += mem::size_of::<isize>();
         }
     }}
 
@@ -903,7 +904,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.abort_with(ReturnStackUnderflow);
             return;
         }
-        self.state().instruction_pointer = self.data_space().get_i32(third as usize) as usize;
+        self.state().instruction_pointer = unsafe{
+            self.data_space().get_isize(third as usize) as usize
+        };
     }}
 
     #[cfg(not(feature = "subroutine-threaded"))]
@@ -986,8 +989,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         } else {
             let here = self.compile_branch(0);
             self.c_stack().push(Control::Else(here));
-            self.data_space()
-                .put_i32(here as i32, if_part - mem::size_of::<i32>());
+            unsafe{
+                self.data_space()
+                .put_isize(here as isize, if_part - mem::size_of::<isize>());
+            }
         }
     }}
 
@@ -1004,9 +1009,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let here = self.data_space().len();
-            self.data_space()
-                .put_i32(here as i32, branch_part - mem::size_of::<i32>());
+            let here = self.data_space().here();
+            unsafe{
+                self.data_space()
+                    .put_isize(here as isize, branch_part - mem::size_of::<isize>());
+            }
         }
     }}
 
@@ -1080,8 +1087,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         } else {
             let here = self.compile_branch(0);
             self.c_stack().push(Control::Endof(here));
-            self.data_space()
-                .put_i32(here as i32, of_part - mem::size_of::<i32>());
+            unsafe{
+                self.data_space()
+                    .put_isize(here as isize, of_part - mem::size_of::<isize>());
+            }
         }
     }}
 
@@ -1103,9 +1112,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             if self.c_stack().underflow() {
                 self.abort_with(ControlStructureMismatch);
             } else {
-                let here = self.data_space().len();
-                self.data_space()
-                    .put_i32(here as i32, endof_part - mem::size_of::<i32>());
+                let here = self.data_space().here();
+                unsafe{
+                    self.data_space()
+                        .put_isize(here as isize, endof_part - mem::size_of::<isize>());
+                }
             }
         }
         if self.c_stack().underflow() {
@@ -1116,7 +1127,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Begin a structure that is terminated by `repeat`, `until`, or `again`. `begin ( -- )`.
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_begin(&mut self) {
-        let here = self.data_space().len();
+        let here = self.data_space().here();
         self.c_stack().push(Control::Begin(here));
     }}
 
@@ -1160,8 +1171,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.abort_with(ControlStructureMismatch);
         } else {
             let here = self.compile_branch(begin_part);
-            self.data_space()
-                .put_i32(here as i32, while_part - mem::size_of::<i32>());
+            unsafe{
+                self.data_space()
+                    .put_isize(here as isize, while_part - mem::size_of::<isize>());
+            }
         }
     }}
 
@@ -1241,8 +1254,8 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     primitive!{fn imm_do(&mut self) {
         let idx = self.references().idx_do;
         self.compile_word(idx);
-        self.data_space().compile_i32(0);
-        let here = self.data_space().len();
+        self.data_space().compile_isize(0);
+        let here = self.data_space().here();
         self.c_stack().push(Control::Do(here,here));
     }}
 
@@ -1269,8 +1282,8 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     primitive!{fn imm_qdo(&mut self) {
         let idx = self.references().idx_qdo;
         self.compile_word(idx);
-        self.data_space().compile_i32(0);
-        let here = self.data_space().len();
+        self.data_space().compile_isize(0);
+        let here = self.data_space().here();
         self.c_stack().push(Control::Do(here,here));
     }}
 
@@ -1323,10 +1336,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         } else {
             let idx = self.references().idx_loop;
             self.compile_word(idx);
-            self.data_space().compile_i32(do_part as i32);
-            let here = self.data_space().len();
-            self.data_space()
-                .put_i32(here as i32, (do_part - mem::size_of::<i32>()) as usize);
+            self.data_space().compile_isize(do_part as isize);
+            let here = self.data_space().here();
+            unsafe{
+                self.data_space()
+                    .put_isize(here as isize, (do_part - mem::size_of::<isize>()) as usize);
+            }
         }
     }}
 
@@ -1350,10 +1365,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         } else {
             let idx = self.references().idx_plus_loop;
             self.compile_word(idx);
-            self.data_space().compile_i32(do_part as i32);
-            let here = self.data_space().len();
-            self.data_space()
-                .put_i32(here as i32, (do_part - mem::size_of::<i32>()) as usize);
+            self.data_space().compile_isize(do_part as isize);
+            let here = self.data_space().here();
+            unsafe{
+                self.data_space()
+                    .put_isize(here as isize, (do_part - mem::size_of::<isize>()) as usize);
+            }
         }
     }}
 
@@ -1473,7 +1490,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_const(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
-        let value = self.data_space().get_i32(dfa) as isize;
+        let value = unsafe{ self.data_space().get_isize(dfa) as isize };
         self.compile_integer(value);
     }
 
@@ -1506,7 +1523,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         // 89 f1            mov    %esi,%ecx
         // e8 xx xx xx xx   call   lit_integer
         self.code_space().compile_u8(0xba);
-        self.code_space().compile_i32(i as i32);
+        self.code_space().compile_isize(i as isize);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xf1);
         self.code_space().compile_u8(0xe8);
@@ -1538,7 +1555,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         let data_addr = self.data_space().here();
         self.data_space().compile_f64(f);
         self.code_space().compile_u8(0xba);
-        self.code_space().compile_u32(data_addr as u32);
+        self.code_space().compile_usize(data_addr as usize);
         self.code_space().compile_u8(0x83);
         self.code_space().compile_u8(0xec);
         self.code_space().compile_u8(0x08);
@@ -1565,8 +1582,8 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     primitive!{fn lit_counted_string(&mut self, idx: usize) {
-        let cnt = self.data_space().get_i32(idx);
-        let addr = idx + mem::size_of::<i32>();
+        let cnt = unsafe{ self.data_space().get_isize(idx) };
+        let addr = idx + mem::size_of::<isize>();
         // FIXME
         // 加下一行會造成 cargo test test_s_quote_and_type --features="subroutine-threaded"
         // 時 invalid memory reference 。但如果列印的方式改為 {} 就 ok。
@@ -1585,9 +1602,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         // ba nn nn nn nn   mov    <index of counted string>, %edx
         // 89 f1            mov    %esi, %ecx
         // e8 xx xx xx xx   call   lit_counted_string
-        let data_idx = self.data_space().len();
+        let data_idx = self.data_space().here();
         self.code_space().compile_u8(0xba);
-        self.code_space().compile_u32(data_idx as u32);
+        self.code_space().compile_usize(data_idx as usize);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xf1);
         self.code_space().compile_u8(0xe8);
@@ -1745,7 +1762,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().compile_u8(0xe8);
         self.code_space().compile_relative(Self::unloop as usize);
         self.code_space().compile_u8(0xb8);
-        self.code_space().compile_u32(leave_part as u32);
+        self.code_space().compile_usize(leave_part as usize);
         self.code_space().compile_u8(0xff);
         self.code_space().compile_u8(0x20);
     }
@@ -1790,7 +1807,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_i32((here - if_part) as i32, if_part - mem::size_of::<i32>());
+                    .put_isize((here - if_part) as isize, if_part - mem::size_of::<isize>());
             }
         }
     }}
@@ -1815,7 +1832,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_i32((here - branch_part) as i32, branch_part - mem::size_of::<i32>());
+                    .put_isize((here - branch_part) as isize, branch_part - mem::size_of::<isize>());
             }
         }
     }}
@@ -1873,7 +1890,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_i32((here - of_part) as i32, of_part - mem::size_of::<i32>());
+                    .put_isize((here - of_part) as isize, of_part - mem::size_of::<isize>());
             }
         }
     }}
@@ -1899,7 +1916,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 let here = self.code_space().here();
                 unsafe{
                     self.code_space()
-                        .put_i32((here - endof_part) as i32, endof_part - mem::size_of::<i32>());
+                        .put_isize((here - endof_part) as isize, endof_part - mem::size_of::<isize>());
                 }
             }
         }
@@ -1937,7 +1954,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_i32((here - while_part) as i32, while_part - mem::size_of::<i32>());
+                    .put_isize((here - while_part) as isize, while_part - mem::size_of::<isize>());
             }
         }
     }}
@@ -2001,7 +2018,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().compile_relative(Self::_stc_do as usize);
         let here = self.code_space().here();
         let leave_part = self.data_space().here();
-        self.data_space().compile_u32(0);
+        self.data_space().compile_usize(0);
         self.c_stack().push(Control::Do(here, leave_part));
     }}
 
@@ -2041,11 +2058,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().compile_u8(0xc0);
         self.code_space().compile_u8(0x0f);
         self.code_space().compile_u8(0x84);
-        self.code_space().compile_u32(7);
+        self.code_space().compile_usize(7);
         let leave_part = self.data_space().here();
-        self.data_space().compile_u32(0);
+        self.data_space().compile_usize(0);
         self.code_space().compile_u8(0xb8);
-        self.code_space().compile_u32(leave_part as u32);
+        self.code_space().compile_usize(leave_part as usize);
         self.code_space().compile_u8(0xff);
         self.code_space().compile_u8(0x20);
         let here = self.code_space().here();
@@ -2098,11 +2115,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.code_space().compile_u8(0x0f);
             self.code_space().compile_u8(0x84);
             self.code_space().compile_relative(do_part);
-            // TODO: 目前 data_space() 的 put_u32 和 code_space() 的作法不同。
+            // TODO: 目前 data_space() 的 put_usize 和 code_space() 的作法不同。
             // 未來 data_space() 要改為和 code_space() 作法一樣。雖然 leave_part 在
             // data space，這兒先使用 code_space() 的作法。
             let here = self.code_space().here();
-            unsafe{ self.code_space().put_u32(here as u32, leave_part); }
+            unsafe{ self.code_space().put_usize(here as usize, leave_part); }
         }
     }}
 
@@ -2132,11 +2149,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.code_space().compile_u8(0x0f);
             self.code_space().compile_u8(0x84);
             self.code_space().compile_relative(do_part);
-            // TODO: 目前 data_space() 的 put_u32 和 code_space() 的作法不同。
+            // TODO: 目前 data_space() 的 put_usize 和 code_space() 的作法不同。
             // 未來 data_space() 要改為和 code_space() 作法一樣。雖然 leave_part 在
             // data space，這兒先使用 code_space() 的作法。
             let here = self.code_space().here();
-            unsafe{ self.code_space().put_u32(here as u32, leave_part); }
+            unsafe{ self.code_space().put_usize(here as usize, leave_part); }
         }
     }}
 
@@ -2427,7 +2444,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     fn evaluate_integer(&mut self, token: &str) {
         let base_addr = self.data_space().system_variables().base_addr();
-        let default_base = self.data_space().get_isize(base_addr);
+        let default_base = unsafe { self.data_space().get_isize(base_addr) };
         match parser::quoted_char(&token.as_bytes()) {
             parser::IResult::Done(_bytes, c) => {
                 if self.state().is_compiling {
@@ -2623,7 +2640,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     primitive!{fn p_const(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
-        let value = self.data_space().get_i32(dfa) as isize;
+        let value = unsafe{ self.data_space().get_isize(dfa) as isize };
         self.s_stack().push(value);
     }}
 
@@ -2652,7 +2669,7 @@ compilation_semantics: fn(&mut Self, usize)){
                 symbol,
                 action,
                 compilation_semantics,
-                self.data_space().len(),
+                self.data_space().here(),
                 self.code_space().here(),
             );
             let len = self.wordlist().len();
@@ -2689,7 +2706,7 @@ compilation_semantics: fn(&mut Self, usize)){
 
     primitive!{fn create(&mut self) {
         // pointer for does>
-        self.data_space().compile_i32(0);
+        self.data_space().compile_isize(0);
         self.define(Core::p_var, Core::compile_var);
     }}
 
@@ -2697,7 +2714,7 @@ compilation_semantics: fn(&mut Self, usize)){
         let v = self.s_stack().pop();
         self.define(Core::p_const, Core::compile_const);
         if self.last_error().is_none() {
-            self.data_space().compile_i32(v as i32);
+            self.data_space().compile_isize(v as isize);
         }
     }}
 
@@ -2750,7 +2767,7 @@ compilation_semantics: fn(&mut Self, usize)){
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
         self.s_stack().push(dfa as isize);
-        let doer = self.data_space().get_i32(dfa - mem::size_of::<i32>()) as usize;
+        let doer = unsafe{ self.data_space().get_isize(dfa - mem::size_of::<isize>()) as usize };
         let rlen = self.r_stack().len.wrapping_add(1);
         self.r_stack().len = rlen;
         self.r_stack()[rlen.wrapping_sub(1)] = self.state().instruction_pointer as isize;
@@ -2759,7 +2776,7 @@ compilation_semantics: fn(&mut Self, usize)){
 
     /// Run time behavior of does>.
     primitive!{fn _does(&mut self) {
-        let doer = self.state().instruction_pointer + mem::size_of::<i32>();
+        let doer = self.state().instruction_pointer + mem::size_of::<isize>();
         let def = self.last_definition();
         let dfa = {
             let word = &mut self.wordlist_mut()[def];
@@ -2767,7 +2784,7 @@ compilation_semantics: fn(&mut Self, usize)){
             word.dfa()
         };
         // Note: need to change create.
-        self.data_space().put_i32(doer as i32, dfa - mem::size_of::<i32>());
+        unsafe{ self.data_space().put_isize(doer as isize, dfa - mem::size_of::<isize>()) };
     }}
 
     // -----------
@@ -2808,7 +2825,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Add the size in address units of a cell to `a-addr1`, giving `a-addr2`.
     primitive!{fn cell_plus(&mut self) {
         let v = self.s_stack().pop();
-        self.s_stack().push(v + mem::size_of::<i32>() as isize);
+        self.s_stack().push(v + mem::size_of::<isize>() as isize);
     }}
 
     /// Run-time: ( n1 -- n2 )
@@ -2816,7 +2833,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// `n2` is the size in address units of `n1` cells.
     primitive!{fn cells(&mut self) {
         let v = self.s_stack().pop();
-        self.s_stack().push(v * mem::size_of::<i32>() as isize);
+        self.s_stack().push(v * mem::size_of::<isize>() as isize);
     }}
 
     primitive!{fn swap(&mut self) {
@@ -3112,9 +3129,11 @@ compilation_semantics: fn(&mut Self, usize)){
     ///
     /// `x` is the value stored at `a-addr`.
     primitive!{fn fetch(&mut self) {
-        let t = self.s_stack().pop();
-        if (t as usize + mem::size_of::<i32>()) <= self.data_space().capacity() {
-            let value = self.data_space().get_i32(t as usize) as isize;
+        let t = self.s_stack().pop() as usize;
+        if self.data_space().start() < t &&
+            t + mem::size_of::<isize>() <= self.data_space().limit()
+        {
+            let value = unsafe{ self.data_space().get_isize(t as usize) as isize };
             self.s_stack().push(value);
         } else {
             self.abort_with(InvalidMemoryAddress);
@@ -3126,8 +3145,11 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Store `x` at `a-addr`.
     primitive!{fn store(&mut self) {
         let (n, t) = self.s_stack().pop2();
-        if (t as usize + mem::size_of::<i32>()) <= self.data_space().capacity() {
-            self.data_space().put_i32(n as i32, t as usize);
+        let t = t as usize;
+        if self.data_space().start() < t &&
+            t + mem::size_of::<isize>() <= self.data_space().limit()
+        {
+            unsafe{ self.data_space().put_isize(n as isize, t as usize) };
         } else {
             self.abort_with(InvalidMemoryAddress);
         }
@@ -3138,9 +3160,11 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Fetch the character stored at `c-addr`. When the cell size is greater than
     /// character size, the unused high-order bits are all zeroes.
     primitive!{fn c_fetch(&mut self) {
-        let t = self.s_stack().pop();
-        if (t as usize + mem::size_of::<u8>()) <= self.data_space().capacity() {
-            let value = self.data_space().get_u8(t as usize) as isize;
+        let t = self.s_stack().pop() as usize;
+        if self.data_space().start() <= t &&
+            t + mem::size_of::<u8>() <= self.data_space().limit()
+        {
+            let value = unsafe{ self.data_space().get_u8(t as usize) as isize };
             self.s_stack().push(value);
         } else {
             self.abort_with(InvalidMemoryAddress);
@@ -3154,8 +3178,9 @@ compilation_semantics: fn(&mut Self, usize)){
     /// transferred.
     primitive!{fn c_store(&mut self) {
         let (n, t) = self.s_stack().pop2();
-        if (t as usize + mem::size_of::<u8>()) <= self.data_space().capacity() {
-            self.data_space().put_u8(n as u8, t as usize);
+        let t = t as usize;
+        if self.data_space().start() < t && t  + mem::size_of::<u8>() <= self.data_space().limit() {
+            unsafe{ self.data_space().put_u8(n as u8, t as usize) };
         } else {
             self.abort_with(InvalidMemoryAddress);
         }
@@ -3225,15 +3250,15 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Append the execution semantics of the definition represented by xt to the execution semantics of the current definition.
     primitive!{fn compile_comma(&mut self) {
         let v = self.s_stack().pop();
-        self.data_space().compile_i32(v as i32);
+        self.data_space().compile_isize(v as isize);
     }}
 
     /// Run-time: ( -- addr )
     ///
     /// `addr` is the data-space pointer.
     primitive!{fn here(&mut self) {
-        let len = self.data_space().len() as isize;
-        self.s_stack().push(len);
+        let here = self.data_space().here() as isize;
+        self.s_stack().push(here);
     }}
 
     /// Run-time: ( n -- )
@@ -3270,7 +3295,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// data-space pointer is not aligned prior to execution of `,`.
     primitive!{fn comma(&mut self) {
         let v = self.s_stack().pop();
-        self.data_space().compile_i32(v as i32);
+        self.data_space().compile_isize(v as isize);
     }}
 
     primitive!{fn p_to_r(&mut self) {
@@ -3469,7 +3494,7 @@ compilation_semantics: fn(&mut Self, usize)){
 mod tests {
     extern crate test;
     use self::test::Bencher;
-    use super::Core;
+    use super::{Core, Memory};
     use exception::Exception::{Abort, ControlStructureMismatch, InterpretingACompileOnlyWord,
                                InvalidMemoryAddress, ReturnStackUnderflow, StackUnderflow,
                                UndefinedWord, UnexpectedEndOfFile};
@@ -3506,7 +3531,7 @@ mod tests {
     #[bench]
     fn bench_inner_interpreter_without_nest(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
-        let ip = vm.data_space().len();
+        let ip = vm.data_space().here();
         let idx = vm.find("noop").expect("noop not exists");
         vm.compile_word(idx);
         vm.compile_word(idx);
@@ -4855,7 +4880,13 @@ mod tests {
         vm.set_source("2 cell+  9 cells");
         vm.evaluate();
         assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().as_slice(), [6, 36]);
+        assert_eq!(
+            vm.s_stack().as_slice(),
+            [
+                2 + mem::size_of::<isize>() as isize,
+                9 * mem::size_of::<isize>() as isize
+            ]
+        );
     }
 
     #[test]
@@ -4917,7 +4948,10 @@ mod tests {
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), -((mem::size_of::<i32>() * 2) as isize));
+        assert_eq!(
+            vm.s_stack().pop(),
+            -((mem::size_of::<isize>() * 2) as isize)
+        );
     }
 
     #[test]
@@ -5356,24 +5390,28 @@ mod tests {
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         // here 1 , 2 , ] lit exit [ here
-        let here = vm.data_space().len();
+        let here = vm.data_space().here();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
         vm.evaluate();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         let (n, t) = vm.s_stack().pop2();
         assert!(!vm.s_stack().underflow());
-        assert_eq!(t - n, 4 * mem::size_of::<u32>() as isize);
-        assert_eq!(vm.data_space().get_i32(here + 0), 1);
-        assert_eq!(vm.data_space().get_i32(here + 4), 2);
-        assert_eq!(
-            vm.data_space().get_i32(here + 8),
-            vm.references().idx_lit as i32
-        );
-        assert_eq!(
-            vm.data_space().get_i32(here + 12),
-            vm.references().idx_exit as i32
-        );
+        assert_eq!(t - n, 4 * mem::size_of::<usize>() as isize);
+        unsafe {
+            assert_eq!(vm.data_space().get_isize(here + 0), 1);
+            assert_eq!(vm.data_space().get_isize(here + mem::size_of::<isize>()), 2);
+            assert_eq!(
+                vm.data_space()
+                    .get_isize(here + 2 * mem::size_of::<isize>()),
+                vm.references().idx_lit as isize
+            );
+            assert_eq!(
+                vm.data_space()
+                    .get_isize(here + 3 * mem::size_of::<isize>()),
+                vm.references().idx_exit as isize
+            );
+        }
     }
 
     #[test]

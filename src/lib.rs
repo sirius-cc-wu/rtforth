@@ -23,9 +23,8 @@ macro_rules! primitive {
 extern crate approx;
 extern crate uom;
 
-pub mod codespace;
+pub mod memory;
 pub mod core;
-pub mod dataspace;
 pub mod env;
 pub mod exception;
 pub mod facility;

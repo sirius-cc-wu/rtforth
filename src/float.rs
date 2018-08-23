@@ -1,5 +1,5 @@
 use core::Core;
-use dataspace::DataSpace;
+use memory::{DataSpace, Memory};
 use exception::Exception::InvalidMemoryAddress;
 use std::mem;
 use std::f64::consts::PI;
@@ -56,7 +56,7 @@ pub trait Float: Core {
     primitive!{fn p_fconst(&mut self) {
         let wp = self.state().word_pointer();
         let pos = DataSpace::aligned_f64(self.wordlist()[wp].dfa());
-        let v = self.data_space().get_f64(pos);
+        let v = unsafe{ self.data_space().get_f64(pos) };
         self.f_stack().push(v);
     }}
 
@@ -107,8 +107,10 @@ pub trait Float: Core {
 
     primitive!{fn ffetch(&mut self) {
         let t = DataSpace::aligned_f64(self.s_stack().pop() as usize);
-        if (t + mem::size_of::<f64>()) <= self.data_space().capacity() {
-            let value = self.data_space().get_f64(t);
+        if self.data_space().start() <= t &&
+            t + mem::size_of::<f64>() <= self.data_space().limit()
+        {
+            let value = unsafe{ self.data_space().get_f64(t) };
             self.f_stack().push(value);
         } else {
             self.abort_with(InvalidMemoryAddress);
@@ -118,8 +120,10 @@ pub trait Float: Core {
     primitive!{fn fstore(&mut self) {
         let t = DataSpace::aligned_f64(self.s_stack().pop() as usize);
         let n = self.f_stack().pop();
-        if (t as usize + mem::size_of::<f64>()) <= self.data_space().capacity() {
-            self.data_space().put_f64(n, t as usize);
+        if self.data_space().start() <= t &&
+            t + mem::size_of::<f64>() <= self.data_space().limit()
+        {
+            unsafe{ self.data_space().put_f64(n, t) };
         } else {
             self.abort_with(InvalidMemoryAddress);
         }

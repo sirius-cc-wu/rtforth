@@ -4,9 +4,8 @@ extern crate rtforth;
 extern crate rustyline;
 
 use getopts::Options;
-use rtforth::codespace::CodeSpace;
+use rtforth::memory::{CodeSpace, DataSpace};
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
-use rtforth::dataspace::DataSpace;
 use rtforth::env::Environment;
 use rtforth::exception::Exception;
 use rtforth::facility::Facility;
@@ -249,7 +248,7 @@ primitive!{fn p_accept(vm: &mut VM) {
     }
 }}
 
-/// Terminate process. 
+/// Terminate process.
 primitive!{fn bye(vm: &mut VM) {
     vm.flush();
     process::exit(0);

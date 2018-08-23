@@ -51,8 +51,11 @@ pub trait HasLoader: Core {
         let libfs = include_str!("../core.fs");
         self.load_str(libfs);
         if self.last_error().is_some() {
-            panic!("Error {:?} {:?}", self.last_error().unwrap(), self.last_token());
+            panic!(
+                "Error {:?} {:?}",
+                self.last_error().unwrap(),
+                self.last_token()
+            );
         }
     }
-
 }

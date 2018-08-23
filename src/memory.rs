@@ -189,15 +189,6 @@ pub(crate) trait Memory {
         *(addr as *mut u8)
     }
 
-    #[allow(dead_code)]
-    unsafe fn get_u32(&self, addr: usize) -> u32 {
-        *(addr as *mut u32)
-    }
-
-    unsafe fn get_i32(&self, addr: usize) -> i32 {
-        *(addr as *mut i32)
-    }
-
     unsafe fn get_isize(&self, addr: usize) -> isize {
         *(addr as *mut isize)
     }
@@ -229,44 +220,43 @@ pub(crate) trait Memory {
         }
     }
 
-    unsafe fn put_u32(&mut self, v: u32, pos: usize) {
-        *(pos as *mut u32) = v;
+    unsafe fn put_usize(&mut self, v: usize, pos: usize) {
+        *(pos as *mut usize) = v;
     }
 
-    fn compile_u32(&mut self, v: u32) {
+    fn compile_usize(&mut self, v: usize) {
         let here = self.here();
-        if here + mem::size_of::<u32>() <= self.limit() {
+        if here + mem::size_of::<usize>() <= self.limit() {
             unsafe {
-                self.put_u32(v, here);
+                self.put_usize(v, here);
             }
-            self.allot(mem::size_of::<u32>() as isize);
+            self.allot(mem::size_of::<usize>() as isize);
         } else {
-            panic!("Error: compile_u32 while code space is full.");
+            panic!("Error: compile_usize while code space is full.");
         }
     }
 
     fn compile_relative(&mut self, f: usize) {
-        let there = self.here() + mem::size_of::<u32>();
-        let diff = f.wrapping_sub(there) as u32;
-        self.compile_u32(diff);
+        let there = self.here() + mem::size_of::<usize>();
+        let diff = f.wrapping_sub(there) as usize;
+        self.compile_usize(diff);
     }
 
-    unsafe fn put_i32(&mut self, v: i32, pos: usize) {
-        *(pos as *mut i32) = v;
+    unsafe fn put_isize(&mut self, v: isize, pos: usize) {
+        *(pos as *mut isize) = v;
     }
 
-    fn compile_i32(&mut self, v: i32) {
+    fn compile_isize(&mut self, v: isize) {
         let here = self.here();
-        if here + mem::size_of::<i32>() <= self.limit() {
+        if here + mem::size_of::<isize>() <= self.limit() {
             unsafe {
-                self.put_i32(v, here);
+                self.put_isize(v, here);
             }
-            self.allot(mem::size_of::<i32>() as isize);
+            self.allot(mem::size_of::<isize>() as isize);
         } else {
-            panic!("Error: compile_i32 while code space is full.");
+            panic!("Error: compile_isize while code space is full.");
         }
     }
-
     unsafe fn put_f64(&mut self, v: f64, pos: usize) {
         *(pos as *mut f64) = v;
     }
@@ -296,7 +286,7 @@ pub(crate) trait Memory {
 
     /// First aligned address greater than or equal to `pos`.
     fn aligned(pos: usize) -> usize {
-        let align = mem::align_of::<i32>();
+        let align = mem::align_of::<isize>();
         (pos + align - 1) & align.wrapping_neg()
     }
 

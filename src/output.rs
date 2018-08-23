@@ -76,7 +76,7 @@ pub trait Output: Core {
             let idx = self.references().idx_s_quote;
             let compilation_semantics = self.wordlist()[idx].compilation_semantics;
             compilation_semantics(self, idx);
-            self.data_space().compile_i32(cnt as i32);
+            self.data_space().compile_isize(cnt as isize);
             self.data_space().compile_str(s);
             // ignore the space following S"
             self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;

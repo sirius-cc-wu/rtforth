@@ -613,7 +613,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if i < self.wordlist().len() {
             (self.wordlist()[i].action())(self);
         } else {
-            self.abort_with(UndefinedWord);
+            self.abort_with(UnsupportedOperation);
         }
     }
 
@@ -2333,17 +2333,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                         }
                     }
                 }
+                self.set_last_token(last_token);
                 if done {
-                    self.set_last_token(last_token);
+                    /* Do nothing. */
                 } else {
-                    match self.output_buffer().as_mut() {
-                        Some(buf) => {
-                            write!(buf, "{} ", &last_token).expect("write");
-                        }
-                        None => {}
-                    }
-                    self.set_last_token(last_token);
-                    self.abort_with(UndefinedWord);
+                    self.abort_with_undefined();
                 }
             }
         }
@@ -2374,17 +2368,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                         }
                     }
                 }
+                self.set_last_token(last_token);
                 if done {
-                    self.set_last_token(last_token);
+                    /* Do nothing. */
                 } else {
-                    match self.output_buffer().as_mut() {
-                        Some(buf) => {
-                            write!(buf, "{} ", &last_token).expect("write");
-                        }
-                        None => {}
-                    }
-                    self.set_last_token(last_token);
-                    self.abort_with(UndefinedWord);
+                    self.abort_with_undefined();
                 }
             }
         }
@@ -3205,7 +3193,7 @@ compilation_semantics: fn(&mut Self, usize)){
                 }
                 None => {
                     self.set_last_token(last_token);
-                    self.abort_with(UndefinedWord);
+                    self.abort_with_undefined();
                 }
             }
         }
@@ -3238,7 +3226,7 @@ compilation_semantics: fn(&mut Self, usize)){
                 }
                 None => {
                     self.set_last_token(last_token);
-                    self.abort_with(UndefinedWord);
+                    self.abort_with_undefined();
                 }
             }
         }
@@ -3482,6 +3470,23 @@ compilation_semantics: fn(&mut Self, usize)){
         self.set_error(Some(e));
         let h = self.handler();
         self.execute_word(h);
+    }
+
+    /// Abort the inner loop with exception `UndefinedWord`, reset VM and clears stacks.
+    fn abort_with_undefined(&mut self) {
+        match self.last_token().take() {
+            Some(last_token) => {
+                match self.output_buffer().as_mut() {
+                    Some(buf) => {
+                        write!(buf, "{} ", &last_token).expect("write");
+                    }
+                    None => { /* Do nothing. */ }
+                }
+                self.set_last_token(last_token);
+            }
+            None => { /* Do nothing. */ }
+        }
+        self.abort_with(UndefinedWord);
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.

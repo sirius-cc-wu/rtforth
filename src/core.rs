@@ -3026,7 +3026,7 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn c_fetch(&mut self) {
         let t = self.s_stack().pop() as usize;
         if self.data_space().start() <= t &&
-            t + mem::size_of::<u8>() <= self.data_space().limit()
+            t < self.data_space().limit()
         {
             let value = unsafe{ self.data_space().get_u8(t as usize) as isize };
             self.s_stack().push(value);
@@ -3043,7 +3043,7 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn c_store(&mut self) {
         let (n, t) = self.s_stack().pop2();
         let t = t as usize;
-        if self.data_space().start() < t && t  + mem::size_of::<u8>() <= self.data_space().limit() {
+        if self.data_space().start() < t && t  < self.data_space().limit() {
             unsafe{ self.data_space().put_u8(n as u8, t as usize) };
         } else {
             self.abort_with(InvalidMemoryAddress);

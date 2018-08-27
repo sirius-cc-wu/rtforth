@@ -107,8 +107,10 @@ pub trait Float: Core {
 
     primitive!{fn ffetch(&mut self) {
         let t = DataSpace::aligned_f64(self.s_stack().pop() as usize);
+        // Because t is aligned to f64 boundary, and memory is 4K-page aligned,
+        // checking start() <= t < limit() is enough.
         if self.data_space().start() <= t &&
-            t + mem::size_of::<f64>() <= self.data_space().limit()
+            t < self.data_space().limit()
         {
             let value = unsafe{ self.data_space().get_f64(t) };
             self.f_stack().push(value);
@@ -120,8 +122,10 @@ pub trait Float: Core {
     primitive!{fn fstore(&mut self) {
         let t = DataSpace::aligned_f64(self.s_stack().pop() as usize);
         let n = self.f_stack().pop();
+        // Because t is aligned to f64 boundary, and memory is 4K-page aligned,
+        // checking start() <= t < limit() is enough.
         if self.data_space().start() <= t &&
-            t + mem::size_of::<f64>() <= self.data_space().limit()
+            t < self.data_space().limit()
         {
             unsafe{ self.data_space().put_f64(n, t) };
         } else {

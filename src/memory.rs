@@ -19,6 +19,9 @@ pub struct CodeSpace {
 }
 
 impl CodeSpace {
+    /// Allocate memory for x86/x86_64.
+    ///
+    /// The memory is populated with `0xc3` (RET).
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     pub fn new(num_pages: usize) -> CodeSpace {
         let mut ptr: *mut libc::c_void;
@@ -40,6 +43,9 @@ impl CodeSpace {
         }
     }
 
+    /// Allocate memory for CPU other than x86/x86_64.
+    ///
+    /// The memory is populated with `0x00`.
     #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
     pub fn new(num_pages: usize) -> CodeSpace {
         let mut ptr: *mut libc::c_void;
@@ -77,12 +83,13 @@ impl Memory for CodeSpace {
     }
 
     fn set_here(&mut self, pos: usize) -> Result<(), Exception> {
-        let len = pos as isize - self.start() as isize;
-        if len < 0 || len > self.cap as isize {
-            Err(Exception::InvalidMemoryAddress)
-        } else {
+        // here is allowed to be 1 place after the last memory address.
+        if self.start() <= pos && pos <= self.limit() {
+            let len = pos as isize - self.start() as isize;
             self.len = len as usize;
             Ok(())
+        } else {
+            Err(Exception::InvalidMemoryAddress)
         }
     }
 }
@@ -153,12 +160,13 @@ impl Memory for DataSpace {
     }
 
     fn set_here(&mut self, pos: usize) -> Result<(), Exception> {
-        let len = pos as isize - self.start() as isize;
-        if len < 0 || len > self.cap as isize {
-            Err(Exception::InvalidMemoryAddress)
-        } else {
+        // here is allowed to be 1 place after the last memory address.
+        if self.start() <= pos && pos <= self.limit() {
+            let len = pos as isize - self.start() as isize;
             self.len = len as usize;
             Ok(())
+        } else {
+            Err(Exception::InvalidMemoryAddress)
         }
     }
 }
@@ -208,7 +216,7 @@ pub(crate) trait Memory {
     #[allow(dead_code)]
     fn compile_u8(&mut self, v: u8) {
         let here = self.here();
-        if here + mem::size_of::<u8>() <= self.limit() {
+        if here < self.limit() {
             unsafe {
                 self.put_u8(v, here);
             }

@@ -249,7 +249,7 @@ primitive!{fn p_accept(vm: &mut VM) {
     }
 }}
 
-/// Terminate process. 
+/// Terminate process.
 primitive!{fn bye(vm: &mut VM) {
     vm.flush();
     process::exit(0);

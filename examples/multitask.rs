@@ -2,9 +2,8 @@
 extern crate rtforth;
 
 mod vm {
-    use rtforth::codespace::CodeSpace;
+    use rtforth::memory::{CodeSpace, DataSpace};
     use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
-    use rtforth::dataspace::DataSpace;
     use rtforth::exception::Exception;
     use rtforth::output::Output;
 

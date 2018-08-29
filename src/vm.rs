@@ -1,6 +1,5 @@
-use codespace::CodeSpace;
+use memory::{CodeSpace, DataSpace};
 use core::{Control, Core, ForwardReferences, Stack, State, Word};
-use dataspace::DataSpace;
 use env::Environment;
 use exception::Exception;
 use facility::Facility;

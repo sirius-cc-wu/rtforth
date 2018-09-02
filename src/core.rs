@@ -1463,21 +1463,28 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().align_16bytes();
         self.wordlist_mut()[word_index].action =
             unsafe { mem::transmute(self.code_space().here()) };
-        // ; Aligned to 16 bytes because some x86 instruction, ex. movdqa, need
-        // ; it.
-        // 83 ec 0c         sub    $c,%esp
+        // ; make a copy of vm in %esi because %ecx may be destropyed by
+        // subroutine call.
+        // 56               push   %esi
+        // 89 ce            mov    %ecx,%esi
+        // 83 ec 08         sub    $8,%esp
+        self.code_space().compile_u8(0x56);
+        self.code_space().compile_u8(0x89);
+        self.code_space().compile_u8(0xce);
         self.code_space().compile_u8(0x83);
         self.code_space().compile_u8(0xec);
-        self.code_space().compile_u8(0x0c);
+        self.code_space().compile_u8(0x08);
     }
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_exit(&mut self, _: usize) {
-        // 83 c4 0c         add    $c,%esp
+        // 83 c4 08         add    $8,%esp
+        // 5e               pop    %esi
         // c3               ret
         self.code_space().compile_u8(0x83);
         self.code_space().compile_u8(0xc4);
-        self.code_space().compile_u8(0x0c);
+        self.code_space().compile_u8(0x08);
+        self.code_space().compile_u8(0x5e);
         self.code_space().compile_u8(0xc3);
     }
 

@@ -8,6 +8,7 @@ use loader::HasLoader;
 use output::Output;
 use tools::Tools;
 use units::Units;
+use std::time::SystemTime;
 
 // Virtual machine
 pub struct VM {
@@ -29,6 +30,7 @@ pub struct VM {
     hldbuf: String,
     state: State,
     references: ForwardReferences,
+    now: SystemTime,
 }
 
 impl VM {
@@ -52,6 +54,7 @@ impl VM {
             hldbuf: String::with_capacity(128),
             state: State::new(),
             references: ForwardReferences::new(),
+            now: SystemTime::now(),
         };
         vm.add_core();
         vm.add_output();
@@ -148,6 +151,16 @@ impl Core for VM {
     }
     fn references(&mut self) -> &mut ForwardReferences {
         &mut self.references
+    }
+    fn system_time_ns(&self) -> i64 {
+        match self.now.elapsed() {
+            Ok(d) => {
+                d.as_nanos() as i64
+            }
+            Err(_) => {
+                0i64
+            }
+        }
     }
 }
 

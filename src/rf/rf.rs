@@ -1,3 +1,5 @@
+#![feature(duration_as_u128)]
+
 extern crate getopts;
 #[macro_use(primitive)]
 extern crate rtforth;
@@ -17,6 +19,7 @@ use rtforth::units::Units;
 use std::env;
 use std::fmt::Write;
 use std::process;
+use std::time::SystemTime;
 
 // Virtual machine
 pub struct VM {
@@ -39,6 +42,7 @@ pub struct VM {
     hldbuf: String,
     state: State,
     references: ForwardReferences,
+    now: SystemTime,
 }
 
 impl VM {
@@ -63,6 +67,7 @@ impl VM {
             hldbuf: String::with_capacity(128),
             state: State::new(),
             references: ForwardReferences::new(),
+            now: SystemTime::now(),
         };
         vm.add_core();
         vm.add_output();
@@ -86,6 +91,7 @@ impl VM {
 
         vm
     }
+
 }
 
 impl Core for VM {
@@ -172,6 +178,16 @@ impl Core for VM {
     }
     fn references(&mut self) -> &mut ForwardReferences {
         &mut self.references
+    }
+    fn system_time_ns(&self) -> i64 {
+        match self.now.elapsed() {
+            Ok(d) => {
+                d.as_nanos() as i64
+            }
+            Err(_) => {
+                0i64
+            }
+        }
     }
 }
 

@@ -411,6 +411,7 @@ pub trait Core: Sized {
     fn wordlist(&self) -> &Vec<Word<Self>>;
     fn state(&mut self) -> &mut State;
     fn references(&mut self) -> &mut ForwardReferences;
+    fn system_time_ns(&self) -> i64;
 
     /// Add core primitives to self.
     fn add_core(&mut self) {
@@ -3352,6 +3353,7 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn abort(&mut self) {
         self.abort_with(Abort);
     }}
+
 }
 
 #[cfg(test)]

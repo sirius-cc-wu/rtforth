@@ -314,6 +314,18 @@ pub(crate) trait Memory {
         self.set_here(Self::aligned_f64(here));
     }
 
+    /// First address aligned to 16-byte boundary greater than or equal to `pos`.
+    fn aligned_16bytes(pos: usize) -> usize {
+        let align = 16;
+        (pos + align - 1) & align.wrapping_neg()
+    }
+
+    /// If the code-space pointer is not aligned to 16-byte boundary, reserve enough space to align it.
+    fn align_16bytes(&mut self) {
+        let here = self.here();
+        self.set_here(Self::aligned_16bytes(here));
+    }
+
     fn allot(&mut self, v: isize) {
         let here = (self.here() as isize + v) as usize;
         self.set_here(here);

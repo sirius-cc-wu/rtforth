@@ -110,7 +110,7 @@ impl<T: Default + Copy + PartialEq + Display> Stack<T> {
 
     pub fn reset(&mut self) {
         self.len = 0;
-        for i in 32..256 {
+        for i in 0..256 {
             self.inner[i] = self.canary;
         }
     }
@@ -120,7 +120,7 @@ impl<T: Default + Copy + PartialEq + Display> Stack<T> {
     }
 
     pub fn overflow(&self) -> bool {
-        (self.inner[32] != self.canary) || (self.len > 32 && self.len <= 128)
+        (self.inner[64] != self.canary) || (self.len > 64 && self.len <= 128)
     }
 
     pub fn push(&mut self, v: T) {
@@ -765,6 +765,14 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(not(feature = "subroutine-threaded"))]
+    fn compile_branch(&mut self, destination: usize) -> usize {
+        let idx = self.references().idx_branch;
+        self.compile_word(idx);
+        self.data_space().compile_isize(destination as isize);
+        self.data_space().here()
+    }
+
+    #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn zero_branch(&mut self) {
         let v = self.s_stack().pop();
         if v == 0 {
@@ -773,6 +781,14 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.state().instruction_pointer += mem::size_of::<isize>();
         }
     }}
+
+    #[cfg(not(feature = "subroutine-threaded"))]
+    fn compile_zero_branch(&mut self, destination: usize) -> usize {
+        let idx = self.references().idx_zero_branch;
+        self.compile_word(idx);
+        self.data_space().compile_isize(destination as isize);
+        self.data_space().here()
+    }
 
     /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
     ///
@@ -944,10 +960,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_if(&mut self) {
-        let idx = self.references().idx_zero_branch;
-        self.compile_word(idx);
-        self.data_space().compile_isize(0);
-        let here = self.data_space().here();
+        let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
     }}
 
@@ -975,10 +988,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch;
-            self.compile_word(idx);
-            self.data_space().compile_isize(0);
-            let here = self.data_space().here();
+            let here = self.compile_branch(0);
             self.c_stack().push(Control::Else(here));
             unsafe{
                 self.data_space()
@@ -1055,10 +1065,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             self.compile_word(idx);
             let idx = self.references().idx_equal;
             self.compile_word(idx);
-            let idx = self.references().idx_zero_branch;
-            self.compile_word(idx);
-            self.data_space().compile_isize(0);
-            let here = self.data_space().here();
+            let here = self.compile_zero_branch(0);
             self.c_stack().push(Control::Of(here));
             let idx = self.references().idx_drop;
             self.compile_word(idx);
@@ -1079,10 +1086,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch;
-            self.compile_word(idx);
-            self.data_space().compile_isize(0);
-            let here = self.data_space().here();
+            let here = self.compile_branch(0);
             self.c_stack().push(Control::Endof(here));
             unsafe{
                 self.data_space()
@@ -1146,10 +1150,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///
     #[cfg(not(feature = "subroutine-threaded"))]
     primitive!{fn imm_while(&mut self) {
-        let idx = self.references().idx_zero_branch;
-        self.compile_word(idx);
-        self.data_space().compile_isize(0);
-        let here = self.data_space().here();
+        let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(here));
     }}
 
@@ -1170,10 +1171,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch;
-            self.compile_word(idx);
-            self.data_space().compile_isize(begin_part as isize);
-            let here = self.data_space().here();
+            let here = self.compile_branch(begin_part);
             unsafe{
                 self.data_space()
                     .put_isize(here as isize, while_part - mem::size_of::<isize>());
@@ -1206,9 +1204,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_zero_branch;
-            self.compile_word(idx);
-            self.data_space().compile_isize(begin_part as isize);
+            self.compile_zero_branch(begin_part);
         }
     }}
 
@@ -1237,9 +1233,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_branch;
-            self.compile_word(idx);
-            self.data_space().compile_isize(begin_part as isize);
+            self.compile_branch(begin_part);
         }
     }}
 
@@ -1382,8 +1376,64 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     // -------------------------------
-    // Subroutine threaded code
+    // Subroutine threaded code, x86
     // -------------------------------
+    //
+    // Calling convension: fastcall
+    //
+    // Register usage:
+    //
+    // Caller save registers:
+    //   %eax: result of function
+    //   %ecx: first argument of function, often a pointer to vm
+    //   %edx: second argument of function
+    // Callee save registers:
+    //   %ebx: not used
+    //   %esi: pointer to vm
+    //   %edi: not used
+    //   %ebp: frame pointer
+    //   %esp: stack pointer
+    //
+    // For multitasking:
+    //   %edi: data stack pointer
+    //   %ebp: return stack pointer for primitives implemented in rust
+    //   %esp: return stack pointer for colon definitions
+    //
+    // For optimization:
+    //   %ebx, %ecx, %eax, %edx: cache registers
+    //
+    // The top few items of the data stack will be cached in the CPU registers
+    // using optimization strategy developed by FLK.
+    //
+    // RtForth seperates stack for primitives implemented in rust from that for
+    // colon definitions for two reasons:
+    //
+    // * Different depth requirement. The stack for colon definitions is
+    //   shallow if no RECURSE is used.。
+    // * Task-switch. Task-switch only occurs in colon definitions.
+    //
+    // Frame pointer in %ebp should be saved in memory upon RESET.
+    // Before call to primitives implemented in rust,
+    // %ebp and %esp need to be exchanged.
+    //
+    //    xchg %eax,%ebp
+    //    xchg %eax,%esp
+    //    xchg %eax,%ebp
+    //    mov  %esi,%ecx
+    //    call primitive_which_needs_deep_stack
+    //    xchg %eax,%ebp
+    //    xchg %eax,%esp
+    //    xchg %eax,%ebp
+    //
+    // Primitives which need only shallow stack space can be marked so that
+    // they use return stack for colon definitions to reduce frequency of stack
+    // exchange.
+    //
+    // A command SHALLOW is proposed to mark those primitives which need only shallow stack.
+    //
+    // SHALLOW +
+    // SHALLOW -
+    // SHALLOW @
 
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.
@@ -1411,9 +1461,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_nest_code(&mut self, word_index: usize) {
+        self.code_space().align_16bytes();
         self.wordlist_mut()[word_index].action =
             unsafe { mem::transmute(self.code_space().here()) };
-        // ; make a copy of vm in %esi because %ecx may be destropyed by subroutine call.
+        // ; make a copy of vm in %esi because %ecx may be destropyed by
+        // subroutine call.
         // 56               push   %esi
         // 89 ce            mov    %ecx,%esi
         // 83 ec 08         sub    $8,%esp
@@ -1446,7 +1498,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_const(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
-        let value = self.data_space().get_isize(dfa) as isize;
+        let value = unsafe{ self.data_space().get_isize(dfa) as isize };
         self.compile_integer(value);
     }
 
@@ -1538,7 +1590,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     primitive!{fn lit_counted_string(&mut self, idx: usize) {
-        let cnt = self.data_space().get_isize(idx);
+        let cnt = unsafe{ self.data_space().get_isize(idx) };
         let addr = idx + mem::size_of::<isize>();
         // FIXME
         // 加下一行會造成 cargo test test_s_quote_and_type --features="subroutine-threaded"
@@ -1558,7 +1610,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         // ba nn nn nn nn   mov    <index of counted string>, %edx
         // 89 f1            mov    %esi, %ecx
         // e8 xx xx xx xx   call   lit_counted_string
-        let data_idx = self.data_space().len();
+        let data_idx = self.data_space().here();
         self.code_space().compile_u8(0xba);
         self.code_space().compile_usize(data_idx as usize);
         self.code_space().compile_u8(0x89);
@@ -1588,10 +1640,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         // e9 xx xx xx xx      jmp xxxx
-        let here = self.code_space().here();
         self.code_space().compile_u8(0xe9);
         self.code_space().compile_relative(destination);
-        here
+        self.code_space().here()
     }
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
@@ -1612,11 +1663,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             .compile_relative(Self::pop_s_stack as usize);
         self.code_space().compile_u8(0x85);
         self.code_space().compile_u8(0xc0);
-        let here = self.code_space().here();
         self.code_space().compile_u8(0x0f);
         self.code_space().compile_u8(0x84);
         self.code_space().compile_relative(destination);
-        here
+        self.code_space().here()
     }
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
@@ -1765,9 +1815,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_isize(
-                        (here - (if_part + 2 + mem::size_of::<isize>())) as isize,
-                        if_part + 2);
+                    .put_isize((here - if_part) as isize, if_part - mem::size_of::<isize>());
             }
         }
     }}
@@ -1791,17 +1839,97 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             //      e9 xx xx xx xx      jmp xxxx
             let here = self.code_space().here();
             unsafe{
-                let c = self.code_space().get_u8(branch_part);
-                if c == 0x0f {
+                self.code_space()
+                    .put_isize((here - branch_part) as isize, branch_part - mem::size_of::<isize>());
+            }
+        }
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_case(&mut self) {
+        self.c_stack().push(Control::Case);
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_of(&mut self) {
+        match self.c_stack().pop() {
+            Control::Case => {
+                self.c_stack().push(Control::Case);
+            },
+            Control::Endof(n) => {
+                self.c_stack().push(Control::Endof(n));
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_over;
+            self.compile_word(idx);
+            let idx = self.references().idx_equal;
+            self.compile_word(idx);
+            let here = self.compile_zero_branch(0);
+            self.c_stack().push(Control::Of(here));
+            let idx = self.references().idx_drop;
+            self.compile_word(idx);
+        }
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_endof(&mut self) {
+        let of_part = match self.c_stack().pop() {
+            Control::Of(of_part) => {
+                of_part
+            },
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let endof_part = self.compile_branch(0);
+            self.c_stack().push(Control::Endof(endof_part));
+            // of_part: 0f 84 yy yy yy yy    je yyyy
+            let here = self.code_space().here();
+            unsafe{
+                self.code_space()
+                    .put_isize((here - of_part) as isize, of_part - mem::size_of::<isize>());
+            }
+        }
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_endcase(&mut self) {
+        let idx = self.references().idx_drop;
+        self.compile_word(idx);
+        loop {
+            let endof_part = match self.c_stack().pop() {
+                Control::Case => { break; }
+                Control::Endof(endof_part) => {
+                    endof_part
+                }
+                _ => {
+                    self.abort_with(ControlStructureMismatch);
+                    return;
+                }
+            };
+            if self.c_stack().underflow() {
+                self.abort_with(ControlStructureMismatch);
+            } else {
+                let here = self.code_space().here();
+                unsafe{
                     self.code_space()
-                        .put_isize((here - (branch_part + 2 +
-                         mem::size_of::<isize>())) as isize, branch_part + 2);
-                } else {
-                    self.code_space()
-                        .put_isize((here - (branch_part +
-                         1 + mem::size_of::<isize>())) as isize, branch_part + 1);
+                        .put_isize((here - endof_part) as isize, endof_part - mem::size_of::<isize>());
                 }
             }
+        }
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
         }
     }}
 
@@ -1834,9 +1962,24 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_isize((here - (while_part +
-                     2 + mem::size_of::<isize>())) as isize, while_part + 2);
+                    .put_isize((here - while_part) as isize, while_part - mem::size_of::<isize>());
             }
+        }
+    }}
+
+    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    primitive!{fn imm_until(&mut self) {
+        let begin_part = match self.c_stack().pop() {
+            Control::Begin(begin_part) => begin_part,
+            _ => {
+                self.abort_with(ControlStructureMismatch);
+                return;
+            }
+        };
+        if self.c_stack().underflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let _ = self.compile_zero_branch(begin_part);
         }
     }}
 
@@ -3280,8 +3423,13 @@ compilation_semantics: fn(&mut Self, usize)){
 
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_reset(&mut self, _: usize) {
+        //      ; Make a copy of vm in %esi because %ecx may be destroyed by
+        //      ; subroutine call.
+        //      ; Note that RESET is the first Forth instruction in QUIT.
+        //      ; Also note that %esi is not saved here because QUIT doesn't
+        //      ; return to caller.
+        //      89 ce            mov    %ecx,%esi
         //      ; 判斷之前是否執行過 set_regs。
-        //      89 f1           mov    %esi,%ecx
         //      e8 xx xx xx xx  call   _regs()
         //      8b 10           mov    (%eax),%edx
         //      85 d2           test   %edx,%edx
@@ -3298,7 +3446,7 @@ compilation_semantics: fn(&mut Self, usize)){
         //      89 f1           mov %esi,%ecx
         //      e8 xx xx xx xx  call clear_stacks
         self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
+        self.code_space().compile_u8(0xce);
         self.code_space().compile_u8(0xe8);
         self.code_space().compile_relative(Self::_regs as usize);
         self.code_space().compile_u8(0x8b);
@@ -3363,7 +3511,7 @@ mod tests {
     use super::{Core, Memory};
     use exception::Exception::{Abort, ControlStructureMismatch, InterpretingACompileOnlyWord,
                                InvalidMemoryAddress, ReturnStackUnderflow, StackUnderflow,
-                               UndefinedWord, UnexpectedEndOfFile};
+                               UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation};
     use loader::HasLoader;
     use std::mem;
     use vm::VM;
@@ -4781,7 +4929,7 @@ mod tests {
         // execute
         vm.execute();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(UndefinedWord));
+        assert_eq!(vm.last_error(), Some(UnsupportedOperation));
         vm.reset();
         vm.clear_stacks();
         // ' drop execute
@@ -5313,7 +5461,6 @@ mod tests {
         }
     }
 
-    // TODO: added a dump forth word.
     fn dump(vm: &mut VM, addr: usize) {
         if vm.code_space().has(addr) {
             for i in 0..8 {

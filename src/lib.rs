@@ -1,4 +1,5 @@
 #![feature(test)]
+#![feature(duration_as_u128)]
 
 #[cfg(target_arch = "arm")]
 #[macro_export]

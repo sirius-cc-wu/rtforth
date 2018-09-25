@@ -22,5 +22,4 @@ pub trait Facility: Core {
         us = us - (min * 60_000_000);
         self.s_stack().push2(min as isize, us as isize);
     }}
-
 }

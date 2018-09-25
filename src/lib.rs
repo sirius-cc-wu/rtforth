@@ -37,5 +37,11 @@ pub mod tools;
 pub mod units;
 pub mod vm;
 
+use std::result;
+use exception::Exception;
+
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;
+pub const NUM_TASKS: usize = 5;
+
+pub type Result = result::Result<(), Exception>;

@@ -12,11 +12,8 @@ use std::fmt::Write;
 use std::fmt::{self, Display};
 use std::mem;
 use std::ops::{Index, IndexMut};
-use std::result;
 use std::str;
-use {FALSE, TRUE};
-
-pub type Result = result::Result<(), Exception>;
+use {FALSE, NUM_TASKS, TRUE};
 
 // Word
 pub struct Word<Target> {
@@ -412,6 +409,20 @@ pub trait Core: Sized {
     fn state(&mut self) -> &mut State;
     fn references(&mut self) -> &mut ForwardReferences;
     fn system_time_ns(&self) -> i64;
+    /// Current task
+    fn current_task(&mut self) -> usize;
+    /// Set curretn task.
+    ///
+    /// No operation if there is no task `i`.
+    fn set_current_task(&mut self, i: usize);
+    /// Is task `i` awake?
+    ///
+    /// False if there is no task `i`.
+    fn awake(&self, i: usize) -> bool;
+    /// Set awake to `v`.
+    ///
+    /// No operation if there is no task `i`.
+    fn set_awake(&mut self, i: usize, v: bool);
 
     /// Add core primitives to self.
     fn add_core(&mut self) {
@@ -558,6 +569,17 @@ pub trait Core: Sized {
         self.references().idx_drop = self.find("drop").expect("drop undefined");
 
         self.patch_compilation_semanticses();
+
+        #[cfg(not(feature = "stc"))]
+        {
+            // Multitasker
+            self.add_compile_only("pause", Core::pause);
+            self.add_compile_only("activate", Core::activate);
+            self.add_primitive("me", Core::me);
+            self.add_primitive("suspend", Core::suspend);
+            self.add_primitive("resume", Core::resume);
+        }
+        self.set_awake(0, true);
     }
 
     /// Add a primitive word to word list.
@@ -1375,6 +1397,29 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
+    #[cfg(not(feature = "stc"))]
+    primitive!{fn activate(&mut self) {
+        let i = self.s_stack().pop() as usize;
+        if i < NUM_TASKS {
+            // Wake task `i`.
+            self.set_awake(i, true);
+            // Reset task `i` and Assign the code following ACTIVATE to task `i`
+            let current_task = self.current_task();
+            let ip = self.state().instruction_pointer;
+            self.set_current_task(i);
+            self.reset();
+            self.state().instruction_pointer = ip;
+            self.set_current_task(current_task);
+            // Return to caller.
+            let ip = self.r_stack().pop() as usize;
+            self.state().instruction_pointer = ip;
+        } else {
+            let ip = self.r_stack().pop() as usize;
+            self.state().instruction_pointer = ip;
+            self.abort_with(Exception::InvalidNumericArgument);
+        }
+    }}
+
     // -------------------------------
     // Subroutine threaded code, x86
     // -------------------------------
@@ -1498,7 +1543,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
     fn compile_const(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
-        let value = unsafe{ self.data_space().get_isize(dfa) as isize };
+        let value = unsafe { self.data_space().get_isize(dfa) as isize };
         self.compile_integer(value);
     }
 
@@ -1840,7 +1885,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let here = self.code_space().here();
             unsafe{
                 self.code_space()
-                    .put_isize((here - branch_part) as isize, branch_part - mem::size_of::<isize>());
+                    .put_isize(
+                        (here - branch_part) as isize,
+                        branch_part - mem::size_of::<isize>()
+                    );
             }
         }
     }}
@@ -1924,7 +1972,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 let here = self.code_space().here();
                 unsafe{
                     self.code_space()
-                        .put_isize((here - endof_part) as isize, endof_part - mem::size_of::<isize>());
+                        .put_isize(
+                            (here - endof_part) as isize,
+                            endof_part - mem::size_of::<isize>()
+                        );
                 }
             }
         }
@@ -3502,6 +3553,35 @@ compilation_semantics: fn(&mut Self, usize)){
         self.abort_with(Abort);
     }}
 
+    /// Pause the current task and resume the next task which is awake.
+    primitive!{fn pause(&mut self) {
+        let mut i = self.current_task();
+        loop {
+            i = (i + 1) % NUM_TASKS;
+            if self.awake(i) {
+                self.set_current_task(i);
+                break;
+            }
+        }
+    }}
+
+    /// Current task ID
+    primitive!{fn me(&mut self) {
+        let me = self.current_task();
+        self.s_stack().push(me as isize);
+    }}
+
+    /// Suspend task `i`. `suspend ( i -- )`
+    primitive!{fn suspend(&mut self) {
+        let i = self.s_stack().pop();
+        self.set_awake(i as usize, false);
+    }}
+
+    /// Resume task `i`. `resume ( i -- )`
+    primitive!{fn resume(&mut self) {
+        let i = self.s_stack().pop();
+        self.set_awake(i as usize, true);
+    }}
 }
 
 #[cfg(test)]

@@ -113,8 +113,8 @@ impl VM {
 
         vm.load_core_fs();
 
-        let libfs = include_str!("./lib.fs");
-        vm.load_str(libfs);
+        let rffs = include_str!("./rf.fs");
+        vm.load_str(rffs);
         if vm.last_error().is_some() {
             panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
         }

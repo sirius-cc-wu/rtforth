@@ -1,14 +1,15 @@
-use memory::{CodeSpace, DataSpace};
-use NUM_TASKS;
-use core::{Control, Core, ForwardReferences, Stack, State, Word};
-use env::Environment;
-use exception::Exception;
-use facility::Facility;
-use float::Float;
-use loader::HasLoader;
-use output::Output;
-use tools::Tools;
-use units::Units;
+extern crate rtforth;
+use rtforth::memory::{CodeSpace, DataSpace};
+use rtforth::NUM_TASKS;
+use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
+use rtforth::env::Environment;
+use rtforth::exception::Exception;
+use rtforth::facility::Facility;
+use rtforth::float::Float;
+use rtforth::loader::HasLoader;
+use rtforth::output::Output;
+use rtforth::tools::Tools;
+use rtforth::units::Units;
 use std::time::SystemTime;
 
 const BUFFER_SIZE: usize = 0x400;
@@ -95,6 +96,9 @@ impl VM {
         vm.add_facility();
         vm.add_float();
         vm.add_units();
+
+        vm.load_core_fs();
+
         vm
     }
 }

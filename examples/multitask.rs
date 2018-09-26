@@ -1,9 +1,11 @@
+#![feature(duration_as_u128)]
 #[macro_use(primitive)]
 extern crate rtforth;
+mod vm;
 
 use rtforth::core::Core;
 use rtforth::output::Output;
-use rtforth::vm::VM;
+use vm::VM;
 use std::process;
 
 fn main() {

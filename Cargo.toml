@@ -7,22 +7,33 @@ keywords = ["forth", "real-time"]
 description = "Forth implemented in Rust for realtime application"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/chengchangwu/rtforth.git"
+autoexamples = false
 
 [lib]
 name = "rtforth"
 path = "src/lib.rs"
 
-[[bin]]
+[[example]]
 name = "rf"
-path = "src/rf/rf.rs"
+path = "examples/rf.rs"
+
+[[example]]
+name = "multitask"
+path = "examples/multitask.rs"
+
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
 
 [dependencies]
-time = "0.1"
 uom = "0.18"
 approx = "0.2"
 libc = "0.2.41"
+
+[dev-dependencies]
 rustyline = "1.0"
 getopts = "0.2"
+time = "0.1"
 
 [profile.release]
 debug = true

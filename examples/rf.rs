@@ -210,10 +210,10 @@ impl Core for VM {
     fn references(&mut self) -> &mut ForwardReferences {
         &mut self.references
     }
-    fn system_time_ns(&self) -> i64 {
+    fn system_time_ns(&self) -> u64 {
         match self.now.elapsed() {
-            Ok(d) => d.as_nanos() as i64,
-            Err(_) => 0i64,
+            Ok(d) => d.as_nanos() as u64,
+            Err(_) => 0u64,
         }
     }
     fn current_task(&mut self) -> usize {

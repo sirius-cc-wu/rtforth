@@ -408,7 +408,7 @@ pub trait Core: Sized {
     fn wordlist(&self) -> &Vec<Word<Self>>;
     fn state(&mut self) -> &mut State;
     fn references(&mut self) -> &mut ForwardReferences;
-    fn system_time_ns(&self) -> i64;
+    fn system_time_ns(&self) -> u64;
     /// Current task
     fn current_task(&mut self) -> usize;
     /// Set curretn task.

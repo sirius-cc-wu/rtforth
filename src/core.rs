@@ -546,12 +546,15 @@ pub trait Core: Sized {
         self.add_primitive(",", Core::comma);
         self.add_primitive("marker", Core::marker);
         self.add_primitive("handler!", Core::handler_store);
-        self.add_primitive("error?", Core::p_error_q);
-        self.add_primitive("handle-error", Core::p_handle_error);
+        self.add_primitive("error", Core::error);
+        self.add_primitive(".error", Core::dot_error);
+        self.add_primitive("0error", Core::clear_error);
+        self.add_primitive("0stacks", Core::clear_stacks);
         self.add_primitive("reset", Core::reset);
         self.add_primitive("abort", Core::abort);
         self.add_primitive("compiling?", Core::p_compiling);
-        self.add_primitive("token-empty?", Core::p_token_empty);
+        self.add_primitive("token-empty?", Core::token_empty);
+        self.add_primitive(".token", Core::dot_token);
         self.add_primitive("compile-token", Core::compile_token);
         self.add_primitive("interpret-token", Core::interpret_token);
 
@@ -2396,7 +2399,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 if done {
                     /* Do nothing. */
                 } else {
-                    self.abort_with_undefined();
+                    self.abort_with(UndefinedWord);
                 }
             }
         }
@@ -2431,7 +2434,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 if done {
                     /* Do nothing. */
                 } else {
-                    self.abort_with_undefined();
+                    self.abort_with(UndefinedWord);
                 }
             }
         }
@@ -2446,12 +2449,29 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.s_stack().push(value);
     }}
 
-    primitive!{fn p_token_empty(&mut self) {
+    /// Is token empty? `token-empty? ( -- f )
+    primitive!{fn token_empty(&mut self) {
         let value = match self.last_token().as_ref() {
             Some(ref t) => if t.is_empty() { TRUE } else { FALSE },
             None => TRUE,
         };
         self.s_stack().push(value);
+    }}
+
+    /// Print token. `.token ( -- )`
+    primitive!{fn dot_token(&mut self) {
+        match self.last_token().take() {
+            Some(t) => {
+                match self.output_buffer().as_mut() {
+                    Some(buf) => {
+                        write!(buf, "{}", t).expect("write token");
+                    }
+                    None => {}
+                }
+                self.set_last_token(t);
+            }
+            None => {}
+        }
     }}
 
     fn evaluate(&mut self) {
@@ -3252,7 +3272,7 @@ compilation_semantics: fn(&mut Self, usize)){
                 }
                 None => {
                     self.set_last_token(last_token);
-                    self.abort_with_undefined();
+                    self.abort_with(UndefinedWord);
                 }
             }
         }
@@ -3285,7 +3305,7 @@ compilation_semantics: fn(&mut Self, usize)){
                 }
                 None => {
                     self.set_last_token(last_token);
-                    self.abort_with_undefined();
+                    self.abort_with(UndefinedWord);
                 }
             }
         }
@@ -3423,23 +3443,30 @@ compilation_semantics: fn(&mut Self, usize)){
         self.set_handler(t as usize);
     }}
 
-    primitive!{fn p_error_q(&mut self) {
-        let value = if self.last_error().is_some() {
-            TRUE
-        } else {
-            FALSE
-        };
-        self.s_stack().push(value);
-    }}
-
-    primitive!{fn p_handle_error(&mut self) {
+    /// Error code `error ( -- n )`
+    primitive!{fn error(&mut self) {
         match self.last_error() {
             Some(e) => {
-                self.clear_stacks();
-                self.set_error(None);
+                self.s_stack().push(e as isize);
+            }
+            None => {
+                self.s_stack().push(0);
+            }
+        }
+    }}
+
+    /// Clear error. `0error ( -- )`
+    primitive!{fn clear_error(&mut self) {
+        self.set_error(None);
+    }}
+
+    /// Print error description. `.error ( -- )`
+    primitive!{fn dot_error(&mut self) {
+        match self.last_error() {
+            Some(e) => {
                 match self.output_buffer().as_mut() {
                     Some(buf) => {
-                        write!(buf, "{} ", e.description()).expect("write");
+                        write!(buf, "{}", e.description()).expect("write");
                     }
                     None => {}
                 }
@@ -3448,18 +3475,18 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }}
 
-    /// Clear data and floating point stacks.
+    /// Clear data, floating point, and control stacks.
     /// Called by VM's client upon Abort.
     primitive!{fn clear_stacks(&mut self) {
         self.s_stack().reset();
         self.f_stack().reset();
+        self.c_stack().reset();
     }}
 
-    /// Reset VM, do not clear data stack and floating point stack.
+    /// Reset VM, do not clear data stack, floating point and control stack.
     /// Called by VM's client upon Quit.
     primitive!{fn reset(&mut self) {
-        self.r_stack().len = 0;
-        self.c_stack().len = 0;
+        self.r_stack().reset();
         if let Some(ref mut buf) = *self.input_buffer() {
             buf.clear()
         }
@@ -3529,23 +3556,6 @@ compilation_semantics: fn(&mut Self, usize)){
         self.set_error(Some(e));
         let h = self.handler();
         self.execute_word(h);
-    }
-
-    /// Abort the inner loop with exception `UndefinedWord`, reset VM and clears stacks.
-    fn abort_with_undefined(&mut self) {
-        match self.last_token().take() {
-            Some(last_token) => {
-                match self.output_buffer().as_mut() {
-                    Some(buf) => {
-                        write!(buf, "{} ", &last_token).expect("write");
-                    }
-                    None => { /* Do nothing. */ }
-                }
-                self.set_last_token(last_token);
-            }
-            None => { /* Do nothing. */ }
-        }
-        self.abort_with(UndefinedWord);
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.

@@ -16,56 +16,97 @@ use rtforth::loader::HasLoader;
 use rtforth::output::Output;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
+use rtforth::NUM_TASKS;
 use std::env;
 use std::fmt::Write;
 use std::process;
 use std::time::SystemTime;
 
-// Virtual machine
-pub struct VM {
-    editor: rustyline::Editor<()>,
-    last_error: Option<Exception>,
-    handler: usize,
+const BUFFER_SIZE: usize = 0x400;
+
+/// Task
+///
+/// Each task has its own input buffer but shares the
+/// dictionary and output buffer owned by virtual machine.
+pub struct Task {
+    awake: bool,
+    state: State,
     regs: [usize; 2],
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
     c_stk: Stack<Control>,
     f_stk: Stack<f64>,
-    symbols: Vec<String>,
-    last_definition: usize,
-    wordlist: Vec<Word<VM>>,
-    data_space: DataSpace,
-    code_space: CodeSpace,
     inbuf: Option<String>,
-    tkn: Option<String>,
-    outbuf: Option<String>,
-    hldbuf: String,
-    state: State,
-    references: ForwardReferences,
-    now: SystemTime,
 }
 
-impl VM {
-    pub fn new(data_pages: usize, code_pages: usize) -> VM {
-        let mut vm = VM {
-            editor: rustyline::Editor::<()>::new(),
-            last_error: None,
-            handler: 0,
+impl Task {
+    /// Create a task without input buffer.
+    pub fn new_background() -> Task {
+        Task {
+            awake: false,
+            state: State::new(),
             regs: [0, 0],
             s_stk: Stack::new(0x12345678),
             r_stk: Stack::new(0x12345678),
             c_stk: Stack::new(Control::Default),
             f_stk: Stack::new(1.234567890),
+            inbuf: None,
+        }
+    }
+
+    /// Create a task with input buffer.
+    pub fn new_terminal() -> Task {
+        let mut task = Task::new_background();
+        task.inbuf = Some(String::with_capacity(BUFFER_SIZE));
+        task
+    }
+}
+
+/// Virtual machine
+pub struct VM {
+    current_task: usize,
+    tasks: [Task; NUM_TASKS],
+    editor: rustyline::Editor<()>,
+    last_error: Option<Exception>,
+    handler: usize,
+    symbols: Vec<String>,
+    last_definition: usize,
+    wordlist: Vec<Word<VM>>,
+    data_space: DataSpace,
+    code_space: CodeSpace,
+    tkn: Option<String>,
+    outbuf: Option<String>,
+    hldbuf: String,
+    references: ForwardReferences,
+    now: SystemTime,
+}
+
+impl VM {
+    /// Create a VM with data and code space size specified
+    /// by `data_pages` and `code_pages`.
+    pub fn new(data_pages: usize, code_pages: usize) -> VM {
+        let mut vm = VM {
+            current_task: 0,
+            tasks: [
+                // Only the operator task is a terminal task
+                // with its own input buffer.
+                Task::new_terminal(),
+                Task::new_background(),
+                Task::new_background(),
+                Task::new_background(),
+                Task::new_background(),
+            ],
+            editor: rustyline::Editor::<()>::new(),
+            last_error: None,
+            handler: 0,
             symbols: vec![],
             last_definition: 0,
             wordlist: vec![],
             data_space: DataSpace::new(data_pages),
             code_space: CodeSpace::new(code_pages),
-            inbuf: Some(String::with_capacity(128)),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
-            state: State::new(),
             references: ForwardReferences::new(),
             now: SystemTime::now(),
         };
@@ -81,8 +122,8 @@ impl VM {
 
         vm.load_core_fs();
 
-        let libfs = include_str!("./lib.fs");
-        vm.load_str(libfs);
+        let rffs = include_str!("./rf.fs");
+        vm.load_str(rffs);
         if vm.last_error().is_some() {
             panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
         }
@@ -91,7 +132,6 @@ impl VM {
 
         vm
     }
-
 }
 
 impl Core for VM {
@@ -129,10 +169,10 @@ impl Core for VM {
         self.outbuf = Some(buffer);
     }
     fn input_buffer(&mut self) -> &mut Option<String> {
-        &mut self.inbuf
+        &mut self.tasks[self.current_task].inbuf
     }
     fn set_input_buffer(&mut self, buffer: String) {
-        self.inbuf = Some(buffer);
+        self.tasks[self.current_task].inbuf = Some(buffer);
     }
     fn last_token(&mut self) -> &mut Option<String> {
         &mut self.tkn
@@ -141,19 +181,19 @@ impl Core for VM {
         self.tkn = Some(buffer);
     }
     fn regs(&mut self) -> &mut [usize; 2] {
-        &mut self.regs
+        &mut self.tasks[self.current_task].regs
     }
     fn s_stack(&mut self) -> &mut Stack<isize> {
-        &mut self.s_stk
+        &mut self.tasks[self.current_task].s_stk
     }
     fn r_stack(&mut self) -> &mut Stack<isize> {
-        &mut self.r_stk
+        &mut self.tasks[self.current_task].r_stk
     }
     fn c_stack(&mut self) -> &mut Stack<Control> {
-        &mut self.c_stk
+        &mut self.tasks[self.current_task].c_stk
     }
     fn f_stack(&mut self) -> &mut Stack<f64> {
-        &mut self.f_stk
+        &mut self.tasks[self.current_task].f_stk
     }
     fn symbols_mut(&mut self) -> &mut Vec<String> {
         &mut self.symbols
@@ -174,19 +214,39 @@ impl Core for VM {
         &self.wordlist
     }
     fn state(&mut self) -> &mut State {
-        &mut self.state
+        &mut self.tasks[self.current_task].state
     }
     fn references(&mut self) -> &mut ForwardReferences {
         &mut self.references
     }
-    fn system_time_ns(&self) -> i64 {
+    fn system_time_ns(&self) -> u64 {
         match self.now.elapsed() {
-            Ok(d) => {
-                d.as_nanos() as i64
-            }
-            Err(_) => {
-                0i64
-            }
+            Ok(d) => d.as_nanos() as u64,
+            Err(_) => 0u64,
+        }
+    }
+    fn current_task(&mut self) -> usize {
+        self.current_task
+    }
+    fn set_current_task(&mut self, i: usize) {
+        if i < NUM_TASKS {
+            self.current_task = i;
+        } else {
+            // Do nothing.
+        }
+    }
+    fn awake(&self, i: usize) -> bool {
+        if i < NUM_TASKS {
+            self.tasks[i].awake
+        } else {
+            false
+        }
+    }
+    fn set_awake(&mut self, i: usize, v: bool) {
+        if i < NUM_TASKS {
+            self.tasks[i].awake = v;
+        } else {
+            // Do nothing.
         }
     }
 }

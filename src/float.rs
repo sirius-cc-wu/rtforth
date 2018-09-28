@@ -731,7 +731,6 @@ mod tests {
         assert_eq!(vm.last_error(), None);
     }
 
-
     #[test]
     fn test_n_to_f() {
         let vm = &mut VM::new(16, 16);

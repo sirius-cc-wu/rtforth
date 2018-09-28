@@ -1,6 +1,10 @@
+#![feature(duration_as_u128)]
+
 extern crate rtforth;
+mod vm;
+
 use rtforth::core::Core;
-use rtforth::vm::VM;
+use vm::VM;
 
 // Evaluate "1 ."
 fn main() {

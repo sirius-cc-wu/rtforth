@@ -25,6 +25,9 @@ use std::time::SystemTime;
 const BUFFER_SIZE: usize = 0x400;
 
 /// Task
+///
+/// Each task has its own input buffer but shares the
+/// dictionary and output buffer owned by virtual machine.
 pub struct Task {
     awake: bool,
     state: State,
@@ -37,6 +40,7 @@ pub struct Task {
 }
 
 impl Task {
+    /// Create a task without input buffer.
     pub fn new_background() -> Task {
         Task {
             awake: false,
@@ -50,6 +54,7 @@ impl Task {
         }
     }
 
+    /// Create a task with input buffer.
     pub fn new_terminal() -> Task {
         let mut task = Task::new_background();
         task.inbuf = Some(String::with_capacity(BUFFER_SIZE));
@@ -57,7 +62,7 @@ impl Task {
     }
 }
 
-// Virtual machine
+/// Virtual machine
 pub struct VM {
     current_task: usize,
     tasks: [Task; NUM_TASKS],
@@ -77,10 +82,14 @@ pub struct VM {
 }
 
 impl VM {
+    /// Create a VM with data and code space size specified
+    /// by `data_pages` and `code_pages`.
     pub fn new(data_pages: usize, code_pages: usize) -> VM {
         let mut vm = VM {
             current_task: 0,
             tasks: [
+                // Only the operator task is a terminal task
+                // with its own input buffer.
                 Task::new_terminal(),
                 Task::new_background(),
                 Task::new_background(),

@@ -15,6 +15,8 @@
     0stacks error if
       .token space .error space 0error
     then flush quit ;
-' (abort) handler!
+: cold
+    2 halt  3 halt  4 halt  5 halt
+    ['] (abort) handler!  quit ;
 
 marker -work

@@ -6,7 +6,7 @@ use exception::Exception::{self, Abort, ControlStructureMismatch, DivisionByZero
                            InterpretingACompileOnlyWord, InvalidMemoryAddress,
                            ReturnStackOverflow, ReturnStackUnderflow, StackOverflow,
                            StackUnderflow, UndefinedWord, UnexpectedEndOfFile,
-                           UnsupportedOperation};
+                           UnsupportedOperation, InvalidNumericArgument};
 use parser;
 use std::fmt::Write;
 use std::fmt::{self, Display};
@@ -1402,7 +1402,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(not(feature = "stc"))]
     primitive!{fn activate(&mut self) {
-        let i = self.s_stack().pop() as usize;
+        let i = (self.s_stack().pop() - 1) as usize;
         if i < NUM_TASKS {
             // Wake task `i`.
             self.set_awake(i, true);
@@ -3577,20 +3577,28 @@ compilation_semantics: fn(&mut Self, usize)){
 
     /// Current task ID
     primitive!{fn me(&mut self) {
-        let me = self.current_task();
+        let me = self.current_task() + 1;
         self.s_stack().push(me as isize);
     }}
 
     /// Suspend task `i`. `suspend ( i -- )`
     primitive!{fn suspend(&mut self) {
-        let i = self.s_stack().pop();
-        self.set_awake(i as usize, false);
+        let i = (self.s_stack().pop() - 1) as usize;
+        if i < NUM_TASKS {
+            self.set_awake(i as usize, false);
+        } else {
+            self.abort_with(InvalidNumericArgument);
+        }
     }}
 
     /// Resume task `i`. `resume ( i -- )`
     primitive!{fn resume(&mut self) {
-        let i = self.s_stack().pop();
-        self.set_awake(i as usize, true);
+        let i = (self.s_stack().pop() - 1) as usize;
+        if i < NUM_TASKS {
+            self.set_awake(i as usize, true);
+        } else {
+            self.abort_with(InvalidNumericArgument);
+        }
     }}
 }
 

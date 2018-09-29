@@ -332,8 +332,8 @@ primitive!{fn bye(vm: &mut VM) {
 
 #[inline(never)]
 fn repl(vm: &mut VM) {
-    let quit = vm.find("QUIT").expect("QUIT");
-    vm.execute_word(quit);
+    let cold = vm.find("COLD").expect("COlD");
+    vm.execute_word(cold);
     vm.run();
 }
 

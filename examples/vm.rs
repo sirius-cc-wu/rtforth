@@ -58,7 +58,6 @@ pub struct VM {
     tasks: [Task; NUM_TASKS],
     last_error: Option<Exception>,
     handler: usize,
-    symbols: Vec<String>,
     last_definition: usize,
     wordlist: Vec<Word<VM>>,
     data_space: DataSpace,
@@ -86,7 +85,6 @@ impl VM {
             ],
             last_error: None,
             handler: 0,
-            symbols: vec![],
             last_definition: 0,
             wordlist: vec![],
             data_space: DataSpace::new(data_pages),
@@ -171,12 +169,6 @@ impl Core for VM {
     }
     fn f_stack(&mut self) -> &mut Stack<f64> {
         &mut self.tasks[self.current_task].f_stk
-    }
-    fn symbols_mut(&mut self) -> &mut Vec<String> {
-        &mut self.symbols
-    }
-    fn symbols(&self) -> &Vec<String> {
-        &self.symbols
     }
     fn last_definition(&self) -> usize {
         self.last_definition

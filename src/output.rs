@@ -14,7 +14,7 @@ pub trait Output: Core {
         self.add_immediate(".(", Output::dot_paren);
         self.add_primitive(".r", Output::dot_r);
         self.add_primitive("f.r", Output::fdot_r);
-        self.add_primitive("flush", Output::flush);
+        self.add_primitive("flush-output", Output::flush_output);
         self.references().idx_s_quote = self.find("_s\"").expect("_s\" undefined");
         self.references().idx_type = self.find("type").expect("type undefined");
     }
@@ -45,7 +45,7 @@ pub trait Output: Core {
         match self.output_buffer().take() {
             Some(mut buffer) => {
                 {
-                    let s = unsafe{ &self.data_space().get_str(addr as usize, len as usize) };
+                    let s = unsafe{ &self.code_space().str_from_raw_parts(addr as usize, len as usize) };
                     buffer.push_str(s);
                 }
                 self.set_output_buffer(buffer);
@@ -67,20 +67,21 @@ pub trait Output: Core {
         let input_buffer = self.input_buffer().take().unwrap();
         {
             let source = &input_buffer[self.state().source_index+1..input_buffer.len()];
-            let (s, cnt) = match source.find('"') {
+            let s = match source.find('"') {
                 Some(n) => {
-                    (&input_buffer[
+                    &input_buffer[
                         self.state().source_index+1..
-                        self.state().source_index + 1 + n], n)
+                        self.state().source_index + 1 + n
+                    ]
                 }
-                None => (source, source.len()),
+                None => source,
             };
+            let cnt = s.len();
             let idx = self.references().idx_s_quote;
             let compilation_semantics = self.wordlist()[idx].compilation_semantics;
             compilation_semantics(self, idx);
-            self.data_space().compile_isize(cnt as isize);
-            self.data_space().compile_str(s);
-            self.data_space().align();
+            self.code_space().compile_str(s);
+            self.code_space().align();
             // ignore the space following S"
             self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;
         }
@@ -193,7 +194,7 @@ pub trait Output: Core {
         }
     }}
 
-    primitive!{fn flush(&mut self) {
+    primitive!{fn flush_output(&mut self) {
         match self.output_buffer().as_mut() {
             Some(buf) => {
                 if buf.len() > 0 {

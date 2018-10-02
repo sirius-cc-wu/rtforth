@@ -69,7 +69,6 @@ pub struct VM {
     editor: rustyline::Editor<()>,
     last_error: Option<Exception>,
     handler: usize,
-    symbols: Vec<String>,
     last_definition: usize,
     wordlist: Vec<Word<VM>>,
     data_space: DataSpace,
@@ -99,7 +98,6 @@ impl VM {
             editor: rustyline::Editor::<()>::new(),
             last_error: None,
             handler: 0,
-            symbols: vec![],
             last_definition: 0,
             wordlist: vec![],
             data_space: DataSpace::new(data_pages),
@@ -117,7 +115,7 @@ impl VM {
         vm.add_facility();
         vm.add_float();
         vm.add_units();
-        vm.add_primitive("accept", p_accept);
+        vm.add_primitive("receive", receive);
         vm.add_primitive("bye", bye);
 
         vm.load_core_fs();
@@ -128,7 +126,7 @@ impl VM {
             panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
         }
 
-        vm.flush();
+        vm.flush_output();
 
         vm
     }
@@ -194,12 +192,6 @@ impl Core for VM {
     }
     fn f_stack(&mut self) -> &mut Stack<f64> {
         &mut self.tasks[self.current_task].f_stk
-    }
-    fn symbols_mut(&mut self) -> &mut Vec<String> {
-        &mut self.symbols
-    }
-    fn symbols(&self) -> &Vec<String> {
-        &self.symbols
     }
     fn last_definition(&self) -> usize {
         self.last_definition
@@ -304,7 +296,7 @@ fn print_version() {
     println!("rtForth v0.5.0, Copyright (C) 2018 Mapacode Inc.");
 }
 
-primitive!{fn p_accept(vm: &mut VM) {
+primitive!{fn receive(vm: &mut VM) {
     match vm.editor.readline("rf> ") {
         Ok(line) => {
             vm.editor.add_history_entry(&line);
@@ -326,7 +318,7 @@ primitive!{fn p_accept(vm: &mut VM) {
 
 /// Terminate process.
 primitive!{fn bye(vm: &mut VM) {
-    vm.flush();
+    vm.flush_output();
     process::exit(0);
 }}
 

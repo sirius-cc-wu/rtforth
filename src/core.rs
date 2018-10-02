@@ -677,7 +677,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.
     #[inline(never)]
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while self.data_space().start() <= ip
@@ -690,42 +690,42 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_word(&mut self, word_index: usize) {
         self.data_space().compile_usize(word_index as usize);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_nest(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_nest_code(&mut self, _: usize) {
         // Do nothing.
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_var(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_const(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_unmark(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_fconst(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn lit(&mut self) {
         let ip = self.state().instruction_pointer;
         let v = unsafe{ self.data_space().get_isize(ip) as isize };
@@ -736,14 +736,14 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     /// Compile integer `i`.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_integer(&mut self, i: isize) {
         let idx = self.references().idx_lit;
         self.compile_word(idx);
         self.data_space().compile_isize(i as isize);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn flit(&mut self) {
         let ip = DataSpace::aligned_f64(self.state().instruction_pointer as usize);
         let v = unsafe{ self.data_space().get_f64(ip) };
@@ -754,7 +754,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     /// Compile float 'f'.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_float(&mut self, f: f64) {
         let idx_flit = self.references().idx_flit;
         self.compile_word(idx_flit);
@@ -763,7 +763,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     /// Runtime of S"
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn p_s_quote(&mut self) {
         let ip = self.state().instruction_pointer;
         let cnt = unsafe{ self.data_space().get_isize(ip) };
@@ -777,19 +777,19 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         );
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn patch_compilation_semanticses(&mut self) {
         let idx_leave = self.find("leave").expect("leave");
         self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = unsafe{ self.data_space().get_isize(ip) as usize };
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_branch;
         self.compile_word(idx);
@@ -797,7 +797,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.data_space().here()
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn zero_branch(&mut self) {
         let v = self.s_stack().pop();
         if v == 0 {
@@ -807,7 +807,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_zero_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
@@ -832,7 +832,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///         |
     ///         ip
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
@@ -859,7 +859,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///          |
     ///          ip
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn _qdo(&mut self) {
         let (n1, n2) = self.s_stack().pop2();
         if n1 == n2 {
@@ -879,7 +879,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn _loop(&mut self) {
         let (rn, rt) = self.r_stack().pop2();
         if rt + 1 < rn {
@@ -899,7 +899,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
     /// following the loop.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn _plus_loop(&mut self) {
         let (rn, rt) = self.r_stack().pop2();
         let t = self.s_stack().pop();
@@ -918,12 +918,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// `UNLOOP` is required for each nesting level before the definition may be
     /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn unloop(&mut self) {
         let _ = self.r_stack().pop3();
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn leave(&mut self) {
         let (third, _, _) = self.r_stack().pop3();
         if self.r_stack().underflow() {
@@ -935,7 +935,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         };
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_leave(&mut self, word_idx: usize) {
         match self.leave_part() {
             Some(leave_part) => {
@@ -948,7 +948,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         };
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         match self.r_stack().get(pos) {
@@ -983,7 +983,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///         |
     ///         ip
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_if(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
@@ -1001,7 +1001,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             |                |       |
     ///             ip               +-------+
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
@@ -1022,7 +1022,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_then(&mut self) {
         let branch_part = match self.c_stack().pop() {
             Control::If(branch_part) => branch_part,
@@ -1064,12 +1064,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///                                   |                           |
     ///                                   +---------------------------+
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_case(&mut self) {
         self.c_stack().push(Control::Case);
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_of(&mut self) {
         match self.c_stack().pop() {
             Control::Case => {
@@ -1097,7 +1097,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_endof(&mut self) {
         let of_part = match self.c_stack().pop() {
             Control::Of(of_part) => {
@@ -1120,7 +1120,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
         self.compile_word(idx);
@@ -1151,7 +1151,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     /// Begin a structure that is terminated by `repeat`, `until`, or `again`. `begin ( -- )`.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_begin(&mut self) {
         let here = self.data_space().here();
         self.c_stack().push(Control::Begin(here));
@@ -1173,7 +1173,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///   |                              |
     ///   +------------------------------+
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_while(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(here));
@@ -1182,7 +1182,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Terminate a `begin ... while ... repeat` structure. `repeat ( -- )`.
     ///
     /// Continue execution at the location following `begin`.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_repeat(&mut self) {
         let (begin_part, while_part) = match self.c_stack().pop2() {
             (Control::Begin(begin_part), Control::While(while_part)) => {
@@ -1217,7 +1217,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///   |             |
     ///   +-------------+
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_until(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -1246,7 +1246,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///   |            |
     ///   +------------+
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -1276,7 +1276,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             |     |
     /// Control::Do(here, here)
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_do(&mut self) {
         let idx = self.references().idx_do;
         self.compile_word(idx);
@@ -1304,7 +1304,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///              |     |
     /// Control::Do(here, here)
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_qdo(&mut self) {
         let idx = self.references().idx_qdo;
         self.compile_word(idx);
@@ -1348,7 +1348,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             |
     /// Control::Do(do_part, _)
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
@@ -1377,7 +1377,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_plus_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
@@ -1486,12 +1486,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.
     #[inline(never)]
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn run(&mut self) {
         // Do nothing.
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_word(&mut self, word_index: usize) {
         // 89 f1            mov    %esi,%ecx
         // e8 xx xx xx xx   call   self.wordlist()[word_index].action
@@ -1502,12 +1502,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().compile_relative(w);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_nest(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_nest_code(&mut self, word_index: usize) {
         self.code_space().align_16bytes();
         self.wordlist_mut()[word_index].action =
@@ -1525,7 +1525,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().compile_u8(0x08);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_exit(&mut self, _: usize) {
         // 83 c4 08         add    $8,%esp
         // 5e               pop    %esi
@@ -1537,35 +1537,35 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().compile_u8(0xc3);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_var(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
         self.compile_integer(dfa as isize);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_const(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
         let value = unsafe { self.data_space().get_isize(dfa) as isize };
         self.compile_integer(value);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_unmark(&mut self, _: usize) {
         // Do nothing.
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_fconst(&mut self, word_index: usize) {
         // self.compile_word(word_index);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn lit(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn lit_integer(&mut self, i: isize) {
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
@@ -1573,7 +1573,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     /// Compile integer `i`.
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_integer(&mut self, i: isize) {
         // ba nn nn nn nn   mov    $0xnnnn,%edx
         // 89 f1            mov    %esi,%ecx
@@ -1587,19 +1587,19 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             .compile_relative(Self::lit_integer as usize);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn flit(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn lit_float(&mut self, f: f64) {
         let flen = self.f_stack().len.wrapping_add(1);
         self.f_stack().len = flen;
         self.f_stack()[flen.wrapping_sub(1)] = f;
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_float(&mut self, f: f64) {
         // ba nn nn nn nn   mov    <addr of f>, %edx
         // 83 ec 08         sub    $0x08,%esp
@@ -1631,17 +1631,17 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     /// Runtime of S"
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn p_s_quote(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn lit_counted_string(&mut self, idx: usize) {
         let cnt = unsafe{ self.data_space().get_isize(idx) };
         let addr = idx + mem::size_of::<isize>();
         // FIXME
-        // 加下一行會造成 cargo test test_s_quote_and_type --features="subroutine-threaded"
+        // 加下一行會造成 cargo test test_s_quote_and_type --features="stc"
         // 時 invalid memory reference 。但如果列印的方式改為 {} 就 ok。
         // 懷疑是 compile_s_quote 設計有問題。或是 println 改變了 calling convension。
         // 但奇怪的是，無法用 objdump -d 找到 compile_s_quote 以及 lit_counted_string，以致於無法
@@ -1653,7 +1653,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_s_quote(&mut self, _: usize) {
         // ba nn nn nn nn   mov    <index of counted string>, %edx
         // 89 f1            mov    %esi, %ecx
@@ -1668,7 +1668,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             .compile_relative(Self::lit_counted_string as usize);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn patch_compilation_semanticses(&mut self) {
         let idx_exit = self.find("exit").expect("exit");
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_exit;
@@ -1680,12 +1680,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.wordlist_mut()[idx_reset].compilation_semantics = Self::compile_reset;
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn branch(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         // e9 xx xx xx xx      jmp xxxx
         self.code_space().compile_u8(0xe9);
@@ -1693,12 +1693,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().here()
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn zero_branch(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_zero_branch(&mut self, destination: usize) -> usize {
         // 89 f1                mov    %esi,%ecx
         // e8 xx xx xx xx       call   pop_stack ; pop value into %eax.
@@ -1717,22 +1717,22 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().here()
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _do(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_do(&mut self) {
         self.two_to_r();
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _qdo(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_qdo(&mut self) -> isize {
         let (n1, n2) = self.s_stack().pop2();
         if n1 == n2 {
@@ -1743,12 +1743,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _loop(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_loop(&mut self) -> isize {
         let (rn, rt) = self.r_stack().pop2();
         if rt + 1 < rn {
@@ -1759,12 +1759,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _plus_loop(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_plus_loop(&mut self) -> isize {
         let (rn, rt) = self.r_stack().pop2();
         let t = self.s_stack().pop();
@@ -1776,12 +1776,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn unloop(&mut self) {
         let _ = self.r_stack().pop2();
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn leave(&mut self) {
         // Do nothing.
     }}
@@ -1800,7 +1800,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             +---+--
     ///           leave_part
     ///
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_leave(&mut self, _: usize) {
         let leave_part = match self.leave_part() {
             Some(leave_part) => leave_part,
@@ -1830,7 +1830,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn p_j(&mut self) {
         let pos = self.r_stack().len() - 3;
         match self.r_stack().get(pos) {
@@ -1839,13 +1839,13 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_if(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
@@ -1868,7 +1868,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_then(&mut self) {
         let branch_part = match self.c_stack().pop() {
             Control::If(branch_part) => branch_part,
@@ -1896,12 +1896,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_case(&mut self) {
         self.c_stack().push(Control::Case);
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_of(&mut self) {
         match self.c_stack().pop() {
             Control::Case => {
@@ -1929,7 +1929,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_endof(&mut self) {
         let of_part = match self.c_stack().pop() {
             Control::Of(of_part) => {
@@ -1954,7 +1954,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
         self.compile_word(idx);
@@ -1987,19 +1987,19 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_begin(&mut self) {
         let here = self.code_space().here();
         self.c_stack().push(Control::Begin(here));
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_while(&mut self) {
         let while_part = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(while_part));
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_repeat(&mut self) {
         let (begin_part, while_part) = match self.c_stack().pop2() {
             (Control::Begin(begin_part), Control::While(while_part)) => (begin_part, while_part),
@@ -2021,7 +2021,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_until(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -2037,7 +2037,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -2070,7 +2070,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             | 0 |
     ///             +---+--
     ///
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_do(&mut self) {
         // 89 f1                mov    %esi,%ecx
         // e8 xx xx xx xx       call   _stc_do
@@ -2103,7 +2103,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///               |                  |
     ///               +------------------+
     ///
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_qdo(&mut self) {
         //   89 f1                mov    %esi,%ecx
         //   e8 xx xx xx xx       call   _stc_qdo
@@ -2151,7 +2151,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///               |                     |
     ///               +---------------------+
     ///
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_loop(&mut self) {
         let (do_part, leave_part) = match self.c_stack().pop() {
             Control::Do(do_part, leave_part) => (do_part, leave_part),
@@ -2185,7 +2185,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_plus_loop(&mut self) {
         let (do_part, leave_part) = match self.c_stack().pop() {
             Control::Do(do_part, leave_part) => (do_part, leave_part),
@@ -3499,7 +3499,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.regs()
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_reset(&mut self, _: usize) {
         //      ; Make a copy of vm in %esi because %ecx may be destroyed by
         //      ; subroutine call.
@@ -5494,7 +5494,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn test_here_comma_compile_interpret() {
         let vm = &mut VM::new(16, 16);
         vm.comma();
@@ -5527,7 +5527,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn test_subroutine_threaded_colon_and_semi_colon() {
         let vm = &mut VM::new(16, 16);
         // : nop ;
@@ -5586,7 +5586,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn test_subroutine_threaded_lit_and_plus() {
         let vm = &mut VM::new(16, 16);
         // : 2+3 2 3 + ;
@@ -5603,7 +5603,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn test_subroutine_threaded_if_then() {
         let vm = &mut VM::new(16, 16);
         // : t5 if ; t5

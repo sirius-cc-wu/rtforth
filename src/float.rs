@@ -344,47 +344,47 @@ mod tests {
     fn test_ans_forth_float() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("1E");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.f_stack().len(), 1);
         assert_ulps_eq!(vm.f_stack().pop(), 1.0);
         vm.set_source("1.E");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.f_stack().len(), 1);
         assert_ulps_eq!(vm.f_stack().pop(), 1.0);
         vm.set_source("1.E+");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.f_stack().len(), 1);
         assert_ulps_eq!(vm.f_stack().pop(), 1.0);
         vm.set_source("1.E-");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.f_stack().len(), 1);
         assert_ulps_eq!(vm.f_stack().pop(), 1.0);
         vm.set_source("1.E2");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.f_stack().len(), 1);
         assert_ulps_eq!(vm.f_stack().pop(), 100.0);
         vm.set_source("1.0E");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.f_stack().len(), 1);
         assert_ulps_eq!(vm.f_stack().pop(), 1.0);
         vm.set_source("-1E");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.f_stack().len(), 1);
         assert_ulps_eq!(vm.f_stack().pop(), -1.0);
         vm.set_source("1.23E");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.f_stack().len(), 1);
         assert_ulps_eq!(vm.f_stack().pop(), 1.23);
         vm.set_source("12.3E-2");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.f_stack().len(), 1);
         assert_ulps_eq!(vm.f_stack().pop(), 0.123);
         vm.set_source("-12.3E+2");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.f_stack().len(), 1);
         assert_ulps_eq!(vm.f_stack().pop(), -1230.0);
         vm.set_source(".3E");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(UndefinedWord));
         assert_eq!(vm.f_stack().len(), 0);
     }
@@ -393,7 +393,7 @@ mod tests {
     fn test_evaluate_f64() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("1.0E 2.5E");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 2);
         assert!(0.99999 < vm.f_stack().as_slice()[0]);
@@ -406,7 +406,7 @@ mod tests {
     fn test_fconstant() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("1.1E fconstant x x x");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [1.1, 1.1]);
     }
@@ -415,7 +415,7 @@ mod tests {
     fn test_fstore_ffetch() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("3.3e here f!  0.0e  here f@");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [0.0, 3.3]);
     }
@@ -424,7 +424,7 @@ mod tests {
     fn test_fabs() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("-3.14E fabs");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
@@ -436,7 +436,7 @@ mod tests {
     fn test_fsin() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("3.14E fsin");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
@@ -448,7 +448,7 @@ mod tests {
     fn test_fcos() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("3.0E fcos");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
@@ -460,7 +460,7 @@ mod tests {
     fn test_ftan() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("3.0E ftan");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
@@ -472,7 +472,7 @@ mod tests {
     fn test_fasin() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.3E fasin");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
@@ -484,7 +484,7 @@ mod tests {
     fn test_facos() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.3E facos");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
@@ -496,7 +496,7 @@ mod tests {
     fn test_fatan() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.3E fatan");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
@@ -508,7 +508,7 @@ mod tests {
     fn test_fatan2() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("3.0E 4.0E fatan2");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
@@ -520,7 +520,7 @@ mod tests {
     fn test_fsqrt() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.3E fsqrt");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
@@ -621,7 +621,7 @@ mod tests {
     fn test_fplus_fminus_fstar_fslash() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("9.0e 10.0e f+ 11.0e f- 12.0e f* 13.0e f/");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
@@ -635,7 +635,7 @@ mod tests {
     fn test_f_zero_less_than() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.0e f0<   0.1e f0<   -0.1e f0<");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), -1);
@@ -650,7 +650,7 @@ mod tests {
     fn test_f_zero_equals() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.0e f0=   0.1e f0=   -0.1e f0=");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), 0);
@@ -665,7 +665,7 @@ mod tests {
     fn test_f_less_than() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.0e 0.0e f<   0.1e 0.0e f<   -0.1e 0.0e f<");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), -1);
@@ -680,7 +680,7 @@ mod tests {
     fn test_fproximate() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.1e 0.1e 0.0e f~   0.1e 0.1000000001e 0.0e f~");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), 0);
@@ -690,7 +690,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         vm.s_stack().reset();
         vm.set_source("0.1e 0.1e 0.001e f~   0.1e 0.109e 0.01e f~   0.1e 0.111e  0.01e f~");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), 0);
@@ -701,7 +701,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         vm.s_stack().reset();
         vm.set_source("0.1e 0.1e -0.001e f~   0.1e 0.109e -0.1e f~   0.1e 0.109e  -0.01e f~");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), 0);
@@ -718,7 +718,7 @@ mod tests {
     fn test_very_long_float() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.10000000000000001e");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(UndefinedWord));
     }
 
@@ -727,7 +727,7 @@ mod tests {
     fn test_very_long_float() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.10000000000000001e");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
     }
 
@@ -735,7 +735,7 @@ mod tests {
     fn test_n_to_f() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0 s>f -1 s>f 1 s>f");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [0.0, -1.0, 1.0]);
     }
@@ -744,7 +744,7 @@ mod tests {
     fn test_f_to_n() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.0e f>s -1.0e f>s 1.0e f>s");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().as_slice(), [0, -1, 1]);
     }
@@ -753,7 +753,7 @@ mod tests {
     fn test_flit_and_compile_float() {
         let vm = &mut VM::new(16, 16);
         vm.set_source(": test 1.0e 2.0e ; test");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().as_slice(), [1.0, 2.0]);
     }

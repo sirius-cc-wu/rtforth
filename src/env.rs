@@ -31,7 +31,7 @@ mod tests {
     fn test_max_n() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("max-n dup 1+ +");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         match vm.s_stack().pop() {
             t => assert_eq!(t, -1),
@@ -42,7 +42,7 @@ mod tests {
     fn test_max_u() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("max-u 1+");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         match vm.s_stack().pop() {
             t => assert_eq!(t, 0),

@@ -741,12 +741,14 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(not(feature = "stc"))]
     primitive!{fn p_s_quote(&mut self) {
         let ip = self.state().instruction_pointer;
-        let cnt = unsafe{ self.data_space().get_isize(ip) };
-        let addr = self.state().instruction_pointer + mem::size_of::<isize>();
+        let (addr, cnt) = {
+            let s = unsafe{ self.data_space().get_str(ip) };
+            (s.as_ptr() as isize, s.len() as isize)
+        };
         let slen = self.s_stack().len.wrapping_add(2);
         self.s_stack().len = slen;
-        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
-        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
+        self.s_stack()[slen.wrapping_sub(1)] = cnt;
+        self.s_stack()[slen.wrapping_sub(2)] = addr;
         self.state().instruction_pointer = DataSpace::aligned(
             self.state().instruction_pointer + mem::size_of::<isize>() + cnt as usize
         );

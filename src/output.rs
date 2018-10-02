@@ -45,7 +45,7 @@ pub trait Output: Core {
         match self.output_buffer().take() {
             Some(mut buffer) => {
                 {
-                    let s = unsafe{ &self.code_space().str_from_raw_parts(addr as usize, len as usize) };
+                    let s = unsafe{ &self.data_space().str_from_raw_parts(addr as usize, len as usize) };
                     buffer.push_str(s);
                 }
                 self.set_output_buffer(buffer);
@@ -80,8 +80,8 @@ pub trait Output: Core {
             let idx = self.references().idx_s_quote;
             let compilation_semantics = self.wordlist()[idx].compilation_semantics;
             compilation_semantics(self, idx);
-            self.code_space().compile_str(s);
-            self.code_space().align();
+            self.data_space().compile_str(s);
+            self.data_space().align();
             // ignore the space following S"
             self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;
         }

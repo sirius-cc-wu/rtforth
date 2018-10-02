@@ -25,7 +25,7 @@ pub trait Environment: Core {
 #[cfg(test)]
 mod tests {
     use core::Core;
-    use vm::VM;
+    use mock_vm::VM;
 
     #[test]
     fn test_max_n() {

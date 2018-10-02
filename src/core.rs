@@ -3586,7 +3586,7 @@ mod tests {
                                UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation};
     use loader::HasLoader;
     use std::mem;
-    use vm::VM;
+    use mock_vm::VM;
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {

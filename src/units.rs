@@ -104,7 +104,7 @@ pub trait Units: Core {
 mod tests {
     use core::Core;
     use std::f64::consts::PI;
-    use vm::VM;
+    use mock_vm::VM;
 
     fn double_value_check(res: f64, exp: f64) -> bool {
         if (res > exp - 0.000_000_1) && (res < exp + 0.000_000_1) {

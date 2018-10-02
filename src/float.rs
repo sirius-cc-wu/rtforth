@@ -338,7 +338,7 @@ mod tests {
     use super::Float;
     use core::Core;
     use exception::Exception::UndefinedWord;
-    use vm::VM;
+    use mock_vm::VM;
 
     #[test]
     fn test_ans_forth_float() {

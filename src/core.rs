@@ -574,7 +574,7 @@ pub trait Core: Sized {
 
     /// Add a primitive word to word list.
 fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
-        let nfa = self.code_space().compile_str(name);
+        let nfa = self.data_space().compile_str(name);
         self.data_space().align();
         self.code_space().align();
         let word = Word::new(
@@ -636,7 +636,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         for w in (0..self.wordlist().len()).rev() {
             if !self.wordlist()[w].is_hidden() {
                 let nfa = self.wordlist()[w].nfa();
-                let w_name = unsafe{ self.code_space().get_str(nfa) };
+                let w_name = unsafe{ self.data_space().get_str(nfa) };
                 if w_name.eq_ignore_ascii_case(name) {
                     return Some(w);
                 }
@@ -2708,7 +2708,7 @@ compilation_semantics: fn(&mut Self, usize)){
             self.set_last_token(last_token);
             self.abort_with(UnexpectedEndOfFile);
         } else {
-            let nfa = self.code_space().compile_str(&last_token);
+            let nfa = self.data_space().compile_str(&last_token);
             self.data_space().align();
             self.code_space().align();
             let word = Word::new(
@@ -2766,15 +2766,15 @@ compilation_semantics: fn(&mut Self, usize)){
 
     primitive!{fn unmark(&mut self) {
         let wp = self.state().word_pointer;
-        let dfa;
+        let cfa;
         let nfa;
         {
             let w = &self.wordlist()[wp];
-            dfa = w.dfa();
+            cfa = w.cfa();
             nfa = w.nfa();
         }
-        self.data_space().truncate(dfa);
-        self.code_space().truncate(nfa);
+        self.data_space().truncate(nfa);
+        self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
     }}
 

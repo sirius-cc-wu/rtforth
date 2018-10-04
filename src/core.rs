@@ -4,9 +4,9 @@ use memory::{CodeSpace, DataSpace, Memory};
 use exception::Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
                            FloatingPointStackOverflow, FloatingPointStackUnderflow,
                            InterpretingACompileOnlyWord, InvalidMemoryAddress,
-                           ReturnStackOverflow, ReturnStackUnderflow, StackOverflow,
-                           StackUnderflow, UndefinedWord, UnexpectedEndOfFile,
-                           UnsupportedOperation, InvalidNumericArgument};
+                           InvalidNumericArgument, ReturnStackOverflow, ReturnStackUnderflow,
+                           StackOverflow, StackUnderflow, UndefinedWord, UnexpectedEndOfFile,
+                           UnsupportedOperation};
 use parser;
 use std::fmt::Write;
 use std::fmt::{self, Display};
@@ -128,13 +128,12 @@ impl<Target> Wordlist<Target> {
         self.words.truncate(i);
         self.last = self.words.len() - 1;
     }
-
 }
 
 impl<Target> Index<usize> for Wordlist<Target> {
     type Output = Word<Target>;
     #[inline(always)]
-    fn index(&self, index: usize) -> &Word<Target>{
+    fn index(&self, index: usize) -> &Word<Target> {
         &self.words[index]
     }
 }
@@ -640,7 +639,7 @@ fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
             self.data_space().here(),
             self.code_space().here(),
         );
-        self.wordlist_mut().push(name , word);
+        self.wordlist_mut().push(name, word);
     }
 
     /// Set the last definition immediate.
@@ -690,7 +689,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         for w in (0..self.wordlist().len()).rev() {
             if !self.wordlist()[w].is_hidden() {
                 let nfa = self.wordlist()[w].nfa();
-                let w_name = unsafe{ self.data_space().get_str(nfa) };
+                let w_name = unsafe { self.data_space().get_str(nfa) };
                 if w_name.eq_ignore_ascii_case(name) {
                     return Some(w);
                 }

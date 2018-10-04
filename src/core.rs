@@ -20,6 +20,7 @@ pub struct Word<Target> {
     is_immediate: bool,
     is_compile_only: bool,
     hidden: bool,
+    link: usize,
     nfa: usize,
     dfa: usize,
     cfa: usize,
@@ -39,6 +40,7 @@ impl<Target> Word<Target> {
             is_immediate: false,
             is_compile_only: false,
             hidden: false,
+            link: 0,
             nfa: nfa,
             dfa: dfa,
             cfa: cfa,
@@ -85,6 +87,60 @@ impl<Target> Word<Target> {
 
 pub fn action(&self) -> primitive!{fn(&mut Target)}{
         self.action
+    }
+}
+
+/// Wordlist
+pub struct Wordlist<Target> {
+    words: Vec<Word<Target>>,
+    last: usize,
+}
+
+impl<Target> Wordlist<Target> {
+    /// Create a wordlist with capacity of `cap`.
+    pub fn with_capacity(cap: usize) -> Wordlist<Target> {
+        Wordlist {
+            words: Vec::with_capacity(cap),
+            last: 0,
+        }
+    }
+
+    /// Word count
+    pub fn len(&self) -> usize {
+        self.words.len()
+    }
+
+    /// Index of last word in list
+    fn last(&self) -> usize {
+        self.last
+    }
+
+    /// Push word `w` into list.
+    fn push(&mut self, mut w: Word<Target>) {
+        w.link = self.last;
+        self.last = self.words.len();
+        self.words.push(w);
+    }
+
+    /// Remove the `i`th word and all words behind it.
+    fn truncate(&mut self, i: usize) {
+        self.words.truncate(i);
+        self.last = self.words.len() - 1;
+    }
+}
+
+impl<Target> Index<usize> for Wordlist<Target> {
+    type Output = Word<Target>;
+    #[inline(always)]
+    fn index(&self, index: usize) -> &Word<Target>{
+        &self.words[index]
+    }
+}
+
+impl<Target> IndexMut<usize> for Wordlist<Target> {
+    #[inline(always)]
+    fn index_mut(&mut self, index: usize) -> &mut Word<Target> {
+        &mut self.words[index]
     }
 }
 
@@ -389,10 +445,8 @@ pub trait Core: Sized {
     fn c_stack(&mut self) -> &mut Stack<Control>;
     fn f_stack(&mut self) -> &mut Stack<f64>;
     /// Last definition, 0 if last define fails.
-    fn last_definition(&self) -> usize;
-    fn set_last_definition(&mut self, n: usize);
-    fn wordlist_mut(&mut self) -> &mut Vec<Word<Self>>;
-    fn wordlist(&self) -> &Vec<Word<Self>>;
+    fn wordlist_mut(&mut self) -> &mut Wordlist<Self>;
+    fn wordlist(&self) -> &Wordlist<Self>;
     fn state(&mut self) -> &mut State;
     fn references(&mut self) -> &mut ForwardReferences;
     fn system_time_ns(&self) -> u64;
@@ -584,14 +638,12 @@ fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
             self.data_space().here(),
             self.code_space().here(),
         );
-        let len = self.wordlist().len();
-        self.set_last_definition(len);
         self.wordlist_mut().push(word);
     }
 
     /// Set the last definition immediate.
     primitive!{fn immediate(&mut self) {
-        let def = self.last_definition();
+        let def = self.wordlist().last();
         self.wordlist_mut()[def].set_immediate(true);
     }}
 
@@ -603,7 +655,7 @@ fn add_immediate(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
 
     /// Set the last definition compile-only.
     primitive!{fn compile_only(&mut self) {
-        let def = self.last_definition();
+        let def = self.wordlist().last();
         self.wordlist_mut()[def].set_compile_only(true);
     }}
 
@@ -2704,7 +2756,6 @@ compilation_semantics: fn(&mut Self, usize)){
             }
         }
         if last_token.is_empty() {
-            self.set_last_definition(0);
             self.set_last_token(last_token);
             self.abort_with(UnexpectedEndOfFile);
         } else {
@@ -2718,8 +2769,6 @@ compilation_semantics: fn(&mut Self, usize)){
                 self.data_space().here(),
                 self.code_space().here(),
             );
-            let len = self.wordlist().len();
-            self.set_last_definition(len);
             self.wordlist_mut().push(word);
             self.set_last_token(last_token);
         }
@@ -2728,7 +2777,7 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn colon(&mut self) {
         self.define(Core::nest, Core::compile_nest);
         if self.last_error().is_none() {
-            let def = self.last_definition();
+            let def = self.wordlist().last();
             self.compile_nest_code(def);
             self.wordlist_mut()[def].set_hidden(true);
             self.right_bracket();
@@ -2736,16 +2785,14 @@ compilation_semantics: fn(&mut Self, usize)){
     }}
 
     primitive!{fn semicolon(&mut self) {
-        if self.last_definition() != 0 {
-            if self.c_stack().len != 0 {
-                self.abort_with(ControlStructureMismatch);
-            } else {
-                let idx = self.references().idx_exit;
-                let compile = self.wordlist()[idx].compilation_semantics;
-                compile(self, idx);
-                let def = self.last_definition();
-                self.wordlist_mut()[def].set_hidden(false);
-            }
+        if self.c_stack().len != 0 {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_exit;
+            let compile = self.wordlist()[idx].compilation_semantics;
+            compile(self, idx);
+            let def = self.wordlist().last();
+            self.wordlist_mut()[def].set_hidden(false);
         }
         self.left_bracket();
     }}
@@ -2820,7 +2867,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Run time behavior of does>.
     primitive!{fn _does(&mut self) {
         let doer = self.state().instruction_pointer + mem::size_of::<isize>();
-        let def = self.last_definition();
+        let def = self.wordlist().last();
         let dfa = {
             let word = &mut self.wordlist_mut()[def];
             word.action = Core::does;
@@ -5515,7 +5562,7 @@ mod tests {
         let action = vm.code_space().here();
         vm.set_source(": nop ; nop");
         vm.evaluate_input();
-        let w = vm.last_definition();
+        let w = vm.wordlist().last();
         assert_eq!(vm.wordlist()[w].action as usize, action);
         unsafe {
             assert_eq!(vm.code_space().get_u8(action + 0), 0x56);

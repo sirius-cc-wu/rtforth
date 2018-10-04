@@ -103,6 +103,12 @@ impl VM {
 
         vm
     }
+
+    /// Advance time for 1ms.
+    pub fn advance(&mut self) {
+        self.now += 1_000_000;
+    }
+
 }
 
 impl Core for VM {

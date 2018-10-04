@@ -40,7 +40,7 @@ pub trait Tools: Output {
             for w in (0..self.wordlist().len()).rev() {
                 if !self.wordlist()[w].is_hidden() {
                     let nfa = self.wordlist()[w].nfa();
-                    let name = unsafe{ self.code_space().get_str(nfa) };
+                    let name = unsafe{ self.data_space().get_str(nfa) };
                     write!(buf, "{} ", name).unwrap();
                 }
             }

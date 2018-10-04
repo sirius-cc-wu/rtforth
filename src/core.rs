@@ -2798,8 +2798,6 @@ compilation_semantics: fn(&mut Self, usize)){
     }}
 
     primitive!{fn create(&mut self) {
-        // pointer for does>
-        self.data_space().compile_isize(0);
         self.define(Core::p_var, Core::compile_var);
     }}
 
@@ -2831,9 +2829,13 @@ compilation_semantics: fn(&mut Self, usize)){
 
     /// Run time behavior of words created by `create` ... `does>`.
     ///
+    /// Token threaded version.
+    ///
     /// Example of does>
+    /// ```text
     /// : 2constant   create , , does> 2@ ;
     /// 4 40 2constant range
+    /// ```
     ///
     /// 2constant
     /// +--------+---+---+-------+------+----+------+
@@ -2842,39 +2844,41 @@ compilation_semantics: fn(&mut Self, usize)){
     ///                                   ^
     /// range                             |
     ///                                   |
-    ///   cfa                             |
+    ///   action                          |
     ///   +------+                        |
     ///   | does |                        |
     ///   +------+                        |
     ///                                   |
-    ///     +-----------------------------+
-    ///     |  dfa
-    ///   +---+---+----+
-    ///   |   | 4 | 40 |
-    ///   +---+---+----+
+    ///   cfa                             |
+    ///   +------+                        |
+    ///   | x    |------------------------+
+    ///   +------+
+    ///
+    ///   dfa
+    ///   +---+----+
+    ///   | 4 | 40 |
+    ///   +---+----+
     ///
     primitive!{fn does(&mut self) {
+        // Push DFA.
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
+        let cfa = self.wordlist()[wp].cfa();
         self.s_stack().push(dfa as isize);
-        let doer = unsafe{ self.data_space().get_isize(dfa - mem::size_of::<isize>()) as usize };
-        let rlen = self.r_stack().len.wrapping_add(1);
-        self.r_stack().len = rlen;
-        self.r_stack()[rlen.wrapping_sub(1)] = self.state().instruction_pointer as isize;
+        // Execute words behind DOES>.
+        let doer = unsafe{ self.code_space().get_usize(cfa) };
+        let ip = self.state().instruction_pointer as isize;
+        self.r_stack().push(ip);
         self.state().instruction_pointer = doer;
     }}
 
     /// Run time behavior of does>.
     primitive!{fn _does(&mut self) {
         let doer = self.state().instruction_pointer + mem::size_of::<isize>();
+        self.code_space().compile_usize(doer);
         let def = self.wordlist().last();
-        let dfa = {
-            let word = &mut self.wordlist_mut()[def];
-            word.action = Core::does;
-            word.dfa()
-        };
-        // Note: need to change create.
-        unsafe{ self.data_space().put_isize(doer as isize, dfa - mem::size_of::<isize>()) };
+        let word = &mut self.wordlist_mut()[def];
+        word.action = Core::does;
     }}
 
     // -----------

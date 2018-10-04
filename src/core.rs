@@ -21,6 +21,7 @@ pub struct Word<Target> {
     is_compile_only: bool,
     hidden: bool,
     link: usize,
+    hash: usize,
     nfa: usize,
     dfa: usize,
     cfa: usize,
@@ -41,6 +42,7 @@ impl<Target> Word<Target> {
             is_compile_only: false,
             hidden: false,
             link: 0,
+            hash: 0,
             nfa: nfa,
             dfa: dfa,
             cfa: cfa,
@@ -93,6 +95,7 @@ pub fn action(&self) -> primitive!{fn(&mut Target)}{
 /// Wordlist
 pub struct Wordlist<Target> {
     words: Vec<Word<Target>>,
+    buckets: [usize; 8],
     last: usize,
 }
 
@@ -101,6 +104,7 @@ impl<Target> Wordlist<Target> {
     pub fn with_capacity(cap: usize) -> Wordlist<Target> {
         Wordlist {
             words: Vec::with_capacity(cap),
+            buckets: [0; 8],
             last: 0,
         }
     }
@@ -110,15 +114,12 @@ impl<Target> Wordlist<Target> {
         self.words.len()
     }
 
-    /// Index of last word in list
-    fn last(&self) -> usize {
-        self.last
-    }
-
     /// Push word `w` into list.
-    fn push(&mut self, mut w: Word<Target>) {
-        w.link = self.last;
+    fn push(&mut self, name: &str, mut w: Word<Target>) {
+        let b = name.len() % 8;
+        w.link = self.buckets[b];
         self.last = self.words.len();
+        self.buckets[b] = self.last;
         self.words.push(w);
     }
 
@@ -127,6 +128,7 @@ impl<Target> Wordlist<Target> {
         self.words.truncate(i);
         self.last = self.words.len() - 1;
     }
+
 }
 
 impl<Target> Index<usize> for Wordlist<Target> {
@@ -638,12 +640,12 @@ fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
             self.data_space().here(),
             self.code_space().here(),
         );
-        self.wordlist_mut().push(word);
+        self.wordlist_mut().push(name , word);
     }
 
     /// Set the last definition immediate.
     primitive!{fn immediate(&mut self) {
-        let def = self.wordlist().last();
+        let def = self.wordlist().last;
         self.wordlist_mut()[def].set_immediate(true);
     }}
 
@@ -655,7 +657,7 @@ fn add_immediate(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
 
     /// Set the last definition compile-only.
     primitive!{fn compile_only(&mut self) {
-        let def = self.wordlist().last();
+        let def = self.wordlist().last;
         self.wordlist_mut()[def].set_compile_only(true);
     }}
 
@@ -2769,7 +2771,7 @@ compilation_semantics: fn(&mut Self, usize)){
                 self.data_space().here(),
                 self.code_space().here(),
             );
-            self.wordlist_mut().push(word);
+            self.wordlist_mut().push(&last_token, word);
             self.set_last_token(last_token);
         }
     }
@@ -2777,7 +2779,7 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn colon(&mut self) {
         self.define(Core::nest, Core::compile_nest);
         if self.last_error().is_none() {
-            let def = self.wordlist().last();
+            let def = self.wordlist().last;
             self.compile_nest_code(def);
             self.wordlist_mut()[def].set_hidden(true);
             self.right_bracket();
@@ -2791,7 +2793,7 @@ compilation_semantics: fn(&mut Self, usize)){
             let idx = self.references().idx_exit;
             let compile = self.wordlist()[idx].compilation_semantics;
             compile(self, idx);
-            let def = self.wordlist().last();
+            let def = self.wordlist().last;
             self.wordlist_mut()[def].set_hidden(false);
         }
         self.left_bracket();
@@ -2811,13 +2813,17 @@ compilation_semantics: fn(&mut Self, usize)){
 
     primitive!{fn unmark(&mut self) {
         let wp = self.state().word_pointer;
-        let cfa;
-        let nfa;
-        {
+        let (nfa, cfa, mut dfa) = {
             let w = &self.wordlist()[wp];
-            cfa = w.cfa();
-            nfa = w.nfa();
+            (w.nfa(), w.cfa(), w.dfa())
+        };
+        for i in 0..8 {
+            let x = unsafe{ self.data_space().get_usize(dfa) };
+            self.wordlist_mut().buckets[i] = x;
+            dfa += mem::size_of::<usize>();
         }
+        let x = unsafe{ self.data_space().get_usize(dfa) };
+        self.wordlist_mut().last = x;
         self.data_space().truncate(nfa);
         self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
@@ -2825,6 +2831,12 @@ compilation_semantics: fn(&mut Self, usize)){
 
     primitive!{fn marker(&mut self) {
         self.define(Core::unmark, Core::compile_unmark);
+        for i in 0..8 {
+            let x = self.wordlist().buckets[i];
+            self.data_space().compile_usize(x);
+        }
+        let x = self.wordlist().last;
+        self.data_space().compile_usize(x);
     }}
 
     /// Run time behavior of words created by `create` ... `does>`.
@@ -2876,7 +2888,7 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn _does(&mut self) {
         let doer = self.state().instruction_pointer + mem::size_of::<isize>();
         self.code_space().compile_usize(doer);
-        let def = self.wordlist().last();
+        let def = self.wordlist().last;
         let word = &mut self.wordlist_mut()[def];
         word.action = Core::does;
     }}

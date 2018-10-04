@@ -37,7 +37,7 @@ pub trait Tools: Output {
     primitive!{fn words(&mut self) {
         if let Some(mut buf) = self.output_buffer().take() {
             writeln!(buf, "").unwrap();
-            for w in (0..self.wordlist().len()).rev() {
+            for w in (1..self.wordlist().len()).rev() {
                 if !self.wordlist()[w].is_hidden() {
                     let nfa = self.wordlist()[w].nfa();
                     let name = unsafe{ self.data_space().get_str(nfa) };

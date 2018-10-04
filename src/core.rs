@@ -469,7 +469,7 @@ pub trait Core: Sized {
     /// Add core primitives to self.
     fn add_core(&mut self) {
         // Bytecodes
-        self.add_primitive("noop", Core::noop);
+        self.add_primitive("", Core::noop);
         self.add_compile_only("exit", Core::exit);
         self.add_compile_only("lit", Core::lit);
         self.add_compile_only("flit", Core::flit);
@@ -686,14 +686,18 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Find the word with name `name`.
     /// If not found returns zero.
     fn find(&mut self, name: &str) -> Option<usize> {
-        for w in (0..self.wordlist().len()).rev() {
+        let mut w = self.wordlist().buckets[name.len() % 8];
+        while w != 0 {
             if !self.wordlist()[w].is_hidden() {
-                let nfa = self.wordlist()[w].nfa();
-                let w_name = unsafe { self.data_space().get_str(nfa) };
-                if w_name.eq_ignore_ascii_case(name) {
-                    return Some(w);
+                {
+                    let nfa = self.wordlist()[w].nfa();
+                    let w_name = unsafe { self.data_space().get_str(nfa) };
+                    if w_name.eq_ignore_ascii_case(name) {
+                        return Some(w);
+                    }
                 }
             }
+            w = self.wordlist()[w].link;
         }
         None
     }
@@ -2816,26 +2820,42 @@ compilation_semantics: fn(&mut Self, usize)){
             let w = &self.wordlist()[wp];
             (w.nfa(), w.cfa(), w.dfa())
         };
-        for i in 0..8 {
+        for _ in 0..9 {
             let x = unsafe{ self.data_space().get_usize(dfa) };
-            self.wordlist_mut().buckets[i] = x;
+            self.s_stack().push(x as isize);
             dfa += mem::size_of::<usize>();
         }
-        let x = unsafe{ self.data_space().get_usize(dfa) };
+        let x = self.s_stack().pop() as usize;
         self.wordlist_mut().last = x;
+        for i in 0..8 {
+            let x = self.s_stack().pop() as usize;
+            self.wordlist_mut().buckets[i] = x;
+        }
         self.data_space().truncate(nfa);
         self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
     }}
 
+    /// Example:
+    /// ```text
+    /// marker -work
+    ///
+    /// DFA of -work
+    /// +----+----+----+----+----+----+----+----+------+
+    /// | b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0 | last |
+    /// +----+----+----+----+----+----+----+----+------+
+    /// ```
     primitive!{fn marker(&mut self) {
-        self.define(Core::unmark, Core::compile_unmark);
+        let x = self.wordlist().last;
+        self.s_stack().push(x as isize);
         for i in 0..8 {
             let x = self.wordlist().buckets[i];
-            self.data_space().compile_usize(x);
+            self.s_stack().push(x as isize);
         }
-        let x = self.wordlist().last;
-        self.data_space().compile_usize(x);
+        self.define(Core::unmark, Core::compile_unmark);
+        for _ in 0..9 {
+            self.comma();
+        }
     }}
 
     /// Run time behavior of words created by `create` ... `does>`.

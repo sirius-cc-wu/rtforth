@@ -14,10 +14,8 @@ fn main() {
 
     vm.set_source(
         "
-        : nod   begin pause again ;
-        : ms ( n -- )   mtime  begin mtime over -  2 pick <  while pause repeat  2drop ;
-        : stars   1 activate  5 0 do 42 emit flush-output pause loop  nod ;
-        : pluses   2 activate  5 0 do 43 emit flush-output pause loop  nod ;
+        : stars   2 activate  5 0 do 42 emit flush-output pause loop  nod ;
+        : pluses   3 activate  5 0 do 43 emit flush-output pause loop  nod ;
         : main   stars  pluses  1000 ms  bye ;
     ",
     );

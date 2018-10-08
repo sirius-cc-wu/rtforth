@@ -124,7 +124,9 @@ impl<Target> Wordlist<Target> {
     fn hash(name: &str) -> u32 {
         let mut hash: u32 = 5381;
         for c in name.bytes() {
-            hash = hash.wrapping_shl(5).wrapping_add(hash).wrapping_add(c.to_ascii_lowercase() as u32); /* hash * 33 + c */
+            hash = hash.wrapping_shl(5)
+                .wrapping_add(hash)
+                .wrapping_add(c.to_ascii_lowercase() as u32); /* hash * 33 + c */
         }
         hash
     }

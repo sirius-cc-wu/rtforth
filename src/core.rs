@@ -21,7 +21,7 @@ pub struct Word<Target> {
     is_compile_only: bool,
     hidden: bool,
     link: usize,
-    hash: usize,
+    hash: u32,
     nfa: usize,
     dfa: usize,
     cfa: usize,
@@ -92,10 +92,13 @@ pub fn action(&self) -> primitive!{fn(&mut Target)}{
     }
 }
 
+const BUCKET_SIZE: usize = 64;
+
 /// Wordlist
 pub struct Wordlist<Target> {
     words: Vec<Word<Target>>,
-    buckets: [usize; 8],
+    buckets: [usize; BUCKET_SIZE],
+    temp_buckets: [usize; BUCKET_SIZE],
     last: usize,
 }
 
@@ -104,7 +107,8 @@ impl<Target> Wordlist<Target> {
     pub fn with_capacity(cap: usize) -> Wordlist<Target> {
         Wordlist {
             words: Vec::with_capacity(cap),
-            buckets: [0; 8],
+            buckets: [0; BUCKET_SIZE],
+            temp_buckets: [0; BUCKET_SIZE],
             last: 0,
         }
     }
@@ -114,9 +118,21 @@ impl<Target> Wordlist<Target> {
         self.words.len()
     }
 
+    // Hash function
+    //
+    // Alogrithm djb2 at http://www.cse.yorku.ca/~oz/hash.html .
+    fn hash(name: &str) -> u32 {
+        let mut hash: u32 = 5381;
+        for c in name.bytes() {
+            hash = hash.wrapping_shl(5).wrapping_add(hash).wrapping_add(c.to_ascii_lowercase() as u32); /* hash * 33 + c */
+        }
+        hash
+    }
+
     /// Push word `w` into list.
     fn push(&mut self, name: &str, mut w: Word<Target>) {
-        let b = name.len() % 8;
+        w.hash = Self::hash(name);
+        let b = w.hash as usize % BUCKET_SIZE;
         w.link = self.buckets[b];
         self.last = self.words.len();
         self.buckets[b] = self.last;
@@ -686,14 +702,17 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Find the word with name `name`.
     /// If not found returns zero.
     fn find(&mut self, name: &str) -> Option<usize> {
-        let mut w = self.wordlist().buckets[name.len() % 8];
+        let hash = Wordlist::<Self>::hash(name);
+        let mut w = self.wordlist().buckets[hash as usize % BUCKET_SIZE];
         while w != 0 {
             if !self.wordlist()[w].is_hidden() {
                 {
-                    let nfa = self.wordlist()[w].nfa();
-                    let w_name = unsafe { self.data_space().get_str(nfa) };
-                    if w_name.eq_ignore_ascii_case(name) {
-                        return Some(w);
+                    if self.wordlist()[w].hash == hash {
+                        let nfa = self.wordlist()[w].nfa();
+                        let w_name = unsafe { self.data_space().get_str(nfa) };
+                        if w_name.eq_ignore_ascii_case(name) {
+                            return Some(w);
+                        }
                     }
                 }
             }
@@ -2820,15 +2839,11 @@ compilation_semantics: fn(&mut Self, usize)){
             let w = &self.wordlist()[wp];
             (w.nfa(), w.cfa(), w.dfa())
         };
-        for _ in 0..9 {
-            let x = unsafe{ self.data_space().get_usize(dfa) };
-            self.s_stack().push(x as isize);
-            dfa += mem::size_of::<usize>();
-        }
-        let x = self.s_stack().pop() as usize;
+        let x = unsafe{ self.data_space().get_usize(dfa) };
         self.wordlist_mut().last = x;
-        for i in 0..8 {
-            let x = self.s_stack().pop() as usize;
+        for i in 0..BUCKET_SIZE {
+            dfa += mem::size_of::<usize>();
+            let x = unsafe{ self.data_space().get_usize(dfa) };
             self.wordlist_mut().buckets[i] = x;
         }
         self.data_space().truncate(nfa);
@@ -2841,20 +2856,18 @@ compilation_semantics: fn(&mut Self, usize)){
     /// marker -work
     ///
     /// DFA of -work
-    /// +----+----+----+----+----+----+----+----+------+
-    /// | b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0 | last |
-    /// +----+----+----+----+----+----+----+----+------+
+    /// +------+--------+
+    /// | last | b0-b63 |
+    /// +------+--------+
     /// ```
     primitive!{fn marker(&mut self) {
         let x = self.wordlist().last;
-        self.s_stack().push(x as isize);
-        for i in 0..8 {
-            let x = self.wordlist().buckets[i];
-            self.s_stack().push(x as isize);
-        }
+        self.wordlist_mut().temp_buckets = self.wordlist().buckets;
         self.define(Core::unmark, Core::compile_unmark);
-        for _ in 0..9 {
-            self.comma();
+        self.data_space().compile_usize(x);
+        for i in 0..BUCKET_SIZE {
+            let x = self.wordlist().temp_buckets[i];
+            self.data_space().compile_usize(x);
         }
     }}
 

@@ -108,7 +108,6 @@ impl VM {
     pub fn advance(&mut self) {
         self.now += 1_000_000;
     }
-
 }
 
 impl Core for VM {

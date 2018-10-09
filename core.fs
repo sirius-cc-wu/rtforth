@@ -10,7 +10,7 @@
 : h.r ( n1 n2 -- )   base @ >r  hex .r  r> base ! ;
 : <= ( n1 n2 -- flag)   > invert ;
 : >= ( n1 n2 -- flag)   < invert ;
-: f> ( -- flag ) ( F: r1 r2 -- )  f< invert ;
+: f> ( -- flag ) ( F: r1 r2 -- )  fswap f< ;
 : ?dup ( x -- 0 | x x )   dup if dup then ;
 : cr ( -- )   10 emit ;
 : f, ( F: r -- )   here  1 floats allot  f! ;

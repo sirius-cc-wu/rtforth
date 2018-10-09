@@ -1,0 +1,638 @@
+
+<!DOCTYPE HTML>
+<html lang="" >
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>程式碼風格 · GitBook</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.3">
+        
+        
+        
+    
+    <link rel="stylesheet" href="gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    
+    <link rel="prev" href="tasking.html" />
+    
+
+    </head>
+    <body>
+        
+<div class="book">
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search" />
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="./">
+            
+                <a href="./">
+            
+                    
+                    簡介
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" data-path="installation.html">
+            
+                <a href="installation.html">
+            
+                    
+                    安裝 rtForth
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="calculator.html">
+            
+                <a href="calculator.html">
+            
+                    
+                    Forth 計算機
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.3.1" data-path="integer.html">
+            
+                <a href="integer.html">
+            
+                    
+                    整數運算
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.2" data-path="float.html">
+            
+                <a href="float.html">
+            
+                    
+                    浮點運算
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.3" data-path="logic.html">
+            
+                <a href="logic.html">
+            
+                    
+                    比較及邏輯運算
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.4" data-path="colon.html">
+            
+                <a href="colon.html">
+            
+                    
+                    自己定義運算指令
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="programming.html">
+            
+                <a href="programming.html">
+            
+                    
+                    Forth 程式入門
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.4.1" data-path="selection.html">
+            
+                <a href="selection.html">
+            
+                    
+                    選擇
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.2" data-path="repetition.html">
+            
+                <a href="repetition.html">
+            
+                    
+                    循環
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3" data-path="dictionary.html">
+            
+                <a href="dictionary.html">
+            
+                    
+                    字典
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.4" data-path="tasking.html">
+            
+                <a href="tasking.html">
+            
+                    
+                    多工、異常處理與文本直譯器
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter active" data-level="1.4.5" data-path="style.html">
+            
+                <a href="style.html">
+            
+                    
+                    程式碼風格
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="." >程式碼風格</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="&#x7A0B;&#x5F0F;&#x78BC;&#x98A8;&#x683C;">&#x7A0B;&#x5F0F;&#x78BC;&#x98A8;&#x683C;</h1>
+<hr>
+<h2 id="&#x7A7A;&#x683C;&#x53CA;&#x7E2E;&#x6392;">&#x7A7A;&#x683C;&#x53CA;&#x7E2E;&#x6392;</h2>
+<p>&#x6307;&#x4EE4;&#x548C;&#x6307;&#x4EE4;&#x4E4B;&#x9593;&#x81F3;&#x5C11;&#x4E00;&#x500B;&#x7A7A;&#x683C;&#x3002;&#x5982;&#x679C;&#x4E00;&#x7FA4;&#x6307;&#x4EE4;&#x69CB;&#x6210;&#x4E00;&#x500B;&#x6709;&#x610F;&#x7FA9;&#x7684;&#x7247;&#x8A9E;&#xFF0C;&#x5247;&#x7247;&#x8A9E;&#x548C;&#x7247;&#x8A9E;&#x4E4B;&#x9593;&#x9694;&#x5169;&#x500B;&#x7A7A;&#x683C;&#x3002;&#x4F8B;&#x5982;&#x4EE5;&#x4E0B;&#x7684; <code>1 counter +!</code> &#x88AB;&#x8996;&#x70BA;&#x4E00;&#x500B;&#x7247;&#x8A9E;&#xFF0C;</p>
+<pre><code class="lang-forth">: up   activate  begin pause  1 counter +! again ;
+</code></pre>
+<p>&#x6307;&#x4EE4;&#x540D;&#x7A31;&#x548C;&#x5B83;&#x4E4B;&#x5F8C;&#x7684;&#x5B9A;&#x7FA9;&#x4E4B;&#x9593;&#x7A7A;&#x4E09;&#x683C;&#xFF0C;&#x5982;&#x4E0A;&#x4F8B;&#xFF0C;&#x6216;&#x662F;&#x5C07;&#x5B9A;&#x7FA9;&#x5BEB;&#x5728;&#x4E0B;&#x4E00;&#x884C;&#xFF0C;&#x7E2E;&#x6392;&#x56DB;&#x500B;&#x7A7A;&#x683C;&#x3002;&#x5982;&#x4E0B;&#xFF0C;</p>
+<pre><code class="lang-forth">: up ( n -- )
+    activate
+    begin
+      pause  1 counter +!
+    again
+;
+</code></pre>
+<p>&#x8F03;&#x9577;&#x7684;&#x5DE2;&#x72C0;&#x63A7;&#x5236;&#x7D50;&#x69CB;&#x7E2E;&#x6392;&#x5169;&#x500B;&#x7A7A;&#x683C;&#xFF0C;&#x5206;&#x865F;&#x53EF;&#x4EE5;&#x653E;&#x5728;&#x6700;&#x5F8C;&#x4E00;&#x500B;&#x6307;&#x4EE4;&#x4E4B;&#x5F8C;&#xFF0C;&#x6216;&#x53E6;&#x8D77;&#x65B0;&#x7684;&#x4E00;&#x884C;&#x653E;&#x5728;&#x958B;&#x982D;&#xFF0C;&#x5982;&#x4E0A;&#x3002;</p>
+<hr>
+<h2 id="&#x8A3B;&#x89E3;">&#x8A3B;&#x89E3;</h2>
+<h3 id="&#x6307;&#x4EE4;&#x8AAA;&#x660E;">&#x6307;&#x4EE4;&#x8AAA;&#x660E;</h3>
+<p>&#x5F88;&#x77ED;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x5982;&#x679C;&#x5F88;&#x5BB9;&#x6613;&#x660E;&#x77AD;&#x5B83;&#x7684;&#x610F;&#x601D;&#xFF0C;&#x53EF;&#x4EE5;&#x4E0D;&#x52A0;&#x6307;&#x4EE4;&#x8AAA;&#x660E;&#x3002;</p>
+<p>&#x8F03;&#x9577;&#x6216;&#x8F03;&#x4E0D;&#x6613;&#x7406;&#x89E3;&#x7684;&#x6307;&#x4EE4;&#x61C9;&#x52A0;&#x6307;&#x4EE4;&#x8AAA;&#x660E;&#x3002;&#x6307;&#x4EE4;&#x8AAA;&#x660E;&#x4EE5;&#x6307;&#x4EE4; <code>\</code> &#x958B;&#x59CB;&#xFF0C;&#x5230;&#x540C;&#x4E00;&#x884C;&#x7D50;&#x5C3E;&#x3002;&#x53EF;&#x4EE5;&#x653E;&#x5728;&#x4E09;&#x500B;&#x4F4D;&#x7F6E;&#x3002;</p>
+<ul>
+<li>&#x6307;&#x4EE4;&#x4E4B;&#x524D;&#xFF0C;&#x4F8B;&#x5982;&#xFF0C;</li>
+</ul>
+<pre><code class="lang-forth">\ &#x6307;&#x4EE4;&#x8AAA;&#x660E;
+: &#x6307;&#x4EE4; ( -- )   ... ;
+</code></pre>
+<ul>
+<li>&#x548C;&#x6307;&#x4EE4;&#x540D;&#x7A31;&#x540C;&#x4E00;&#x884C;&#x4E14;&#x5728;&#x6307;&#x4EE4;&#x540D;&#x7A31;&#x4E4B;&#x5F8C;&#xFF0C;&#x4E4B;&#x9593;&#x7A7A;&#x4E00;&#x683C;&#xFF0C;&#x4F8B;&#x5982;&#xFF0C;</li>
+</ul>
+<pre><code class="lang-forth">variable counter \ &#x8A08;&#x6578;&#x503C;
+: up \ ( n -- ) &#x6307;&#x6D3E;&#x5DE5;&#x4F5C; `n` &#x5411;&#x4E0A;&#x8A08;&#x6578;
+    activate begin pause  1 counter +! again ;
+</code></pre>
+<ul>
+<li>&#x6307;&#x4EE4;&#x5167;&#x90E8;&#xFF0C;&#x7528;&#x4EE5;&#x8AAA;&#x660E;&#x6307;&#x4EE4;&#x5BE6;&#x4F5C;&#x4E2D;&#x8F03;&#x96E3;&#x7406;&#x89E3;&#x7684;&#x90E8;&#x4EFD;&#x3002;&#x4F8B;&#x5982;&#xFF0C;</li>
+</ul>
+<pre><code class="lang-forth">: &#x6307;&#x4EE4; ( -- )
+    \ &#x6B65;&#x9A5F;&#x4E00;
+    ...
+    \ &#x6B65;&#x9A5F;&#x4E8C;
+;
+</code></pre>
+<h3 id="&#x5806;&#x758A;&#x6548;&#x679C;">&#x5806;&#x758A;&#x6548;&#x679C;</h3>
+<p>&#x6240;&#x6709;&#x7684;&#x6307;&#x4EE4;&#x90FD;&#x9700;&#x8981;&#x6709;&#x5806;&#x758A;&#x6548;&#x679C;&#x7684;&#x8A3B;&#x89E3;&#x3002;</p>
+<p>&#x6307;&#x4EE4;&#x7684;&#x5806;&#x758A;&#x6548;&#x679C;&#x4EE5; ( &quot;input&quot; before -- after ) &#x8868;&#x793A;&#xFF0C;&quot;input&quot; &#x4EE3;&#x8868;&#x6307;&#x4EE4;&#x6703;&#x5F9E;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x53D6;&#x5F97;&#x7684;&#x8CC7;&#x6599;&#x3002;
+before &#x662F;&#x6307;&#x4EE4;&#x6703;&#x4F7F;&#x7528;&#x7684;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x8CC7;&#x6599;&#xFF0C;after &#x662F;&#x6307;&#x4EE4;&#x57F7;&#x884C;&#x5F8C;&#x6703;&#x653E;&#x4E0A;&#x5806;&#x758A;&#x7684;&#x8CC7;&#x6599;&#x3002;</p>
+<p>&#x5982;&#x679C;&#x662F;&#x6D6E;&#x9EDE;&#x5806;&#x758A;&#xFF0C;&#x6703;&#x4F7F;&#x7528; ( F: before -- after ) &#x8868;&#x793A;&#x3002;</p>
+<p>&#x53E6;&#x5916;&#xFF0C;&#x4F7F;&#x7528;&#x4EE5;&#x4E0B;&#x5B57;&#x5143;&#x4F86;&#x4EE3;&#x8868;&#x5806;&#x758A;&#x4E0A;&#x8CC7;&#x6599;&#x7684;&#x578B;&#x5225;&#x6216;&#x610F;&#x7FA9;&#xFF1A;</p>
+<ul>
+<li>addr &#x6216;&#x662F; a&#xFF1A;&#x4F4D;&#x5740;&#xFF0C;&#x7A0B;&#x5F0F;&#x78BC;&#x7A7A;&#x9593;&#x6216;&#x662F;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x7684;&#x4F4D;&#x5740;&#xFF0C;&#x6216;&#x67D0;&#x500B;&#x8B8A;&#x6578;&#x7684;&#x4F4D;&#x5740;&#x3002;</li>
+<li>c&#xFF1A;&#x5B57;&#x5143;</li>
+<li>n&#xFF1A;&#x6574;&#x6578;</li>
+<li>f&#xFF1A;&#x6D6E;&#x9EDE;&#x6578;</li>
+<li>t&#xFF1A;&#x771F;&#x5047;&#x503C;</li>
+</ul>
+<p>&#x4F8B;&#x5982;&#xFF1A;</p>
+<ul>
+<li><code>: ( &quot;name&quot; -- )</code> &#x5192;&#x865F;&#x5B9A;&#x7FA9;&#x6307;&#x4EE4;&#x4E4B;&#x5F8C;&#x8981;&#x8DDF;&#x8457;&#x88AB;&#x5B9A;&#x7FA9;&#x6307;&#x4EE4;&#x7684;&#x540D;&#x7A31;&#x3002;</li>
+<li><code>+ ( n1 n2 -- n1+n2 )</code> &#x6307;&#x4EE4; <code>+</code> &#x6703;&#x5C07;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x5169;&#x500B;&#x6578;&#x5B57;&#x76F8;&#x52A0;&#xFF0C;&#x4E26;&#x628A;&#x548C;&#x653E;&#x4E0A;&#x5806;&#x758A;&#x3002;</li>
+<li><code>f+ ( F: f1 f2 -- f )</code> &#x5C07;&#x6D6E;&#x9EDE;&#x6578; <code>f1</code> &#x548C; <code>f2</code> &#x76F8;&#x52A0;&#xFF0C;&#x5F97;&#x5230; <code>f</code>&#x3002;</li>
+<li><code>! ( n a -- )</code> &#x5C07;&#x6574;&#x6578; <code>n</code> &#x653E;&#x9032;&#x8B8A;&#x6578;&#x4F4D;&#x5740; <code>a</code>&#x3002;</li>
+<li><code>compiling? ( -- t )</code> &#x662F;&#x5426;&#x5728;&#x7DE8;&#x8B6F;&#x72C0;&#x614B;&#xFF1F;</li>
+</ul>
+<p>&#x5982;&#x679C;&#x6307;&#x4EE4;&#x7684;&#x57F7;&#x884C;&#x6703;&#x4F9D;&#x60C5;&#x6CC1;&#x7522;&#x751F;&#x5169;&#x7A2E;&#x4E0D;&#x540C;&#x7684;&#x6548;&#x679C;&#xFF0C;&#x4F7F;&#x7528; <code>|</code> &#x8868;&#x793A;&#x6709;&#x5169;&#x7A2E;&#x53EF;&#x80FD;&#x60C5;&#x6CC1;&#xFF0C;&#x4F8B;&#x5982;&#xFF0C;</p>
+<pre><code class="lang-forth">: ?dup ( n -- 0 | n n )   dup if dup then  ;
+</code></pre>
+<p>&#x82E5;&#x6709;&#x5FC5;&#x8981;&#xFF0C;&#x53EF;&#x4EE5;&#x4F7F;&#x7528; <code>=</code> &#x8868;&#x660E;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x8CC7;&#x6599;&#x7684;&#x610F;&#x7FA9;&#xFF0C;&#x6216;&#x662F;&#x4E0D;&#x7528;&#x7B49;&#x865F;&#xFF0C;&#x76F4;&#x63A5;&#x4F7F;&#x7528;&#x82F1;&#x6587;&#x5B57;&#x8868;&#x793A;&#xFF0C;&#x4F8B;&#x5982;&#xFF0C;</p>
+<pre><code class="lang-forth">: game ( n1=seed -- | n2 ) ... ;
+</code></pre>
+<p>&#x6216;&#x662F;</p>
+<pre><code class="lang-forth">: game ( seed -- | n2 ) ... ;
+</code></pre>
+<p>&#x5806;&#x758A;&#x6548;&#x679C;&#x7684;&#x8A3B;&#x89E3;&#x653E;&#x7684;&#x4F4D;&#x7F6E;&#x6709;&#x4E09;&#x8655;&#xFF1A;</p>
+<ul>
+<li>&#x653E;&#x5728;&#x4EE5;&#x6307;&#x4EE4; <code>\</code> &#x958B;&#x59CB;&#x7684;&#x8A3B;&#x89E3;&#x5167;&#x3002;&#x4F8B;&#x5982;</li>
+</ul>
+<pre><code class="lang-forth">\ &#x7C21;&#x77ED;&#x7684;&#x8AAA;&#x660E; ( n n -- )
+\ &#x66F4;&#x6E05;&#x695A;&#x7684;&#x8AAA;&#x660E;
+: &#x6307;&#x4EE4; .... ;
+</code></pre>
+<ul>
+<li>&#x653E;&#x5728;&#x6307;&#x4EE4;&#x5B9A;&#x7FA9;&#x4E4B;&#x5F8C;&#xFF0C;&#x548C;&#x6307;&#x4EE4;&#x540D;&#x7A31;&#x4E4B;&#x9593;&#x7A7A;&#x4E00;&#x500B;&#x7A7A;&#x683C;&#xFF0C;&#x548C;&#x4E4B;&#x5F8C;&#x7684;&#x7A0B;&#x5F0F;&#x7A7A;&#x4E09;&#x500B;&#x7A7A;&#x683C;&#x3002;&#x4F8B;&#x5982;&#xFF0C;</li>
+</ul>
+<pre><code class="lang-forth">: 2dup ( n1 n2 -- n1 n2 n1 n2 )   over over ;
+</code></pre>
+<ul>
+<li>&#x653E;&#x5728;&#x8907;&#x96DC;&#x7684;&#x6307;&#x4EE4;&#x5167;&#x90E8;&#x8AAA;&#x660E;&#x5806;&#x758A;&#x7684;&#x8B8A;&#x5316;&#xFF0C;&#x4F8B;&#x5982;&#xFF0C;</li>
+</ul>
+<pre><code class="lang-forth">: game ( n1=seed -- | n2 )
+   ?dup if
+      xorshift  100 mod  abs  ( n2 )
+   else
+      .&quot; &#x7A2E;&#x5B50;&#x4E0D;&#x53EF;&#x4EE5;&#x70BA; 0&quot;        ( )
+   then ;
+</code></pre>
+<p>&#x6216;</p>
+<pre><code class="lang-forth">: .sin-table ( F: start end step -- )
+   ( F: start end step )   2 fpick  2 fpick  2 fpick
+   ( F: start end step start end step )   .sin-header  cr
+   ( F: start end step )   .sin-values
+;
+</code></pre>
+<hr>
+<h2 id="&#x547D;&#x540D;&#x539F;&#x5247;">&#x547D;&#x540D;&#x539F;&#x5247;</h2>
+<p>&#x6307;&#x4EE4;&#x7684;&#x540D;&#x7A31;&#x4E0D;&#x5340;&#x5206;&#x5927;&#x5C0F;&#x5BEB;&#x3002;&#x52D5;&#x7A0B;&#x79D1;&#x6280;&#x5728;&#x672C;&#x624B;&#x518A;&#x4E2D;&#x4F7F;&#x7528;&#x5C0F;&#x5BEB;&#x3002;</p>
+<p>&#x4EE5;&#x4E0B;&#x662F;&#x52D5;&#x7A0B;&#x79D1;&#x6280;&#x64B0;&#x5BEB; Forth &#x7A0B;&#x5F0F;&#x6642;&#x6307;&#x4EE4;&#x7684;&#x547D;&#x540D;&#x539F;&#x5247;&#xFF0C;&#x4E5F;&#x662F;&#x672C;&#x624B;&#x518A;&#x6307;&#x4EE4;&#x7684;&#x547D;&#x540D;&#x539F;&#x5247;&#x3002;</p>
+<table>
+<thead>
+<tr>
+<th>&#x547D;&#x540D;</th>
+<th>&#x610F;&#x7FA9;</th>
+<th>&#x66F8;&#x4E2D;&#x7BC4;&#x4F8B;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>!name</td>
+<td>&#x5B58;&#x5165;&#x4E00;&#x6574;&#x7B46;&#x8CC7;&#x6599;</td>
+<td></td>
+</tr>
+<tr>
+<td>name!</td>
+<td>&#x5B58;&#x5165;&#x4E00;&#x9805;&#x8CC7;&#x6599;</td>
+<td>handler!</td>
+</tr>
+<tr>
+<td>@name</td>
+<td>&#x53D6;&#x51FA;&#x4E00;&#x6574;&#x7B46;&#x8CC7;&#x6599;</td>
+<td></td>
+</tr>
+<tr>
+<td>name@</td>
+<td>&#x53D6;&#x51FA;&#x4E00;&#x9805;&#x8CC7;&#x6599;</td>
+<td></td>
+</tr>
+<tr>
+<td>#name</td>
+<td>&#x8CC7;&#x6599;&#x7E3D;&#x6578;</td>
+<td></td>
+</tr>
+<tr>
+<td>name#</td>
+<td>&#x865F;&#x78BC;&#x3001;&#x4EE3;&#x865F;</td>
+<td>yellow#</td>
+</tr>
+<tr>
+<td>&apos;name</td>
+<td>&#x8CC7;&#x6599;&#x4F4D;&#x5740;</td>
+<td></td>
+</tr>
+<tr>
+<td>(name)</td>
+<td>&#x5BE6;&#x4F5C; name &#x7684;&#x5167;&#x90E8;&#x6307;&#x4EE4;</td>
+<td>(abort)</td>
+</tr>
+<tr>
+<td>+name</td>
+<td>&#x589E;&#x52A0;</td>
+<td>+field</td>
+</tr>
+<tr>
+<td></td>
+<td>&#x81F4;&#x80FD;&#x3001;&#x555F;&#x7528;</td>
+<td></td>
+</tr>
+<tr>
+<td>-name</td>
+<td>&#x6E1B;&#x5C11;&#x3001;&#x79FB;&#x9664;</td>
+<td>-work</td>
+</tr>
+<tr>
+<td></td>
+<td>&#x7981;&#x7528;&#xFF0C;&#x4F7F;&#x505C;&#x6B62;</td>
+<td></td>
+</tr>
+<tr>
+<td>.name</td>
+<td>&#x5370;&#x51FA;&#x8CC7;&#x6599;</td>
+<td>.error .token .row</td>
+</tr>
+<tr>
+<td></td>
+<td>&#x4EE5;&#x67D0;&#x7A2E;&#x65B9;&#x5F0F;&#x5370;&#x51FA;</td>
+<td>.r f.r</td>
+</tr>
+<tr>
+<td>name.</td>
+<td>&#x5370;&#x51FA;&#x67D0;&#x7A2E;&#x578B;&#x5225;&#x7684;&#x8CC7;&#x6599;</td>
+<td>h. f.</td>
+</tr>
+<tr>
+<td>;name</td>
+<td>&#x7D50;&#x675F;</td>
+<td></td>
+</tr>
+<tr>
+<td>?name</td>
+<td>&#x6709;&#x689D;&#x4EF6;&#x7684;&#x57F7;&#x884C;</td>
+<td>?dup ?do</td>
+</tr>
+<tr>
+<td></td>
+<td>&#x6AA2;&#x67E5;</td>
+<td>?stacks</td>
+</tr>
+<tr>
+<td>name?</td>
+<td>&#x72C0;&#x6CC1;&#xFF0C;&#x56DE;&#x50B3;&#x771F;&#x5047;&#x503C;</td>
+<td>compiling? token-empty?</td>
+</tr>
+<tr>
+<td>/name</td>
+<td>&#x8CC7;&#x6599;&#x7684;&#x4F4D;&#x5143;&#x7D44;&#x6578;</td>
+<td>/point /person</td>
+</tr>
+<tr>
+<td>&gt;name</td>
+<td>&#x8F49;&#x63DB;&#x6210; name</td>
+<td></td>
+</tr>
+<tr>
+<td>name&gt;</td>
+<td>&#x8F49;&#x63DB;&#x81EA; name</td>
+<td></td>
+</tr>
+<tr>
+<td>name,</td>
+<td>&#x7DE8;&#x8B6F;&#x9032;&#x5B57;&#x5178;</td>
+<td>2, f,</td>
+</tr>
+<tr>
+<td>0name</td>
+<td>&#x6E05;&#x9664;&#xFF0C;&#x91CD;&#x8A2D;</td>
+<td>0error 0stacks</td>
+</tr>
+<tr>
+<td>2name</td>
+<td>&#x5169;&#x7B46;&#x8CC7;&#x6599;</td>
+<td>2, 2dup</td>
+</tr>
+<tr>
+<td>name-name</td>
+<td>&#x8907;&#x5408;&#x5B57;&#x4F7F;&#x7528; - &#x9023;&#x63A5;</td>
+<td>token-empty?</td>
+</tr>
+</tbody>
+</table>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class='search-results-count'></span> results matching "<span class='search-query'></span>"</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching "<span class='search-query'></span>"</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="tasking.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page: 多工、異常處理與文本直譯器">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"程式碼風格","level":"1.4.5","depth":2,"previous":{"title":"多工、異常處理與文本直譯器","level":"1.4.4","depth":2,"path":"tasking.md","ref":"tasking.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":[],"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"style.md","mtime":"2018-10-09T09:21:53.600Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2018-10-09T09:57:49.684Z"},"basePath":".","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    <script src="gitbook/gitbook.js"></script>
+    <script src="gitbook/theme.js"></script>
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-sharing/buttons.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    </body>
+</html>
+

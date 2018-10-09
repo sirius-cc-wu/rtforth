@@ -1,0 +1,1246 @@
+
+<!DOCTYPE HTML>
+<html lang="" >
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>比較及邏輯運算 · GitBook</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.3">
+        
+        
+        
+    
+    <link rel="stylesheet" href="gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="colon.html" />
+    
+    
+    <link rel="prev" href="float.html" />
+    
+
+    </head>
+    <body>
+        
+<div class="book">
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search" />
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="./">
+            
+                <a href="./">
+            
+                    
+                    簡介
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" data-path="installation.html">
+            
+                <a href="installation.html">
+            
+                    
+                    安裝 rtForth
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="calculator.html">
+            
+                <a href="calculator.html">
+            
+                    
+                    Forth 計算機
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.3.1" data-path="integer.html">
+            
+                <a href="integer.html">
+            
+                    
+                    整數運算
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.2" data-path="float.html">
+            
+                <a href="float.html">
+            
+                    
+                    浮點運算
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter active" data-level="1.3.3" data-path="logic.html">
+            
+                <a href="logic.html">
+            
+                    
+                    比較及邏輯運算
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.4" data-path="colon.html">
+            
+                <a href="colon.html">
+            
+                    
+                    自己定義運算指令
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="programming.html">
+            
+                <a href="programming.html">
+            
+                    
+                    Forth 程式入門
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.4.1" data-path="selection.html">
+            
+                <a href="selection.html">
+            
+                    
+                    選擇
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.2" data-path="repetition.html">
+            
+                <a href="repetition.html">
+            
+                    
+                    循環
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3" data-path="dictionary.html">
+            
+                <a href="dictionary.html">
+            
+                    
+                    字典
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.4" data-path="tasking.html">
+            
+                <a href="tasking.html">
+            
+                    
+                    多工、異常處理與文本直譯器
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.5" data-path="style.html">
+            
+                <a href="style.html">
+            
+                    
+                    程式碼風格
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="." >比較及邏輯運算</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="&#x6BD4;&#x8F03;&#x53CA;&#x908F;&#x8F2F;&#x904B;&#x7B97;">&#x6BD4;&#x8F03;&#x53CA;&#x908F;&#x8F2F;&#x904B;&#x7B97;</h1>
+<h2 id="&#x5341;&#x9032;&#x5236;&#x3001;&#x4E8C;&#x9032;&#x5236;&#x3001;&#x5341;&#x516D;&#x9032;&#x5236;">&#x5341;&#x9032;&#x5236;&#x3001;&#x4E8C;&#x9032;&#x5236;&#x3001;&#x5341;&#x516D;&#x9032;&#x5236;</h2>
+<p>&#x4EBA;&#x7684;&#x5341;&#x6839;&#x624B;&#x6307;&#x982D;&#xFF0C;&#x6C7A;&#x5B9A;&#x4E86;&#x4EBA;&#x985E;&#x4F7F;&#x7528;&#x5341;&#x9032;&#x5236;&#x7684;&#x6578;&#x5B57;&#x7CFB;&#x7D71;&#x3002;&#x96FB;&#x8166;&#x7531;&#x6578;&#x91CF;&#x9F90;&#x5927;&#x7684;&#x5FAE;&#x578B;&#x958B;&#x95DC;&#x69CB;&#x6210;&#xFF0C;&#x53EA;&#x61C2;&#x958B;&#x95DC;&#xFF0C;&#x6216;&#x662F; 0 &#x8207; 1&#xFF0C;&#x4F7F;&#x7528;&#x7684;&#x662F;&#x4E8C;&#x9032;&#x5236;&#x7CFB;&#x7D71;&#x3002;
+&#x70BA;&#x4E86;&#x4EE5;&#x66F4;&#x7C21;&#x6377;&#x7684;&#x65B9;&#x5F0F;&#x4F86;&#x95B1;&#x8B80;&#x4E8C;&#x9032;&#x5236;&#x7CFB;&#x7D71;&#xFF0C;&#x4EBA;&#x5011;&#x5C07;&#x4E8C;&#x9032;&#x5236;&#x4E2D;&#x7684;&#x6578;&#x5B57;&#x6BCF;&#x56DB;&#x4F4D;&#x4E00;&#x7D44;&#xFF0C;&#x5F62;&#x6210;&#x4E86; 16 &#x9032;&#x5236;&#x3002;</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">&#x5341;&#x9032;&#x5236;</th>
+<th style="text-align:right">&#x4E8C;&#x9032;&#x5236;</th>
+<th style="text-align:right">&#x5341;&#x516D;&#x9032;&#x5236;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td style="text-align:right">2</td>
+<td style="text-align:right">10</td>
+<td style="text-align:right">2</td>
+</tr>
+<tr>
+<td style="text-align:right">3</td>
+<td style="text-align:right">11</td>
+<td style="text-align:right">3</td>
+</tr>
+<tr>
+<td style="text-align:right">4</td>
+<td style="text-align:right">100</td>
+<td style="text-align:right">4</td>
+</tr>
+<tr>
+<td style="text-align:right">5</td>
+<td style="text-align:right">101</td>
+<td style="text-align:right">5</td>
+</tr>
+<tr>
+<td style="text-align:right">6</td>
+<td style="text-align:right">110</td>
+<td style="text-align:right">6</td>
+</tr>
+<tr>
+<td style="text-align:right">7</td>
+<td style="text-align:right">111</td>
+<td style="text-align:right">7</td>
+</tr>
+<tr>
+<td style="text-align:right">8</td>
+<td style="text-align:right">1000</td>
+<td style="text-align:right">8</td>
+</tr>
+<tr>
+<td style="text-align:right">9</td>
+<td style="text-align:right">1001</td>
+<td style="text-align:right">9</td>
+</tr>
+<tr>
+<td style="text-align:right">10</td>
+<td style="text-align:right">1010</td>
+<td style="text-align:right">A</td>
+</tr>
+<tr>
+<td style="text-align:right">11</td>
+<td style="text-align:right">1011</td>
+<td style="text-align:right">B</td>
+</tr>
+<tr>
+<td style="text-align:right">12</td>
+<td style="text-align:right">1100</td>
+<td style="text-align:right">C</td>
+</tr>
+<tr>
+<td style="text-align:right">13</td>
+<td style="text-align:right">1101</td>
+<td style="text-align:right">D</td>
+</tr>
+<tr>
+<td style="text-align:right">14</td>
+<td style="text-align:right">1110</td>
+<td style="text-align:right">E</td>
+</tr>
+<tr>
+<td style="text-align:right">15</td>
+<td style="text-align:right">1111</td>
+<td style="text-align:right">F</td>
+</tr>
+</tbody>
+</table>
+<p>&#x672C;&#x6587;&#x4E2D;&#x4EE5;&#x4E0B;&#x6A19;&#x4F86;&#x8868;&#x793A;&#x6578;&#x5B57;&#x7684;&#x9032;&#x5236;&#x3002;&#x5982; 11<sub>10</sub> &#x4EE3;&#x8868; 10 &#x9032;&#x5236;&#x7684; 11&#x3002;11<sub>16</sub> &#x4EE3;&#x8868; 16 &#x9032;&#x5236;&#x7684; 11&#x3002;11<sub>2</sub> &#x4EE3;&#x8868; 2 &#x9032;&#x5236;&#x7684; 11&#x3002;</p>
+<p>Forth &#x8F38;&#x51FA;&#x4E8C;&#x9032;&#x5236;&#x6578;&#x5B57;&#x7684;&#x65B9;&#x6CD5;&#x662F;&#x5728;&#x6578;&#x5B57;&#x4E4B;&#x524D;&#x52A0;&#x4E0A; <code>%</code> &#x3002;&#x8F38;&#x5165;&#x5341;&#x516D;&#x9032;&#x5236;&#x7684;&#x65B9;&#x6CD5;&#x662F;&#x5728;&#x6578;&#x5B57;&#x4E4B;&#x524D;&#x52A0;&#x4E0A; <code>$</code>&#x3002;&#x800C;&#x5C07;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x6574;&#x6578;&#x4EE5;&#x5341;&#x516D;&#x9032;&#x5236;&#x5370;&#x51FA;&#x4F86;&#x7684;&#x6307;&#x4EE4;&#x5247;&#x662F; <code>h.</code> &#x3002;&#x5927;&#x591A;&#x6578;&#x7684; Forth &#x7CFB;&#x7D71;&#x672A;&#x63D0;&#x4F9B;&#x4EE5;&#x4E8C;&#x9032;&#x5236;&#x5F62;&#x5F0F;&#x5370;&#x51FA;&#x6574;&#x6578;&#x7684;&#x6307;&#x4EE4;&#x3002;&#x56E0;&#x70BA;&#x4E8C;&#x9032;&#x5236;&#x4E26;&#x4E0D;&#x9069;&#x5408;&#x4EBA;&#x95B1;&#x8B80;&#x3002;</p>
+<p>&#x4F8B;&#x4E00;&#xFF1A;&#x4EE5;&#x5341;&#x516D;&#x9032;&#x5236;&#x986F;&#x793A; 11<sub>10</sub>&#x3002;</p>
+<pre><code>rf&gt; 11 h.
+B  ok
+</code></pre><p>&#x4F8B;&#x4E8C;&#xFF1A;&#x4EE5;&#x5341;&#x9032;&#x5236;&#x986F;&#x793A;&#x5341;&#x516D;&#x9032;&#x5236;&#x7684; 11<sub>16</sub>&#x3002;</p>
+<pre><code>rf&gt; $11 .
+17  ok
+</code></pre><p>&#x4F8B;&#x4E09;&#xFF1A;&#x4EE5;&#x5341;&#x516D;&#x9032;&#x5236;&#x5370;&#x51FA; -1<sub>10</sub> &#x548C; -2<sub>10</sub>&#x3002;</p>
+<pre><code>rf&gt; -1 h.
+FFFFFFFFFFFFFFFF  ok
+rf&gt; -2 h.
+FFFFFFFFFFFFFFFE  ok
+</code></pre><p>&#x5728;&#x6B64;&#x6211;&#x5011;&#x770B;&#x5230;&#x8CA0;&#x6578;&#x5728;&#x96FB;&#x8166;&#x4E2D;&#x662F;&#x5982;&#x4F55;&#x7528; 0 &#x548C; 1 &#x8868;&#x793A;&#x7684;&#x3002;&#x82E5;&#x4ED4;&#x7D30;&#x7B97;&#x7B97;&#xFF0C;&#x6703;&#x767C;&#x73FE; -1<sub>10</sub> &#x7684;&#x5341;&#x516D;&#x9032;&#x5236;&#x986F;&#x793A;&#x4E86; 16 &#x500B; F&#xFF0C;&#x6BCF;&#x500B; F &#x90FD;&#x662F;&#x4E8C;&#x9032;&#x5236;&#x7684; 1111<sub>2</sub>&#x3002;&#x56E0;&#x6B64;&#x7E3D;&#x5171;&#x6709; 64 &#x500B;&#x4E8C;&#x9032;&#x5236;&#x7684; 1 &#xFF0C;&#x9019;&#x662F;&#x56E0;&#x70BA;&#x672C;&#x66F8;&#x4F7F;&#x7528;&#x7684;&#x662F; 64 &#x4F4D;&#x5143;&#x7684;&#x4F5C;&#x696D;&#x7CFB;&#x7D71;&#x3002; &#x5982;&#x679C;&#x4F7F;&#x7528; 32 &#x4F4D;&#x5143;&#x7684;&#x4F5C;&#x696D;&#x7CFB;&#x7D71;&#xFF0C;&#x6211;&#x5011;&#x6703;&#x770B;&#x5230; 8 &#x500B; F &#x3002;</p>
+<h2 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h2>
+<table>
+<thead>
+<tr>
+<th>&#x6307;&#x4EE4;</th>
+<th>&#x5806;&#x758A;&#x6548;&#x679C;&#x53CA;&#x6307;&#x4EE4;&#x8AAA;&#x660E;</th>
+<th>&#x53E3;&#x8A9E;&#x5538;&#x6CD5;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>h.</code></td>
+<td>( n -- ) &#x2003; &#x4EE5;&#x5341;&#x516D;&#x9032;&#x5236;&#x986F;&#x793A;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x6578;&#x5B57;</td>
+<td>h-dot</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="&#x771F;&#x548C;&#x5047;">&#x771F;&#x548C;&#x5047;</h2>
+<p>&#x96FB;&#x8166;&#x4E5F;&#x7528; 0 &#x548C; 1 &#x8868;&#x793A;&#x771F;&#x5047;&#x3002;Forth &#x6307;&#x4EE4; <code>true</code> &#x548C; <code>false</code> &#x5C07;&#x771F;&#x548C;&#x5047;&#x653E;&#x4E0A;&#x8CC7;&#x6599;&#x5806;&#x758A;&#xFF0C;&#x8B93;&#x6211;&#x5011;&#x770B;&#x770B;&#x5B83;&#x5006;&#x7684;&#x5341;&#x516D;&#x9032;&#x5236;&#x8868;&#x793A;&#x6CD5;&#xFF1A;</p>
+<p>&#x4F8B;&#x56DB;&#xFF1A;&#x4EE5;&#x5341;&#x516D;&#x9032;&#x5236;&#x5370;&#x51FA; <code>true</code> &#x548C; <code>false</code> &#x3002;</p>
+<pre><code>rf&gt; true h.
+FFFFFFFFFFFFFFFF  ok
+rf&gt; false h.
+0  ok
+</code></pre><p>&#x6240;&#x4EE5; <code>true</code> &#x662F;&#x6240;&#x6709;&#x4F4D;&#x5143;&#x90FD;&#x662F; 1 &#x7684;&#x6574;&#x6578;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x5341;&#x9032;&#x5236;&#x7684; -1<sub>10</sub>&#x3002; <code>false</code> &#x662F;&#x6240;&#x6709;&#x4F4D;&#x5143;&#x90FD;&#x662F; 0 &#x7684;&#x6574;&#x6578;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x5341;&#x9032;&#x5236;&#x7684; 0<sub>10</sub> &#x3002;</p>
+<p>&#x9019;&#x548C;&#x8A31;&#x591A;&#x8A9E;&#x8A00;&#x4E0D;&#x540C;&#xFF0C;C &#x8A9E;&#x8A00;&#x7684; true &#x662F; 1 &#x3002;Forth &#x4EE5; -1 &#x70BA;&#x771F;&#xFF0C;&#x5728;&#x9032;&#x884C;&#x4F4D;&#x5143;&#x904B;&#x7B97;&#x6642;&#x6709;&#x5176;&#x597D;&#x8655;&#x3002;&#x8ACB;&#x898B;&#x4F4D;&#x5143;&#x904B;&#x7B97;&#x4E00;&#x7BC0;&#x3002;</p>
+<table>
+<thead>
+<tr>
+<th>&#x6307;&#x4EE4;</th>
+<th>&#x5806;&#x758A;&#x6548;&#x679C;&#x53CA;&#x6307;&#x4EE4;&#x8AAA;&#x660E;</th>
+<th>&#x53E3;&#x8A9E;&#x5538;&#x6CD5;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>true</code></td>
+<td>( -- true ) &#x2003; &#x56DE;&#x50B3;&#x4E00;&#x6240;&#x6709;&#x4F4D;&#x5143;&#x90FD;&#x70BA; 1 &#x7684;&#x6574;&#x6578;</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>false</code></td>
+<td>( -- false ) &#x2003; &#x56DE;&#x50B3;&#x4E00;&#x6240;&#x6709;&#x4F4D;&#x5143;&#x90FD;&#x70BA; 0 &#x7684;&#x6574;&#x6578;</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="&#x6574;&#x6578;&#x6BD4;&#x8F03;">&#x6574;&#x6578;&#x6BD4;&#x8F03;</h2>
+<p>Forth &#x6709;&#x8A31;&#x591A;&#x6307;&#x4EE4;&#x7684;&#x7D50;&#x679C;&#x662F;&#x771F;&#x6216;&#x5047;&#x3002;&#x5176;&#x4E2D;&#x5927;&#x5B97;&#x5C31;&#x662F;&#x6BD4;&#x8F03;&#x6307;&#x4EE4;&#x3002;&#x5728;&#x6574;&#x6578;&#x90E8;&#x4EFD;&#xFF0C;Forth &#x63D0;&#x4F9B;&#x4E86;&#x8DDF; 0 &#x6BD4;&#x8F03;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x4EE5;&#x53CA;&#x6BD4;&#x8F03;&#x5169;&#x500B;&#x6574;&#x6578;&#x7684;&#x6307;&#x4EE4;&#x3002;&#x8ACB;&#x53C3;&#x8003;&#x672C;&#x7BC0;&#x7684;&#x6307;&#x4EE4;&#x96C6;&#x4E26;&#x7DF4;&#x7FD2;&#x4EE5;&#x4E0B;&#x4F8B;&#x5B50;&#x3002;</p>
+<p>&#x4F8B;&#x4E94;&#xFF1A;&#x4F7F;&#x7528; <code>0&lt;</code> <code>0=</code> <code>0&gt;</code> <code>0&lt;&gt;</code> &#x6BD4;&#x8F03; -1 &#x3001; 0 &#x3001; 1 &#x548C; 0 &#x7684;&#x95DC;&#x4FC2;&#x3002;</p>
+<pre><code>rf&gt; -1 0&lt; .  0 0= .  1 0&gt; .
+-1 -1 -1  ok
+rf&gt; 0 0&lt;&gt; .
+0  ok
+</code></pre><p>&#x6240;&#x4EE5; -1 &lt; 0&#xFF0C; 0 = 0&#xFF0C; 1 &gt; 0 &#x4E14; 0 &#x4E0D;&#x6703;&#x4E0D;&#x7B49;&#x65BC; 0&#x3002;</p>
+<p>&#x4F8B;&#x516D;&#xFF1A;&#x4F7F;&#x7528; <code>&lt;</code> <code>=</code> <code>&lt;&gt;</code> <code>&gt;</code> &#x6BD4;&#x8F03; 2 &#x3001; 6 &#x3001; 8 &#x548C; 6 &#x4E4B;&#x9593;&#x7684;&#x95DC;&#x4FC2;&#x3002;</p>
+<pre><code>rf&gt; 2 6 &lt; .  6 6 = .  6 6 &lt;&gt; .  8 6 &gt; .
+-1 -1 0 -1  ok
+</code></pre><p>&#x6240;&#x4EE5; 2 &lt; 6&#xFF0C; 6 = 6&#xFF0C; 6 &#x4E0D;&#x6703;&#x4E0D;&#x7B49;&#x65BC; 6&#xFF0C; 8 &#x5927;&#x65BC; 6&#x3002;</p>
+<p>&#x4F8B;&#x4E03;&#xFF1A;<code>within</code> &#x7528;&#x4F86;&#x5224;&#x65B7;&#x4E00;&#x6574;&#x6578; n1 &#x662F;&#x5426;&#x843D;&#x5728;&#x67D0;&#x500B;&#x5340;&#x9593; [n2, n3) &#x3002;&#x8ACB;&#x898B;&#x6307;&#x4EE4;&#x96C6;&#x5C0D; <code>within</code> &#x7684;&#x8AAA;&#x660E;&#x3002;&#x8ACB;&#x554F;&#x4F9D;&#x7167; <code>within</code> &#x7684;&#x5B9A;&#x7FA9;&#xFF0C; 3 &#x662F;&#x5426;&#x843D;&#x5728;  [3, 5) &#x4E4B;&#x9593;&#x3002; 5 &#x662F;&#x5426;&#x843D;&#x5728; [3, 5) &#x4E4B;&#x9593;&#xFF1F;</p>
+<pre><code>rf&gt; 3 3 5 within  .
+-1  ok
+rf&gt; 5 3 5 within  .
+0  ok
+</code></pre><h3 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h3>
+<table>
+<thead>
+<tr>
+<th>&#x6307;&#x4EE4;</th>
+<th>&#x5806;&#x758A;&#x6548;&#x679C;&#x53CA;&#x6307;&#x4EE4;&#x8AAA;&#x660E;</th>
+<th>&#x53E3;&#x8A9E;&#x5538;&#x6CD5;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0&lt;</code></td>
+<td>( n -- flag ) &#x2003; &#x7576; n &lt; 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>zero-less</td>
+</tr>
+<tr>
+<td><code>0=</code></td>
+<td>( n -- flag ) &#x2003; &#x7576; n = 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>zero-equals</td>
+</tr>
+<tr>
+<td><code>0&lt;&gt;</code></td>
+<td>( n -- flag ) &#x2003; &#x7576; n &#x70BA;&#x4E0D; 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>zero-not-equals</td>
+</tr>
+<tr>
+<td><code>0&gt;</code></td>
+<td>( n -- flag ) &#x2003; &#x7576; n &gt; 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>0-greater</td>
+</tr>
+<tr>
+<td><code>&lt;</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 &lt; n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>less-than</td>
+</tr>
+<tr>
+<td><code>=</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 = n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>equals</td>
+</tr>
+<tr>
+<td><code>&gt;</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 &gt; n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>greater-than</td>
+</tr>
+<tr>
+<td><code>&lt;&gt;</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 &#x4E0D;&#x7B49;&#x65BC; n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>not-equals</td>
+</tr>
+<tr>
+<td><code>within</code></td>
+<td>( n1 n2 n3 -- flag ) &#x2003; &#x7576; n1 &#x843D;&#x5728; [n2, n3) &#x4E4B;&#x9593;&#xFF0C; n2 &lt;= n1, n1 &lt; n3 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>within</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="&#x6D6E;&#x9EDE;&#x6578;&#x6BD4;&#x8F03;">&#x6D6E;&#x9EDE;&#x6578;&#x6BD4;&#x8F03;</h2>
+<p>&#x4E0D;&#x719F;&#x6089;&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x4EBA;&#x6700;&#x5BB9;&#x6613;&#x72AF;&#x7684;&#x932F;&#xFF0C;&#x5C31;&#x662F;&#x63A1;&#x7528;&#x932F;&#x8AA4;&#x7684;&#x65B9;&#x5F0F;&#x5224;&#x65B7;&#x6D6E;&#x9EDE;&#x6578;&#x662F;&#x5426;&#x76F8;&#x7B49;&#x3002;&#x672C;&#x7BC0;&#x5148;&#x8AAA;&#x660E;&#x6BD4;&#x8F03;&#x76F8;&#x7B49;&#x6642;&#x53EF;&#x80FD;&#x9047;&#x4E0A;&#x7684;&#x554F;&#x984C;&#x3002;</p>
+<ul>
+<li>&#x6D6E;&#x9EDE;&#x6578;&#x4E0D;&#x662F;&#x5BE6;&#x6578;&#xFF0C;&#x53EA;&#x662F;&#x8FD1;&#x4F3C;&#x5BE6;&#x6578;&#x3002;&#x9019;&#x8FD1;&#x4F3C;&#x6703;&#x6709;&#x8AA4;&#x5DEE;&#x3002;&#x6BD4;&#x5982; 0.15 + 0.15 &#x548C; 0.2 + 0.1 &#x5F9E;&#x5BE6;&#x6578;&#x89C0;&#x9EDE;&#x4F86;&#x770B;&#x90FD;&#x61C9;&#x8A72;&#x5F97;&#x5230; 0.3&#x3002;&#x4F46;&#x662F;&#x4E0D;&#x5E78;&#x7684;&#xFF0C;&#x56E0;&#x70BA;&#x6D6E;&#x9EDE;&#x904B;&#x7B97;&#x7684;&#x8AA4;&#x5DEE;&#x5F88;&#x53EF;&#x80FD;&#x5F97;&#x5230;&#x7684;&#x53EA;&#x662F;&#x4E00;&#x500B;&#x5F88;&#x63A5;&#x8FD1; 0.3 &#x7684;&#x6578;&#x3002;</li>
+<li>&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x7DE8;&#x78BC;&#xFF0C;+0 &#x548C; -0 &#x6709;&#x4E0D;&#x540C;&#x7684;&#x7DE8;&#x78BC;&#x3002;&#x4F46;&#x662F;&#x90FD;&#x662F; 0&#x3002;&#x56E0;&#x6B64;&#x7528;&#x7DE8;&#x78BC;&#x76F8;&#x7B49;&#x7684;&#x65B9;&#x5F0F;&#x5224;&#x65B7;&#x6703;&#x6709; 0 &#x4E0D;&#x7B49;&#x65BC; 0 &#x7684;&#x554F;&#x984C;&#x3002;</li>
+<li>&#x6D6E;&#x9EDE;&#x6578;&#x7684; NaN (Not a Number) &#x53EF;&#x4EE5;&#x7528; 0.0 / 0.0 &#x7522;&#x751F;&#x3002;&#x4F46;&#x4E5F;&#x53EF;&#x4EE5;&#x7528; &#x221E; &#xD7; 0 &#x7522;&#x751F;&#x3002;&#x540C;&#x6A23;&#x662F; NaN&#xFF0C;&#x4F46;&#x4E0D;&#x61C9;&#x8A72;&#x8A8D;&#x70BA;&#x9019;&#x5169;&#x7A2E;&#x65B9;&#x5F0F;&#x7522;&#x751F;&#x7684;&#x6578;&#x5B57;&#x662F;&#x76F8;&#x7B49;&#x7684;&#x3002;</li>
+<li>&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x7DE8;&#x78BC;&#x65B9;&#x5F0F;&#xFF0C;&#x5728; 0.0 &#x7684;&#x9644;&#x8FD1;&#x80FD;&#x8868;&#x9054;&#x7684;&#x6578;&#x5B57;&#x5F88;&#x5BC6;&#xFF0C;&#x9060;&#x96E2; 0.0 &#x7684;&#x5730;&#x65B9;&#x6578;&#x5B57;&#x7A00;&#x758F;&#x3002;&#x56E0;&#x6B64;&#x5C0D;&#x9760;&#x8FD1; 0.0 &#x7684;&#x5730;&#x65B9;&#x53EF;&#x4EE5;&#x9032;&#x884C;&#x8F03;&#x7CBE;&#x5BC6;&#x7684;&#x5224;&#x65B7;&#x3002;&#x9060;&#x96E2; 0.0 &#x7684;&#x5730;&#x65B9;&#x5247;&#x4E0D;&#x884C;&#x3002;</li>
+</ul>
+<p>&#x56E0;&#x6B64; Forth &#x4E26;&#x672A;&#x63D0;&#x4F9B; <code>f=</code> &#x9019;&#x6A23;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x4EE5;&#x514D;&#x8AA4;&#x7528;&#x3002;
+Forth &#x63D0;&#x4F9B;&#x4E86;&#x6307;&#x4EE4; <code>f~</code> &#x7528;&#x4F86;&#x6BD4;&#x8F03;&#x6D6E;&#x9EDE;&#x6578;&#x662F;&#x5426;&#x8FD1;&#x4F3C;&#x3002;&#x5B83;&#x662F;&#x500B;&#x6BD4;&#x8F03;&#x8907;&#x96DC;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x6709;&#x4E09;&#x7A2E;&#x6BD4;&#x8F03;&#x65B9;&#x5F0F;&#x3002;</p>
+<ul>
+<li>&#x7D55;&#x5C0D;&#x4F3C;&#x8FD1;&#xFF0C;&#x7576;&#x5806;&#x758A;&#x70BA; ( r1 r2 r3 ) &#xFF0C;&#x4E14; r3 &gt; 0 &#x6642;&#xFF0C;&#x5224;&#x65B7;&#x662F;&#x5426; |r1-r2| &lt; r3 &#x3002;</li>
+<li>&#x76F8;&#x5C0D;&#x4F3C;&#x8FD1;&#xFF0C;&#x7576;&#x5806;&#x758A;&#x70BA; ( r1 r2 r3 ) &#xFF0C;&#x4E14; r3 &lt; 0 &#x6642;&#xFF0C;&#x5224;&#x65B7;&#x662F;&#x5426; |r1-r2| &lt; |r3*(|r1|+|r2|)|&#x3002;</li>
+<li>&#x7DE8;&#x78BC;&#x76F8;&#x7B49;&#xFF0C;&#x7576;&#x5806;&#x758A;&#x70BA; ( r1 r2 r3 ) &#xFF0C;&#x4E14; r3 = 0 &#x6642;&#xFF0C;&#x5224;&#x65B7;&#x662F;&#x5426; r1 &#x548C; r2 &#x7684;&#x7DE8;&#x78BC;&#x76F8;&#x7B49;&#x3002;&#x8981;&#x6CE8;&#x610F;&#x5C31;&#x7B97;&#x662F;&#x5728;&#x540C;&#x4E00;&#x53F0;&#x96FB;&#x8166;&#x4E0A;&#xFF0C;&#x4E0D;&#x540C;&#x7684; Forth &#x7CFB;&#x7D71;&#x5C0D;&#x65BC;&#x300C;&#x7DE8;&#x78BC;&#x76F8;&#x7B49;&#x300D;&#x7684;&#x89E3;&#x91CB;&#x5F88;&#x53EF;&#x80FD;&#x4E0D;&#x540C;&#x3002;</li>
+</ul>
+<p>&#x4E0D;&#x540C;&#x7684;&#x5224;&#x65B7;&#x65B9;&#x5F0F;&#x6709;&#x4E0D;&#x540C;&#x7684;&#x9069;&#x7528;&#x5834;&#x5408;&#x3002;</p>
+<h3 id="&#x4EE5;-f-&#x6BD4;&#x8F03;&#x7DE8;&#x78BC;&#x76F8;&#x7B49;">&#x4EE5; f~ &#x6BD4;&#x8F03;&#x7DE8;&#x78BC;&#x76F8;&#x7B49;</h3>
+<p>&#x9069;&#x7528;&#x5834;&#x5408;&#xFF1A;&#x7528;&#x65BC;&#x4E8C;&#x5206;&#x903C;&#x9032;&#x6CD5;&#x6700;&#x5F8C;&#x7684;&#x505C;&#x6B62;&#x689D;&#x4EF6;&#x3002;&#x7576;&#x91CD;&#x8986;&#x5F97;&#x5230;&#x540C;&#x4E00;&#x7DE8;&#x78BC;&#x6642;&#x7D42;&#x6B62;&#x8A08;&#x7B97;&#x3002;</p>
+<p>&#x4EE5;&#x4E0B;&#x5E7E;&#x500B;&#x4F8B;&#x5B50;&#xFF0C;&#x6211;&#x5011;&#x5229;&#x7528;&#x6BD4;&#x8F03;&#x7DE8;&#x78BC;&#x76F8;&#x7B49;&#x7684;&#x65B9;&#x5F0F;&#xFF0C;&#x4F86;&#x719F;&#x6089;&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x7279;&#x6027;&#x3002;</p>
+<p>&#x4F8B;&#x516B;&#xFF1A;0.15 + 0.15 &#x548C; 0.2 + 0.1 &#x90FD;&#x6703;&#x5F97;&#x5230; 0.3 &#xFF0C;&#x8ACB;&#x4EE5; <code>f~</code> &#x6AA2;&#x67E5;&#x5176;&#x7DE8;&#x78BC;&#x662F;&#x5426;&#x76F8;&#x7B49;&#x3002;</p>
+<pre><code>rf&gt; 0.15e 0.15e f+  0.2e 0.1e f+  0.0e f~ .
+0  ok
+</code></pre><p>&#x4F7F;&#x7528; Intel 64bit &#x7684; rtForth &#x5F97;&#x5230;&#x7684;&#x7B54;&#x6848;&#x662F;&#x4E0D;&#x76F8;&#x7B49;&#x3002;</p>
+<p>&#x4F8B;&#x4E5D;&#xFF1A; 0.0 / 0.0 &#x6703;&#x5F97;&#x5230; NaN&#xFF0C;&#x4F9D;&#x7167; NaN &#x7684;&#x898F;&#x5247;&#xFF0C;NaN &#x4E0D;&#x7B49;&#x65BC; NaN&#x3002;&#x4F46; NaN &#x7684;&#x7DE8;&#x78BC;&#x61C9;&#x662F;&#x4E00;&#x6A23;&#x7684;&#x3002;&#x4EE5;&#x4E0B;&#x5206;&#x5225;&#x4EE5; rtForth &#x3001; SwiftForth &#x548C; gforth &#x4F7F;&#x7528; <code>f~</code> &#x6E2C;&#x8A66; NaN &#x662F;&#x5426;&#x7B49;&#x65BC; NaN&#x3002;</p>
+<p>&#x4F7F;&#x7528; rtForth</p>
+<pre><code>rf&gt; 0e 0e f/ 0e 0e f/ 0e f~ .
+0  ok
+</code></pre><p>&#x4F7F;&#x7528; gforth</p>
+<pre><code>0e 0e f/ 0e 0e f/ 0e f~ . -1  ok
+</code></pre><p>&#x4F7F;&#x7528; SwiftForth</p>
+<pre><code>0e 0e f/ 0e 0e f/ 0e f~ . 0
+</code></pre><p>&#x53EF;&#x4EE5;&#x770B;&#x51FA;&#x4E0D;&#x540C;&#x7248;&#x672C;&#x7684; Forth &#x5C0D;&#x65BC; Forth 2012 &#x4E2D;&#x300C;&#x7DE8;&#x78BC;&#x61C9;&#x662F;&#x4E00;&#x6A23;&#x7684;&#x300D;&#x6709;&#x4E0D;&#x540C;&#x7684;&#x8A6E;&#x91CB;&#x3002;gforth &#x7B26;&#x5408;&#x6A19;&#x6E96;&#xFF0C;&#x537B;&#x4E0D;&#x7B26;&#x5408; NaN &#x4E0D;&#x7B49;&#x65BC; NaN &#x7684;&#x539F;&#x5247;&#x3002;</p>
+<h3 id="&#x4EE5;-f-&#x5224;&#x65B7;&#x662F;&#x5426;&#x7D55;&#x5C0D;&#x8FD1;&#x4F3C;">&#x4EE5; f~ &#x5224;&#x65B7;&#x662F;&#x5426;&#x7D55;&#x5C0D;&#x8FD1;&#x4F3C;</h3>
+<p>&#x9069;&#x7528;&#x5834;&#x5408;&#xFF1A;&#x7576;&#x5169;&#x500B;&#x6D6E;&#x9EDE;&#x6578;&#x5DEE;&#x7684;&#x7D55;&#x5C0D;&#x503C;&#x5FC5;&#x9808;&#x5C0F;&#x65BC;&#x67D0;&#x56FA;&#x5B9A;&#x503C;&#x6642;&#x3002;&#x6BD4;&#x5982;&#x91CF;&#x6E2C;&#x8A2D;&#x5099;&#x7684;&#x91CF;&#x6E2C;&#x5BB9;&#x8A31;&#x8AA4;&#x5DEE;&#x3002;</p>
+<p>&#x4F8B;&#x5341;&#xFF1A;&#x67D0;&#x91CF;&#x6E2C;&#x5100;&#x5668;&#x6703;&#x9032;&#x884C;&#x4E09;&#x6B21;&#x91CF;&#x6E2C;&#x518D;&#x6C42;&#x5E73;&#x5747;&#x3002;&#x82E5;&#x4E09;&#x6B21;&#x91CF;&#x6E2C;&#x7D50;&#x679C;&#x548C;&#x5E73;&#x5747;&#x503C;&#x8DDD;&#x96E2;&#x5927;&#x65BC; 2.5 &#x5FAE;&#x7C73;&#x5C31;&#x6703;&#x91CD;&#x65B0;&#x91CF;&#x6E2C;&#x3002;&#x7576;&#x4E09;&#x6B21;&#x91CF;&#x6E2C;&#x7D50;&#x679C;&#x5206;&#x5225;&#x662F; 1032 &#x5FAE;&#x7C73; &#x3001; 1035 &#x5FAE;&#x7C73; &#x3001; 1037 &#x5FAE;&#x7C73;&#x6642;&#x662F;&#x5426;&#x8981;&#x91CD;&#x65B0;&#x91CF;&#x6E2C;&#xFF1F;</p>
+<pre><code>rf&gt; 1032e 1035e 1037e f+ f+ 3e f/ f.
+1034.6666667  ok
+rf&gt; 1032e 1034.666e 2.5e f~ .
+0  ok
+rf&gt; 1035e 1034.666e 2.5e f~ .
+-1  ok
+rf&gt; 1037e 1034.666e 2.5e f~ .
+-1  ok
+</code></pre><p>&#x56E0;&#x70BA; 1032 &#x5FAE;&#x7C73;&#x548C;&#x5E73;&#x5747;&#x503C;&#x5DEE;&#x592A;&#x591A;&#xFF0C;&#x6240;&#x4EE5;&#x8981;&#x91CD;&#x65B0;&#x91CF;&#x6E2C;&#x3002;</p>
+<h3 id="&#x4EE5;-f-&#x5224;&#x65B7;&#x662F;&#x5426;&#x76F8;&#x5C0D;&#x8FD1;&#x4F3C;">&#x4EE5; f~ &#x5224;&#x65B7;&#x662F;&#x5426;&#x76F8;&#x5C0D;&#x8FD1;&#x4F3C;</h3>
+<p>&#x9069;&#x7528;&#x5834;&#x5408;&#xFF1A;</p>
+<ul>
+<li>&#x9032;&#x884C;&#x6578;&#x503C;&#x904B;&#x7B97;&#x6642;&#xFF0C;&#x53EF;&#x80FD;&#x56E0;&#x6F14;&#x7B97;&#x6CD5;&#x672A;&#x8003;&#x616E;&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x8AA4;&#x5DEE;&#x800C;&#x5C0E;&#x81F3;&#x904B;&#x7B97;&#x904E;&#x7A0B;&#x4E2D;&#x5931;&#x53BB;&#x592A;&#x591A;&#x7684;&#x7CBE;&#x5EA6;&#x3002;&#x76F8;&#x5C0D;&#x8FD1;&#x4F3C;&#x9069;&#x5408;&#x7528;&#x4F86;&#x5206;&#x6790;&#x9019;&#x985E;&#x60C5;&#x6CC1;&#x3002;</li>
+<li>&#x7576;&#x5728;&#x610F;&#x7684;&#x662F;&#x5169;&#x6D6E;&#x9EDE;&#x6578;&#x5DEE;&#x7684;&#x76F8;&#x5C0D;&#x503C;&#x6642;&#x3002;&#x6BD4;&#x5982;&#x4E00;&#x822C;&#x4EBA;&#x6703;&#x8A8D;&#x70BA; 1.0001 &#x516C;&#x5C3A;&#x548C; 1.0002 &#x516C;&#x5C3A;&#x5DEE;&#x4E0D;&#x591A;&#x3002;&#x4F46;&#x6703;&#x8A8D;&#x70BA; 1.1 &#x516C;&#x91D0;&#x548C;&#x548C; 1.2 &#x516C;&#x91D0;&#x5DEE;&#x5F88;&#x591A;&#x3002;&#x96D6;&#x7136;&#x5169;&#x8005;&#x90FD;&#x53EA;&#x5DEE; 0.1 &#x516C;&#x91D0;&#x3002; </li>
+</ul>
+<p>&#x4F8B;&#x5341;&#x4E00;&#xFF1A;&#x6B63;&#x5207;&#x51FD;&#x5F0F;&#x5728; &#x3C0; / 2 &#x9644;&#x8FD1;&#x8B8A;&#x5316;&#x5F88;&#x5927;&#x3002;&#x4EE5; <code>f~</code> &#x78BA;&#x5B9A; 1.55 &#x548C; 1.56 &#x7684;&#x76F8;&#x5C0D;&#x8FD1;&#x4F3C;&#x5EA6;&#x53EF;&#x9054; 1%&#xFF0C;&#x4F46;&#x662F; tan(1.55) &#x548C; tan(1.56) &#x7684;&#x76F8;&#x5C0D;&#x8FD1;&#x4F3C;&#x5EA6;&#x4E0D;&#x5230; 30%&#xFF0C;&#x843D;&#x5728; 30% &#x548C; 40% &#x4E4B;&#x9593;&#x3002;</p>
+<pre><code>rf&gt; 1.55e  1.56e  -0.01e f~ .
+-1  ok
+rf&gt; 1.55e ftan  1.56e ftan  -0.3e f~ .
+0  ok
+rf&gt; 1.55e ftan  1.56e ftan  -0.4e f~ .
+-1  ok
+</code></pre><p>&#x4F8B;&#x5341;&#x4E8C;&#xFF1A;&#x5224;&#x65B7; 0.0 &#x662F;&#x5426;&#x76F8;&#x5C0D;&#x8FD1;&#x4F3C;&#x65BC; 0.0 &#xFF1F;</p>
+<pre><code>rf&gt; 0e 0e -0.5e f~  .
+0  ok
+</code></pre><p>0.0 &#x4E0D;&#x76F8;&#x5C0D;&#x8FD1;&#x4F3C; 0.0&#x3002;&#x9019;&#x662F;&#x56E0;&#x70BA;&#x76F8;&#x5C0D;&#x5224;&#x65B7;&#x7684;&#x6578;&#x5B78;&#x5F0F;&#x662F; |r1-r2| &lt; |r3*(|r1|+|r2|) &#xFF0C;&#x5C07; 0.0 &#x4EE3;&#x5165; 0.0 &lt; 0.0&#x3002;&#x56E0;&#x6B64;&#x76F8;&#x5C0D;&#x8FD1;&#x4F3C;&#x4E0D;&#x9069;&#x5408;&#x7528;&#x5728;&#x9032;&#x884C;&#x6BD4;&#x8F03;&#x7684;&#x5169;&#x500B;&#x6578;&#x90FD;&#x662F; 0.0 &#x7684;&#x5834;&#x5408;&#x3002;</p>
+<h3 id="&#x5176;&#x4ED6;&#x6D6E;&#x9EDE;&#x6BD4;&#x8F03;&#x6307;&#x4EE4;">&#x5176;&#x4ED6;&#x6D6E;&#x9EDE;&#x6BD4;&#x8F03;&#x6307;&#x4EE4;</h3>
+<p>&#x9664;&#x4E86;&#x5224;&#x65B7;&#x8FD1;&#x4F3C;&#x7684; <code>f~</code>&#xFF0C;Forth &#x9084;&#x53E6;&#x6709; <code>f0=</code> &#x3001; <code>f0&lt;</code> &#x548C; <code>f&lt;</code>&#x3002;</p>
+<p>&#x6307;&#x4EE4; <code>f0=</code> &#x5224;&#x65B7;&#x6D6E;&#x9EDE;&#x6578;&#x662F;&#x5426;&#x70BA; 0.0&#x3002;&#x6307;&#x4EE4; <code>f0&lt;</code> &#x5224;&#x65B7;&#x6D6E;&#x9EDE;&#x6578;&#x662F;&#x5426;&#x5C0F;&#x65BC; 0.0&#x3002;<code>f&lt;</code> &#x5247;&#x5224;&#x65B7;&#x5169;&#x500B;&#x6D6E;&#x9EDE;&#x6578;&#x4E4B;&#x9593;&#x7684;&#x5927;&#x5C0F;&#x95DC;&#x4FC2;&#x3002;</p>
+<p>&#x4F8B;&#x5341;&#x4E09;&#xFF1A;cos(1) &#x662F;&#x5426;&#x5C0F;&#x65BC; 0.0&#xFF1F; sin(0) &#x662F;&#x5426;&#x7B49;&#x65BC; 0.0&#xFF1F;</p>
+<pre><code>rf&gt; 1e fcos f0&lt; .
+0  ok
+rf&gt; 0e fsin f0= .
+-1  ok
+</code></pre><p>&#x6240;&#x4EE5; cos(1) &#x4E0D;&#x5C0F;&#x65BC; 0.0&#xFF0C;&#x4E14; sin(0) = 0.0&#x3002;</p>
+<p>&#x4F8B;&#x5341;&#x56DB;&#xFF1A;cos(1) &#x662F;&#x5426;&#x5C0F;&#x65BC; 0.7&#xFF1F; sin(1) &#x5462;&#xFF1F;</p>
+<pre><code>rf&gt; 1e fcos  0.7e f&lt; .  1e fsin  0.7e f&lt; .
+-1 0  ok
+rf&gt; 1e fcos f.  1e fsin f.
+0.5403023 0.8414710  ok
+</code></pre><h3 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h3>
+<table>
+<thead>
+<tr>
+<th>&#x6307;&#x4EE4;</th>
+<th>&#x5806;&#x758A;&#x6548;&#x679C;&#x53CA;&#x6307;&#x4EE4;&#x8AAA;&#x660E;</th>
+<th>&#x53E3;&#x8A9E;&#x5538;&#x6CD5;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>f0&lt;</code></td>
+<td>( -- flag ) ( F: r -- ) &#x2003; &#x7576;&#x6D6E;&#x9EDE;&#x6578; r &lt; 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>f-zero-less-than</td>
+</tr>
+<tr>
+<td><code>f0=</code></td>
+<td>( -- flag ) ( F: r -- ) &#x2003; &#x7576;&#x6D6E;&#x9EDE;&#x6578; r = 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>f-zero-equals</td>
+</tr>
+<tr>
+<td><code>f&lt;</code></td>
+<td>( -- flag ) ( F: r1 r2 -- ) &#x2003; &#x7576;&#x6D6E;&#x9EDE;&#x6578; r1 &lt; r2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>f-less-than</td>
+</tr>
+<tr>
+<td><code>f~</code></td>
+<td>( -- flag ) ( F: r1 r2 r3 -- ) &#x2003; &#x4F9D;&#x64DA; r3 &#x63D0;&#x4F9B;&#x4E09;&#x7A2E;&#x6BD4;&#x8F03;&#x65B9;&#x5F0F;&#xFF1A;&#x5982;&#x679C; r3 &#x70BA;&#x6B63;&#xFF0C;(r1 - r2) &#x7684;&#x7D55;&#x5C0D;&#x503C;&#x5C0F;&#x65BC; r3 &#x6642;&#x70BA;&#x771F;&#x3002;&#x5982;&#x679C; r3 &#x70BA; 0&#xFF0C;r1 &#x548C; r2 &#x7684;&#x4E8C;&#x9032;&#x4F4D;&#x7DE8;&#x78BC;&#x76F8;&#x540C;&#x6642;&#x70BA;&#x771F;&#x3002;&#x5982;&#x679C; r3 &#x70BA;&#x8CA0;&#xFF0C;(r1 - r2) &#x7684;&#x7D55;&#x5C0D;&#x503C;&#x5C0F;&#x65BC; r3 &#x4E58;&#x4EE5; r1 &#x548C; r2 &#x7684;&#x7D55;&#x5C0D;&#x503C;&#x7684;&#x548C;&#x6642;&#x70BA;&#x771F;</td>
+<td>f-proximate</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="&#x4F4D;&#x5143;&#x904B;&#x7B97;-bitwise-operation">&#x4F4D;&#x5143;&#x904B;&#x7B97; (Bitwise operation)</h2>
+<p>&#x6307;&#x4EE4; <code>true</code> &#x4EE3;&#x8868;&#x771F;&#xFF0C;&#x6703;&#x5F97;&#x5230;&#x4E00;&#x500B;&#x6240;&#x6709;&#x4F4D;&#x5143;&#x90FD;&#x662F; 1 &#x7684;&#x6574;&#x6578;&#x3002;&#x6307;&#x4EE4; <code>false</code> &#x4EE3;&#x8868;&#x5047;&#xFF0C;&#x6703;&#x5F97;&#x5230;&#x4E00;&#x500B;&#x6240;&#x6709;&#x4F4D;&#x5143;&#x90FD;&#x662F; 0 &#x7684;&#x6574;&#x6578;&#x3002;&#x90A3;&#x9EBC;&#xFF0C;&#x4E8C;&#x9032;&#x4F4D;&#x7684; 111<sub>2</sub> &#x662F;&#x771F;&#x9084;&#x662F;&#x5047;&#x5462;&#xFF1F;&#x7B54;&#x6848;&#x883B;&#x7C21;&#x55AE;&#x7684;&#xFF0C;&#x5C31;&#x662F;&#x90E8;&#x4EFD;&#x70BA;&#x771F;&#xFF0C;&#x90E8;&#x4EFD;&#x6709;&#x5047;&#xFF0C;&#x6709; 3 &#x500B;&#x70BA;&#x771F;&#xFF0C;&#x5176;&#x4ED6;&#x7684;&#x90FD;&#x662F;&#x5047;&#x3002;&#x6240;&#x4EE5;&#x66F4;&#x7CBE;&#x78BA;&#x7684;&#x8AAA;&#xFF0C;&#x6307;&#x4EE4; <code>true</code> &#x4EE3;&#x8868;&#x5168;&#x70BA;&#x771F;&#xFF0C;&#x6307;&#x4EE4; <code>false</code> &#x4EE3;&#x8868;&#x5168;&#x70BA;&#x5047;&#x3002;</p>
+<p>&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x7528;&#x4E8C;&#x9032;&#x5236;&#x6578;&#x5B57;&#x4E0D;&#x540C;&#x7684;&#x4F4D;&#x5143;&#x4F86;&#x4EE3;&#x8868;&#x4E0D;&#x540C;&#x4E8B;&#x7269;&#x7684;&#x771F;&#x5047;&#x3002;&#x6BD4;&#x5982;&#xFF0C;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x6700;&#x53F3;&#x908A;&#x7684;&#x4F4D;&#x5143;&#x4EE3;&#x8868;&#x51B7;&#x6C23;&#x662F;&#x5426;&#x6253;&#x958B;&#xFF0C;&#x7528;&#x5B83;&#x5DE6;&#x908A;&#x7684;&#x4F4D;&#x5143;&#x4EE3;&#x8868;&#x96FB;&#x98A8;&#x6247;&#x662F;&#x5426;&#x6253;&#x958B;&#x3002;&#x65BC;&#x662F;&#xFF0C;&#x4E8C;&#x9032;&#x5236;&#x7684; 11<sub>2</sub> &#x4EE3;&#x8868;&#x51B7;&#x6C23;&#x548C;&#x96FB;&#x98A8;&#x6247;&#x90FD;&#x958B;&#x8457;&#x3002;10<sub>2</sub> &#x5247;&#x4EE3;&#x8868;&#x51B7;&#x6C23;&#x95DC;&#x8457;&#xFF0C;&#x4F46;&#x96FB;&#x98A8;&#x6247;&#x958B;&#x8457;&#x3002;</p>
+<p>&#x8CE6;&#x8207;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x610F;&#x7FA9;&#x5F8C;&#xFF0C;&#x53EF;&#x4EE5;&#x5C0D;&#x9019;&#x4E9B;&#x4F4D;&#x5143;&#x9032;&#x884C;&#x904B;&#x7B97;&#x3002;Forth &#x63D0;&#x4F9B;&#x4E86; <code>invert</code> &#x3001; <code>and</code> &#x3001; <code>or</code> &#x3001; <code>xor</code> &#x3001; <code>lshift</code> &#x3001; <code>rshift</code> &#x9019;&#x5E7E;&#x500B;&#x4F4D;&#x5143;&#x904B;&#x7B97;&#x6307;&#x4EE4;&#x3002;&#x4EE5;&#x4E0B;&#x5C0F;&#x7BC0;&#x4F9D;&#x5E38;&#x7528;&#x7684;&#x60C5;&#x5883;&#x8AAA;&#x660E;&#x9019;&#x4E9B;&#x6307;&#x4EE4;&#x3002;</p>
+<h3 id="&#x4EE5;-invert-&#x5426;&#x5B9A;">&#x4EE5; INVERT &#x5426;&#x5B9A;</h3>
+<p>&#x6307;&#x4EE4; <code>invert</code> &#x5C0D;&#x5806;&#x758A;&#x4E0A;&#x6574;&#x6578;&#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x500B;&#x5225;&#x7684;&#x9032;&#x884C;&#x4EE5;&#x4E0B;&#x904B;&#x7B97;&#xFF1A;</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">&#x4F4D;&#x5143;</th>
+<th style="text-align:right">&#x7D50;&#x679C;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+</tr>
+</tbody>
+</table>
+<p>&#x4E5F;&#x5C31;&#x662F;&#x5C07;&#x771F;&#x8B8A;&#x6210;&#x5047;&#xFF0C;&#x5047;&#x8B8A;&#x6210;&#x771F;&#x3002;</p>
+<p>&#x4F8B;&#x5341;&#x4E94;&#xFF1A;Forth 2012 &#x7684;&#x6A19;&#x6E96;&#x53EA;&#x63D0;&#x4F9B;&#x4E86; <code>&lt;</code> &#x3001; <code>&gt;</code> &#x3001; <code>&lt;&gt;</code> &#x53CA; <code>=</code> &#x56DB;&#x500B;&#x6574;&#x6578;&#x6BD4;&#x5927;&#x5C0F;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x4E26;&#x672A;&#x63D0;&#x4F9B; <code>&lt;=</code> &#x548C; <code>&gt;=</code>&#x3002;&#x8ACB;&#x4EE5; <code>invert</code> &#x8A08;&#x7B97;&#x300C; 3 &#x5927;&#x65BC;&#x6216;&#x7B49;&#x65BC; 2 &#x300D;&#x7684;&#x771F;&#x5047;</p>
+<pre><code>rf&gt; 3 2 &lt; invert  .
+-1  ok
+</code></pre><p>&#x56E0;&#x70BA;&#x300C;&#x5927;&#x65BC;&#x6216;&#x7B49;&#x65BC;&#x300D;&#x5C31;&#x662F;&#x300C;&#x4E0D;&#x5C0F;&#x65BC;&#x300D;&#xFF0C;&#x6240;&#x4EE5;&#x53EF;&#x4EE5;&#x4F7F;&#x7528; <code>&lt; invert</code> &#x4F86;&#x4EE3;&#x66FF; <code>&gt;=</code>&#x3002;&#x540C;&#x6A23;&#xFF0C;&#x4E5F;&#x53EF;&#x4EE5;&#x7528; <code>&gt; invert</code> &#x4F86;&#x4EE3;&#x66FF; <code>&lt;=</code> &#x3002;&#x5927;&#x591A;&#x6578;&#x7684; Forth &#x7CFB;&#x7D71;&#x90FD;&#x6703;&#x63D0;&#x4F9B; <code>&lt;=</code> &#x548C; <code>&gt;=</code> &#x6307;&#x4EE4;&#x3002;&#x540C;&#x6A23;&#x7684;&#xFF0C;&#x5927;&#x591A;&#x6578;&#x7684; Forth &#x7CFB;&#x7D71;&#x4E5F;&#x6703;&#x63D0;&#x4F9B; Forth 2012 &#x6A19;&#x6E96;&#x4E2D;&#x6C92;&#x6709;&#x7684; <code>f&gt;</code> &#xFF0C;&#x56E0;&#x6B64;&#x7A0B;&#x5F0F;&#x54E1;&#x4E0D;&#x5FC5;&#x4EE5; <code>f&lt; invert</code> &#x4F86;&#x66FF;&#x4EE3;&#x3002;</p>
+<p>&#x7531;&#x65BC; <code>invert</code> &#x662F;&#x5C0D;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x9032;&#x884C;&#x5426;&#x5B9A;&#xFF0C;&#x5982;&#x679C;&#x6211;&#x5011;&#x60F3;&#x8981;&#x7684;&#x662F;&#x300C;&#x53EA;&#x8981;&#x6709;&#x4E00;&#x500B;&#x4F4D;&#x5143;&#x70BA;&#x771F;&#xFF0C;&#x7D50;&#x679C;&#x5C31;&#x662F;&#x5047;&#x300D;&#x7684;&#x9019;&#x4E00;&#x7A2E;&#x5426;&#x5B9A;&#x6642;&#xFF0C;&#x4E0D;&#x9069;&#x5408;&#x4F7F;&#x7528; <code>invert</code>&#xFF0C;&#x6B64;&#x6642;&#x53EF;&#x4EE5;&#x4F7F;&#x7528; <code>0=</code>&#x3002;rtForth &#x63D0;&#x4F9B;&#x7684;&#x975E;&#x6A19;&#x6E96;&#x6307;&#x4EE4; <code>not</code> &#x662F; <code>0=</code> &#x7684;&#x540C;&#x7FA9;&#x5B57;&#xFF0C;</p>
+<p>&#x4F8B;&#x5341;&#x516D;&#xFF1A;&#x57F7;&#x884C; <code>1 invert h.</code> &#x3001; <code>1 0= h.</code> &#x548C; <code>1 not h.</code> &#x4EE5;&#x77AD;&#x89E3;&#x5B83;&#x5011;&#x7684;&#x7570;&#x540C;&#x3002;</p>
+<pre><code>rf&gt; 1 invert h.  1 0= h.  1 not h.
+FFFFFFFFFFFFFFFE 0 0  ok
+</code></pre><h3 id="&#x4EE5;-and-&#x5224;&#x65B7;">&#x4EE5; AND &#x5224;&#x65B7;</h3>
+<p>Forth &#x7A0B;&#x5F0F;&#x5E38;&#x7528;&#x8A08;&#x7B97;&#x4F86;&#x4EE3;&#x66FF;&#x908F;&#x8F2F;&#x5224;&#x65B7;&#xFF0C;&#x50CF;&#x662F;&#x300C;&#x5982;&#x679C;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x6574;&#x6578;&#x70BA; true &#x5C31; n&#xFF0C;&#x5426;&#x5247; 0&#x300D;&#x9019;&#x6A23;&#x7684;&#x53E5;&#x5B50;&#xFF0C;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x4F4D;&#x5143;&#x904B;&#x7B97;&#x6307;&#x4EE4; <code>and</code> &#x8A08;&#x7B97;&#x51FA;&#x4F86;&#x3002;</p>
+<p>&#x6307;&#x4EE4; <code>and</code> &#x5C0D;&#x5806;&#x758A;&#x4E0A;&#x5169;&#x500B;&#x6574;&#x6578;&#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x500B;&#x5225;&#x7684;&#x9032;&#x884C;&#x4EE5;&#x4E0B;&#x904B;&#x7B97;&#xFF1A;</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">&#x4F4D;&#x5143; 1</th>
+<th style="text-align:right">&#x4F4D;&#x5143; 2</th>
+<th style="text-align:right">&#x7D50;&#x679C;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+</tr>
+</tbody>
+</table>
+<p>&#x4E5F;&#x5C31;&#x662F;&#x8AAA;&#xFF0C;&#x53EA;&#x8981;&#x6709;&#x4E00;&#x500B;&#x4F4D;&#x5143;&#x70BA; 0&#xFF0C;&#x7D50;&#x679C;&#x4F4D;&#x5143;&#x5C31;&#x662F; 0&#x3002;</p>
+<p>&#x4F8B;&#x5341;&#x4E03;&#xFF1A;&#x860B;&#x679C;&#x8CB7;&#x8D85;&#x904E; 5 &#x9846;&#xFF0C;&#x5C31;&#x6BCF;&#x9846;&#x4FBF;&#x5B9C; 3 &#x5143;&#x3002;&#x73FE;&#x5728;&#x8CB7;&#x4E86; 10 &#x9846;&#xFF0C;&#x8ACB;&#x554F;&#x4FBF;&#x5B9C;&#x591A;&#x5C11;&#x9322;&#xFF1F;</p>
+<pre><code>rf&gt; 10 5 &gt;  3 and  10 *  .
+30  ok
+</code></pre><p>&#x4F8B;&#x5B50;&#x4E2D; <code>10 5 &gt;</code> &#x5224;&#x65B7;&#x662F;&#x5426;&#x591A;&#x65BC; 5 &#x9846;&#xFF0C;&#x5982;&#x679C;&#x662F;&#x5C31;&#x6703;&#x56DE;&#x50B3;&#x5168;&#x771F;&#x3002;&#x5168;&#x771F;&#x548C; 3 &#x9032;&#x884C; AND &#x904B;&#x7B97;&#xFF0C;&#x6703;&#x5F97;&#x5230; 3&#x3002;&#x4E4B;&#x5F8C;&#x7684; <code>10 *</code> &#x5C07;&#x6BCF;&#x9846;&#x4FBF;&#x5B9C; 3 &#x5143;&#x4E58;&#x65BC; 10 &#x9846;&#xFF0C;&#x5F97;&#x5230;&#x7E3D;&#x5171;&#x4FBF;&#x5B9C; 30 &#x5143;&#x3002;</p>
+<p>&#x4F8B;&#x5341;&#x516B;&#xFF1A;&#x627F;&#x4E0A;&#x4F8B;&#xFF0C;&#x8ACB;&#x554F;&#x8CB7;&#x4E86; 4 &#x9846;&#x4FBF;&#x5B9C;&#x591A;&#x5C11;&#x9322;&#xFF1F;</p>
+<pre><code>rf&gt; 4 5 &gt;  3 and  4 *  .
+0  ok
+</code></pre><p>&#x4F5C;&#x6CD5;&#x548C;&#x4E0A;&#x4F8B;&#x985E;&#x4F3C;&#xFF0C;&#x4F46;&#x662F;&#x56E0;&#x70BA; <code>4 5 &gt;</code> &#x5F97;&#x5230;&#x7684;&#x662F;&#x5168;&#x5047;&#xFF0C;&#x6240;&#x4EE5;&#x4FBF;&#x5B9C; 0 &#x5143;&#x3002;</p>
+<p>&#x4E4B;&#x6240;&#x4EE5;&#x80FD;&#x7528; and &#x4F86;&#x8A08;&#x7B97;&#x300C;&#x5982;&#x679C;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x6574;&#x6578;&#x70BA; true &#x5C31; n&#xFF0C;&#x5426;&#x5247; 0&#x300D;&#x9019;&#x6A23;&#x7684;&#x554F;&#x984C;&#xFF0C;&#x5C31;&#x662F;&#x56E0;&#x70BA; Forth &#x7684; <code>true</code> &#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x90FD;&#x662F; 1 &#xFF0C;&#x548C; n &#x9032;&#x884C; AND &#x904B;&#x7B97;&#x6703;&#x5F97;&#x5230; n&#x3002;&#x800C; <code>false</code> &#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x90FD;&#x662F; 0&#xFF0C;&#x548C; n &#x9032;&#x884C; AND &#x904B;&#x7B97;&#x6703;&#x5F97;&#x5230; 0&#x3002;</p>
+<p>&#x4F8B;&#x5341;&#x4E5D;&#xFF1A;&#x6EAB;&#x5EA6;&#x5927;&#x65BC; 25 &#x5EA6;&#xFF0C;&#x8981;&#x6253;&#x958B;&#x51B7;&#x6C23;&#x6A5F;&#x3002;&#x4EE5;&#x6574;&#x6578;&#x6700;&#x53F3;&#x908A;&#x7684;&#x4F4D;&#x5143;&#x4EE3;&#x8868;&#x51B7;&#x6C23;&#x6A5F;&#x3002;&#x8ACB;&#x4EE5; Forth &#x7684;&#x908F;&#x8F2F;&#x904B;&#x7B97;&#x8A08;&#x7B97; 26 &#x5EA6;&#x6642;&#x662F;&#x5426;&#x8981;&#x958B;&#x51B7;&#x6C23;&#x3002;</p>
+<pre><code>rf&gt; 25e 26e f&lt;  1 and . 
+1  ok
+</code></pre><p>&#x4EE5;&#x4E0A;&#x6307;&#x4EE4;&#x4E2D;&#x7684; <code>25e 26e f&lt;</code> &#x5224;&#x65B7; 26 &#x5EA6;&#x662F;&#x5426;&#x9AD8;&#x65BC; 25 &#x5EA6;&#x3002;&#x6703;&#x5728;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x4E0A;&#x7559;&#x4E0B;&#x4E00;&#x500B;&#x5168;&#x771F;&#x6216;&#x5168;&#x5047;&#x7684;&#x6574;&#x6578;&#x3002;&#x4E4B;&#x5F8C;&#x7684; <code>1</code> &#x662F;&#x5341;&#x9032;&#x5236;&#x7684; 1<sub>10</sub>&#xFF0C;&#x525B;&#x597D;&#x4E5F;&#x7B49;&#x65BC;&#x4E8C;&#x9032;&#x5236;&#x7684; 1<sub>2</sub>&#xFF0C;&#x662F;&#x4EE3;&#x8868;&#x51B7;&#x6C23;&#x6A5F;&#x7684;&#x4F4D;&#x5143;&#x7684;&#x4F4D;&#x7F6E;&#x3002;&#x4E4B;&#x5F8C;&#x7684; <code>and</code> &#x5C0D;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x5169;&#x500B;&#x6574;&#x6578;&#x9032;&#x884C;&#x4F4D;&#x5143;&#x904B;&#x7B97;&#x3002;&#x6700;&#x5F8C;&#x5370;&#x51FA;&#x7684;&#x7D50;&#x679C;&#x662F; 1 &#xFF0C;&#x4EE3;&#x8868;&#x51B7;&#x6C23;&#x6A5F;&#x8981;&#x6253;&#x958B;&#x3002;</p>
+<pre><code>      1111111111111111111111111111111111111111111111111111111111111111  &#x6EAB;&#x5EA6;&#x5927;&#x65BC; 25 &#x5EA6;
+and   0000000000000000000000000000000000000000000000000000000000000001  &#x51B7;&#x6C23;&#x6A5F;
+-------------------------------------------------------------------------------------
+      0000000000000000000000000000000000000000000000000000000000000001  &#x8981;&#x958B;&#x51B7;&#x6C23;&#x6A5F;
+</code></pre><p>&#x56E0;&#x70BA; Forth &#x7684;&#x6BD4;&#x8F03;&#x6307;&#x4EE4;&#x56DE;&#x50B3;&#x7684;&#x662F;&#x6240;&#x6709;&#x4F4D;&#x5143;&#x5168;&#x70BA;&#x771F;&#x6216;&#x5168;&#x70BA;&#x5047;&#x7684; <code>true</code> &#x548C; <code>false</code>&#xFF0C;&#x6307;&#x4EE4; <code>and</code> &#x4E5F;&#x53EF;&#x4EE5;&#x4E0D;&#x7528;&#x5728;&#x4F4D;&#x5143;&#x904B;&#x7B97;&#xFF0C;&#x800C;&#x7528;&#x908F;&#x8F2F;&#x904B;&#x7B97;&#x7684;&#x5834;&#x5408;&#xFF0C;&#x7528;&#x4F86;&#x6AA2;&#x67E5;&#x5169;&#x500B;&#x6BD4;&#x8F03;&#x7684;&#x7D50;&#x679C;&#x662F;&#x5426;&#x90FD;&#x662F; &apos;true&apos;&#x3002;</p>
+<p>&#x4F8B;&#x4E8C;&#x5341;&#xFF1A;&#x4EE5; <code>and</code> &#x9A57;&#x8B49; 6 &#x5927;&#x65BC; 5 &#x4E14; 6 &#x5C0F;&#x65BC; 7 &#x3002;</p>
+<pre><code>rf&gt; 6 5 &gt;  6 7 &lt;  and .
+-1  ok
+</code></pre><p>&#x4F8B;&#x4E8C;&#x5341;&#x4E00;&#xFF1A;&#x4EE5; <code>and</code> &#x9A57;&#x8B49; 6 &#x5927;&#x65BC; 5 &#x4E14; 6 &#x5C0F;&#x65BC; 3 &#x4E2D;&#x81F3;&#x5C11;&#x6709;&#x4E00;&#x9805;&#x4E0D;&#x6210;&#x7ACB;&#x3002;</p>
+<pre><code>rf&gt; 6 5 &gt;  6 3 &lt;  and .
+0  ok
+</code></pre><h3 id="&#x4EE5;-or-&#x5408;&#x4F75;">&#x4EE5; OR &#x5408;&#x4F75;</h3>
+<p>&#x6307;&#x4EE4; <code>or</code> &#x5C0D;&#x5806;&#x758A;&#x4E0A;&#x5169;&#x500B;&#x6574;&#x6578;&#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x500B;&#x5225;&#x7684;&#x9032;&#x884C;&#x4EE5;&#x4E0B;&#x904B;&#x7B97;&#xFF1A;</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">&#x4F4D;&#x5143; 1</th>
+<th style="text-align:right">&#x4F4D;&#x5143; 2</th>
+<th style="text-align:right">&#x7D50;&#x679C;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+</tr>
+</tbody>
+</table>
+<p>&#x56E0;&#x6B64;&#x53EA;&#x8981;&#x6709;&#x4E00;&#x500B;&#x4F4D;&#x5143;&#x70BA; 1&#xFF0C;&#x7D50;&#x679C;&#x5C31;&#x6703;&#x5F97;&#x5230; 1&#x3002;<code>or</code> &#x7684;&#x9019;&#x500B;&#x7279;&#x6027;&#x53EF;&#x4EE5;&#x7528;&#x4F86;&#x5408;&#x4F75;&#x6578;&#x500B;&#x7528; AND &#x5224;&#x65B7;&#x5F97;&#x5230;&#x7684;&#x4F4D;&#x5143;&#x3002;</p>
+<p>&#x4F8B;&#x4E8C;&#x5341;&#x4E8C;&#xFF1A;&#x6709;&#x67D0;&#x500B;&#x8ABF;&#x6C34;&#x6EAB;&#x7684;&#x8A2D;&#x5099;&#xFF0C;&#x7576;&#x6EAB;&#x5EA6;&#x6BD4;&#x76EE;&#x6A19;&#x6EAB;&#x5EA6;&#x4F4E; 3 &#x5EA6;&#x6642;&#x8981;&#x958B;&#x71B1;&#x6C34;&#xFF0C;&#x95DC;&#x51B7;&#x6C34;&#x3002;&#x6BD4;&#x76EE;&#x6A19;&#x6EAB;&#x5EA6;&#x9AD8; 3 &#x5EA6;&#x6642;&#x8981;&#x958B;&#x51B7;&#x6C34;&#xFF0C;&#x95DC;&#x71B1;&#x6C34;&#xFF0C;&#x5426;&#x5247;&#x71B1;&#x6C34;&#x51B7;&#x6C34;&#x90FD;&#x8981;&#x958B;&#x3002;</p>
+<table>
+<thead>
+<tr>
+<th>&#x76EE;&#x524D;&#x6EAB;&#x5EA6;</th>
+<th>&#x71B1;&#x6C34;</th>
+<th>&#x51B7;&#x6C34;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&#x6BD4;&#x76EE;&#x6A19;&#x6EAB;&#x5EA6;&#x4F4E; 3 &#x5EA6;&#x4EE5;&#x4E0A;</td>
+<td>&#x958B;</td>
+<td>&#x95DC;</td>
+</tr>
+<tr>
+<td>&#x5728;&#x76EE;&#x6A19;&#x6EAB;&#x5EA6;&#x7684;&#x6B63;&#x8CA0; 3 &#x5EA6;&#x5167;</td>
+<td>&#x958B;</td>
+<td>&#x958B;</td>
+</tr>
+<tr>
+<td>&#x6BD4;&#x76EE;&#x6A19;&#x6EAB;&#x5EA6;&#x9AD8; 3 &#x5EA6;&#x4EE5;&#x4E0A;</td>
+<td>&#x95DC;</td>
+<td>&#x958B;</td>
+</tr>
+</tbody>
+</table>
+<p>&#x5C07;&#x4EE5;&#x4E0A;&#x8868;&#x683C;&#x62C6;&#x6210;&#x5169;&#x5F35;&#x8868;&#x4E26;&#x5206;&#x5225;&#x7C21;&#x5316;&#x3002;</p>
+<p>&#x71B1;&#x6C34;&#x7684;&#x771F;&#x503C;&#x8868;</p>
+<table>
+<thead>
+<tr>
+<th>&#x6BD4;&#x76EE;&#x6A19;&#x6EAB;&#x5EA6;&#x9AD8; 3 &#x5EA6;&#x4EE5;&#x4E0A;</th>
+<th>&#x71B1;&#x6C34;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&#x5047;</td>
+<td>&#x958B;</td>
+</tr>
+<tr>
+<td>&#x771F;</td>
+<td>&#x95DC;</td>
+</tr>
+</tbody>
+</table>
+<p>&#x51B7;&#x6C34;&#x7684;&#x771F;&#x503C;&#x8868;</p>
+<table>
+<thead>
+<tr>
+<th>&#x6BD4;&#x76EE;&#x6A19;&#x6EAB;&#x5EA6;&#x4F4E; 3 &#x5EA6;&#x4EE5;&#x4E0A;</th>
+<th>&#x51B7;&#x6C34;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&#x5047;</td>
+<td>&#x958B;</td>
+</tr>
+<tr>
+<td>&#x771F;</td>
+<td>&#x95DC;</td>
+</tr>
+</tbody>
+</table>
+<p>&#x5982;&#x679C;&#x6211;&#x5011;&#x4F7F;&#x7528;&#x6574;&#x6578;&#x6700;&#x53F3;&#x65B9;&#x7684;&#x4F4D;&#x5143;&#x4EE3;&#x8868;&#x71B1;&#x6C34;&#xFF0C;&#x5728;&#x5176;&#x5DE6;&#x65B9;&#x7684;&#x4F4D;&#x5143;&#x4EE3;&#x8868;&#x51B7;&#x6C34;&#xFF0C;&#x4E26;&#x4EE5; 1 &#x4EE3;&#x8868;&#x958B;&#xFF0C; 0 &#x4EE3;&#x8868;&#x95DC;&#xFF0C;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x5206;&#x5225;&#x7528;&#x4EE5;&#x4E0A;&#x5169;&#x5F35;&#x771F;&#x503C;&#x8868;&#x5206;&#x5225;&#x8A08;&#x7B97;&#x9019;&#x5169;&#x500B;&#x4F4D;&#x5143;&#x7684;&#x503C;&#xFF0C;&#x518D;&#x4EE5;&#x6307;&#x4EE4; <code>or</code> &#x5408;&#x4F75;&#x3002;</p>
+<p>&#x5047;&#x8A2D;&#x76EE;&#x6A19;&#x6EAB;&#x5EA6;&#x662F; 30 &#x5EA6;&#x3002;&#x76EE;&#x524D;&#x6EAB;&#x5EA6;&#x662F; 28 &#x5EA6;&#xFF0C;&#x4F7F;&#x7528; Forth &#x6307;&#x4EE4;&#x8A08;&#x7B97;&#x5982;&#x4E0B;&#xFF1A;</p>
+<pre><code>rf&gt; 28  30 3 +  &gt; invert  1 and  .
+1  ok
+rf&gt; 28  30 3 -  &lt; invert  2 and  .
+2  ok
+rf&gt; 1 2 or  .
+3  ok
+</code></pre><p>&#x7B2C;&#x4E00;&#x884C;&#x8A08;&#x7B97;&#x71B1;&#x6C34;&#x662F;&#x5426;&#x8981;&#x958B;&#xFF0C;&#x7D50;&#x679C;&#x8981;&#x958B;&#x3002;&#x7B2C;&#x4E8C;&#x884C;&#x8A08;&#x7B97;&#x51B7;&#x6C34;&#x662F;&#x5426;&#x8981;&#x958B;&#xFF0C;&#x540C;&#x6A23;&#x8981;&#x958B;&#x3002;&#x7B2C;&#x4E09;&#x884C;&#x5408;&#x4F75;&#x4E86;&#x7B2C;&#x4E00;&#x3001;&#x7B2C;&#x4E8C;&#x884C;&#x7684;&#x7D50;&#x679C;&#xFF0C;&#x5F97;&#x5230;&#x5169;&#x8005;&#x90FD;&#x8981;&#x958B;&#x3002;&#x4F7F;&#x7528; invert &#x6307;&#x4EE4;&#x7684;&#x539F;&#x56E0;&#x662F;&#xFF0C;&#x7576;&#x5224;&#x65B7;&#x5F0F;&#x70BA;&#x771F;&#x6642;&#x8981;&#x95DC;&#xFF0C;&#x70BA;&#x5047;&#x6642;&#x8981;&#x958B;&#xFF0C;&#x6240;&#x4EE5;&#x7528; invert &#x5426;&#x5B9A;&#x3002;</p>
+<p>&#x56E0;&#x70BA; Forth &#x7684;&#x6BD4;&#x8F03;&#x6307;&#x4EE4;&#x56DE;&#x50B3;&#x7684;&#x662F;&#x6240;&#x6709;&#x4F4D;&#x5143;&#x5168;&#x70BA;&#x771F;&#x6216;&#x5168;&#x70BA;&#x5047;&#x7684; <code>true</code> &#x548C; <code>false</code>&#xFF0C;&#x6307;&#x4EE4; <code>or</code> &#x4E5F;&#x53EF;&#x4EE5;&#x4E0D;&#x7528;&#x5728;&#x4F4D;&#x5143;&#x904B;&#x7B97;&#xFF0C;&#x800C;&#x7528;&#x908F;&#x8F2F;&#x904B;&#x7B97;&#x7684;&#x5834;&#x5408;&#xFF0C;&#x7528;&#x4F86;&#x6AA2;&#x67E5;&#x5169;&#x500B;&#x6BD4;&#x8F03;&#x7684;&#x7D50;&#x679C;&#x4E2D;&#x662F;&#x5426;&#x6709;&#x4E00;&#x500B;&#x70BA; &apos;true&apos;&#x3002;</p>
+<p>&#x4F8B;&#x4E8C;&#x5341;&#x4E09;&#xFF1A;&#x5224;&#x65B7; 6 &#x5927;&#x65BC; 5 &#x548C; 6 &#x5C0F;&#x65BC; 3 &#x4E2D;&#x81F3;&#x5C11;&#x6709;&#x4E00;&#x9805;&#x6210;&#x7ACB;&#x3002;</p>
+<pre><code>rf&gt; 6 5 &gt;  6 3 &lt;  or .
+-1  ok
+</code></pre><p>&#x4F8B;&#x4E8C;&#x5341;&#x56DB;&#xFF1A;&#x5224;&#x65B7; 6 &#x5927;&#x65BC; 7 &#x548C; 6 &#x5C0F;&#x65BC; 3 &#x4E2D;&#x90FD;&#x4E0D;&#x6210;&#x7ACB;&#x3002;</p>
+<pre><code>rf&gt; 6 7 &gt;  6 3 &lt;  or .
+0  ok
+</code></pre><h3 id="&#x4EE5;-xor-&#x5075;&#x6E2C;&#x72C0;&#x614B;&#x6539;&#x8B8A;">&#x4EE5; XOR &#x5075;&#x6E2C;&#x72C0;&#x614B;&#x6539;&#x8B8A;</h3>
+<p>&#x5728;&#x4E4B;&#x524D;&#x51B7;&#x6C34;&#x71B1;&#x6C34;&#x7684;&#x4F8B;&#x5B50;&#x4E2D;&#xFF0C;&#x5982;&#x679C;&#x6211;&#x5011;&#x60F3;&#x77E5;&#x9053;&#x51B7;&#x6C34;&#x71B1;&#x6C34;&#x7684;&#x958B;&#x95DC;&#x662F;&#x5426;&#x6709;&#x8B8A;&#x5316;&#xFF0C;&#x53EF;&#x4EE5;&#x4F7F;&#x7528; <code>xor</code> &#x6307;&#x4EE4;&#x3002;</p>
+<p>&#x6307;&#x4EE4; <code>xor</code> &#x5C0D;&#x5806;&#x758A;&#x4E0A;&#x5169;&#x500B;&#x6574;&#x6578;&#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x500B;&#x5225;&#x7684;&#x9032;&#x884C;&#x4EE5;&#x4E0B;&#x904B;&#x7B97;&#xFF1A;</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">&#x4F4D;&#x5143; 1</th>
+<th style="text-align:right">&#x4F4D;&#x5143; 2</th>
+<th style="text-align:right">&#x7D50;&#x679C;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">0</td>
+</tr>
+<tr>
+<td style="text-align:right">0</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+</tr>
+</tbody>
+</table>
+<p>&#x6307;&#x4EE4; <code>xor</code> &#x53EA;&#x5728;&#x53C3;&#x8207;&#x904B;&#x7B97;&#x7684;&#x5169;&#x500B;&#x4F4D;&#x5143;&#x4E0D;&#x540C;&#x6642;&#x70BA; 1&#xFF0C;&#x5426;&#x5247;&#x70BA; 0&#x3002;&#x9019;&#x500B;&#x7279;&#x6027;&#x53EF;&#x4EE5;&#x7528;&#x4F86;&#x5075;&#x6E2C;&#x54EA;&#x500B;&#x4F4D;&#x5143;&#x6539;&#x8B8A;&#x4E86;&#x3002; </p>
+<p>&#x4F8B;&#x4E8C;&#x5341;&#x4E94;&#xFF1A;&#x627F;&#x4E4B;&#x524D;&#x51B7;&#x6C34;&#x548C;&#x71B1;&#x6C34;&#x7684;&#x4F8B;&#x5B50;&#xFF0C;&#x539F;&#x672C;&#x958B;&#x95DC;&#x7684;&#x72C0;&#x614B;&#x662F;&#x4E8C;&#x9032;&#x5236;&#x7684; 11<sub>2</sub>&#xFF0C;&#x51B7;&#x6C34;&#x548C;&#x71B1;&#x6C34;&#x90FD;&#x958B;&#x8457; &#x3002;&#x5F8C;&#x4F86;&#x8B8A;&#x6210; 10<sub>2</sub>&#xFF0C;&#x8ACB;&#x898B;&#x4E0B;&#x5716;&#xFF0C;</p>
+<pre><code>      11   &#x820A;&#x7684;&#x72C0;&#x614B;
+xor   10   &#x65B0;&#x7684;&#x72C0;&#x614B;
+-------------------
+      01   &#x6539;&#x8B8A;&#x4E86;&#x7684;&#x72C0;&#x614B;
+</code></pre><p>&#x8ACB;&#x4EE5;&#x4E8C;&#x9032;&#x5236;&#x8F38;&#x5165; 11<sub>2</sub> &#x53CA; 10<sub>2</sub> &#xFF0C;&#x4EE5; <code>xor</code> &#x6C42;&#x51FA;&#x6709;&#x8B8A;&#x5316;&#x7684;&#x90E8;&#x4EFD;&#x5F8C;&#xFF0C;&#x4EE5;&#x5341;&#x516D;&#x9032;&#x4F4D;&#x5370;&#x51FA;&#xFF0C;&#x5224;&#x65B7;&#x6539;&#x8B8A;&#x7684;&#x662F;&#x51B7;&#x6C34;&#x9084;&#x662F;&#x71B1;&#x6C34;&#x3002;</p>
+<pre><code>rf&gt; %11 %10 xor  h.
+1  ok
+</code></pre><p>&#x56E0;&#x70BA;&#x5341;&#x516D;&#x9032;&#x5236;&#x7684; 1<sub>16</sub> &#x5C31;&#x662F;&#x4E8C;&#x9032;&#x5236;&#x7684; 01<sub>2</sub>&#xFF0C;&#x6240;&#x4EE5;&#x8B8A;&#x5316;&#x7684;&#x90E8;&#x4EFD;&#x662F;&#x71B1;&#x6C34;&#x3002;</p>
+<p>XOR &#x904B;&#x7B97;&#x88AB;&#x5EE3;&#x6CDB;&#x7528;&#x65BC;&#x932F;&#x8AA4;&#x5075;&#x6E2C;&#x3001;&#x985E;&#x795E;&#x7D93;&#x7DB2;&#x8DEF;&#x53CA;&#x5BC6;&#x78BC;&#x5B78;&#x4E2D;&#x3002;&#x672C;&#x66F8;&#x9032;&#x968E;&#x8AB2;&#x984C; <a href="modbus.md">Modbus RTU</a> &#x4E2D;&#x4F7F;&#x7528; XOR &#x8A08;&#x7B97;&#x5FAA;&#x74B0;&#x5197;&#x9918;&#x78BC; (CRC)&#x3002;&#x6709;&#x8208;&#x8DA3;&#x53EF;&#x4EE5;&#x53C3;&#x8003;&#x3002;</p>
+<h3 id="&#x4EE5;-lshift-&#x548C;-or-&#x7DE8;&#x78BC;">&#x4EE5; LSHIFT &#x548C; OR &#x7DE8;&#x78BC;</h3>
+<p>&#x672C;&#x7BC0;&#x53C3;&#x8003;&#x4E86;</p>
+<ul>
+<li>W3school &#x7684; <a href="https://www.w3schools.com/colors/default.asp" target="_blank">Colors Tutorial</a></li>
+</ul>
+<p>&#x6574;&#x6578;&#x4E0D;&#x53EA;&#x53EF;&#x4EE5;&#x8868;&#x793A;&#x6578;&#x5B57;&#xFF0C;&#x8868;&#x793A;&#x771F;&#x5047;&#xFF0C;&#x4E5F;&#x53EF;&#x4EE5;&#x8868;&#x793A;&#x5176;&#x4ED6;&#x8CC7;&#x8A0A;&#x3002;&#x7528;&#x6574;&#x6578;&#x8868;&#x793A;&#x9019;&#x4E9B;&#x975E;&#x6574;&#x6578;&#x4EE5;&#x5916;&#x8CC7;&#x8A0A;&#x7684;&#x65B9;&#x6CD5;&#x7A31;&#x70BA;&#x7DE8;&#x78BC; (encoding)&#x3002;</p>
+<p>&#x77E5;&#x9053;&#x7DE8;&#x78BC;&#x7684;&#x65B9;&#x5F0F;&#x6642;&#xFF0C;&#x53EF;&#x4EE5;&#x4F7F;&#x7528; Forth &#x7684;&#x4F4D;&#x5143;&#x904B;&#x7B97;&#x6307;&#x4EE4; <code>lshift</code> &#x4EE5;&#x53CA; <code>or</code> &#x4F86;&#x7522;&#x751F;&#x7DE8;&#x78BC;&#x3002;</p>
+<p>&#x8209;&#x4F8B;&#x4F86;&#x8AAA;&#xFF0C;&#x8A2D;&#x8A08;&#x7DB2;&#x9801;&#x5E38;&#x4F7F;&#x7528;&#x7684;&#x5C64;&#x758A;&#x6A23;&#x5F0F;&#x8868; (CSS) &#x4F7F;&#x7528; 16 &#x9032;&#x5236;&#x6578;&#x503C; RRGGBB &#x4F86;&#x8868;&#x793A;&#x984F;&#x8272;&#x3002;&#x5176;&#x4E2D; RR &#x662F;&#x5169;&#x4F4D;&#x6578;&#x7684; 16 &#x9032;&#x5236;&#x6578;&#x5B57;&#xFF0C;&#x4EE3;&#x8868;&#x7D05;&#x8272;&#x7684;&#x6210;&#x4EFD;&#xFF0C;GG &#x548C; BB &#x540C;&#x6A23;&#x662F;&#x5169;&#x4F4D;&#x6578;&#x7684; 16 &#x9032;&#x5236;&#x6578;&#x5B57;&#xFF0C;&#x5206;&#x5225;&#x4EE3;&#x8868;&#x7DA0;&#x8272;&#x548C;&#x85CD;&#x8272;&#x7684;&#x6210;&#x4EFD;&#x3002;&#x7531;&#x65BC;&#x5169;&#x4F4D;&#x6578;&#x7684; 16 &#x9032;&#x5236;&#x6578;&#x503C;&#x53EF;&#x4EE5;&#x5F9E; 00<sub>16</sub> &#x5230; FF<sub>16</sub> &#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x5341;&#x9032;&#x5236;&#x7684; 0<sub>10</sub> &#x5230; 255<sub>10</sub>&#x3002;&#x56E0;&#x6B64;&#x7D05;&#x3001;&#x7DA0;&#x3001;&#x85CD;&#x5404;&#x6709; 256<sub>10</sub> &#x7A2E;&#x8B8A;&#x5316;&#x3002;&#x9019;&#x7A2E;&#x7DE8;&#x78BC;&#x53EF;&#x4EE5;&#x8868;&#x9054; 256 &#xD7; 256 &#xD7; 256 &#x7B49;&#x65BC; 16,777,216 &#x7A2E;&#x984F;&#x8272;&#x3002;</p>
+<p>&#x4F8B;&#x4E8C;&#x5341;&#x516D;&#xFF1A;&#x5DF2;&#x77E5;&#x984F;&#x8272;&#x70BA;&#x7D14;&#x7D05;&#xFF0C;&#x4E5F;&#x5C31;&#x662F; 255<sub>10</sub>&#xFF0C;&#x8ACB;&#x8A08;&#x7B97;&#x5176;&#x7DE8;&#x78BC;&#x3002;</p>
+<pre><code>rf&gt; 255 16 lshift  h.
+FF0000  ok
+</code></pre><p>&#x4E0A;&#x4F8B;&#x4E2D;&#x7684; lshift &#x662F;&#x4F4D;&#x5143;&#x5DE6;&#x79FB;&#x6307;&#x4EE4;&#xFF0C;&#x5C07; 255<sub>10</sub> &#x5F80;&#x5DE6;&#x79FB;&#x4E86; 16 &#x500B;&#x4F4D;&#x5143;&#x5230;&#x7D05;&#x8272;&#x7684;&#x4F4D;&#x7F6E;&#x3002;&#x5982;&#x4E0B;&#x5716;&#xFF1A;</p>
+<pre><code>     0000 0000 0000 0000 1111 1111  &#x5341;&#x9032;&#x5236;&#x7684; 255
+     1111 1111 0000 0000 0000 0000  &#x5DE6;&#x79FB; 16 &#x4F4D;&#x5143;
+        F    F    0    0    0    0  &#x7D14;&#x7D05;
+</code></pre><p>&#x4F8B;&#x4E8C;&#x5341;&#x4E03;&#xFF1A;&#x5DF2;&#x77E5;&#x984F;&#x8272;&#x7684;&#x7DA0;&#x8272;&#x6210;&#x4EFD;&#x70BA;&#x5341;&#x516D;&#x9032;&#x5236;&#x7684; 78<sub>16</sub>&#xFF0C;&#x85CD;&#x8272;&#x6210;&#x4EFD;&#x70BA;&#x5341;&#x516D;&#x9032;&#x5236;&#x7684; F0<sub>16</sub>&#xFF0C;&#x6C42;&#x984F;&#x8272;&#x7DE8;&#x78BC;&#x3002;</p>
+<pre><code>rf&gt; $78 8 lshift  $f0 or  h.
+78F0  ok
+</code></pre><p>&#x984F;&#x8272;&#x7684;&#x7DE8;&#x78BC;&#x70BA; 0078F0<sub>16</sub>&#x3002;&#x56E0;&#x70BA;&#x7DA0;&#x8272;&#x7684;&#x90E8;&#x4EFD;&#x5728;&#x6574;&#x6578;&#x7B2C; 8 &#x4F4D;&#x5143;&#x5230;&#x7B2C; 15 &#x4F4D;&#x5143;&#x8655;&#xFF0C;&#x6240;&#x4EE5;&#x4F7F;&#x7528; lshift &#x5C07;&#x7DA0;&#x8272;&#x6210;&#x4EFD;&#x5DE6;&#x79FB; 8 &#x4F4D;&#x5143;&#x5F8C;&#x548C;&#x85CD;&#x8272;&#x7684;&#x6210;&#x4EFD;&#x5408;&#x4F75;&#x3002;&#x5982;&#x4E0B;&#x5716;&#x3002;</p>
+<pre><code>     00 00 78  &#x7DA0;&#x8272;&#x6210;&#x4EFD;
+     00 78 00  &#x4EE5; lshift &#x5DE6;&#x79FB; 8 &#x4F4D;&#x5143;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x5169;&#x4F4D;&#x5341;&#x516D;&#x9032;&#x5236;&#x6578;&#x5B57;
+     00 00 f0  &#x85CD;&#x8272;&#x6210;&#x4EFD;
+     00 78 f0  &#x4EE5; or &#x5408;&#x4F75;
+</code></pre><p>&#x5728;&#x8655;&#x7406;&#x5DE5;&#x696D;&#x81EA;&#x52D5;&#x5316;&#x7684;&#x554F;&#x984C;&#x6642;&#x5E38;&#x5C07;&#x76F8;&#x95DC;&#x7684;&#x8CC7;&#x6599;&#x7DE8;&#x78BC;&#x3002;&#x672C;&#x66F8;&#x9032;&#x968E;&#x8AB2;&#x984C; <a href="modbus.md">Modbus RTU</a> &#x9664;&#x4E86;&#x8A0E;&#x8AD6; Modbus &#x7DE8;&#x78BC;&#x5916;&#xFF0C;&#x70BA;&#x4E86;&#x65B9;&#x4FBF;&#x8655;&#x7406;&#x5F9E;&#x7AD9;&#x7684; IO&#xFF0C;&#x4E5F;&#x8A2D;&#x8A08;&#x4E86;&#x5F9E;&#x7AD9; IO &#x9EDE;&#x7684;&#x7DE8;&#x78BC;&#x3002;&#x6709;&#x8208;&#x8DA3;&#x53EF;&#x4EE5;&#x53C3;&#x8003;&#x3002;</p>
+<h3 id="&#x4EE5;-rshift-&#x548C;-and-&#x89E3;&#x78BC;">&#x4EE5; RSHIFT &#x548C; AND &#x89E3;&#x78BC;</h3>
+<p>&#x6709;&#x4E86;&#x7DE8;&#x78BC;&#xFF0C;&#x5C31;&#x9700;&#x8981;&#x89E3;&#x78BC;&#x3002;&#x524D;&#x4E00;&#x7BC0;&#x6211;&#x5011;&#x4F7F;&#x7528;&#x4E86;&#x6307;&#x4EE4; <code>lshift</code> &#x548C; <code>or</code> &#x5C0D;&#x984F;&#x8272;&#x7DE8;&#x78BC;&#xFF0C;&#x9019;&#x4E00;&#x7BC0;&#x5247;&#x4F7F;&#x7528; <code>rshift</code> &#x548C; <code>and</code> &#x5C0D;&#x984F;&#x8272;&#x9032;&#x884C;&#x89E3;&#x78BC;&#x3002;</p>
+<p>&#x4F8B;&#x4E8C;&#x5341;&#x516B;&#xFF1A;&#x8ACB;&#x554F;&#x984F;&#x8272; 5601520<sub>10</sub> &#x7684;&#x7D05;&#x8272;&#x3001;&#x7DA0;&#x8272;&#x3001;&#x85CD;&#x8272;&#x6210;&#x4EFD;&#x5404;&#x591A;&#x5C11;&#xFF1F;</p>
+<pre><code>rf&gt; 5601520 $ff0000 and  16 rshift  .
+85  ok
+rf&gt; 5601520 $00ff00 and  8 rshift  .
+120  ok
+rf&gt; 5601520 $0000ff and  .
+240  ok
+</code></pre><p>&#x5728;&#x4E0A;&#x4F8B;&#x4E2D;&#xFF0C;&#x6211;&#x5011;&#x5148;&#x4EE5; <code>$ff0000 and</code> &#x79FB;&#x9664;&#x8272;&#x78BC;&#x4E2D;&#x7DA0;&#x8272;&#x548C;&#x85CD;&#x8272;&#x7684;&#x90E8;&#x4EFD;&#xFF0C;&#x53EA;&#x4FDD;&#x7559;&#x7D05;&#x8272;&#x7684;&#x90E8;&#x4EFD;&#xFF0C;&#x518D;&#x5C07;&#x7D50;&#x679C;&#x5F80;&#x53F3;&#x79FB; 16 &#x4F4D;&#x5143;&#xFF0C;&#x5F97;&#x5230;&#x7D05;&#x8272;&#x7684;&#x6210;&#x4EFD;&#x70BA;&#x5341;&#x9032;&#x5236;&#x7684; 85<sub>10</sub>&#x3002;&#x518D;&#x7528; <code>$00ff00 and</code> &#x53D6;&#x5F97;&#x7DA0;&#x8272;&#x7684;&#x90E8;&#x4EFD;&#xFF0C;&#x5F80;&#x53F3;&#x79FB; 8 &#x4F4D;&#x5143;&#x5F97;&#x5230;&#x7DA0;&#x8272;&#x6210;&#x4EFD; 120<sub>10</sub> &#x3002;</p>
+<p>&#x9019;&#x5152;&#x7684; <code>$ff0000</code> &#x548C; <code>$00ff00</code> &#x88AB;&#x7A31;&#x70BA;&#x906E;&#x7F69; (mask) &#xFF0C;&#x7528;&#x4F86;&#x906E;&#x4F4F;&#x6211;&#x5011;&#x4E0D;&#x60F3;&#x8981;&#x7684;&#x4F4D;&#x5143;&#xFF0C;&#x53EA;&#x4FDD;&#x7559;&#x60F3;&#x8981;&#x7684;&#xFF0C;&#x9019;&#x662F;&#x4E00;&#x500B;&#x4E4B;&#x524D;&#x672A;&#x63D0;&#x53CA;&#x7684;&#xFF0C;&#x4F7F;&#x7528; <code>and</code> &#x7684;&#x6280;&#x5DE7;&#x3002;</p>
+<h3 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h3>
+<table>
+<thead>
+<tr>
+<th>&#x6307;&#x4EE4;</th>
+<th>&#x5806;&#x758A;&#x6548;&#x679C;&#x53CA;&#x6307;&#x4EE4;&#x8AAA;&#x660E;</th>
+<th>&#x53E3;&#x8A9E;&#x5538;&#x6CD5;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>invert</code></td>
+<td>( n1 -- n2 ) &#x2003; &#x5C07; n1 &#x7684;&#x6BCF;&#x500B;&#x70BA; 0 &#x7684;&#x4F4D;&#x5143;&#x90FD;&#x8B8A;&#x6210; 1&#xFF0C;&#x70BA; 1 &#x7684;&#x8B8A;&#x6210; 0</td>
+<td>invert</td>
+</tr>
+<tr>
+<td><code>not</code></td>
+<td>( n -- flag ) &#x2003; &#x7576; n = 0 &#x6642; flag &#x70BA;&#x771F;&#xFF0C;&#x70BA; <code>0=</code> &#x7684;&#x540C;&#x7FA9;&#x5B57;</td>
+<td>not</td>
+</tr>
+<tr>
+<td><code>&lt;=</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 &lt;= n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>less-or-equals</td>
+</tr>
+<tr>
+<td><code>&gt;=</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 &gt;= n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>greater-or-equals</td>
+</tr>
+<tr>
+<td><code>f&gt;</code></td>
+<td>( -- flag ) ( F: r1 r2 -- ) &#x2003; &#x7576;&#x6D6E;&#x9EDE;&#x6578; r1 &gt; r2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>f-greater-then</td>
+</tr>
+<tr>
+<td><code>and</code></td>
+<td>( n1 n2 -- n3 ) &#x2003; n3 &#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x90FD;&#x662F;&#x5C07; n1 &#x53CA; n2 &#x4E2D;&#x5C0D;&#x61C9;&#x7684;&#x4F4D;&#x5143;&#x9032;&#x884C; AND &#x904B;&#x7B97;&#x7684;&#x7D50;&#x679C;</td>
+<td>and</td>
+</tr>
+<tr>
+<td><code>or</code></td>
+<td>( n1 n2 -- n3 ) &#x2003; n3 &#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x90FD;&#x662F;&#x5C07; n1 &#x53CA; n2 &#x4E2D;&#x5C0D;&#x61C9;&#x7684;&#x4F4D;&#x5143;&#x9032;&#x884C; OR &#x904B;&#x7B97;&#x7684;&#x7D50;&#x679C;</td>
+<td>or</td>
+</tr>
+<tr>
+<td><code>xor</code></td>
+<td>( n1 n2 -- n3 ) &#x2003; n3 &#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x90FD;&#x662F;&#x5C07; n1 &#x53CA; n2 &#x4E2D;&#x5C0D;&#x61C9;&#x7684;&#x4F4D;&#x5143;&#x9032;&#x884C; XOR &#x904B;&#x7B97;&#x7684;&#x7D50;&#x679C;</td>
+<td>xor</td>
+</tr>
+<tr>
+<td><code>lshift</code></td>
+<td>( n1 n2 -- n3 ) &#x2003; &#x5C07; n1 &#x5DE6;&#x79FB; n2 &#x500B;&#x4F4D;&#x5143;&#x3002;&#x53F3;&#x65B9;&#x88DC;&#x4E0A;&#x4F4D;&#x5143; 0&#x3002;&#x5982;&#x679C; n2 &#x5927;&#x65BC;&#x6216;&#x7B49;&#x65BC;&#x7CFB;&#x7D71;&#x7684;&#x4F4D;&#x5143;&#x9577;&#x5EA6;&#xFF0C;&#x4E0D;&#x540C;&#x7684; Forth &#x7CFB;&#x7D71;&#x6703;&#x6709;&#x4E0D;&#x540C;&#x7684;&#x7B54;&#x6848;</td>
+<td>l-shift</td>
+</tr>
+<tr>
+<td><code>rshift</code></td>
+<td>( n1 n2 -- n3 ) &#x2003;  &#x5C07; n1 &#x53F3;&#x79FB; n2 &#x500B;&#x4F4D;&#x5143;&#x3002;&#x5DE6;&#x65B9;&#x88DC;&#x4E0A;&#x4F4D;&#x5143; 0&#x3002;&#x5982;&#x679C; n2 &#x5927;&#x65BC;&#x6216;&#x7B49;&#x65BC;&#x7CFB;&#x7D71;&#x7684;&#x4F4D;&#x5143;&#x9577;&#x5EA6;&#xFF0C;&#x4E0D;&#x540C;&#x7684; Forth &#x7CFB;&#x7D71;&#x6703;&#x6709;&#x4E0D;&#x540C;&#x7684;&#x7B54;&#x6848;</td>
+<td>r-shift</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="&#x672C;&#x7AE0;&#x91CD;&#x9EDE;&#x6574;&#x7406;">&#x672C;&#x7AE0;&#x91CD;&#x9EDE;&#x6574;&#x7406;</h2>
+<ul>
+<li>&#x4E8C;&#x9032;&#x5236;</li>
+<li>&#x5341;&#x9032;&#x5236;</li>
+<li>&#x5341;&#x516D;&#x9032;&#x5236;</li>
+<li>&#x771F;&#x5047;&#x503C;</li>
+<li>&#x771F;&#x503C;&#x8868;</li>
+<li>&#x908F;&#x8F2F;&#x904B;&#x7B97;</li>
+<li>&#x6BD4;&#x8F03;&#x904B;&#x7B97;</li>
+<li>&#x4F4D;&#x5143;&#x904B;&#x7B97;</li>
+<li>&#x7DE8;&#x78BC;</li>
+<li>&#x89E3;&#x78BC;</li>
+<li>&#x906E;&#x7F69; (mask)</li>
+</ul>
+<hr>
+<h2 id="&#x672C;&#x7AE0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7AE0;&#x6307;&#x4EE4;&#x96C6;</h2>
+<table>
+<thead>
+<tr>
+<th>&#x6307;&#x4EE4;</th>
+<th>&#x5806;&#x758A;&#x6548;&#x679C;&#x53CA;&#x6307;&#x4EE4;&#x8AAA;&#x660E;</th>
+<th>&#x53E3;&#x8A9E;&#x5538;&#x6CD5;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>h.</code></td>
+<td>( n -- ) &#x2003; &#x4EE5;&#x5341;&#x516D;&#x9032;&#x5236;&#x986F;&#x793A;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x6578;&#x5B57;</td>
+<td>h-dot</td>
+</tr>
+<tr>
+<td><code>true</code></td>
+<td>( -- true ) &#x2003; &#x56DE;&#x50B3;&#x4E00;&#x6240;&#x6709;&#x4F4D;&#x5143;&#x90FD;&#x70BA; 1 &#x7684;&#x6574;&#x6578;</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>false</code></td>
+<td>( -- false ) &#x2003; &#x56DE;&#x50B3;&#x4E00;&#x6240;&#x6709;&#x4F4D;&#x5143;&#x90FD;&#x70BA; 0 &#x7684;&#x6574;&#x6578;</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>0&lt;</code></td>
+<td>( n -- flag ) &#x2003; &#x7576; n &lt; 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>zero-less</td>
+</tr>
+<tr>
+<td><code>0=</code></td>
+<td>( n -- flag ) &#x2003; &#x7576; n = 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>zero-equals</td>
+</tr>
+<tr>
+<td><code>0&lt;&gt;</code></td>
+<td>( n -- flag ) &#x2003; &#x7576; n &#x70BA;&#x4E0D; 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>zero-not-equals</td>
+</tr>
+<tr>
+<td><code>0&gt;</code></td>
+<td>( n -- flag ) &#x2003; &#x7576; n &gt; 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>0-greater</td>
+</tr>
+<tr>
+<td><code>&lt;</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 &lt; n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>less-than</td>
+</tr>
+<tr>
+<td><code>=</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 = n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>equals</td>
+</tr>
+<tr>
+<td><code>&gt;</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 &gt; n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>greater-than</td>
+</tr>
+<tr>
+<td><code>&lt;=</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 &lt;= n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>less-or-equals</td>
+</tr>
+<tr>
+<td><code>&gt;=</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 &gt;= n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>greater-or-equals</td>
+</tr>
+<tr>
+<td><code>&lt;&gt;</code></td>
+<td>( n1 n2 -- flag ) &#x2003; &#x7576; n1 &#x4E0D;&#x7B49;&#x65BC; n2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>not-equals</td>
+</tr>
+<tr>
+<td><code>within</code></td>
+<td>( n1 n2 n3 -- flag ) &#x2003; &#x7576; n1 &#x843D;&#x5728; [n2, n3) &#x4E4B;&#x9593;&#xFF0C; n2 &lt;= n1, n1 &lt; n3 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>within</td>
+</tr>
+<tr>
+<td><code>f0&lt;</code></td>
+<td>( -- flag ) ( F: r -- ) &#x2003; &#x7576;&#x6D6E;&#x9EDE;&#x6578; r &lt; 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>f-zero-less-than</td>
+</tr>
+<tr>
+<td><code>f0=</code></td>
+<td>( -- flag ) ( F: r -- ) &#x2003; &#x7576;&#x6D6E;&#x9EDE;&#x6578; r = 0 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>f-zero-equals</td>
+</tr>
+<tr>
+<td><code>f&lt;</code></td>
+<td>( -- flag ) ( F: r1 r2 -- ) &#x2003; &#x7576;&#x6D6E;&#x9EDE;&#x6578; r1 &lt; r2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>f-less-than</td>
+</tr>
+<tr>
+<td><code>f&gt;</code></td>
+<td>( -- flag ) ( F: r1 r2 -- ) &#x2003; &#x7576;&#x6D6E;&#x9EDE;&#x6578; r1 &gt; r2 &#x6642; flag &#x70BA;&#x771F;</td>
+<td>f-greater-then</td>
+</tr>
+<tr>
+<td><code>f~</code></td>
+<td>( -- flag ) ( F: r1 r2 r3 -- ) &#x2003; &#x4F9D;&#x64DA; r3 &#x63D0;&#x4F9B;&#x4E09;&#x7A2E;&#x6BD4;&#x8F03;&#x65B9;&#x5F0F;&#xFF1A;&#x5982;&#x679C; r3 &#x70BA;&#x6B63;&#xFF0C;(r1 - r2) &#x7684;&#x7D55;&#x5C0D;&#x503C;&#x5C0F;&#x65BC; r3 &#x6642;&#x70BA;&#x771F;&#x3002;&#x5982;&#x679C; r3 &#x70BA; 0&#xFF0C;r1 &#x548C; r2 &#x7684;&#x4E8C;&#x9032;&#x4F4D;&#x7DE8;&#x78BC;&#x76F8;&#x540C;&#x6642;&#x70BA;&#x771F;&#x3002;&#x5982;&#x679C; r3 &#x70BA;&#x8CA0;&#xFF0C;(r1 - r2) &#x7684;&#x7D55;&#x5C0D;&#x503C;&#x5C0F;&#x65BC; r3 &#x4E58;&#x4EE5; r1 &#x548C; r2 &#x7684;&#x7D55;&#x5C0D;&#x503C;&#x7684;&#x548C;&#x6642;&#x70BA;&#x771F;</td>
+<td>f-proximate</td>
+</tr>
+<tr>
+<td><code>invert</code></td>
+<td>( n1 -- n2 ) &#x2003; &#x5C07; n1 &#x7684;&#x6BCF;&#x500B;&#x70BA; 0 &#x7684;&#x4F4D;&#x5143;&#x90FD;&#x8B8A;&#x6210; 1&#xFF0C;&#x70BA; 1 &#x7684;&#x8B8A;&#x6210; 0</td>
+<td>invert</td>
+</tr>
+<tr>
+<td><code>not</code></td>
+<td>( n -- flag ) &#x2003; &#x7576; n = 0 &#x6642; flag &#x70BA;&#x771F;&#xFF0C;&#x70BA; <code>0=</code> &#x7684;&#x540C;&#x7FA9;&#x5B57;</td>
+<td>not</td>
+</tr>
+<tr>
+<td><code>and</code></td>
+<td>( n1 n2 -- n3 ) &#x2003; n3 &#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x90FD;&#x662F;&#x5C07; n1 &#x53CA; n2 &#x4E2D;&#x5C0D;&#x61C9;&#x7684;&#x4F4D;&#x5143;&#x9032;&#x884C; AND &#x904B;&#x7B97;&#x7684;&#x7D50;&#x679C;</td>
+<td>and</td>
+</tr>
+<tr>
+<td><code>or</code></td>
+<td>( n1 n2 -- n3 ) &#x2003; n3 &#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x90FD;&#x662F;&#x5C07; n1 &#x53CA; n2 &#x4E2D;&#x5C0D;&#x61C9;&#x7684;&#x4F4D;&#x5143;&#x9032;&#x884C; OR &#x904B;&#x7B97;&#x7684;&#x7D50;&#x679C;</td>
+<td>or</td>
+</tr>
+<tr>
+<td><code>xor</code></td>
+<td>( n1 n2 -- n3 ) &#x2003; n3 &#x7684;&#x6BCF;&#x500B;&#x4F4D;&#x5143;&#x90FD;&#x662F;&#x5C07; n1 &#x53CA; n2 &#x4E2D;&#x5C0D;&#x61C9;&#x7684;&#x4F4D;&#x5143;&#x9032;&#x884C; XOR &#x904B;&#x7B97;&#x7684;&#x7D50;&#x679C;</td>
+<td>xor</td>
+</tr>
+<tr>
+<td><code>lshift</code></td>
+<td>( n1 n2 -- n3 ) &#x2003; &#x5C07; n1 &#x5DE6;&#x79FB; n2 &#x500B;&#x4F4D;&#x5143;&#x3002;&#x53F3;&#x65B9;&#x88DC;&#x4E0A;&#x4F4D;&#x5143; 0&#x3002;&#x5982;&#x679C; n2 &#x5927;&#x65BC;&#x6216;&#x7B49;&#x65BC;&#x7CFB;&#x7D71;&#x7684;&#x4F4D;&#x5143;&#x9577;&#x5EA6;&#xFF0C;&#x4E0D;&#x540C;&#x7684; Forth &#x7CFB;&#x7D71;&#x6703;&#x6709;&#x4E0D;&#x540C;&#x7684;&#x7B54;&#x6848;</td>
+<td>l-shift</td>
+</tr>
+<tr>
+<td><code>rshift</code></td>
+<td>( n1 n2 -- n3 ) &#x2003;  &#x5C07; n1 &#x53F3;&#x79FB; n2 &#x500B;&#x4F4D;&#x5143;&#x3002;&#x5DE6;&#x65B9;&#x88DC;&#x4E0A;&#x4F4D;&#x5143; 0&#x3002;&#x5982;&#x679C; n2 &#x5927;&#x65BC;&#x6216;&#x7B49;&#x65BC;&#x7CFB;&#x7D71;&#x7684;&#x4F4D;&#x5143;&#x9577;&#x5EA6;&#xFF0C;&#x4E0D;&#x540C;&#x7684; Forth &#x7CFB;&#x7D71;&#x6703;&#x6709;&#x4E0D;&#x540C;&#x7684;&#x7B54;&#x6848;</td>
+<td>r-shift</td>
+</tr>
+</tbody>
+</table>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class='search-results-count'></span> results matching "<span class='search-query'></span>"</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching "<span class='search-query'></span>"</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="float.html" class="navigation navigation-prev " aria-label="Previous page: 浮點運算">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+                <a href="colon.html" class="navigation navigation-next " aria-label="Next page: 自己定義運算指令">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"比較及邏輯運算","level":"1.3.3","depth":2,"next":{"title":"自己定義運算指令","level":"1.3.4","depth":2,"path":"colon.md","ref":"colon.md","articles":[]},"previous":{"title":"浮點運算","level":"1.3.2","depth":2,"path":"float.md","ref":"float.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":[],"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"logic.md","mtime":"2018-10-09T09:21:53.596Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2018-10-09T09:57:49.684Z"},"basePath":".","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    <script src="gitbook/gitbook.js"></script>
+    <script src="gitbook/theme.js"></script>
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-sharing/buttons.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    </body>
+</html>
+

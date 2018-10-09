@@ -7,9 +7,19 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 其次，rt 也代表了 Rust，。Rust 是 Mozilla 公司為了開發下一代安全且高性能的瀏覽器而設計的程式語言，具有安全 (Safety)、速度 (Speed)、并發 (Concurrency) 特性。目前已被國際大型軟體公司，包括 Docker、Facebook、Google 用於內部的關鍵技術中。其特性不僅適合用來開發安全、高性能的瀏覽器、伺服器，也適合用於軸控系統。
 
 ---------
+## 本書目的
+
+本書主要作為動程科技對內對外教育訓練的教材。
+
+---------
 ## 本書內容
 
-「rtForth 入門」透過例子展示 Foth 語言的語法和概念。前半部的 Forth 指令是 [FORTH 標準](https://forth-standard.org/standard/index) 指令集的子集，若有不屬於 [FORTH 標準](https://forth-standard.org/standard/index) 的指令，會特別說明。後半部進階的部份則是 rtForth 特有的內容，包括如何使用 Rust 擴充 rtForth 的指令集，以及如何使用動程科技的軸控系統。
+本書的網路版位於，
+
+* [https://mapacode.github.io/rtforth/](https://mapacode.github.io/rtforth/)
+
+
+本書「rtForth 入門」透過例子展示 Foth 語言的語法和概念。在本書中使用的 Forth 指令絕大多數屬於 [FORTH 標準](https://forth-standard.org/standard/index) 指令集的子集，若有不屬於 [FORTH 標準](https://forth-standard.org/standard/index) 的指令，會特別說明。
 
 某些其他 Forth 文件中常討論的主題，在本書中特意不討論，原因如下：
 

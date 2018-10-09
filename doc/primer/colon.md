@@ -197,7 +197,7 @@ x<sup>5</sup> + 2 x<sup>4</sup> + 3 x<sup>3</sup> + 4 x<sup>2</sup> + 5 x + 6
    3e f+ fover f*
    4e f+ fover f*
    5e f+ fover f*
-   6e f+
+   6e f+ fnip
 ;
 ```
 
@@ -232,10 +232,10 @@ bye
 ```
 在腳本定義 square 時，以垂直的型式撰寫並在後面加上了堆疊效果的註解，這有助於新手學習，也有助於閱讀的人理解這個指令。當程式複雜時這是一個很好的習慣。請注意註解以指令 `(` 開頭，以 `)` 結束，`(` 後要有空格，因為它是一個指令。
 
-執行 `./target/debug/rf /path/to/square.fs` ，
+執行 `./target/debug/examples/rf /path/to/square.fs` ，
 
 ```
-$ ./target/debug/rf /tmp/square.fs
+$ ./target/debug/examples/rf /tmp/square.fs
 9 16
 ```
 

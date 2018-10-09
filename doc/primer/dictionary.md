@@ -95,6 +95,16 @@ LAST -> 名稱 | hello | -------------------------------> | -work | --->
 : hello-2   s" Hello World!" type ;
 ```
 
+RtForth 的指令 `.memory` 列出 rtForth 對程式碼空間和資料空間的使用情形，
+
+```
+rf> .memory
+code space capacity: 4194304, used: 0, start: 0x7F9520C00000, limit: 0x7F9521000000, here: 0x7F9520C00000
+data space capacity: 4194304, used: 5344, start: 0x7F9521000000, limit: 0x7F9521400000, here: 0x7F95210014E0
+```
+
+在上面的例子中，程式碼和資料空間容量各為 4Mb。程式空間目前沒被使用，資料碼空間使用了 5344 個位元。
+
 ### 本節指令集
 
 | 指令 | 堆疊效果及指令說明                        | 口語唸法 |
@@ -102,6 +112,7 @@ LAST -> 名稱 | hello | -------------------------------> | -work | --->
 | `words` | ( -- ) &emsp; 顯示字典中目前能使用的指令 | words |
 | `s" <string>"` | ( -- ) &emsp;  編譯其後的字串直到下一個 "。 | s-quote |
 | `type` | ( addr n -- ) &emsp; 印出資料空間位置 addr 處，長度為 n 的字串 | type |
+| `.memory` | ( -- ) &emsp; 印出資料空間和程式碼空間的使用情況。 | dot-memory |
 
 -------------------
 ## 標記指令 (Marker)
@@ -308,12 +319,12 @@ Forth 指令 `here` 可以得到目前資料空間未使用部份的開始位址
 ```
 rf> -work  marker -work
  ok
-rf> here .
-1256  ok
+rf> here h.
+7F95210014E0  ok
 rf> -1 constant my-true
  ok
-rf> here .
-1260  ok
+rf> here h.
+7F95210014E8  ok
 ```
 因為新定義的指令使用了部份的資料空間。我們發現 `here` 的數值改變了。
 
@@ -322,39 +333,48 @@ rf> here .
 我們可以使用指令 `allot` 保留一部份資料空間給我們的程式使用。
 
 ```
-rf> 1 cells allot  here .
-1264  ok
+rf> 1 cells allot here h.
+7F95210014F0  ok
 ```
 
 指令 `1 cells allot` 保留了一個單元，在此是 4 個位元組。因此 `here` 的值增加了。
 
 指令 `!` 可以用來將一個整數存放在資料空間中某個記憶體位址內。而指令 `@` 可以將指定的記憶體位址內的整數取出放到堆疊上。
 ```
-rf> 1234 1260 !
+rf> 1234 $7F95210014E8 !
  ok
-rf> 1260 @ .
+rf> $7F95210014E8 @ .
 1234  ok
 ```
 在上例中我們以指令 `!` 將 1234 放進剛剛保留了一個單元的記憶體位址 1260 中。然後再以指令 `@ .` 將位址 1260 內的整數印出來。果然那個位址內的整數是 1234。有一個指令 `?` 的行為就是 `@ .` 。因此我們也可以以下方式將 1260 內的資料印出。
 ```
-rf> 1260 ?
+rf> $7F95210014E8 ?
+1234  ok
+```
+
+另有一指令 `dump` 可以讓我們檢視一塊記憶體的內容。
+```
+rf> $7F95210014E8 2 dump
+7F95210014E8 :  D2  4  0  0   0  0  0  0 - 0  0  0  0   0  0  0  0  0_______________
+ ok
+rf> $4D2 .
 1234  ok
 ```
 
 指令 `+!` 會將指定位址內的整數加上堆疊上的數字。
 ```
-rf> 1 1260 +!  1260 ?
+rf> 1 $7F41CEE014E8 +!  $7F41CEE014E8 ?
 1235  ok
 ```
 
-指令 `,` 會配置一個單元的資料空間，然後把資料堆疊疊頂的整數放進這個剛配置的空間中。我們習慣將這種配置記憶體同時填入數值的行為稱為「編譯」。因為编譯指令 `if`， ``."`， `;` 等都會做類似的事。我們會說指令 `,` 將一個整數「編譯」到字典裡面。
+指令 `,` 會配置一個單元的資料空間，然後把資料堆疊疊頂的整數放進這個剛配置的空間中。我們習慣將這種配置記憶體同時填入數值的行為稱為「編譯」。因為编譯指令 `if`， `."`， `;` 等都會做類似的事。我們會說指令 `,` 將一個整數「編譯」到字典裡面。
 ```
-rf> 1 , 2 , 3 ,   here .
-1276  ok
-rf> 1264 ? 1268 ? 1272 ?
-1 2 3  ok
+rf> here h.  1 ,  here h.  2 ,
+7F41CEE014F0 7F41CEE014F8  ok
+rf> $7F41CEE014F0 ?  $7F41CEE014F8 ?
+1 2  ok
 ```
-在上例中我們使用指令 `,` 將 1 、 2 、 3 編譯到字典裡。因為每個整數在資料空間中佔一個單元，我們可以知道每個整數所在的位址，並用指令 `?` 將它們印出來。
+在上例中我們使用指令 `,` 將 1 、 2 編譯到字典裡。因為每個整數在資料空間中佔一個單元，我們可以知道每個整數所在的位址，並用指令 `?` 將它們印出來。
 
 ### 雙單元的資料空間指令
 
@@ -363,15 +383,15 @@ rf> 1264 ? 1268 ? 1272 ?
 請進行以下練習：
 
 ```
-rf> -work   marker -work   here .
-1256  ok
-rf> 2 cells allot   here .
-1264  ok
-rf> 1 2 1256 2!  .s
+rf> -work marker -work
  ok
-rf> 1256 2@  .s
+rf> here h.  2 cells allot
+7F41CEE014E0  ok
+rf> 1 2 $7F41CEE014E0  2!  .s
+ ok
+rf> $7F41CEE014E0 2@ .s
 1 2  ok
-rf> 1256 @  1260 @  .s
+rf> $7F41CEE014E0 dup @  swap cell+ @  .s
 1 2 2 1  ok
 rf> xx
 xx Undefined word
@@ -386,7 +406,7 @@ Forth 2012 標準並未提供相當於指令 `,` 的雙單元的編譯指令 `2,
 
 ### 對齊
 
-資料放進記憶體的開始位址應符合 CPU 的對齊 (alignment) 規則。比如 32 位元的整數因為是由 4 個位元組構成，應該放在開始位址是 4 的倍數的地方。而 64 位元的浮點數則應放在開始址址是 8 的倍數的地方。這方便 CPU 的資料匯流排 (data bus) 一次就存取所有的資料。如果資料沒對齊它該有的位址，因為無法一次存取，指令執行的性能變差。甚至在某些 CPU 會無法正確取得資料。在 ARMv7 以上的版本以及 Intel 的 CPU 上，資料都能正確存取。就是性能需要注意。
+資料放進記憶體的開始位址應符合 CPU 的對齊 (alignment) 規則。比如 32 位元的整數因為是由 4 個位元組構成，應該放在開始位址是 4 的倍數的地方。而 64 位元的浮點數則應放在開始位址是 8 的倍數的地方。這方便 CPU 的資料匯流排 (data bus) 一次存取所有的資料。如果資料沒對齊它該有的位址，因為無法一次存取，指令執行的性能變差。甚至在某些 CPU 會無法正確取得資料。在 ARMv7 以上的版本以及 Intel 的 CPU 上，資料都能正確存取。就是性能需要注意。
 
 | Forth   | 作業系統 | 整數對齊位址 | 浮點數對齊位址 |
 |---------|---------|------------|-------------|
@@ -399,9 +419,9 @@ Forth 2012 標準並未提供相當於指令 `,` 的雙單元的編譯指令 `2,
 
 例子：
 ```
-rf> 0 aligned .   1 aligned .
-0 4  ok
-rf> 0 faligned .   1 faligned .
+rf> 0 aligned .  1 aligned .
+0 8  ok
+rf> 0 faligned .  1 faligned .
 0 8  ok
 ```
 上例中因為 1 不符合對齊原則而被 `aligned` 及 `faligned` 調整為符合的數值。
@@ -410,20 +430,14 @@ rf> 0 faligned .   1 faligned .
 
 例子：
 ```
-rf> here .
-1312  ok
-rf> 1312 aligned .   1312 faligned .
-1312 1312  ok
-rf> 1 allot  here .
-1313  ok
-rf> 1313 aligned .   1313 faligned .
-1316 1320  ok
-rf> align  here .
-1316  ok
-rf> falign  here .
-1320  ok
+rf> 1 allot  here h.
+7F41CEE014F1  ok
+rf> align here h.
+7F41CEE014F8  ok
+rf> 2 allot here h.  falign here h.
+7F41CEE014FA 7F41CEE01500  ok
 ```
-上例中 1312 符合對齊原則。在執行了 `1 allot` 後，`here` 變成 1313，不符合對齊原則。我們以 `align` 修正使得 here 變成符合整數對齊原則的 1316，之後又以 `falign` 修正使其變成符合浮點數對齊原則的 1320。
+上例中在執行了 `1 allot` 後，`here` 變成 $7F41CEE014F1，不符合對齊原則。我們以 `align` 修正使得 here 變成符合整數對齊原則的 $7F41CEE014F8，在 2 allot 之後，又以 `falign` 修正使其變成符合浮點數對齊原則的 $7F41CEE01500。
 
 ### 浮點數的資料空間指令
 
@@ -432,27 +446,32 @@ rf> falign  here .
 ```
 : f, ( F: r -- )   here  1 floats allot  f! ;
 ```
+指令 `f,` 先以 `here` 取得下一個可用的資料空間，然後使用 `1 floats allot` 配置一個浮點數大小的空間，然後以指令 `f!` 把浮點堆疊上的浮點數 `r` 存在這個空間裡。
+
+注意 `f,` 並未事先執行 `falign` 對齊浮點數所需位址。若重視存取的性能，應先以 falign 對齊。
 
 請進行以下練習：
 
 ```
-rf> -work  marker -work  here .
-1344  ok
-rf> falign here .
-1344  ok
-rf> 1 floats allot   1e 1344 f!
+rf> -work marker -work
  ok
-rf> 1344 f@ f.
-1.0000000  ok
-rf> 3 ,  falign  1e f,  2e f,  3e f,
+rf> here h.
+7FEFB0E014E0  ok
+rf> 2 ,  falign  1e f,  2e f,
  ok
-rf> 1344 float+  dup ?  cell+ faligned dup f@ f.  float+ dup f@ f.  float+ dup f@ f.
-3 1.0000000 2.0000000 3.0000000  ok
+rf> $7FEFB0E014E0  dup ?  cell+ faligned dup f@ f.  float+ dup f@ f.
+2 1.0000000 2.0000000  ok
+rf> $7FEFB0E014E0  20 dump
+7FEFB0E014E0 :   2  0  0  0   0  0  0  0 -  0  0  0  0   0  0 F0 3F  ______________p?
+7FEFB0E014F0 :   0  0  0  0   0  0  0 40 -  0  0  0  0   0  0  0  0  _______@________
+ ok
 ```
 
-在練習中，我們先以 `falign` 調整 `here` 的位置。然後使用 `1 floats allot` 配置一個浮點數大小的空間，再使用 `f!` 把浮點數 1.0 放進了這個空間。之後使用 `f@` 取出並以 `f.` 印出，確認數值是正確的。之後我們編譯了一個大小為三的浮點數陣列到字典中。首先我們使用 `3 ,` 先編譯了這個陣列的大小，也就是 3。因為這個編譯行為會造成 `here` 不再對齊浮點數所需的位址。所以我們使用 `falign` 調整 `here`，之後再以 `1e f, 2e f, 3e f,` 將三個浮點數編譯到字典中。
+在練習中，我們編譯了一個大小為二的浮點數陣列到字典中。首先我們使用 `3 ,` 先編譯了這個陣列的大小，也就是 3。因為這個編譯行為會造成 `here` 不再對齊浮點數所需的位址。所以我們使用 `falign` 調整 `here`，之後再以 `1e f, 2e f,` 將兩個浮點數編譯到字典中。
 
-要取出那陣列的資料時，我們使用 `1344 float+` 先跳過最早之前使用 `f!` 存放的那個數。然後印出陣列的長度，再以 `cell+ faligned` 跳過陣列的長度到下一個對齊浮點數的位址，以 `f@ f.` 印出，再以 `float+ dup f@ f.` 跳過這個浮點數並印出下一個。
+要取出那陣列的資料時，我們先以 `?` 印出陣列的長度，再以 `cell+ faligned` 跳過陣列的長度到下一個對齊浮點數的位址，以 `f@ f.` 印出，再以 `float+ dup f@ f.` 跳過這個浮點數並印出下一個。
+
+在最後出於好奇我們以 `dump` 印出之前存在資料空間中的資料，在此不對其內容進行解讀。
 
 ### 本節指令集
 
@@ -479,6 +498,7 @@ rf> 1344 float+  dup ?  cell+ faligned dup f@ f.  float+ dup f@ f.  float+ dup f
 | `aligned` | ( addr -- addr' ) &emsp; 如果資料空間的位址 addr 不符合單元的對齊原則，修正使其對齊 | aligned |
 | `falign` | ( -- ) &emsp; 如果資料空間下一未被使用的位址不符合浮點數的對齊原則，修正使其對齊 | f-align |
 | `faligned` | ( addr -- addr' ) &emsp; 如果資料空間的位址 addr 不符合浮點數的對齊原則，修正使其對齊 | f-aligned |
+| `dump` | ( addr n -- ) &emsp; 以 16 進制及位元方式印出資料空間位址 `addr` 開始處 `n` 個字元的資料 | dump |
 
 ------
 ## 變數
@@ -498,12 +518,10 @@ rf> the-one ?
 
 例子：
 ```
-rf> variable x   variable xy   variable fxy
+rf> variable x 2variable xy fvariable fxy
  ok
-rf> x .  xy .  fxy .
-1352 1360 1368  ok
-rf> fxy f@ f.
-0.0000000  ok
+rf> x h.  xy h.  fxy h.  here h.
+7F6303C014F0 7F6303C014F8 7F6303C01508 7F6303C01510  ok
 rf> x @ .  xy 2@ . .  fxy f@ f.
 0 0 0 0.0000000  ok
 rf> 1 x !  2 3 xy 2!  4e fxy f!
@@ -528,11 +546,11 @@ variable seed   2463534242 seed !
 
 ```
 rf> 100 rnd .
-47  ok
+79  ok
 rf> 100 rnd .
-11  ok
+60  ok
 rf> 100 rnd .
-77  ok
+0  ok
 ```
 
 ### 本節指令集
@@ -764,10 +782,6 @@ rf> m2 .m
     does> ( -- n1 n2 )   2@  \ 被定義出來的指令執行時的行為
 ;
 ```
-當執行 `2constant <name>` 時，`2constant` 使用 `create` 建造一個名為 `<name>` 的指令，同時以 `, ,` 將堆疊上的兩個數字編進資料空間中。當這個被建造出來的新指令 `<name>` 執行時，被 `create , ,` 配置的記憶體開始位址被放上堆疊。這和沒有 `does>` 時是一樣的。然後，`does>` 之後的指令被執行， `2@` 從那記憶體中拿出了兩個整數放在堆疊上。
-
-所以，執行 `2@` 前一瞬間，堆疊上的內容是 `( addr )`，是使用 `create , ,` 配置的位址。但在 `does>` 後的堆疊註解不寫 `( addr -- n1 n2 )`，因為在 `does>` 的這個註解說明的是如何使用這被建造出來的指令 `<name>`。
-
 下圖是 `2constant` 本身以及被它定義出來的指令在字典中的示意圖。
 ```
 : 2constant   create , , does> 2@ ;
@@ -780,27 +794,32 @@ rf> m2 .m
                                   ^
 range                             |
                                   |
-  解碼欄                           |
+  action                          |
   +------+                        |
   | does |                        |
   +------+                        |
                                   |
-    +-----------------------------+
-    |  資料空間
-  +---+---+----+
-  |   | 4 | 40 |
-  +---+---+----+
-```
-在 rtForth 目前的設計中，在被 create 建造出來的指令的資料空間之前有一隱藏的欄位指向 `does>` 後要執行的指令。圖中的 `2constant` 執行時，會執行 `create , ,`，然後執行一個由編譯指令 `does>` 編進字典的 `_does` 指令。這個指令會修改被定義出來的指令的解碼欄，使解碼欄指向另一個函式 `does`。並且修改那隱藏的欄位使其指向 `does>` 後的 `2@`。然後 `does>` 還會編譯一個 `exit` 到 2constant 的資料空間內，使用 `2constant` 執行完 `_does` 後就停止。但冒號定義還是會把之後的 `2@` 編進字典中，並執行了編譯指令 `;` 結束 `2constant` 的定義。
+  +---+                           |
+  | x |---------------------------+
+  +---+
+  程式碼空間
 
-當 `range` 執行時，因為它的解碼欄是 `does`，它會把資料空間的起始位址放上堆疊。同起將那起始位址減一個 cell 得到那隱藏的欄位，找到 `does>` 之後的 `2@` 從那兒開始執行。
+  +---+----+
+  | 4 | 40 |
+  +---+----+
+  資料空間
+```
+
+當 `4 40 2constant range` 執行時，`2constant` 會使用 `create , ,` 建造一個名為 `range`，資料空間內容為 4、40 的指令。然後執行由編譯指令 `does>` 編進字典的 `_does exit`，`_does` 修改被定義出來的 `range` 的行為，也就是圖中標示 action 的欄位，使其指向另一個函式 `does`。同時修改的還有程式碼空間中的欄位 ( 圖中的 x ) 使其指向 `does>` 後的 `2@ exit`。`_does` 之後的 `exit` 結束了 `2constant` 的執行。
+
+當 `range` 執行時，因為它的行為是 `does`，會把資料空間的起始位址放上堆疊。然後依據程式碼空間中的 x 的指示，跳到 `does>` 之後的 `2@ exit` 那兒開始執行。
 
 ### 使用 +FIELD 定義欄位
 
 之前定義矩陣時，我們並未定義距陣的各個欄位。這在 Forth 是常見的作法。但有的時候我們還是希望能為各個欄位取個容易記憶的名稱。Forth 2012 標準中提到了一個指令 `+field` 可以滿足我們的期望。它也是一個可以使用 `create ... does> ... ;` 定義出來的指令。
 
 ```
-\ 定義時建立一個欄位，記住欄位在資料結構中的偏移量 offset，然後計算出下一個偏移量 offset' = offset+size，留給之後的指令使用。
+\ 定義時建立一個欄位，記住欄位在資料結構中的偏移量 offset，然後計算出下一個偏移量 offset' = offset + size，留給之後的指令使用。
 \ 被定義出來的指令執行時，會將資料結構的開始位址 addr 加上之前記住的偏移量 offset，得到資料結構中所在欄位的位址 addr' = addr + offset。
 : +field ( offset size -- offset' )
     create over , +
@@ -822,9 +841,9 @@ constant <資料結構的位元組數名稱>   \ 為資料結構的大小取個�
    1 cells +field person.age
    faligned
    1 floats +field person.salary
-constant person.bytes
+constant /person
 
-: person   create person.bytes allot ;
+: person   create /person allot ;
 : .person ( 'person -- )  ." age: " dup person.age @ .  ." salary: " person.salary f@ f. ;
 ```
 
@@ -846,10 +865,10 @@ rf> John .person
 0                         \ 第一個欄位的位元組偏移量
    1 floats +field p.x    \ 欄位 p.x 佔了一個浮點數大小
    1 floats +field p.y    \ 欄位 p.y 佔了一個浮點數大小
-constant p.bytes          \ 點的位元組數
+constant /point           \ 點的位元組數
 
 \ point2 <name> 定義一個二維的點。
-: point2   create  falign  p.bytes allot  does> faligned ;
+: point2   create  falign  /point allot  does> faligned ;
 \ 印出點 p 的內容。
 : .point ( p -- )
     [char] ( emit  dup p.x f@ f.
@@ -1029,3 +1048,5 @@ Forth 的一大好處就是它能即寫即測。使用 Forth 的工程師常能�
 | `create <name>` | ( -- ) &emsp; 以資料空間中下一個未被使用的位址來建立一個名稱為 `name` 的指令，當這指令執行時會將這個位址放上堆疊，在指令 `create` 之後通常會使用 `allot` 或是 `,` 等配置更多的空間 | create |
 | `does>` | ( -- ) &emsp; 使用 Forth 指令來定義某個以 `create` 建造的指令的行為。當這個被 `create` 建造出來的指令執行時，和這指令結合的那塊資料空間的位址會先被放上堆疊，然後才執行 `does>` 之後的指令。 | does |
 | `+field <name>` | ( n1 n2 -- n3 ) &emsp; 定義一個名稱為 `name` 的欄位，此欄位的偏移量為 n1 個位元組，大小為 n2 個位元組。定義好欄位後會在堆疊上留下下一個欄位的偏移量， n3 = n1 + n2 | plus-field |
+| `dump` | ( addr n -- ) &emsp; 以 16 進制及位元方式印出資料空間位址 `addr` 開始處 `n` 個字元的資料 | dump |
+| `.memory` | ( -- ) &emsp; 印出資料空間和程式碼空間的使用情況。 | dot-memory |

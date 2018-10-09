@@ -32,24 +32,24 @@ $ git clone https://github.com/chengchangwu/rtforth.git
 
 編譯除錯版的 rtForth：
 ```
-$ cargo build
+$ cargo build --example rf
 ```
-編譯出來的除錯版 rtForth 位於 ./target/debug/rf 。
+編譯出來的除錯版 rtForth 位於 ./target/debug/examples/rf 。
 
 編譯最佳化版的 rtForth：
 ```
-$ cargo build --release
+$ cargo build --examples rf --release
 ```
-編譯出來最佳化版的 rtForth 位於 ./target/release/rf 。
+編譯出來最佳化版的 rtForth 位於 ./target/release/examples/rf 。
 
 ---------------
 ## Hello World!
 
-執行 ./target/debug/rf 或 ./target/release/rf，出現以下訊息，
+執行 ./target/debug/examples/rf 或 ./target/release/examples/rf，出現以下訊息，
 
 ```
-$ ./target/debug/rf
-rtForth v0.3.0, Copyright (C) 2018 Mapacode Inc.
+$ ./target/debug/examples/rf
+rtForth v0.5.0, Copyright (C) 2018 Mapacode Inc.
 Type 'bye' or press Ctrl-D to exit.
 rf> 
 ```

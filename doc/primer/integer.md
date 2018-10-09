@@ -3,13 +3,13 @@
 如上一章所述執行除錯版的 rtForth： 
 
 ```
-$ ./target/debug/rf
+$ ./target/debug/examples/rf
 ```
 
 或執行最佳化版本的 rtForth： 
 
 ```
-$ ./target/release/rf
+$ ./target/release/examples/rf
 ```
 
 在 `rf>` 提示後輸入 `2 17 + .` 後按 Enter， 

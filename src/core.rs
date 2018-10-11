@@ -494,6 +494,7 @@ pub trait Core: Sized {
     fn add_core(&mut self) {
         // Bytecodes
         self.add_primitive("", Core::noop);
+        self.add_primitive("noop", Core::noop);
         self.add_compile_only("exit", Core::exit);
         self.add_compile_only("lit", Core::lit);
         self.add_compile_only("flit", Core::flit);

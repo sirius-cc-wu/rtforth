@@ -87,7 +87,7 @@ pub trait Tools: Output {
                     let max_t = self.wordlist()[w].max_execution_time;
                     let nfa = self.wordlist()[w].nfa();
                     let name = unsafe{ self.data_space().get_str(nfa) };
-                    write!(buf, "{}|{},{} ", name, min_t, max_t).unwrap();
+                    write!(buf, "{}|{},{}", name, min_t, max_t).unwrap();
                 }
             }
             self.set_output_buffer(buf);

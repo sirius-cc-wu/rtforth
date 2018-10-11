@@ -104,7 +104,7 @@ pub trait Units: Core {
 mod tests {
     use core::Core;
     use std::f64::consts::PI;
-    use vm::VM;
+    use mock_vm::VM;
 
     fn double_value_check(res: f64, exp: f64) -> bool {
         if (res > exp - 0.000_000_1) && (res < exp + 0.000_000_1) {
@@ -117,7 +117,7 @@ mod tests {
     fn test_units_meter() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.1234E meter");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -128,7 +128,7 @@ mod tests {
     fn test_units_mm() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.3E mm");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -139,7 +139,7 @@ mod tests {
     fn test_units_um() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("3.0E um");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -150,7 +150,7 @@ mod tests {
     fn test_units_deg() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("10.0E deg");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -161,7 +161,7 @@ mod tests {
     fn test_units_rad() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("10.0E rad");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -172,7 +172,7 @@ mod tests {
     fn test_units_hr() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("1.0E hr");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -183,7 +183,7 @@ mod tests {
     fn test_units_minute() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("1.0E minute");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -194,7 +194,7 @@ mod tests {
     fn test_units_sec() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("2.0E sec");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -205,7 +205,7 @@ mod tests {
     fn test_units_msec() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("2.0E msec");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -216,7 +216,7 @@ mod tests {
     fn test_units_usec() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("2.0E usec");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -227,7 +227,7 @@ mod tests {
     fn test_units_mm_per_min() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("2.0E mm/min");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -238,7 +238,7 @@ mod tests {
     fn test_units_um_per_msec() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("2.0E um/msec");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -249,7 +249,7 @@ mod tests {
     fn test_rpm() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("2.0E rpm");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();
@@ -260,7 +260,7 @@ mod tests {
     fn test_hz() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("2.0E hz");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.f_stack().len(), 1);
         let t = vm.f_stack().pop();

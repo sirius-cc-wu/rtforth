@@ -1,16 +1,14 @@
-extern crate rtforth;
-use rtforth::memory::{CodeSpace, DataSpace};
-use rtforth::NUM_TASKS;
-use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
-use rtforth::env::Environment;
-use rtforth::exception::Exception;
-use rtforth::facility::Facility;
-use rtforth::float::Float;
-use rtforth::loader::HasLoader;
-use rtforth::output::Output;
-use rtforth::tools::Tools;
-use rtforth::units::Units;
-use std::time::SystemTime;
+use memory::{CodeSpace, DataSpace};
+use NUM_TASKS;
+use core::{Control, Core, ForwardReferences, Stack, State, Word};
+use env::Environment;
+use exception::Exception;
+use facility::Facility;
+use float::Float;
+use loader::HasLoader;
+use output::Output;
+use tools::Tools;
+use units::Units;
 
 const BUFFER_SIZE: usize = 0x400;
 
@@ -66,7 +64,7 @@ pub struct VM {
     outbuf: Option<String>,
     hldbuf: String,
     references: ForwardReferences,
-    now: SystemTime,
+    now: u64,
 }
 
 impl VM {
@@ -93,7 +91,7 @@ impl VM {
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
             references: ForwardReferences::new(),
-            now: SystemTime::now(),
+            now: 0,
         };
         vm.add_core();
         vm.add_output();
@@ -189,10 +187,7 @@ impl Core for VM {
         &mut self.references
     }
     fn system_time_ns(&self) -> u64 {
-        match self.now.elapsed() {
-            Ok(d) => d.as_nanos() as u64,
-            Err(_) => 0u64,
-        }
+        self.now
     }
     fn current_task(&mut self) -> usize {
         self.current_task

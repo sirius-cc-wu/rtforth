@@ -1,4 +1,5 @@
 use output::Output;
+use memory::Memory;
 use std::fmt::Write;
 
 pub trait Tools: Output {
@@ -34,15 +35,16 @@ pub trait Tools: Output {
     ///
     /// List definition names in word list.
     primitive!{fn words(&mut self) {
-        let mut buf = self.output_buffer().take().unwrap();
-        writeln!(buf, "").unwrap();
-        for w in self.wordlist().iter().rev() {
-            let symbol = w.symbol();
-            let hidden = w.is_hidden();
-            if !hidden {
-                write!(buf, "{} ", self.symbols()[symbol.id()]).unwrap();
+        if let Some(mut buf) = self.output_buffer().take() {
+            writeln!(buf, "").unwrap();
+            for w in (0..self.wordlist().len()).rev() {
+                if !self.wordlist()[w].is_hidden() {
+                    let nfa = self.wordlist()[w].nfa();
+                    let name = unsafe{ self.code_space().get_str(nfa) };
+                    write!(buf, "{} ", name).unwrap();
+                }
             }
+            self.set_output_buffer(buf);
         }
-        self.set_output_buffer(buf);
     }}
 }

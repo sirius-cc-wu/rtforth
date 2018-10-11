@@ -40,4 +40,4 @@ debug = true
 
 [features]
 default = []
-subroutine-threaded = []
+stc = []

@@ -17,10 +17,10 @@ use {FALSE, NUM_TASKS, TRUE};
 
 // Word
 pub struct Word<Target> {
-    symbol: Symbol,
     is_immediate: bool,
     is_compile_only: bool,
     hidden: bool,
+    nfa: usize,
     dfa: usize,
     cfa: usize,
     action: primitive!{ fn (&mut Target) },
@@ -29,26 +29,22 @@ pub struct Word<Target> {
 
 impl<Target> Word<Target> {
     pub fn new(
-        symbol: Symbol,
         action: primitive!{fn(&mut Target)},
         compilation_semantics: fn(&mut Target, usize),
+        nfa: usize,
         dfa: usize,
         cfa: usize
 ) -> Word<Target>{
         Word {
-            symbol: symbol,
             is_immediate: false,
             is_compile_only: false,
             hidden: false,
+            nfa: nfa,
             dfa: dfa,
             cfa: cfa,
             action: action,
             compilation_semantics: compilation_semantics,
         }
-    }
-
-    pub fn symbol(&self) -> Symbol {
-        self.symbol
     }
 
     pub fn is_immediate(&self) -> bool {
@@ -73,6 +69,10 @@ impl<Target> Word<Target> {
 
     pub fn set_hidden(&mut self, flag: bool) {
         self.hidden = flag;
+    }
+
+    pub fn nfa(&self) -> usize {
+        self.nfa
     }
 
     pub fn dfa(&self) -> usize {
@@ -323,17 +323,6 @@ impl State {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
-pub struct Symbol {
-    id: usize,
-}
-
-impl Symbol {
-    pub fn id(&self) -> usize {
-        self.id
-    }
-}
-
 #[derive(Clone, Copy, PartialEq)]
 pub enum Control {
     Default,
@@ -399,8 +388,6 @@ pub trait Core: Sized {
     fn r_stack(&mut self) -> &mut Stack<isize>;
     fn c_stack(&mut self) -> &mut Stack<Control>;
     fn f_stack(&mut self) -> &mut Stack<f64>;
-    fn symbols_mut(&mut self) -> &mut Vec<String>;
-    fn symbols(&self) -> &Vec<String>;
     /// Last definition, 0 if last define fails.
     fn last_definition(&self) -> usize;
     fn set_last_definition(&mut self, n: usize);
@@ -587,13 +574,13 @@ pub trait Core: Sized {
 
     /// Add a primitive word to word list.
 fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
-        let symbol = self.new_symbol(name);
+        let nfa = self.data_space().compile_str(name);
         self.data_space().align();
         self.code_space().align();
         let word = Word::new(
-            symbol,
             action,
             Core::compile_word,
+            nfa,
             self.data_space().here(),
             self.code_space().here(),
         );
@@ -646,28 +633,16 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Find the word with name `name`.
     /// If not found returns zero.
     fn find(&mut self, name: &str) -> Option<usize> {
-        for (i, word) in self.wordlist().iter().enumerate().rev() {
-            if !word.is_hidden() && self.symbols()[word.symbol().id].eq_ignore_ascii_case(name) {
-                return Some(i);
+        for w in (0..self.wordlist().len()).rev() {
+            if !self.wordlist()[w].is_hidden() {
+                let nfa = self.wordlist()[w].nfa();
+                let w_name = unsafe{ self.data_space().get_str(nfa) };
+                if w_name.eq_ignore_ascii_case(name) {
+                    return Some(w);
+                }
             }
         }
         None
-    }
-
-    fn find_symbol(&mut self, s: &str) -> Option<Symbol> {
-        for (i, sym) in self.symbols().iter().enumerate().rev() {
-            if sym.eq_ignore_ascii_case(s) {
-                return Some(Symbol { id: i });
-            }
-        }
-        None
-    }
-
-    fn new_symbol(&mut self, s: &str) -> Symbol {
-        self.symbols_mut().push(s.to_string());
-        Symbol {
-            id: self.symbols().len() - 1,
-        }
     }
 
     // -------------------------------
@@ -677,7 +652,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.
     #[inline(never)]
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while self.data_space().start() <= ip
@@ -690,42 +665,42 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_word(&mut self, word_index: usize) {
         self.data_space().compile_usize(word_index as usize);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_nest(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_nest_code(&mut self, _: usize) {
         // Do nothing.
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_var(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_const(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_unmark(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_fconst(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn lit(&mut self) {
         let ip = self.state().instruction_pointer;
         let v = unsafe{ self.data_space().get_isize(ip) as isize };
@@ -736,14 +711,14 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     /// Compile integer `i`.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_integer(&mut self, i: isize) {
         let idx = self.references().idx_lit;
         self.compile_word(idx);
         self.data_space().compile_isize(i as isize);
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn flit(&mut self) {
         let ip = DataSpace::aligned_f64(self.state().instruction_pointer as usize);
         let v = unsafe{ self.data_space().get_f64(ip) };
@@ -754,7 +729,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     /// Compile float 'f'.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_float(&mut self, f: f64) {
         let idx_flit = self.references().idx_flit;
         self.compile_word(idx_flit);
@@ -763,33 +738,35 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     /// Runtime of S"
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn p_s_quote(&mut self) {
         let ip = self.state().instruction_pointer;
-        let cnt = unsafe{ self.data_space().get_isize(ip) };
-        let addr = self.state().instruction_pointer + mem::size_of::<isize>();
+        let (addr, cnt) = {
+            let s = unsafe{ self.data_space().get_str(ip) };
+            (s.as_ptr() as isize, s.len() as isize)
+        };
         let slen = self.s_stack().len.wrapping_add(2);
         self.s_stack().len = slen;
-        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
-        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
+        self.s_stack()[slen.wrapping_sub(1)] = cnt;
+        self.s_stack()[slen.wrapping_sub(2)] = addr;
         self.state().instruction_pointer = DataSpace::aligned(
             self.state().instruction_pointer + mem::size_of::<isize>() + cnt as usize
         );
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn patch_compilation_semanticses(&mut self) {
         let idx_leave = self.find("leave").expect("leave");
         self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = unsafe{ self.data_space().get_isize(ip) as usize };
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_branch;
         self.compile_word(idx);
@@ -797,7 +774,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.data_space().here()
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn zero_branch(&mut self) {
         let v = self.s_stack().pop();
         if v == 0 {
@@ -807,7 +784,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_zero_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
@@ -832,7 +809,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///         |
     ///         ip
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
@@ -859,7 +836,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///          |
     ///          ip
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn _qdo(&mut self) {
         let (n1, n2) = self.s_stack().pop2();
         if n1 == n2 {
@@ -879,7 +856,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn _loop(&mut self) {
         let (rn, rt) = self.r_stack().pop2();
         if rt + 1 < rn {
@@ -899,7 +876,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
     /// following the loop.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn _plus_loop(&mut self) {
         let (rn, rt) = self.r_stack().pop2();
         let t = self.s_stack().pop();
@@ -918,12 +895,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// `UNLOOP` is required for each nesting level before the definition may be
     /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn unloop(&mut self) {
         let _ = self.r_stack().pop3();
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn leave(&mut self) {
         let (third, _, _) = self.r_stack().pop3();
         if self.r_stack().underflow() {
@@ -935,7 +912,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         };
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn compile_leave(&mut self, word_idx: usize) {
         match self.leave_part() {
             Some(leave_part) => {
@@ -948,7 +925,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         };
     }
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         match self.r_stack().get(pos) {
@@ -983,7 +960,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///         |
     ///         ip
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_if(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
@@ -1001,7 +978,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             |                |       |
     ///             ip               +-------+
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
@@ -1022,7 +999,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_then(&mut self) {
         let branch_part = match self.c_stack().pop() {
             Control::If(branch_part) => branch_part,
@@ -1064,12 +1041,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///                                   |                           |
     ///                                   +---------------------------+
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_case(&mut self) {
         self.c_stack().push(Control::Case);
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_of(&mut self) {
         match self.c_stack().pop() {
             Control::Case => {
@@ -1097,7 +1074,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_endof(&mut self) {
         let of_part = match self.c_stack().pop() {
             Control::Of(of_part) => {
@@ -1120,7 +1097,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
         self.compile_word(idx);
@@ -1151,7 +1128,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     /// Begin a structure that is terminated by `repeat`, `until`, or `again`. `begin ( -- )`.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_begin(&mut self) {
         let here = self.data_space().here();
         self.c_stack().push(Control::Begin(here));
@@ -1173,7 +1150,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///   |                              |
     ///   +------------------------------+
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_while(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(here));
@@ -1182,7 +1159,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Terminate a `begin ... while ... repeat` structure. `repeat ( -- )`.
     ///
     /// Continue execution at the location following `begin`.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_repeat(&mut self) {
         let (begin_part, while_part) = match self.c_stack().pop2() {
             (Control::Begin(begin_part), Control::While(while_part)) => {
@@ -1217,7 +1194,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///   |             |
     ///   +-------------+
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_until(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -1246,7 +1223,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///   |            |
     ///   +------------+
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -1276,7 +1253,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             |     |
     /// Control::Do(here, here)
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_do(&mut self) {
         let idx = self.references().idx_do;
         self.compile_word(idx);
@@ -1304,7 +1281,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///              |     |
     /// Control::Do(here, here)
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_qdo(&mut self) {
         let idx = self.references().idx_qdo;
         self.compile_word(idx);
@@ -1348,7 +1325,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             |
     /// Control::Do(do_part, _)
     ///
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
@@ -1377,7 +1354,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     primitive!{fn imm_plus_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
@@ -1486,12 +1463,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.
     #[inline(never)]
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn run(&mut self) {
         // Do nothing.
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_word(&mut self, word_index: usize) {
         // 89 f1            mov    %esi,%ecx
         // e8 xx xx xx xx   call   self.wordlist()[word_index].action
@@ -1502,12 +1479,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().compile_relative(w);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_nest(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_nest_code(&mut self, word_index: usize) {
         self.code_space().align_16bytes();
         self.wordlist_mut()[word_index].action =
@@ -1525,7 +1502,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().compile_u8(0x08);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_exit(&mut self, _: usize) {
         // 83 c4 08         add    $8,%esp
         // 5e               pop    %esi
@@ -1537,35 +1514,35 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().compile_u8(0xc3);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_var(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
         self.compile_integer(dfa as isize);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_const(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
         let value = unsafe { self.data_space().get_isize(dfa) as isize };
         self.compile_integer(value);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_unmark(&mut self, _: usize) {
         // Do nothing.
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_fconst(&mut self, word_index: usize) {
         // self.compile_word(word_index);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn lit(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn lit_integer(&mut self, i: isize) {
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
@@ -1573,7 +1550,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     /// Compile integer `i`.
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_integer(&mut self, i: isize) {
         // ba nn nn nn nn   mov    $0xnnnn,%edx
         // 89 f1            mov    %esi,%ecx
@@ -1587,19 +1564,19 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             .compile_relative(Self::lit_integer as usize);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn flit(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn lit_float(&mut self, f: f64) {
         let flen = self.f_stack().len.wrapping_add(1);
         self.f_stack().len = flen;
         self.f_stack()[flen.wrapping_sub(1)] = f;
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_float(&mut self, f: f64) {
         // ba nn nn nn nn   mov    <addr of f>, %edx
         // 83 ec 08         sub    $0x08,%esp
@@ -1631,17 +1608,19 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     /// Runtime of S"
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn p_s_quote(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
-    primitive!{fn lit_counted_string(&mut self, idx: usize) {
-        let cnt = unsafe{ self.data_space().get_isize(idx) };
-        let addr = idx + mem::size_of::<isize>();
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
+    primitive!{fn lit_str(&mut self, idx: usize) {
+        let (addr, cnt) = {
+            let s = unsafe{ self.code_space().get_str(idx) };
+            (s.as_ptr() as isize, s.len() as isize)
+        };
         // FIXME
-        // 加下一行會造成 cargo test test_s_quote_and_type --features="subroutine-threaded"
+        // 加下一行會造成 cargo test test_s_quote_and_type --features="stc"
         // 時 invalid memory reference 。但如果列印的方式改為 {} 就 ok。
         // 懷疑是 compile_s_quote 設計有問題。或是 println 改變了 calling convension。
         // 但奇怪的是，無法用 objdump -d 找到 compile_s_quote 以及 lit_counted_string，以致於無法
@@ -1649,15 +1628,15 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         // println!("lit_counted_string: addr: {:x}!", addr);
         let slen = self.s_stack().len.wrapping_add(2);
         self.s_stack().len = slen;
-        self.s_stack()[slen.wrapping_sub(1)] = cnt as isize;
-        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
+        self.s_stack()[slen.wrapping_sub(1)] = cnt;
+        self.s_stack()[slen.wrapping_sub(2)] = addr;
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_s_quote(&mut self, _: usize) {
         // ba nn nn nn nn   mov    <index of counted string>, %edx
         // 89 f1            mov    %esi, %ecx
-        // e8 xx xx xx xx   call   lit_counted_string
+        // e8 xx xx xx xx   call   lit_str
         let data_idx = self.data_space().here();
         self.code_space().compile_u8(0xba);
         self.code_space().compile_usize(data_idx as usize);
@@ -1668,7 +1647,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             .compile_relative(Self::lit_counted_string as usize);
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn patch_compilation_semanticses(&mut self) {
         let idx_exit = self.find("exit").expect("exit");
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_exit;
@@ -1680,12 +1659,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.wordlist_mut()[idx_reset].compilation_semantics = Self::compile_reset;
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn branch(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         // e9 xx xx xx xx      jmp xxxx
         self.code_space().compile_u8(0xe9);
@@ -1693,12 +1672,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().here()
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn zero_branch(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_zero_branch(&mut self, destination: usize) -> usize {
         // 89 f1                mov    %esi,%ecx
         // e8 xx xx xx xx       call   pop_stack ; pop value into %eax.
@@ -1717,22 +1696,22 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().here()
     }
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _do(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_do(&mut self) {
         self.two_to_r();
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _qdo(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_qdo(&mut self) -> isize {
         let (n1, n2) = self.s_stack().pop2();
         if n1 == n2 {
@@ -1743,12 +1722,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _loop(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_loop(&mut self) -> isize {
         let (rn, rt) = self.r_stack().pop2();
         if rt + 1 < rn {
@@ -1759,12 +1738,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _plus_loop(&mut self) {
         // Do nothing.
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_plus_loop(&mut self) -> isize {
         let (rn, rt) = self.r_stack().pop2();
         let t = self.s_stack().pop();
@@ -1776,12 +1755,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn unloop(&mut self) {
         let _ = self.r_stack().pop2();
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn leave(&mut self) {
         // Do nothing.
     }}
@@ -1800,7 +1779,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             +---+--
     ///           leave_part
     ///
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_leave(&mut self, _: usize) {
         let leave_part = match self.leave_part() {
             Some(leave_part) => leave_part,
@@ -1830,7 +1809,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn p_j(&mut self) {
         let pos = self.r_stack().len() - 3;
         match self.r_stack().get(pos) {
@@ -1839,13 +1818,13 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_if(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
@@ -1868,7 +1847,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_then(&mut self) {
         let branch_part = match self.c_stack().pop() {
             Control::If(branch_part) => branch_part,
@@ -1896,12 +1875,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_case(&mut self) {
         self.c_stack().push(Control::Case);
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_of(&mut self) {
         match self.c_stack().pop() {
             Control::Case => {
@@ -1929,7 +1908,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_endof(&mut self) {
         let of_part = match self.c_stack().pop() {
             Control::Of(of_part) => {
@@ -1954,7 +1933,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
         self.compile_word(idx);
@@ -1987,19 +1966,19 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_begin(&mut self) {
         let here = self.code_space().here();
         self.c_stack().push(Control::Begin(here));
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_while(&mut self) {
         let while_part = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(while_part));
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_repeat(&mut self) {
         let (begin_part, while_part) = match self.c_stack().pop2() {
             (Control::Begin(begin_part), Control::While(while_part)) => (begin_part, while_part),
@@ -2021,7 +2000,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_until(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -2037,7 +2016,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -2070,7 +2049,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             | 0 |
     ///             +---+--
     ///
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_do(&mut self) {
         // 89 f1                mov    %esi,%ecx
         // e8 xx xx xx xx       call   _stc_do
@@ -2103,7 +2082,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///               |                  |
     ///               +------------------+
     ///
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_qdo(&mut self) {
         //   89 f1                mov    %esi,%ecx
         //   e8 xx xx xx xx       call   _stc_qdo
@@ -2151,7 +2130,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///               |                     |
     ///               +---------------------+
     ///
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_loop(&mut self) {
         let (do_part, leave_part) = match self.c_stack().pop() {
             Control::Do(do_part, leave_part) => (do_part, leave_part),
@@ -2185,7 +2164,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn imm_plus_loop(&mut self) {
         let (do_part, leave_part) = match self.c_stack().pop() {
             Control::Do(do_part, leave_part) => (do_part, leave_part),
@@ -2474,7 +2453,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    fn evaluate(&mut self) {
+    fn evaluate_input(&mut self) {
         loop {
             self.parse_word();
             match self.last_token().as_ref() {
@@ -2729,13 +2708,13 @@ compilation_semantics: fn(&mut Self, usize)){
             self.set_last_token(last_token);
             self.abort_with(UnexpectedEndOfFile);
         } else {
-            let symbol = self.new_symbol(&last_token);
+            let nfa = self.data_space().compile_str(&last_token);
             self.data_space().align();
             self.code_space().align();
             let word = Word::new(
-                symbol,
                 action,
                 compilation_semantics,
+                nfa,
                 self.data_space().here(),
                 self.code_space().here(),
             );
@@ -2787,19 +2766,16 @@ compilation_semantics: fn(&mut Self, usize)){
 
     primitive!{fn unmark(&mut self) {
         let wp = self.state().word_pointer;
-        let dfa;
         let cfa;
-        let symbol;
+        let nfa;
         {
             let w = &self.wordlist()[wp];
-            dfa = w.dfa();
             cfa = w.cfa();
-            symbol = w.symbol();
+            nfa = w.nfa();
         }
-        self.data_space().truncate(dfa);
+        self.data_space().truncate(nfa);
         self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
-        self.symbols_mut().truncate(symbol.id);
     }}
 
     primitive!{fn marker(&mut self) {
@@ -3499,7 +3475,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.regs()
     }}
 
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_reset(&mut self, _: usize) {
         //      ; Make a copy of vm in %esi because %ecx may be destroyed by
         //      ; subroutine call.
@@ -3612,7 +3588,7 @@ mod tests {
                                UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation};
     use loader::HasLoader;
     use std::mem;
-    use vm::VM;
+    use mock_vm::VM;
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {
@@ -4789,35 +4765,35 @@ mod tests {
     }
 
     #[test]
-    fn test_evaluate() {
+    fn test_evaluate_input() {
         let vm = &mut VM::new(16, 16);
         // >r
         vm.set_source(">r");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(InterpretingACompileOnlyWord));
         vm.reset();
         vm.clear_stacks();
         // drop
         vm.set_source("drop");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         // error in colon definition: 4drop
         vm.set_source(": 4drop drop drop drop drop ; 4drop");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         // undefined word
         vm.set_source("xdrop");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(UndefinedWord));
         vm.reset();
         vm.clear_stacks();
         // false true dup 1+ 2 -3
         vm.set_source("false true dup 1+ 2 -3");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 5);
         assert_eq!(vm.s_stack().pop(), -3);
@@ -4833,7 +4809,7 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         b.iter(|| {
             vm.set_source("marker empty : main noop noop noop noop noop noop noop noop ; empty");
-            vm.evaluate();
+            vm.evaluate_input();
             vm.s_stack().reset();
         });
     }
@@ -4843,7 +4819,7 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         b.iter(|| {
                    vm.set_source("marker empty : main bye bye bye bye bye bye bye bye ; empty");
-                   vm.evaluate();
+                   vm.evaluate_input();
                    vm.s_stack().reset();
                });
     }
@@ -4866,13 +4842,13 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // :
         vm.set_source(":");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(UnexpectedEndOfFile));
         vm.reset();
         vm.clear_stacks();
         // : 2+3 2 3 + ; 2+3
         vm.set_source(": 2+3 2 3 + ; 2+3");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 5);
@@ -4883,14 +4859,14 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // constant x
         vm.set_source("constant");
-        vm.evaluate();
+        vm.evaluate_input();
         // Note: cannot detect underflow.
         // assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         // 5 constant x x x
         vm.set_source("5 constant x x x");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), 5);
@@ -4903,7 +4879,7 @@ mod tests {
         // 77 constant x
         // : 2x  x 2 * ;  2x
         vm.set_source("77 constant x  : 2x x 2 * ;  2x");
-        vm.evaluate();
+        vm.evaluate_input();
         vm.run();
         assert_eq!(vm.s_stack().pop(), 154);
         assert_eq!(vm.s_stack().len, 0);
@@ -4914,25 +4890,25 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // @
         vm.set_source("@");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(InvalidMemoryAddress));
         vm.reset();
         vm.clear_stacks();
         // !
         vm.set_source("!");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(InvalidMemoryAddress));
         vm.reset();
         vm.clear_stacks();
         // create x  1 cells allot  x !
         vm.set_source("create x  1 cells allot  x !");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.clear_stacks();
         // create x  1 cells allot  x @  3 x !  x @
         vm.set_source("create x  1 cells allot  x @  3 x !  x @");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), 3);
@@ -4946,7 +4922,7 @@ mod tests {
         // 7 x !
         // : x@ x @ ; x@
         vm.set_source("create x  1 cells allot  7 x !  : x@ x @ ;  x@");
-        vm.evaluate();
+        vm.evaluate_input();
         vm.run();
         assert_eq!(vm.s_stack().pop(), 7);
         assert_eq!(vm.s_stack().len, 0);
@@ -4958,7 +4934,7 @@ mod tests {
         // create x 7 ,
         // : x@ x @ ; x@
         vm.set_source("create x 7 ,  : x@ x @ ;  x@");
-        vm.evaluate();
+        vm.evaluate_input();
         vm.run();
         assert_eq!(vm.s_stack().pop(), 7);
         assert_eq!(vm.s_stack().len, 0);
@@ -4973,7 +4949,7 @@ mod tests {
         vm.reset();
         // 2 char+
         vm.set_source("2 char+");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().as_slice(), [3]);
     }
@@ -4990,7 +4966,7 @@ mod tests {
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.reset();
         vm.set_source("2 cell+  9 cells");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(
             vm.s_stack().as_slice(),
@@ -5010,13 +4986,13 @@ mod tests {
         vm.reset();
         // ' xdrop
         vm.set_source("' xdrop");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(UndefinedWord));
         vm.reset();
         vm.clear_stacks();
         // ' drop
         vm.set_source("' drop");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
     }
@@ -5032,7 +5008,7 @@ mod tests {
         vm.clear_stacks();
         // ' drop execute
         vm.set_source("' drop");
-        vm.evaluate();
+        vm.evaluate_input();
         vm.execute();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -5040,7 +5016,7 @@ mod tests {
         vm.clear_stacks();
         // 1 2  ' swap execute
         vm.set_source("1 2  ' swap execute");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop(), 1);
@@ -5057,7 +5033,7 @@ mod tests {
         vm.reset();
         // here 2 cells allot here -
         vm.set_source("here 2 cells allot here -");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(
@@ -5070,7 +5046,7 @@ mod tests {
     fn test_to_r_r_fetch_r_from() {
         let vm = &mut VM::new(16, 16);
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 8);
@@ -5080,9 +5056,9 @@ mod tests {
     fn bench_to_r_r_fetch_r_from(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
         vm.set_source(": main 3 >r r@ drop r> drop ;");
-        vm.evaluate();
+        vm.evaluate_input();
         vm.set_source("' main");
-        vm.evaluate();
+        vm.evaluate_input();
         b.iter(|| {
             vm.dup();
             vm.execute();
@@ -5094,7 +5070,7 @@ mod tests {
     fn test_two_to_r_two_r_fetch_two_r_from() {
         let vm = &mut VM::new(16, 16);
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), -3);
@@ -5104,9 +5080,9 @@ mod tests {
     fn bench_two_to_r_two_r_fetch_two_r_from(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
         vm.set_source(": main 1 2 2>r 2r@ 2drop 2r> 2drop ;");
-        vm.evaluate();
+        vm.evaluate_input();
         vm.set_source("' main");
-        vm.evaluate();
+        vm.evaluate_input();
         b.iter(|| {
             vm.dup();
             vm.execute();
@@ -5119,19 +5095,19 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // : t5 if ; t5
         vm.set_source(": t5 if ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t4 then ; t4
         vm.set_source(": t4 then ; t4");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t1 false dup if drop true then ; t1
         vm.set_source(": t1 0 dup if drop -1 then ; t1");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 0);
@@ -5139,7 +5115,7 @@ mod tests {
         vm.clear_stacks();
         // : t2 true dup if drop false then ; t1
         vm.set_source(": t1 -1 dup if drop -1 then ; t1");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), -1);
@@ -5150,21 +5126,21 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // : t3 else then ; t3
         vm.set_source(": t3 else then ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t1 0 if true else false then ; t1
         // let action = vm.code_space().here();
         vm.set_source(": t1 0 if true else false then ; t1");
-        vm.evaluate();
+        vm.evaluate_input();
         // dump(vm, action);
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 0);
         // : t2 1 if true else false then ; t2
         vm.set_source(": t2 1 if true else false then ; t2");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), -1);
@@ -5175,19 +5151,19 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // : t3 begin ;
         vm.set_source(": t3 begin ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t2 again ;
         vm.set_source(": t2 again ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t1 0 begin 1+ dup 3 = if exit then again ; t1
         vm.set_source(": t1 0 begin 1+ dup 3 = if exit then again ; t1");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 3);
@@ -5198,43 +5174,43 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // : t1 begin ;
         vm.set_source(": t1 begin ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t2 while ;
         vm.set_source(": t2 while ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t3 repeat ;
         vm.set_source(": t3 repeat ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t4 begin while ;
         vm.set_source(": t4 begin while ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t5 begin repeat ;
         vm.set_source(": t5 begin repeat ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t6 while repeat ;
         vm.set_source(": t6 while repeat ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t7 0 begin 1+ dup 3 <> while repeat ; t1
         vm.set_source(": t7 0 begin 1+ dup 3 <> while repeat ; t7");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 3);
@@ -5244,7 +5220,7 @@ mod tests {
     fn test_backslash() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("1 2 3 \\ 5 6 7");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), 3);
@@ -5255,14 +5231,12 @@ mod tests {
     #[test]
     fn test_marker_unmark() {
         let vm = &mut VM::new(16, 16);
-        let symbols_len = vm.symbols().len();
         let wordlist_len = vm.wordlist().len();
         vm.set_source("here marker empty empty here =");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), -1);
-        assert_eq!(vm.symbols().len(), symbols_len);
         assert_eq!(vm.wordlist().len(), wordlist_len);
     }
 
@@ -5270,7 +5244,7 @@ mod tests {
     fn test_abort() {
         let vm = &mut VM::new(16, 16);
         vm.set_source("1 2 3 abort 5 6 7");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(Abort));
         assert_eq!(vm.s_stack().len(), 0);
     }
@@ -5280,19 +5254,19 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // : t1 do ;
         vm.set_source(": t1 do ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t2 loop ;
         vm.set_source(": t2 loop ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : main 1 5 0 do 1+ loop ;  main
         vm.set_source(": main 1 5 0 do 1+ loop ;  main");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 6);
@@ -5303,13 +5277,13 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // : t1 unloop ;
         vm.set_source(": t1 unloop ; t1");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ReturnStackUnderflow));
         vm.reset();
         vm.clear_stacks();
         // : main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 3);
@@ -5320,25 +5294,25 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // : t1 +loop ;
         vm.set_source(": t1 +loop ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t2 5 0 do +loop ;
         vm.set_source(": t2 5 0 do +loop ; t2");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
         vm.clear_stacks();
         vm.reset();
         // : t3 1 5 0 do 1+ 2 +loop ;  main
         vm.set_source(": t3 1 5 0 do 1+ 2 +loop ;  t3");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 4);
         // : t4 1 6 0 do 1+ 2 +loop ;  t4
         vm.set_source(": t4 1 6 0 do 1+ 2 +loop ;  t4");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 4);
@@ -5349,13 +5323,13 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // : t1 leave ;
         vm.set_source(": t1 leave ;  t1");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop2(), (88, 9));
@@ -5366,7 +5340,7 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // : main 1 5 0 do 1+ dup 3 = if drop 88 leave then 2 +loop 9 ;  main
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then 2 +loop 9 ;  main");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 2);
         assert_eq!(vm.s_stack().pop2(), (88, 9));
@@ -5377,7 +5351,7 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         // : main 3 0 do i loop ;  main
         vm.set_source(": main 3 0 do i loop ;  main");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop3(), (0, 1, 2));
@@ -5387,7 +5361,7 @@ mod tests {
     fn test_do_i_j_loop() {
         let vm = &mut VM::new(16, 16);
         vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().len(), 4);
         assert_eq!(vm.s_stack().as_slice(), [4, 8, 5, 10]);
@@ -5397,12 +5371,12 @@ mod tests {
     fn bench_fib(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
         vm.set_source(": fib dup 2 < if drop 1 else dup 1- recurse swap 2 - recurse + then ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         vm.set_source(": main 7 fib drop ;");
-        vm.evaluate();
+        vm.evaluate_input();
         vm.set_source("' main");
-        vm.evaluate();
+        vm.evaluate_input();
         b.iter(|| {
             vm.dup();
             vm.execute();
@@ -5418,11 +5392,11 @@ mod tests {
     fn bench_repeat(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
         vm.set_source(": bench 0 begin over over > while 1 + repeat drop drop ;");
-        vm.evaluate();
+        vm.evaluate_input();
         vm.set_source(": main 8000 bench ;");
-        vm.evaluate();
+        vm.evaluate_input();
         vm.set_source("' main");
-        vm.evaluate();
+        vm.evaluate_input();
         b.iter(|| {
             vm.dup();
             vm.execute();
@@ -5447,7 +5421,7 @@ mod tests {
         }
         assert_eq!(vm.last_error(), None);
         vm.set_source("CREATE FLAGS 8190 ALLOT   CREATE EFLAG  1 CELLS ALLOT");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         vm.set_source(
             "
@@ -5461,14 +5435,14 @@ mod tests {
                 LOOP  DROP ;
         ",
         );
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         vm.set_source(
             "
             : BENCHMARK  0 1 0 DO  PRIMES NIP  LOOP ;
         ",
         );
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         vm.set_source(
             "
@@ -5478,10 +5452,10 @@ mod tests {
             ;
         ",
         );
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         vm.set_source("' main");
-        vm.evaluate();
+        vm.evaluate_input();
         b.iter(|| {
             vm.dup();
             vm.execute();
@@ -5494,7 +5468,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "subroutine-threaded"))]
+    #[cfg(not(feature = "stc"))]
     fn test_here_comma_compile_interpret() {
         let vm = &mut VM::new(16, 16);
         vm.comma();
@@ -5504,7 +5478,7 @@ mod tests {
         // here 1 , 2 , ] lit exit [ here
         let here = vm.data_space().here();
         vm.set_source("here 1 , 2 , ] lit exit [ here");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 2);
         let (n, t) = vm.s_stack().pop2();
@@ -5527,7 +5501,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn test_subroutine_threaded_colon_and_semi_colon() {
         let vm = &mut VM::new(16, 16);
         // : nop ;
@@ -5540,7 +5514,7 @@ mod tests {
         // c3               ret
         let action = vm.code_space().here();
         vm.set_source(": nop ; nop");
-        vm.evaluate();
+        vm.evaluate_input();
         let w = vm.last_definition();
         assert_eq!(vm.wordlist()[w].action as usize, action);
         unsafe {
@@ -5586,48 +5560,48 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn test_subroutine_threaded_lit_and_plus() {
         let vm = &mut VM::new(16, 16);
         // : 2+3 2 3 + ;
         // let action = vm.code_space().here();
         vm.set_source(": 2+3 2 3 + ;");
-        vm.evaluate();
+        vm.evaluate_input();
         // dump(vm, action);
         // 2+3
         vm.set_source("2+3");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 5);
     }
 
     #[test]
-    #[cfg(all(feature = "subroutine-threaded", target_arch = "x86"))]
+    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn test_subroutine_threaded_if_then() {
         let vm = &mut VM::new(16, 16);
         // : t5 if ; t5
         vm.set_source(": t5 if ;");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // : t4 then ; t4
         vm.set_source(": t4 then ; t4");
-        vm.evaluate();
+        vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
         // let action = vm.code_space().here();
         // : tx dup drop ;
         vm.set_source(": tx dup drop ;");
-        vm.evaluate();
+        vm.evaluate_input();
         // dump(vm, action);
         // println!("**** t1 ****");
         // let action = vm.code_space().here();
         // : t1 0 dup if drop -1 then ; t1
         vm.set_source(": t1 0 dup if drop -1 then ; t1");
-        vm.evaluate();
+        vm.evaluate_input();
         // dump(vm, action);
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
@@ -5636,7 +5610,7 @@ mod tests {
         vm.clear_stacks();
         // : t2 -1 dup if drop 0 then ; t1
         vm.set_source(": t2 -1 dup if drop -1 then ; t2");
-        vm.evaluate();
+        vm.evaluate_input();
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), -1);

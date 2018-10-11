@@ -25,6 +25,10 @@ pub struct Word<Target> {
     cfa: usize,
     action: primitive!{ fn (&mut Target) },
     pub(crate) compilation_semantics: fn(&mut Target, usize),
+    // Minimum execution time in [ns]
+    pub(crate) min_execution_time: usize,
+    // Maximum execution time in [ns]
+    pub(crate) max_execution_time: usize,
 }
 
 impl<Target> Word<Target> {
@@ -44,6 +48,8 @@ impl<Target> Word<Target> {
             cfa: cfa,
             action: action,
             compilation_semantics: compilation_semantics,
+            min_execution_time: 0,
+            max_execution_time: 0,
         }
     }
 
@@ -83,7 +89,7 @@ impl<Target> Word<Target> {
         self.cfa
     }
 
-pub fn action(&self) -> primitive!{fn(&mut Target)}{
+    pub fn action(&self) -> primitive!{fn(&mut Target)}{
         self.action
     }
 }

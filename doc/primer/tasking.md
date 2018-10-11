@@ -180,6 +180,37 @@ rf> 10 watch
 : ms ( n -- )   mtime  begin pause mtime over -  2 pick <  while repeat  2drop ;
 ```
 
+另有一個類似 `mtime` 的指令 `utime`，但用來取得準確到微秒的時間。注意在 32 位元的系統上，`utime` 和 `mtime` 得到的時間是一個 32 位元的數字，能表達的最大時間有限。`mtime` 能表達約 24 天的時間。而 `utime` 只能表達到 35 分鐘。但它們很適合用來表示控制設備時的時間延遲，或是用來計算其他 Forth 指令執行所需的時間。
+
+由於常有需要瞭解 Forth 指令執行的時間，rtForth 配合 `utime` 提供了三個指令 `xtime` 、`.xtime` 和 `0xtime` 來進行執行時間分析。說明如下，
+
+* `xtime ( t0 xt -- )` 計算 `t0` 到現在的時間後，統計令牌 `xt` 對應的指令的最大及最小執行時間。
+* `.xtime ( -- )` 印出所有指令的最大及最小執行時間。
+* `0xtime ( -- )` 清除所有指令的最大及最小執行時間。
+
+請見下例：
+
+```
+rf> utime ' noop xtime .xtime
+noop|88,88 ok
+rf> : noops   0 ?do utime ['] noop xtime loop ;
+ ok
+rf> 80 noops
+ ok
+rf> .xtime
+noop|4,88 ok
+rf> 0xtime
+ ok
+rf> .xtime
+ ok
+```
+
+在例子中的 noop 是一個什麼也不做的 rtForth 指令。我們先使用 `utime` 取得目前的時間，再使用 `' noop` 取得 `noop` 的令牌。再以 `xtime` 執行這個令牌並分析執行時間。然後以 `.xtime` 印出統計結果。得到的 `noop|88,88` 顯示執行 `noop` 需要 88 微秒。這並不是正確的時間，因為這 88 微秒包括了直譯器從輸入緩衝區讀取指令並在在字典中找到 `noop` 然後以 `xtime` 執行的時間。
+
+然後我們定義了 `noops`，讓我們可以執行多次 `noop` 並統計其時間。在執行了 `80 noops` 後，以 `.xtime` 印出統計結果，`noop` 的最小執行時間是 4 微秒，最大是剛剛的 88 微秒。因為在冒號和分號之間的指令是被編譯的，因此這最小時間 4 微秒不包括從輸入緩衝區讀取以及在字典中搜尋的時間，但依舊不是正確的時間。因為它還包括了 `['] noop` 將令牌放上堆疊，以及 `xtime` 從堆疊取出令牌並執行的時間。同時，因為 `utime` 最小能處理的時間是 1 微秒，小於 1 微秒的時間是無法量得的。
+
+雖然如此，這幾個指令仍提供我們很有意義的資訊，有助於我們必要時改進 Forth 指令或是在實時系統下多工時的性能。
+
 ### 本節指令集
 
 本節指令都非 Forth 2012 標準指令。指令集的設計參考了 Forth Inc. 的 SwiftOS 的多工指令集。
@@ -199,6 +230,10 @@ rf> 10 watch
 | `release` | ( n -- ) &emsp; 釋放資源變數 `n` 。| release |
 | `mtime` | ( -- n ) &emsp; 目前的系統時間。單位為毫秒。| m-time |
 | `ms` | ( n -- ) &emsp; 等待 `n` 毫秒。 | ms |
+| `utime` | ( -- n ) &emsp; 目前的系統時間。單位為微秒。| u-time |
+| `xtime` | ( t0 xt -- ) &emsp; 計算 `t0` 到現在的時間後，統計令牌 `xt` 對應的指令的最大及最小執行時間。`t0` 的單位是微秒。| x-time |
+| `.xtime` | ( -- ) 印出所有指令的最大及最小執行時間。如果時間為 0 則不顯示。| dot-x-time |
+| `0xtime` | ( -- ) 清除所有指令的最大及最小執行時間。 | zero-x-time |
 
 -------------
 ## 異常處理
@@ -361,6 +396,10 @@ rf> 0 0 /
 | `release` | ( n -- ) &emsp; 釋放資源變數 `n` 。| release |
 | `mtime` | ( -- n ) &emsp; 目前的系統時間。單位為毫秒。| m-time |
 | `ms` | ( n -- ) &emsp; 等待 `n` 毫秒。 | ms |
+| `utime` | ( -- n ) &emsp; 目前的系統時間。單位為微秒。| u-time |
+| `xtime` | ( t0 xt -- ) &emsp; 計算 `t0` 到現在的時間後，統計令牌 `xt` 對應的指令的最大及最小執行時間。`t0` 的單位是微秒。| x-time |
+| `.xtime` | ( -- ) 印出所有指令的最大及最小執行時間。如果時間為 0 則不顯示。| dot-x-time |
+| `0xtime` | ( -- ) 清除所有指令的最大及最小執行時間。 | zero-x-time |
 | `quit` | ( -- ) &emsp; 重設工作，並執行工作的預設行為。通常這預設的行為就是 Forth 的文本直譯器。| quit |
 | `abort` | ( -- ) &emsp; 放棄程式的執行，清除堆疊，回到工作的預設行為。| abort |
 | `handler!` | ( xt -- ) &emsp; 設定目前工作的異常處理指令為 `xt` 。| handler-store |

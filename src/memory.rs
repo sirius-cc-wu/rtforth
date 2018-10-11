@@ -293,7 +293,7 @@ pub(crate) trait Memory {
         let bytes = s.as_bytes();
         let here = self.here();
         let len = bytes.len();
-        if here + len <= self.limit() {
+        if here + len + mem::size_of::<usize>() <= self.limit() {
             self.compile_usize(len);
             for byte in bytes {
                 self.compile_u8(*byte);

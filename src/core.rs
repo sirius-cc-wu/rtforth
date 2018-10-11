@@ -476,7 +476,7 @@ pub trait Core: Sized {
     fn references(&mut self) -> &mut ForwardReferences;
     fn system_time_ns(&self) -> u64;
     /// Current task
-    fn current_task(&mut self) -> usize;
+    fn current_task(&self) -> usize;
     /// Set curretn task.
     ///
     /// No operation if there is no task `i`.

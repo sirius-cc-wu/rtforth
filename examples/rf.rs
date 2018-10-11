@@ -209,7 +209,7 @@ impl Core for VM {
             Err(_) => 0u64,
         }
     }
-    fn current_task(&mut self) -> usize {
+    fn current_task(&self) -> usize {
         self.current_task
     }
     fn set_current_task(&mut self, i: usize) {

@@ -2,7 +2,7 @@
 
 : evaluate
     begin parse-word
-      token-empty? not  error? not  and
+      token-empty? not  error 0=  and
     while
       compiling? if compile-token ?stacks else interpret-token ?stacks then
     repeat ;
@@ -11,7 +11,12 @@
     begin accept evaluate
     ."  ok" flush
     again ;
-: (abort) handle-error flush quit ;
-' (abort) handler!
+: (abort)
+    0stacks error if
+      .token space .error space 0error
+    then flush quit ;
+: cold
+    2 halt  3 halt  4 halt  5 halt
+    ['] (abort) handler!  quit ;
 
 marker -work

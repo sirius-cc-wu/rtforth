@@ -60,10 +60,10 @@ variable >in  0 >in !
 : nod   begin pause again ;
 : halt ( n -- )   activate nod ;
 : stop   me suspend pause ;
-\ Aquire facility `a`. Note: 1+ so that task 0 can aquire facility.
-: get ( a -- )   begin  dup @  while pause repeat me 1+ swap ! ;
+\ Aquire facility `a`.
+: get ( a -- )   begin  dup @  while pause repeat me swap ! ;
 \ Release facility `a`.
-: release ( a -- )   dup @ 1- me = if 0 swap ! else drop then ;
+: release ( a -- )   dup @ me = if 0 swap ! else drop then ;
 \ Wait `n` milli-seconds.
 : ms ( n -- )   mtime  begin mtime over -  2 pick <  while pause repeat  2drop ;
 

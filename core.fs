@@ -55,6 +55,9 @@ variable >in  0 >in !
       chars +  cr
     repeat ;
 
+\ Execution time
+: xtime ( t0 xt -- )   2>r r@ execute 2r> (xtime) ;
+
 \ Multitasker
 0 constant operator
 : nod   begin pause again ;

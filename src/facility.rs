@@ -15,11 +15,10 @@ pub trait Facility: Core {
         self.s_stack().push(now as isize);
     }}
 
-    /// System time in micro-seconds. `utime ( -- minutes micro-seconds )`
+    /// System time in micro-seconds. `utime ( -- micro-seconds )`
     primitive!{fn utime(&mut self) {
-        let mut us = self.system_time_ns() / 1_000;
-        let min = us / 60_000_000;
-        us = us - (min * 60_000_000);
-        self.s_stack().push2(min as isize, us as isize);
+        let now = self.system_time_ns() / 1_000;
+        self.s_stack().push(now as isize);
+
     }}
 }

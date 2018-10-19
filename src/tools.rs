@@ -103,5 +103,4 @@ pub trait Tools: Output {
             }
         }
     }}
-
 }

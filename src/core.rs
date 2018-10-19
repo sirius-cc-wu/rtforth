@@ -93,7 +93,7 @@ impl<Target> Word<Target> {
         self.cfa
     }
 
-    pub fn action(&self) -> primitive!{fn(&mut Target)}{
+pub fn action(&self) -> primitive!{fn(&mut Target)}{
         self.action
     }
 }

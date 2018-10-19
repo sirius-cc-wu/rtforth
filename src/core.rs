@@ -4,9 +4,9 @@ use memory::{CodeSpace, DataSpace, Memory};
 use exception::Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
                            FloatingPointStackOverflow, FloatingPointStackUnderflow,
                            InterpretingACompileOnlyWord, InvalidMemoryAddress,
-                           ReturnStackOverflow, ReturnStackUnderflow, StackOverflow,
-                           StackUnderflow, UndefinedWord, UnexpectedEndOfFile,
-                           UnsupportedOperation, InvalidNumericArgument};
+                           InvalidNumericArgument, ReturnStackOverflow, ReturnStackUnderflow,
+                           StackOverflow, StackUnderflow, UndefinedWord, UnexpectedEndOfFile,
+                           UnsupportedOperation};
 use parser;
 use std::fmt::Write;
 use std::fmt::{self, Display};
@@ -20,6 +20,8 @@ pub struct Word<Target> {
     is_immediate: bool,
     is_compile_only: bool,
     hidden: bool,
+    link: usize,
+    hash: u32,
     nfa: usize,
     dfa: usize,
     cfa: usize,
@@ -43,6 +45,8 @@ impl<Target> Word<Target> {
             is_immediate: false,
             is_compile_only: false,
             hidden: false,
+            link: 0,
+            hash: 0,
             nfa: nfa,
             dfa: dfa,
             cfa: cfa,
@@ -91,6 +95,77 @@ impl<Target> Word<Target> {
 
     pub fn action(&self) -> primitive!{fn(&mut Target)}{
         self.action
+    }
+}
+
+const BUCKET_SIZE: usize = 64;
+
+/// Wordlist
+pub struct Wordlist<Target> {
+    words: Vec<Word<Target>>,
+    buckets: [usize; BUCKET_SIZE],
+    temp_buckets: [usize; BUCKET_SIZE],
+    last: usize,
+}
+
+impl<Target> Wordlist<Target> {
+    /// Create a wordlist with capacity of `cap`.
+    pub fn with_capacity(cap: usize) -> Wordlist<Target> {
+        Wordlist {
+            words: Vec::with_capacity(cap),
+            buckets: [0; BUCKET_SIZE],
+            temp_buckets: [0; BUCKET_SIZE],
+            last: 0,
+        }
+    }
+
+    /// Word count
+    pub fn len(&self) -> usize {
+        self.words.len()
+    }
+
+    // Hash function
+    //
+    // Alogrithm djb2 at http://www.cse.yorku.ca/~oz/hash.html .
+    fn hash(name: &str) -> u32 {
+        let mut hash: u32 = 5381;
+        for c in name.bytes() {
+            hash = hash.wrapping_shl(5)
+                .wrapping_add(hash)
+                .wrapping_add(c.to_ascii_lowercase() as u32); /* hash * 33 + c */
+        }
+        hash
+    }
+
+    /// Push word `w` into list.
+    fn push(&mut self, name: &str, mut w: Word<Target>) {
+        w.hash = Self::hash(name);
+        let b = w.hash as usize % BUCKET_SIZE;
+        w.link = self.buckets[b];
+        self.last = self.words.len();
+        self.buckets[b] = self.last;
+        self.words.push(w);
+    }
+
+    /// Remove the `i`th word and all words behind it.
+    fn truncate(&mut self, i: usize) {
+        self.words.truncate(i);
+        self.last = self.words.len() - 1;
+    }
+}
+
+impl<Target> Index<usize> for Wordlist<Target> {
+    type Output = Word<Target>;
+    #[inline(always)]
+    fn index(&self, index: usize) -> &Word<Target> {
+        &self.words[index]
+    }
+}
+
+impl<Target> IndexMut<usize> for Wordlist<Target> {
+    #[inline(always)]
+    fn index_mut(&mut self, index: usize) -> &mut Word<Target> {
+        &mut self.words[index]
     }
 }
 
@@ -395,10 +470,8 @@ pub trait Core: Sized {
     fn c_stack(&mut self) -> &mut Stack<Control>;
     fn f_stack(&mut self) -> &mut Stack<f64>;
     /// Last definition, 0 if last define fails.
-    fn last_definition(&self) -> usize;
-    fn set_last_definition(&mut self, n: usize);
-    fn wordlist_mut(&mut self) -> &mut Vec<Word<Self>>;
-    fn wordlist(&self) -> &Vec<Word<Self>>;
+    fn wordlist_mut(&mut self) -> &mut Wordlist<Self>;
+    fn wordlist(&self) -> &Wordlist<Self>;
     fn state(&mut self) -> &mut State;
     fn references(&mut self) -> &mut ForwardReferences;
     fn system_time_ns(&self) -> u64;
@@ -420,7 +493,7 @@ pub trait Core: Sized {
     /// Add core primitives to self.
     fn add_core(&mut self) {
         // Bytecodes
-        self.add_primitive("noop", Core::noop);
+        self.add_primitive("", Core::noop);
         self.add_compile_only("exit", Core::exit);
         self.add_compile_only("lit", Core::lit);
         self.add_compile_only("flit", Core::flit);
@@ -590,14 +663,12 @@ fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
             self.data_space().here(),
             self.code_space().here(),
         );
-        let len = self.wordlist().len();
-        self.set_last_definition(len);
-        self.wordlist_mut().push(word);
+        self.wordlist_mut().push(name, word);
     }
 
     /// Set the last definition immediate.
     primitive!{fn immediate(&mut self) {
-        let def = self.last_definition();
+        let def = self.wordlist().last;
         self.wordlist_mut()[def].set_immediate(true);
     }}
 
@@ -609,7 +680,7 @@ fn add_immediate(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
 
     /// Set the last definition compile-only.
     primitive!{fn compile_only(&mut self) {
-        let def = self.last_definition();
+        let def = self.wordlist().last;
         self.wordlist_mut()[def].set_compile_only(true);
     }}
 
@@ -639,14 +710,21 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Find the word with name `name`.
     /// If not found returns zero.
     fn find(&mut self, name: &str) -> Option<usize> {
-        for w in (0..self.wordlist().len()).rev() {
+        let hash = Wordlist::<Self>::hash(name);
+        let mut w = self.wordlist().buckets[hash as usize % BUCKET_SIZE];
+        while w != 0 {
             if !self.wordlist()[w].is_hidden() {
-                let nfa = self.wordlist()[w].nfa();
-                let w_name = unsafe{ self.data_space().get_str(nfa) };
-                if w_name.eq_ignore_ascii_case(name) {
-                    return Some(w);
+                {
+                    if self.wordlist()[w].hash == hash {
+                        let nfa = self.wordlist()[w].nfa();
+                        let w_name = unsafe { self.data_space().get_str(nfa) };
+                        if w_name.eq_ignore_ascii_case(name) {
+                            return Some(w);
+                        }
+                    }
                 }
             }
+            w = self.wordlist()[w].link;
         }
         None
     }
@@ -2710,7 +2788,6 @@ compilation_semantics: fn(&mut Self, usize)){
             }
         }
         if last_token.is_empty() {
-            self.set_last_definition(0);
             self.set_last_token(last_token);
             self.abort_with(UnexpectedEndOfFile);
         } else {
@@ -2724,9 +2801,7 @@ compilation_semantics: fn(&mut Self, usize)){
                 self.data_space().here(),
                 self.code_space().here(),
             );
-            let len = self.wordlist().len();
-            self.set_last_definition(len);
-            self.wordlist_mut().push(word);
+            self.wordlist_mut().push(&last_token, word);
             self.set_last_token(last_token);
         }
     }
@@ -2734,7 +2809,7 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn colon(&mut self) {
         self.define(Core::nest, Core::compile_nest);
         if self.last_error().is_none() {
-            let def = self.last_definition();
+            let def = self.wordlist().last;
             self.compile_nest_code(def);
             self.wordlist_mut()[def].set_hidden(true);
             self.right_bracket();
@@ -2742,23 +2817,19 @@ compilation_semantics: fn(&mut Self, usize)){
     }}
 
     primitive!{fn semicolon(&mut self) {
-        if self.last_definition() != 0 {
-            if self.c_stack().len != 0 {
-                self.abort_with(ControlStructureMismatch);
-            } else {
-                let idx = self.references().idx_exit;
-                let compile = self.wordlist()[idx].compilation_semantics;
-                compile(self, idx);
-                let def = self.last_definition();
-                self.wordlist_mut()[def].set_hidden(false);
-            }
+        if self.c_stack().len != 0 {
+            self.abort_with(ControlStructureMismatch);
+        } else {
+            let idx = self.references().idx_exit;
+            let compile = self.wordlist()[idx].compilation_semantics;
+            compile(self, idx);
+            let def = self.wordlist().last;
+            self.wordlist_mut()[def].set_hidden(false);
         }
         self.left_bracket();
     }}
 
     primitive!{fn create(&mut self) {
-        // pointer for does>
-        self.data_space().compile_isize(0);
         self.define(Core::p_var, Core::compile_var);
     }}
 
@@ -2772,27 +2843,51 @@ compilation_semantics: fn(&mut Self, usize)){
 
     primitive!{fn unmark(&mut self) {
         let wp = self.state().word_pointer;
-        let cfa;
-        let nfa;
-        {
+        let (nfa, cfa, mut dfa) = {
             let w = &self.wordlist()[wp];
-            cfa = w.cfa();
-            nfa = w.nfa();
+            (w.nfa(), w.cfa(), w.dfa())
+        };
+        let x = unsafe{ self.data_space().get_usize(dfa) };
+        self.wordlist_mut().last = x;
+        for i in 0..BUCKET_SIZE {
+            dfa += mem::size_of::<usize>();
+            let x = unsafe{ self.data_space().get_usize(dfa) };
+            self.wordlist_mut().buckets[i] = x;
         }
         self.data_space().truncate(nfa);
         self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
     }}
 
+    /// Example:
+    /// ```text
+    /// marker -work
+    ///
+    /// DFA of -work
+    /// +------+--------+
+    /// | last | b0-b63 |
+    /// +------+--------+
+    /// ```
     primitive!{fn marker(&mut self) {
+        let x = self.wordlist().last;
+        self.wordlist_mut().temp_buckets = self.wordlist().buckets;
         self.define(Core::unmark, Core::compile_unmark);
+        self.data_space().compile_usize(x);
+        for i in 0..BUCKET_SIZE {
+            let x = self.wordlist().temp_buckets[i];
+            self.data_space().compile_usize(x);
+        }
     }}
 
     /// Run time behavior of words created by `create` ... `does>`.
     ///
+    /// Token threaded version.
+    ///
     /// Example of does>
+    /// ```text
     /// : 2constant   create , , does> 2@ ;
     /// 4 40 2constant range
+    /// ```
     ///
     /// 2constant
     /// +--------+---+---+-------+------+----+------+
@@ -2801,39 +2896,41 @@ compilation_semantics: fn(&mut Self, usize)){
     ///                                   ^
     /// range                             |
     ///                                   |
-    ///   cfa                             |
+    ///   action                          |
     ///   +------+                        |
     ///   | does |                        |
     ///   +------+                        |
     ///                                   |
-    ///     +-----------------------------+
-    ///     |  dfa
-    ///   +---+---+----+
-    ///   |   | 4 | 40 |
-    ///   +---+---+----+
+    ///   cfa                             |
+    ///   +------+                        |
+    ///   | x    |------------------------+
+    ///   +------+
+    ///
+    ///   dfa
+    ///   +---+----+
+    ///   | 4 | 40 |
+    ///   +---+----+
     ///
     primitive!{fn does(&mut self) {
+        // Push DFA.
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
+        let cfa = self.wordlist()[wp].cfa();
         self.s_stack().push(dfa as isize);
-        let doer = unsafe{ self.data_space().get_isize(dfa - mem::size_of::<isize>()) as usize };
-        let rlen = self.r_stack().len.wrapping_add(1);
-        self.r_stack().len = rlen;
-        self.r_stack()[rlen.wrapping_sub(1)] = self.state().instruction_pointer as isize;
+        // Execute words behind DOES>.
+        let doer = unsafe{ self.code_space().get_usize(cfa) };
+        let ip = self.state().instruction_pointer as isize;
+        self.r_stack().push(ip);
         self.state().instruction_pointer = doer;
     }}
 
     /// Run time behavior of does>.
     primitive!{fn _does(&mut self) {
         let doer = self.state().instruction_pointer + mem::size_of::<isize>();
-        let def = self.last_definition();
-        let dfa = {
-            let word = &mut self.wordlist_mut()[def];
-            word.action = Core::does;
-            word.dfa()
-        };
-        // Note: need to change create.
-        unsafe{ self.data_space().put_isize(doer as isize, dfa - mem::size_of::<isize>()) };
+        self.code_space().compile_usize(doer);
+        let def = self.wordlist().last;
+        let word = &mut self.wordlist_mut()[def];
+        word.action = Core::does;
     }}
 
     // -----------
@@ -5521,7 +5618,7 @@ mod tests {
         let action = vm.code_space().here();
         vm.set_source(": nop ; nop");
         vm.evaluate_input();
-        let w = vm.last_definition();
+        let w = vm.wordlist().last();
         assert_eq!(vm.wordlist()[w].action as usize, action);
         unsafe {
             assert_eq!(vm.code_space().get_u8(action + 0), 0x56);

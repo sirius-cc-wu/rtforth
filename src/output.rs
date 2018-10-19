@@ -45,7 +45,11 @@ pub trait Output: Core {
         match self.output_buffer().take() {
             Some(mut buffer) => {
                 {
-                    let s = unsafe{ &self.data_space().str_from_raw_parts(addr as usize, len as usize) };
+                    let s = unsafe{
+                        &self.data_space().str_from_raw_parts(
+                            addr as usize, len as usize
+                        )
+                    };
                     buffer.push_str(s);
                 }
                 self.set_output_buffer(buffer);

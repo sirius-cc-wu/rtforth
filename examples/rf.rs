@@ -7,7 +7,7 @@ extern crate rustyline;
 
 use getopts::Options;
 use rtforth::memory::{CodeSpace, DataSpace};
-use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
+use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use rtforth::env::Environment;
 use rtforth::exception::Exception;
 use rtforth::facility::Facility;
@@ -69,8 +69,7 @@ pub struct VM {
     editor: rustyline::Editor<()>,
     last_error: Option<Exception>,
     handler: usize,
-    last_definition: usize,
-    wordlist: Vec<Word<VM>>,
+    wordlist: Wordlist<VM>,
     data_space: DataSpace,
     code_space: CodeSpace,
     tkn: Option<String>,
@@ -98,8 +97,7 @@ impl VM {
             editor: rustyline::Editor::<()>::new(),
             last_error: None,
             handler: 0,
-            last_definition: 0,
-            wordlist: vec![],
+            wordlist: Wordlist::with_capacity(1000),
             data_space: DataSpace::new(data_pages),
             code_space: CodeSpace::new(code_pages),
             tkn: Some(String::with_capacity(64)),
@@ -193,16 +191,10 @@ impl Core for VM {
     fn f_stack(&mut self) -> &mut Stack<f64> {
         &mut self.tasks[self.current_task].f_stk
     }
-    fn last_definition(&self) -> usize {
-        self.last_definition
-    }
-    fn set_last_definition(&mut self, n: usize) {
-        self.last_definition = n;
-    }
-    fn wordlist_mut(&mut self) -> &mut Vec<Word<Self>> {
+    fn wordlist_mut(&mut self) -> &mut Wordlist<Self> {
         &mut self.wordlist
     }
-    fn wordlist(&self) -> &Vec<Word<Self>> {
+    fn wordlist(&self) -> &Wordlist<Self> {
         &self.wordlist
     }
     fn state(&mut self) -> &mut State {

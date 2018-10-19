@@ -1,26 +1,14 @@
-#![feature(duration_as_u128)]
-
-extern crate getopts;
-#[macro_use(primitive)]
-extern crate rtforth;
-extern crate rustyline;
-
-use getopts::Options;
-use rtforth::memory::{CodeSpace, DataSpace};
-use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
-use rtforth::env::Environment;
-use rtforth::exception::Exception;
-use rtforth::facility::Facility;
-use rtforth::float::Float;
-use rtforth::loader::HasLoader;
-use rtforth::output::Output;
-use rtforth::tools::Tools;
-use rtforth::units::Units;
-use rtforth::NUM_TASKS;
-use std::env;
-use std::fmt::Write;
-use std::process;
-use std::time::SystemTime;
+use memory::{CodeSpace, DataSpace};
+use NUM_TASKS;
+use core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
+use env::Environment;
+use exception::Exception;
+use facility::Facility;
+use float::Float;
+use loader::HasLoader;
+use output::Output;
+use tools::Tools;
+use units::Units;
 
 const BUFFER_SIZE: usize = 0x400;
 
@@ -48,7 +36,7 @@ impl Task {
             regs: [0, 0],
             s_stk: Stack::new(0x12345678),
             r_stk: Stack::new(0x12345678),
-            c_stk: Stack::new(Control::Default),
+            c_stk: Stack::new(Control::Canary),
             f_stk: Stack::new(1.234567890),
             inbuf: None,
         }
@@ -66,7 +54,6 @@ impl Task {
 pub struct VM {
     current_task: usize,
     tasks: [Task; NUM_TASKS],
-    editor: rustyline::Editor<()>,
     last_error: Option<Exception>,
     handler: usize,
     wordlist: Wordlist<VM>,
@@ -76,7 +63,7 @@ pub struct VM {
     outbuf: Option<String>,
     hldbuf: String,
     references: ForwardReferences,
-    now: SystemTime,
+    now: u64,
 }
 
 impl VM {
@@ -86,15 +73,13 @@ impl VM {
         let mut vm = VM {
             current_task: 0,
             tasks: [
-                // Only the operator task is a terminal task
-                // with its own input buffer.
+                // Only operator task has its own input buffer.
                 Task::new_terminal(),
                 Task::new_background(),
                 Task::new_background(),
                 Task::new_background(),
                 Task::new_background(),
             ],
-            editor: rustyline::Editor::<()>::new(),
             last_error: None,
             handler: 0,
             wordlist: Wordlist::with_capacity(1000),
@@ -104,7 +89,7 @@ impl VM {
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
             references: ForwardReferences::new(),
-            now: SystemTime::now(),
+            now: 0,
         };
         vm.add_core();
         vm.add_output();
@@ -113,20 +98,15 @@ impl VM {
         vm.add_facility();
         vm.add_float();
         vm.add_units();
-        vm.add_primitive("receive", receive);
-        vm.add_primitive("bye", bye);
 
         vm.load_core_fs();
 
-        let rffs = include_str!("./rf.fs");
-        vm.load_str(rffs);
-        if vm.last_error().is_some() {
-            panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
-        }
-
-        vm.flush_output();
-
         vm
+    }
+
+    /// Advance time for 1ms.
+    pub fn advance(&mut self) {
+        self.now += 1_000_000;
     }
 }
 
@@ -204,10 +184,7 @@ impl Core for VM {
         &mut self.references
     }
     fn system_time_ns(&self) -> u64 {
-        match self.now.elapsed() {
-            Ok(d) => d.as_nanos() as u64,
-            Err(_) => 0u64,
-        }
+        self.now
     }
     fn current_task(&mut self) -> usize {
         self.current_task
@@ -242,86 +219,3 @@ impl Units for VM {}
 impl HasLoader for VM {}
 impl Output for VM {}
 impl Tools for VM {}
-
-fn main() {
-    let vm = &mut VM::new(1024, 1024);
-
-    let mut bye = false;
-
-    let args: Vec<_> = env::args().collect();
-    let program = args[0].clone();
-    let mut opts = Options::new();
-    opts.optflag("h", "help", "print help menu");
-    opts.optflag("v", "version", "print version number");
-
-    let matches = match opts.parse(&args[1..]) {
-        Ok(m) => m,
-        Err(f) => {
-            panic!(f.to_string());
-        }
-    };
-    if matches.opt_present("h") {
-        print_usage(&program, opts);
-    } else if matches.opt_present("v") {
-        print_version();
-    } else if !matches.free.is_empty() {
-        for file in matches.free {
-            if let Err(e) = vm.load(&file) {
-                vm.clear_stacks();
-                vm.reset();
-                println!("{} ", e.description());
-                bye = true;
-                break;
-            }
-        }
-        if !bye {
-            repl(vm);
-        }
-    } else {
-        print_version();
-        println!("Type 'bye' or press Ctrl-D to exit.");
-        repl(vm);
-    }
-}
-
-fn print_version() {
-    println!("rtForth v0.5.0, Copyright (C) 2018 Mapacode Inc.");
-}
-
-primitive!{fn receive(vm: &mut VM) {
-    match vm.editor.readline("rf> ") {
-        Ok(line) => {
-            vm.editor.add_history_entry(&line);
-            vm.set_source(&line);
-        }
-        Err(rustyline::error::ReadlineError::Eof) => {
-            bye(vm);
-        }
-        Err(err) => {
-            match vm.output_buffer().as_mut() {
-                Some(ref mut buf) => {
-                    write!(buf, "{}", err).unwrap();
-                }
-                None => {}
-            }
-        }
-    }
-}}
-
-/// Terminate process.
-primitive!{fn bye(vm: &mut VM) {
-    vm.flush_output();
-    process::exit(0);
-}}
-
-#[inline(never)]
-fn repl(vm: &mut VM) {
-    let cold = vm.find("COLD").expect("COlD");
-    vm.execute_word(cold);
-    vm.run();
-}
-
-fn print_usage(program: &str, opts: Options) {
-    let brief = format!("Usage: {} [files] [options]", program);
-    print!("{}", opts.usage(&brief));
-}

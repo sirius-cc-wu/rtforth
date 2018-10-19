@@ -11,7 +11,7 @@ pub trait HasLoader: Core {
         input_buffer.push_str(script);
         self.state().source_index = 0;
         self.set_input_buffer(input_buffer);
-        self.evaluate();
+        self.evaluate_input();
     }
 
     fn load(&mut self, path_name: &str) -> Result<(), Exception> {
@@ -33,7 +33,7 @@ pub trait HasLoader: Core {
                         return Ok(());
                     } else {
                         self.set_input_buffer(input_buffer);
-                        self.evaluate();
+                        self.evaluate_input();
                         if let Some(e) = self.last_error() {
                             return Err(e);
                         }

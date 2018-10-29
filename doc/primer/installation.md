@@ -38,7 +38,7 @@ $ cargo build --example rf
 
 編譯最佳化版的 rtForth：
 ```
-$ cargo build --examples rf --release
+$ cargo build --example rf --release
 ```
 編譯出來最佳化版的 rtForth 位於 ./target/release/examples/rf 。
 

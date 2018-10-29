@@ -93,7 +93,7 @@ impl<Target> Word<Target> {
         self.cfa
     }
 
-    pub fn action(&self) -> primitive!{fn(&mut Target)}{
+pub fn action(&self) -> primitive!{fn(&mut Target)}{
         self.action
     }
 }
@@ -476,7 +476,7 @@ pub trait Core: Sized {
     fn references(&mut self) -> &mut ForwardReferences;
     fn system_time_ns(&self) -> u64;
     /// Current task
-    fn current_task(&mut self) -> usize;
+    fn current_task(&self) -> usize;
     /// Set curretn task.
     ///
     /// No operation if there is no task `i`.
@@ -494,6 +494,7 @@ pub trait Core: Sized {
     fn add_core(&mut self) {
         // Bytecodes
         self.add_primitive("", Core::noop);
+        self.add_primitive("noop", Core::noop);
         self.add_compile_only("exit", Core::exit);
         self.add_compile_only("lit", Core::lit);
         self.add_compile_only("flit", Core::flit);

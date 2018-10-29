@@ -209,7 +209,7 @@ impl Core for VM {
             Err(_) => 0u64,
         }
     }
-    fn current_task(&mut self) -> usize {
+    fn current_task(&self) -> usize {
         self.current_task
     }
     fn set_current_task(&mut self, i: usize) {
@@ -285,7 +285,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.5.0, Copyright (C) 2018 Mapacode Inc.");
+    println!("rtForth v0.6.0, Copyright (C) 2018 Mapacode Inc.");
 }
 
 primitive!{fn receive(vm: &mut VM) {

@@ -180,6 +180,7 @@ x<sup>5</sup> + 2 x<sup>4</sup> + 3 x<sup>3</sup> + 4 x<sup>2</sup> + 5 x + 6
    5e f+        \ ( F: x ((((x+2)x+3)x+4)x+5) )
    fover f*     \ ( F: x ((((x+2)x+3)x+4)x+5)x )
    6e f+        \ ( F: x ((((x+2)x+3)x+4)x+5)x+6 )
+   fnip         \ ( F: ((((x+2)x+3)x+4)x+5)x+6 )
 ;
 ```
 
@@ -199,6 +200,13 @@ x<sup>5</sup> + 2 x<sup>4</sup> + 3 x<sup>3</sup> + 4 x<sup>2</sup> + 5 x + 6
    5e f+ fover f*
    6e f+ fnip
 ;
+```
+
+測試一下：
+
+```
+rf> 0e poly5  1e poly5  .s
+F: 6.0000000 21.0000000  ok
 ```
 
 練習：假設浮點堆疊上資料為 ( F: x )，請設計指令 `poly3` 計算 x<sup>3</sup> + 2 x <sup>2</sup> + 3 x + 4 的值。從 `poly5` 的型式你應該能很快的寫出這個指令。

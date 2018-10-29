@@ -104,13 +104,13 @@ rf> .s
 指令 `if` 、 `else` 、 `then` 只能用於冒號定義中。它們和 `."` 以及  `;` 一樣，都是只能用於冒號定義中的「編譯指令」。如果用在冒號定義之外，會出現錯誤訊息。
 ```
 rf> if
-Interpreting a compile only word
+if Interpreting a compile only word
 ```
 
 另外，`if then` 必須在冒號定義中成對出現，而 `else` 只能出現在 `if then` 之間構成 `if else then` 的控制結構。否則會出現控制結構錯誤的訊息。
 ```
 rf> : then-without-if   then ;
-Control structure mismatch
+then Control structure mismatch
 ```
 
 下圖是 `min` 被編譯進字典的示意圖。我們發現字典中的 `min` 內並沒有 `if` 、`else` 、 `then`。但多了 `0branch` 和 `branch` 以及之後的數字。這些是由編譯指令 `if` 、 `else` 和 `then` 编進字典，在執行 `min` 時真正進行判斷和選擇的指令。指令 `0branch` 就如之前我們對 `if` 的說明一樣，會檢查堆疊上的數字，若為 0 就依據它後面的數字跳到 `nip` 的位置，否則順序執行 `drop`。而 `branch` 則無條件依其後的數字跳到之後的 `exit`。
@@ -288,6 +288,19 @@ rf> 90 guess
     3 of ." three" endof
     ." value is " dup .
   endcase ;
+```
+
+測試一下：
+
+```
+rf> 1 choose
+one ok
+rf> 2 choose
+two ok
+rf> 3 choose
+three ok
+rf> 4 choose
+value is 4  ok
 ```
 
 在上例中，指令 `case` 開始多選一的控制結構。在指令 `case` 之前，資料堆疊上已經有一未知的，需要透過此一控制結構檢查的數字 x。在 case 之後的 `1 of ... endof` 檢查 `x` 是否是 1，如果是就移除 `x` 和 1，執行 `of` 和 `endof` 之間的指令，並於完成後跳到 `endcase` 之後執行。如果 `x` 不是 1，執行之後的 `2 of ... endof`、`3 of ... endof`。如果所有由 `of` 開始的敘述都不成功，會執行在所有 `of ... endof` 之後，在 `endcase` 之前的敘述。也就是例子中的 `." value is" dup .`。此時堆疊頂端仍然是那個未知整數 `x`。指令 `endcase` 會拋棄這個 `x` 並結束由 `case` 開始的控制結構。

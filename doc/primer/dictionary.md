@@ -16,6 +16,8 @@ Forth 系統核心的資料結構有二：
 
 我們也將學習如何使用字典中的資料空間。
 
+以下範例使用 32 位元的 rtForth v0.6.0。如果您使用的是 64 位元的 rtForth 或其他版本的 rtForth，記憶體位址的數值會有很大的差異。
+
 ## 指令 words
 
 Forth 能執行 `+` 、 `-` 、`*` 、 `/` 這些指令，是因為它內建的字典 (dictionary) 提供了搜尋及執行指令的功能。如果我們想知道字典中有多少指令，我們可以執行指令 `words`。
@@ -23,11 +25,11 @@ Forth 能執行 `+` 、 `-` 、`*` 、 `/` 這些指令，是因為它內建的�
 ```
 rf> words
 
--work (abort) quit evaluate >in source tib #tib fill c, min
-max +! 2variable 2! 2@ align aligned spaces space bl cr
-?dup f> >= <= h. hex decimal accept 1/sec hz rpm um/msec
-mm/min usec msec sec minute hr rad deg um mm meter fnegate
-fceil fround floor fmax fmin f< f0= f0< f~ f** f/ f* f- f+
+-work cold (abort) quit evaluate-input ms release get stop
+halt nod operator xtime dump _dump _type >char bounds count
+pad >in source tib #tib +field fvariable 2variable 2constant
+does> variable fill c, chars min max 2, +! 2! 2@ f, cr ?dup
+f> >= <= h.r h. hex decimal ? f. . spaces space bl bye receive
 ...
 ```
 
@@ -62,8 +64,8 @@ rf> : hello ." Hello World!" ;
  ok
 rf> words
 
-hello -work (abort) quit evaluate >in source tib #tib fill
-c, min max +! 2variable 2! 2@ align aligned spaces space bl
+hello -work cold (abort) quit evaluate-input ms release get
+stop halt nod operator xtime dump _dump _type >char bounds
 ...
 ```
 

@@ -10,7 +10,7 @@
 : h.r ( n1 n2 -- )   base @ >r  hex .r  r> base ! ;
 : <= ( n1 n2 -- flag)   > invert ;
 : >= ( n1 n2 -- flag)   < invert ;
-: f> ( -- flag ) ( F: r1 r2 -- )  f< invert ;
+: f> ( -- flag ) ( F: r1 r2 -- )  fswap f< ;
 : ?dup ( x -- 0 | x x )   dup if dup then ;
 : cr ( -- )   10 emit ;
 : f, ( F: r -- )   here  1 floats allot  f! ;
@@ -29,7 +29,7 @@
 : does> ( -- ) ['] _does compile,  ['] exit compile, ; immediate compile-only
 : 2constant   create 2, does>  2@ ;
 : 2variable   create  0 , 0 , ;
-: fvariable   create  0e f, ;
+: fvariable   create falign 0e f, does> faligned ;
 : +field ( n1 n2 -- n3 )   create over , + does> @ + ;
 variable #tib  0 #tib !
 variable tib 256 allot
@@ -55,15 +55,18 @@ variable >in  0 >in !
       chars +  cr
     repeat ;
 
+\ Execution time
+: xtime ( t0 xt -- )   2>r r@ execute 2r> (xtime) ;
+
 \ Multitasker
 0 constant operator
 : nod   begin pause again ;
 : halt ( n -- )   activate nod ;
 : stop   me suspend pause ;
-\ Aquire facility `a`. Note: 1+ so that task 0 can aquire facility.
-: get ( a -- )   begin  dup @  while pause repeat me 1+ swap ! ;
+\ Aquire facility `a`.
+: get ( a -- )   begin  dup @  while pause repeat me swap ! ;
 \ Release facility `a`.
-: release ( a -- )   dup @ 1- me = if 0 swap ! else drop then ;
+: release ( a -- )   dup @ me = if 0 swap ! else drop then ;
 \ Wait `n` milli-seconds.
 : ms ( n -- )   mtime  begin mtime over -  2 pick <  while pause repeat  2drop ;
 

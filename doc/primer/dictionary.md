@@ -688,7 +688,7 @@ b ok
 ```
 : variable   create  0 , ;
 : 2variable   create  0 , 0 , ;
-: fvariable   create  0e f, ;
+: fvariable   create falign 0e f, does> faligned ;
 ```
 
 指令 `create` 是最基本的定義資料結構的指令。它可以定義一個新的指令，當這指令執行時就會回傳資料空間下一個可配置的記憶體位址，指令 `create` 不配置任何記憶體給這新的指令使用。我們可以用 `allot` 、 `,` 、 `f,` 等配置適當的記憶體給這個指令使用。比如指令 `variable`，就是先用 `create` 建立了一個能回傳資料空間下一個可配置記憶體位址的指令，然後用 `0 ,` 在之後附加了一個長度為一個單元，內容為 0 的記憶體。

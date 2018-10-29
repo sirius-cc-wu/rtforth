@@ -7,7 +7,7 @@ extern crate rustyline;
 
 use getopts::Options;
 use rtforth::memory::{CodeSpace, DataSpace};
-use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Word};
+use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use rtforth::env::Environment;
 use rtforth::exception::Exception;
 use rtforth::facility::Facility;
@@ -69,9 +69,7 @@ pub struct VM {
     editor: rustyline::Editor<()>,
     last_error: Option<Exception>,
     handler: usize,
-    symbols: Vec<String>,
-    last_definition: usize,
-    wordlist: Vec<Word<VM>>,
+    wordlist: Wordlist<VM>,
     data_space: DataSpace,
     code_space: CodeSpace,
     tkn: Option<String>,
@@ -99,9 +97,7 @@ impl VM {
             editor: rustyline::Editor::<()>::new(),
             last_error: None,
             handler: 0,
-            symbols: vec![],
-            last_definition: 0,
-            wordlist: vec![],
+            wordlist: Wordlist::with_capacity(1000),
             data_space: DataSpace::new(data_pages),
             code_space: CodeSpace::new(code_pages),
             tkn: Some(String::with_capacity(64)),
@@ -117,7 +113,7 @@ impl VM {
         vm.add_facility();
         vm.add_float();
         vm.add_units();
-        vm.add_primitive("accept", p_accept);
+        vm.add_primitive("receive", receive);
         vm.add_primitive("bye", bye);
 
         vm.load_core_fs();
@@ -128,7 +124,7 @@ impl VM {
             panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
         }
 
-        vm.flush();
+        vm.flush_output();
 
         vm
     }
@@ -195,22 +191,10 @@ impl Core for VM {
     fn f_stack(&mut self) -> &mut Stack<f64> {
         &mut self.tasks[self.current_task].f_stk
     }
-    fn symbols_mut(&mut self) -> &mut Vec<String> {
-        &mut self.symbols
-    }
-    fn symbols(&self) -> &Vec<String> {
-        &self.symbols
-    }
-    fn last_definition(&self) -> usize {
-        self.last_definition
-    }
-    fn set_last_definition(&mut self, n: usize) {
-        self.last_definition = n;
-    }
-    fn wordlist_mut(&mut self) -> &mut Vec<Word<Self>> {
+    fn wordlist_mut(&mut self) -> &mut Wordlist<Self> {
         &mut self.wordlist
     }
-    fn wordlist(&self) -> &Vec<Word<Self>> {
+    fn wordlist(&self) -> &Wordlist<Self> {
         &self.wordlist
     }
     fn state(&mut self) -> &mut State {
@@ -225,7 +209,7 @@ impl Core for VM {
             Err(_) => 0u64,
         }
     }
-    fn current_task(&mut self) -> usize {
+    fn current_task(&self) -> usize {
         self.current_task
     }
     fn set_current_task(&mut self, i: usize) {
@@ -301,10 +285,10 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.4.0, Copyright (C) 2018 Mapacode Inc.");
+    println!("rtForth v0.6.0, Copyright (C) 2018 Mapacode Inc.");
 }
 
-primitive!{fn p_accept(vm: &mut VM) {
+primitive!{fn receive(vm: &mut VM) {
     match vm.editor.readline("rf> ") {
         Ok(line) => {
             vm.editor.add_history_entry(&line);
@@ -326,14 +310,14 @@ primitive!{fn p_accept(vm: &mut VM) {
 
 /// Terminate process.
 primitive!{fn bye(vm: &mut VM) {
-    vm.flush();
+    vm.flush_output();
     process::exit(0);
 }}
 
 #[inline(never)]
 fn repl(vm: &mut VM) {
-    let quit = vm.find("QUIT").expect("QUIT");
-    vm.execute_word(quit);
+    let cold = vm.find("COLD").expect("COlD");
+    vm.execute_word(cold);
     vm.run();
 }
 

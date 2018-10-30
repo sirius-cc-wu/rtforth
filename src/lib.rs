@@ -34,6 +34,7 @@ pub mod output;
 pub(crate) mod parser;
 pub mod tools;
 pub mod units;
+mod mock_vm;
 
 use std::result;
 use exception::Exception;

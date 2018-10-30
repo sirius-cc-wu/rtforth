@@ -195,6 +195,10 @@ pub(crate) trait Memory {
         *(addr as *mut u8)
     }
 
+    unsafe fn get_usize(&self, addr: usize) -> usize {
+        *(addr as *mut usize)
+    }
+
     unsafe fn get_isize(&self, addr: usize) -> isize {
         *(addr as *mut isize)
     }
@@ -203,7 +207,13 @@ pub(crate) trait Memory {
         *(addr as *mut f64)
     }
 
-    unsafe fn get_str(&self, addr: usize, len: usize) -> &str {
+    unsafe fn get_str(&self, addr: usize) -> &str {
+        let len = self.get_usize(addr);
+        let a = addr + mem::size_of::<usize>();
+        self.str_from_raw_parts(a, len)
+    }
+
+    unsafe fn str_from_raw_parts(&self, addr: usize, len: usize) -> &str {
         mem::transmute(slice::from_raw_parts::<u8>(addr as *mut u8, len))
     }
 
@@ -279,12 +289,16 @@ pub(crate) trait Memory {
         }
     }
 
-    fn compile_str(&mut self, s: &str) {
+    fn compile_str(&mut self, s: &str) -> usize {
         let bytes = s.as_bytes();
-        if self.here() + bytes.len() <= self.limit() {
+        let here = self.here();
+        let len = bytes.len();
+        if here + len + mem::size_of::<usize>() <= self.limit() {
+            self.compile_usize(len);
             for byte in bytes {
                 self.compile_u8(*byte);
             }
+            here
         } else {
             panic!("Error: compile_str while code space is full.");
         }

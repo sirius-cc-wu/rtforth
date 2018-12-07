@@ -12,6 +12,7 @@
 : >= ( n1 n2 -- flag)   < invert ;
 : f> ( -- flag ) ( F: r1 r2 -- )  fswap f< ;
 : ?dup ( x -- 0 | x x )   dup if dup then ;
+: tuck ( n1 n2 -- n2 n1 n2 )   swap over ;
 : cr ( -- )   10 emit ;
 : f, ( F: r -- )   here  1 floats allot  f! ;
 : 2@ ( a-addr -- x1 x2 )   dup cell+ @ swap @ ;

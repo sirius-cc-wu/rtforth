@@ -1,15 +1,11 @@
 extern crate libc;
+extern crate region;
 
 use std::marker;
 use std::mem;
 use std::slice;
+use std::alloc::{Layout, Global, Alloc};
 use exception::Exception;
-
-extern "C" {
-    fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
-}
-
-const PAGE_SIZE: usize = 4096;
 
 #[allow(dead_code)]
 pub struct CodeSpace {
@@ -19,53 +15,33 @@ pub struct CodeSpace {
 }
 
 impl CodeSpace {
-    /// Allocate memory for x86/x86_64.
-    ///
-    /// The memory is populated with `0xc3` (RET).
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    /// Allocate memory.
     pub fn new(num_pages: usize) -> CodeSpace {
-        let mut ptr: *mut libc::c_void;
-        let size = num_pages * PAGE_SIZE;
+        let ptr: *mut u8;
+        let page_size = region::page::size();
+        let size = num_pages * page_size;
         unsafe {
-            ptr = mem::uninitialized();
-            libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(
-                ptr,
-                size,
-                libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE,
-            );
-            memset(ptr, 0xc3, size); // prepopulate with 'RET'
+            let layout = Layout::from_size_align_unchecked(size, page_size);
+            ptr = match Global.alloc(layout) {
+                Ok(p) => { p.as_ptr() }
+                Err(e) => { panic!("Cannot allocate code space: {}", e) }
+            };
+            match region::protect(ptr, size, region::Protection::ReadWriteExecute) {
+                Ok(_) => {
+                    // Do nothing.
+                }
+                Err(e) => { panic!("Cannot allocate code space: {}", e) }
+            }
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            libc::memset(ptr as *mut libc::c_void, 0xc3, size); // prepopulate with 'RET'
+            #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+            libc::memset(ptr as *mut libc::c_void, 0x00, size);
         }
         CodeSpace {
-            inner: ptr as *mut u8,
+            inner: ptr,
             cap: size,
             len: 0,
         }
-    }
-
-    /// Allocate memory for CPU other than x86/x86_64.
-    ///
-    /// The memory is populated with `0x00`.
-    #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-    pub fn new(num_pages: usize) -> CodeSpace {
-        let mut ptr: *mut libc::c_void;
-        let size = num_pages * PAGE_SIZE;
-        unsafe {
-            ptr = mem::uninitialized();
-            libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(
-                ptr,
-                size,
-                libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE,
-            );
-            memset(ptr, 0x00, size);
-        }
-        let mut result = CodeSpace {
-            inner: ptr as *mut u8,
-            cap: size,
-            len: 0,
-        };
-        result
     }
 }
 
@@ -115,17 +91,25 @@ pub struct DataSpace {
 
 impl DataSpace {
     pub fn new(num_pages: usize) -> DataSpace {
-        let mut ptr: *mut libc::c_void;
-        let size = num_pages * PAGE_SIZE;
+        let ptr: *mut u8;
+        let page_size = region::page::size();
+        let size = num_pages * page_size;
         unsafe {
-            ptr = mem::uninitialized();
-            libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(ptr, size, libc::PROT_READ | libc::PROT_WRITE);
-
-            memset(ptr, 0x00, size);
+            let layout = Layout::from_size_align_unchecked(size, page_size);
+            ptr = match Global.alloc(layout) {
+                Ok(p) => { p.as_ptr() }
+                Err(e) => { panic!("Cannot allocate data space: {}", e) }
+            };
+            match region::protect(ptr, size, region::Protection::ReadWrite) {
+                Ok(_) => {
+                    // Do nothing.
+                }
+                Err(e) => { panic!("Cannot allocate data space: {}", e) }
+            }
+            libc::memset(ptr as *mut libc::c_void, 0x00, size);
         }
         let mut result = DataSpace {
-            inner: ptr as *mut u8,
+            inner: ptr,
             cap: size,
             len: mem::size_of::<SystemVariables>(),
             marker: marker::PhantomData,

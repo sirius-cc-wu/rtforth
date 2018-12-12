@@ -54,10 +54,10 @@ variable >in  0 >in !
       space  8 2dup _dump
       space space  2dup _type
       chars +  cr
-    repeat ;
+    repeat  2drop ;
 
 \ Execution time
-: xtime ( t0 xt -- )   2>r r@ execute 2r> (xtime) ;
+: xtime ( xt -- )   utime >r >r r@ execute r> r> (xtime) ;
 
 \ Multitasker
 0 constant operator

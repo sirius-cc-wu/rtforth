@@ -76,7 +76,7 @@ pub trait Tools: Output {
         }
     }}
 
-    /// Update execution time of word `xt`. `(xtime) ( t0 xt -- )`
+    /// Update execution time of word `xt`. `(xtime) ( xt t0 -- )`
     ///
     /// Unit of `t0` is microseconds.
     ///
@@ -84,11 +84,11 @@ pub trait Tools: Output {
     ///
     /// Meaure the execution time of `words`.
     /// ```forth
-    /// : xtime ( t0 xt -- )   2>r r@  execute  2r>  (xtime) ;
+    /// : xtime ( xt -- )   utime >r >r r@  execute  r> r> (xtime) ;
     /// utime ' words xtime .xtime
     /// ```
     primitive!{fn set_execution_times(&mut self) {
-        let (t0, xt) = self.s_stack().pop2();
+        let (xt, t0) = self.s_stack().pop2();
         let t = (self.system_time_ns()/1_000) as usize - t0 as usize;
         let word = &mut self.wordlist_mut()[xt as usize];
         if word.min_execution_time != 0 {

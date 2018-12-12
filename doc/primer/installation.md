@@ -6,8 +6,23 @@
 
 安裝步驟請見以下章節。
 
+------------
+## 安裝方法一：從雲端下載
+
+請使用以下連結從 Google 雲端硬碟目錄下載。
+
+[rtForth 32 位元 Windows 版和 64 位元 Linux 版](https://drive.google.com/open?id=1c_q-Q2_iChoi9Y4lN9YTG8g6uyWtJULi)
+
+目錄中有以下檔案：
+
+* rf-win.exe：32 位元 Windows 版的 rtForth
+* rf-linux：64 位元 Linux 版的 rtForth
+* rtforth-vxx.xx-primer.pdf：本手冊
+
 -------------------
-## 安裝 Rust 開發環境
+## 安裝方法二：手動編譯
+
+### 安裝 Rust 開發環境
 
 rtForth 使用 Rust 語言進行開發。 安裝 Rust 請參考
 
@@ -20,7 +35,7 @@ $ rustup default nightly
 ```
 
 -------------------------
-## 下載 rtForth 原程式並編譯
+### 下載 rtForth 原程式並編譯
 
 在 linux 下
 

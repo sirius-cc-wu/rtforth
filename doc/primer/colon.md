@@ -180,6 +180,7 @@ x<sup>5</sup> + 2 x<sup>4</sup> + 3 x<sup>3</sup> + 4 x<sup>2</sup> + 5 x + 6
    5e f+        \ ( F: x ((((x+2)x+3)x+4)x+5) )
    fover f*     \ ( F: x ((((x+2)x+3)x+4)x+5)x )
    6e f+        \ ( F: x ((((x+2)x+3)x+4)x+5)x+6 )
+   fnip         \ ( F: ((((x+2)x+3)x+4)x+5)x+6 )
 ;
 ```
 
@@ -201,6 +202,13 @@ x<sup>5</sup> + 2 x<sup>4</sup> + 3 x<sup>3</sup> + 4 x<sup>2</sup> + 5 x + 6
 ;
 ```
 
+測試一下：
+
+```
+rf> 0e poly5  1e poly5  .s
+F: 6.0000000 21.0000000  ok
+```
+
 練習：假設浮點堆疊上資料為 ( F: x )，請設計指令 `poly3` 計算 x<sup>3</sup> + 2 x <sup>2</sup> + 3 x + 4 的值。從 `poly5` 的型式你應該能很快的寫出這個指令。
 
 ### 本節指令集
@@ -209,6 +217,7 @@ x<sup>5</sup> + 2 x<sup>4</sup> + 3 x<sup>3</sup> + 4 x<sup>2</sup> + 5 x + 6
 |-----|----------------------------------------|--------|
 | `fdup` | ( F: r  -- r r ) &emsp; 複製浮點堆疊頂端的數值 | f-dup |
 | `fdrop` | ( F: r -- ) &emsp; 拋棄浮點堆疊頂端的數值 | f-drop |
+| `fnip` | ( F: r1 r2 -- r2 ) &emsp; 拋棄浮點堆疊頂端數來第二個數 | f-nip |
 | `fswap` | ( F: r1 r2 -- r2 r1 ) &emsp; 交換浮點堆疊頂端的兩個數值 | f-swap |
 | `fover` | ( F: r1 r2 -- r1 r2 r1 ) &emsp; 複製浮點堆疊從頂端數來的第二個數值 | f-over |
 | `frot` | ( F: r1 r2 r3 -- r2 r3 r1 ) &emsp; 旋轉浮點堆疊頂端的三個數，使得第三個數被移到頂端 | f-rote |
@@ -271,6 +280,7 @@ $ ./target/debug/examples/rf /tmp/square.fs
 | `2over` | ( n1 n2 n3 n4 -- n1 n2 n3 n4 n1 n2 ) &emsp; 複製資料堆疊從頂端數來的第三、第四個數| two-over |
 | `fdup` | ( F: r  -- r r ) &emsp; 複製浮點堆疊頂端的數值 | f-dup |
 | `fdrop` | ( F: r -- ) &emsp; 拋棄浮點堆疊頂端的數值 | f-drop |
+| `fnip` | ( F: r1 r2 -- r2 ) &emsp; 拋棄浮點堆疊頂端數來第二個數 | f-nip |
 | `fswap` | ( F: r1 r2 -- r2 r1 ) &emsp; 交換浮點堆疊頂端的兩個數值 | f-swap |
 | `fover` | ( F: r1 r2 -- r1 r2 r1 ) &emsp; 複製浮點堆疊從頂端數來的第二個數值 | f-over |
 | `frot` | ( F: r1 r2 r3 -- r2 r3 r1 ) &emsp; 旋轉浮點堆疊頂端的三個數，使得第三個數被移到頂端 | f-rote |

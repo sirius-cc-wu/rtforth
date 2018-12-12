@@ -1,0 +1,1024 @@
+
+<!DOCTYPE HTML>
+<html lang="" >
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>多工、異常處理與文本直譯器 · GitBook</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.3">
+        
+        
+        
+    
+    <link rel="stylesheet" href="gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="style.html" />
+    
+    
+    <link rel="prev" href="dictionary.html" />
+    
+
+    </head>
+    <body>
+        
+<div class="book">
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search" />
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="./">
+            
+                <a href="./">
+            
+                    
+                    簡介
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" data-path="installation.html">
+            
+                <a href="installation.html">
+            
+                    
+                    安裝 rtForth
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="calculator.html">
+            
+                <a href="calculator.html">
+            
+                    
+                    Forth 計算機
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.3.1" data-path="integer.html">
+            
+                <a href="integer.html">
+            
+                    
+                    整數運算
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.2" data-path="float.html">
+            
+                <a href="float.html">
+            
+                    
+                    浮點運算
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.3" data-path="logic.html">
+            
+                <a href="logic.html">
+            
+                    
+                    比較及邏輯運算
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3.4" data-path="colon.html">
+            
+                <a href="colon.html">
+            
+                    
+                    自己定義運算指令
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="programming.html">
+            
+                <a href="programming.html">
+            
+                    
+                    Forth 程式入門
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.4.1" data-path="selection.html">
+            
+                <a href="selection.html">
+            
+                    
+                    選擇
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.2" data-path="repetition.html">
+            
+                <a href="repetition.html">
+            
+                    
+                    循環
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.3" data-path="dictionary.html">
+            
+                <a href="dictionary.html">
+            
+                    
+                    字典
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter active" data-level="1.4.4" data-path="tasking.html">
+            
+                <a href="tasking.html">
+            
+                    
+                    多工、異常處理與文本直譯器
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4.5" data-path="style.html">
+            
+                <a href="style.html">
+            
+                    
+                    程式碼風格
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="." >多工、異常處理與文本直譯器</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="&#x591A;&#x5DE5;&#x3001;&#x7570;&#x5E38;&#x8655;&#x7406;&#x8207;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;">&#x591A;&#x5DE5;&#x3001;&#x7570;&#x5E38;&#x8655;&#x7406;&#x8207;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;</h1>
+<p>&#x5728;&#x9019;&#x500B;&#x7AE0;&#x7BC0;&#x4E2D;&#xFF0C;&#x6211;&#x5011;&#x8A0E;&#x8AD6; rtForth &#x7684;&#x591A;&#x5DE5;&#x6307;&#x4EE4;&#x3001;&#x7570;&#x5E38;&#x8655;&#x7406;&#x7684;&#x65B9;&#x5F0F;&#x4EE5;&#x53CA;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x3002;</p>
+<p>Forth 2012 &#x7684;&#x6A19;&#x6E96;&#x4E26;&#x672A;&#x898F;&#x7BC4;&#x591A;&#x5DE5;&#x7684;&#x6307;&#x4EE4;&#x96C6;&#xFF0C;&#x540C;&#x6642;&#x4E5F;&#x672A;&#x898F;&#x7BC4;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x7684;&#x8A2D;&#x8A08;&#x7D30;&#x7BC0;&#x3002;
+&#x56E0;&#x6B64;&#x672C;&#x7AE0;&#x4E2D;&#x8A31;&#x591A;&#x6307;&#x4EE4;&#x90FD;&#x4E0D;&#x662F; Forth 2012 &#x7684;&#x6A19;&#x6E96;&#x6307;&#x4EE4;&#x3002;&#x7576;&#x9047;&#x5230; Forth 2012
+&#x6A19;&#x6E96;&#x6307;&#x4EE4;&#x6642;&#x6703;&#x7279;&#x5225;&#x8A3B;&#x660E;&#x3002;</p>
+<hr>
+<h2 id="&#x591A;&#x5DE5;">&#x591A;&#x5DE5;</h2>
+<p>&#x591A;&#x5DE5;&#x8655;&#x7406; (Multitasking) &#x6307;&#x7684;&#x662F;&#x96FB;&#x8166;&#x540C;&#x6642;&#x57F7;&#x884C;&#x591A;&#x500B;&#x7A0B;&#x5F0F;&#x7684;&#x80FD;&#x529B;&#x3002;&#x5728; rtForth &#x4E2D;&#x6307;&#x7684;&#x5247;&#x662F;&#x4F7F;&#x7528;&#x4E00;&#x500B; rtForth &#x865A;&#x64EC;&#x6A5F; (Virtual Machine, VM) &#x540C;&#x6642;&#x57F7;&#x884C;&#x591A;&#x500B; Forth &#x7A0B;&#x5F0F;&#x7684;&#x80FD;&#x529B;&#x3002;</p>
+<h3 id="&#x5DE5;&#x4F5C;-task">&#x5DE5;&#x4F5C; (Task)</h3>
+<p>RtForth &#x63A1;&#x884C;&#x5354;&#x4F5C;&#x5F0F; (Cooperative multitasking) &#x5FAA;&#x74B0;&#x5236; (round-robin) &#x7684;&#x591A;&#x5DE5;&#x3002;&#x4E26;&#x4E14;&#x63D0;&#x4F9B;&#x4E86;&#x4E94;&#x500B;&#x5DE5;&#x4F5C; (Task)&#xFF0C;&#x56E0;&#x6B64;&#x53EF;&#x4EE5;&#x540C;&#x6642;&#x57F7;&#x884C;&#x4E94;&#x500B;&#x7A0B;&#x5F0F;&#x3002;</p>
+<p>&#x5354;&#x4F5C;&#x5F0F;&#x7684;&#x610F;&#x601D;&#x662F;&#xFF0C;&#x6BCF;&#x500B;&#x5DE5;&#x4F5C;&#x57F7;&#x884C;&#x7684;&#x7A0B;&#x5F0F;&#x90FD;&#x9700;&#x8981;&#x9069;&#x6642;&#x7684;&#x653E;&#x68C4;&#x81EA;&#x5DF1;&#x7684;&#x57F7;&#x884C;&#x6B0A;&#x5229;&#xFF0C;&#x4F7F;&#x5F97;&#x5176;&#x4ED6;&#x5DE5;&#x4F5C;&#x80FD;&#x53D6;&#x5F97;&#x865A;&#x64EC;&#x6A5F;&#x7684;&#x4F7F;&#x7528;&#x6B0A;&#x3002;&#x5982;&#x679C;&#x6709;&#x67D0;&#x500B;&#x5DE5;&#x4F5C;&#x56E0;&#x70BA;&#x8A2D;&#x8A08;&#x4E0D;&#x826F;&#x6216;&#x5176;&#x4ED6;&#x539F;&#x56E0;&#x4E0D;&#x91CB;&#x653E;&#x6B0A;&#x5229;&#xFF0C;&#x5C31;&#x6703;&#x5C0E;&#x81F3;&#x5176;&#x4ED6;&#x5DE5;&#x4F5C;&#x505C;&#x9813;&#x3002;&#x5728; rtForth &#x4E2D;&#x9019;&#x500B;&#x653E;&#x68C4;&#x81EA;&#x5DF1;&#x57F7;&#x884C;&#x6B0A;&#x5229;&#x7684;&#x6307;&#x4EE4;&#x662F; <code>pause</code>&#x3002;</p>
+<p>&#x6BCF;&#x500B;&#x5DE5;&#x4F5C;&#x6709;&#x4E00;&#x500B;&#x975E;&#x96F6;&#x7684;&#x8B58;&#x5225;&#x78BC;&#x3002;&#x4F9D; RtForth &#x76EE;&#x524D;&#x7684;&#x8A2D;&#x8A08;&#xFF0C;&#x8B58;&#x5225;&#x78BC;&#x5F9E; 1 &#x958B;&#x59CB;&#x3002;</p>
+<p>RtForth &#x7CFB;&#x7D71;&#x51B7;&#x8D77;&#x52D5; (Cold start) &#x6642;&#x53D6;&#x5F97;&#x57F7;&#x884C;&#x6B0A;&#x5229;&#x7684;&#x662F;&#x5DE5;&#x4F5C;&#x4E00;&#xFF0C;&#x9019;&#x500B;&#x5DE5;&#x4F5C;&#x53C8;&#x88AB;&#x7A31;&#x70BA;&#x64CD;&#x4F5C;&#x8005; (Operator) &#x3002;&#x6307;&#x4EE4; <code>operator</code> &#x6703;&#x5F97;&#x5230;&#x9019;&#x500B;&#x5DE5;&#x4F5C;&#x7684;&#x8B58;&#x5225;&#x78BC; (&#x76EE;&#x524D;&#x7684;&#x8A2D;&#x8A08;&#x70BA; 1)&#x3002;&#x6BCF;&#x500B;&#x5DE5;&#x4F5C;&#x90FD;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>me</code> &#x53D6;&#x5F97;&#x76EE;&#x524D;&#x5DE5;&#x4F5C;&#x7684;&#x8B58;&#x5225;&#x78BC;&#x3002;</p>
+<p>&#x4E00;&#x500B;&#x5DE5;&#x4F5C;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>activate</code> &#x6307;&#x6D3E;&#x53E6;&#x4E00;&#x5DE5;&#x4F5C;&#x57F7;&#x884C;&#x7A0B;&#x5F0F;&#x3002;&#x88AB;&#x6307;&#x6D3E;&#x4E86;&#x7684;&#x5DE5;&#x4F5C;&#x6703;&#x81EA;&#x52D5;&#x9032;&#x5165;&#x904B;&#x884C;&#x4E2D;&#x7684;&#x72C0;&#x614B;&#xFF0C;&#x6216;&#x7A31;&#x70BA;&#x300C;&#x6E05;&#x9192; (awake)&#x300D;&#x7684;&#x72C0;&#x614B;&#x3002;&#x4F46;&#x4E0D;&#x6703;&#x7ACB;&#x523B;&#x57F7;&#x884C;&#x3002;&#x8981;&#x7B49;&#x5230;&#x9019;&#x5DE5;&#x4F5C;&#x53D6;&#x5F97;&#x865A;&#x64EC;&#x6A5F;&#x7684;&#x4F7F;&#x7528;&#x6B0A;&#x6642;&#x624D;&#x6703;&#x57F7;&#x884C;&#x3002;</p>
+<p>&#x6307;&#x4EE4; <code>suspend</code> &#x53EF;&#x4EE5;&#x66AB;&#x505C;&#x53E6;&#x4E00;&#x5DE5;&#x4F5C;&#x7684;&#x57F7;&#x884C;&#xFF0C;&#x6307;&#x4EE4; <code>resume</code>&#x88AB;&#x66AB;&#x505C;&#x7684;&#x5DE5;&#x4F5C;&#x7E7C;&#x7E8C;&#x904B;&#x4F5C;&#x3002;&#x6307;&#x4EE4; <code>halt</code> &#x5247;&#x4F7F;&#x5F97;&#x4E00;&#x5DE5;&#x4F5C;&#x653E;&#x68C4;&#x539F;&#x4F86;&#x7684;&#x5DE5;&#x4F5C;&#xFF0C;&#x9032;&#x5165;&#x4E00;&#x500B;&#x7121;&#x7AAE;&#x7684;&#x7B49;&#x5F85;&#x8FF4;&#x5708;&#x3002;</p>
+<p>&#x5FAA;&#x74B0;&#x5236; (round-robin) &#x7684;&#x610F;&#x601D;&#x662F;&#xFF0C;&#x9019;&#x4E9B;&#x5DE5;&#x4F5C;&#x662F;&#x4F9D;&#x5E8F;&#x53D6;&#x5F97;&#x865B;&#x64EC;&#x6A5F;&#x7684;&#x57F7;&#x884C;&#x6B0A;&#x5229;&#x7684;&#x3002;&#x7576;&#x5DE5;&#x4F5C;&#x4E00;&#x91CB;&#x653E;&#x4E86;&#x6B0A;&#x5229;&#x5F8C;&#xFF0C;&#x4E0B;&#x500B;&#x904B;&#x884C;&#x4E2D;&#x7684;&#x5DE5;&#x4F5C;&#x53D6;&#x5F97;&#x6B0A;&#x5229;&#xFF0C;&#x76F4;&#x5230;&#x5B83;&#x653E;&#x68C4;&#x6B0A;&#x5229;&#xFF0C;&#x4E0B;&#x4E0B;&#x500B;&#x904B;&#x884C;&#x4E2D;&#x7684;&#x5DE5;&#x4F5C;&#x53C8;&#x53D6;&#x5F97;&#x6B0A;&#x5229;&#xFF0C;&#x6700;&#x5F8C;&#x8F2A;&#x5B8C;&#x4E00;&#x5708;&#xFF0C;&#x57F7;&#x884C;&#x6B0A;&#x5229;&#x53C8;&#x56DE;&#x5230;&#x5DE5;&#x4F5C;&#x4E00;&#x3002;</p>
+<p>&#x6BCF;&#x4E00;&#x500B;&#x5DE5;&#x4F5C;&#x6709;&#x81EA;&#x5DF1;&#x7684;&#x5806;&#x758A;&#x3001;&#x81EA;&#x5DF1;&#x7684;&#x89E3;&#x78BC;&#x6307;&#x6A19;&#x3001;&#x81EA;&#x5DF1;&#x7684;&#x76F4;&#x8B6F;&#x6216;&#x7DE8;&#x8B6F;&#x7684;&#x72C0;&#x614B;&#x3002;&#x9019;&#x4F7F;&#x5F97;&#x5DE5;&#x4F5C;&#x5728;&#x57F7;&#x884C;&#x5806;&#x758A;&#x904B;&#x7B97;&#x6642;&#x4E0D;&#x88AB;&#x5176;&#x4ED6;&#x5DE5;&#x4F5C;&#x6253;&#x64FE;&#x3002;&#x5728; RtForth &#x7684;&#x8A2D;&#x8A08;&#x4E2D;&#xFF0C;&#x6240;&#x6709;&#x7684;&#x5DE5;&#x4F5C;&#x5171;&#x7528;&#x4E00;&#x500B;&#x5B57;&#x5178;&#xFF0C;&#x5171;&#x7528;&#x4E00;&#x500B;&#x8F38;&#x51FA;&#x7DE9;&#x885D;&#x5340;&#xFF0C;&#x9019;&#x4F7F;&#x5F97;&#x5DE5;&#x4F5C;&#x9593;&#x80FD;&#x900F;&#x904E;&#x5B57;&#x5178;&#x4EA4;&#x63DB;&#x8CC7;&#x6599;&#xFF0C;&#x540C;&#x6642;&#x5C07;&#x8A0A;&#x606F;&#x8F38;&#x51FA;&#x5230;&#x540C;&#x4E00;&#x500B;&#x7DE9;&#x885D;&#x5340;&#x4E2D;&#x3002;</p>
+<p>&#x5728; RtForth &#x5167;&#x5EFA;&#x7684;&#x4E94;&#x500B;&#x5DE5;&#x4F5C;&#x4E2D;&#xFF0C;&#x5DE5;&#x4F5C;&#x4E00;&#x6709;&#x81EA;&#x5DF1;&#x7684;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#xFF0C;&#x7528;&#x4F86;&#x8655;&#x7406;&#x4F7F;&#x7528;&#x8005;&#x7684;&#x8F38;&#x5165;&#xFF0C;&#x6211;&#x5011;&#x7A31;&#x9019;&#x80FD;&#x548C;&#x4F7F;&#x7528;&#x8005;&#x4E92;&#x52D5;&#x7684;&#x5DE5;&#x4F5C;&#x70BA;&#x7D42;&#x7AEF;&#x5DE5;&#x4F5C; (Terminal task)&#xFF0C;&#x5176;&#x4ED6;&#x56DB;&#x500B;&#x5DE5;&#x4F5C;&#x6C92;&#x6709;&#x81EA;&#x5DF1;&#x7684;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#xFF0C;&#x88AB;&#x7A31;&#x70BA;&#x80CC;&#x666F;&#x5DE5;&#x4F5C; (Background task)&#x3002;</p>
+<p>&#x4F7F;&#x7528; rtForth &#x7684; Rust &#x51FD;&#x5F0F;&#x5EAB;&#x53EF;&#x4EE5;&#x5C0D;&#x5DE5;&#x4F5C;&#x9032;&#x884C;&#x548C;&#x672C;&#x7AE0;&#x4E0D;&#x540C;&#x7684;&#x898F;&#x756B;&#xFF0C;&#x6BD4;&#x5982;&#x591A;&#x65BC;&#x4E94;&#x500B;&#x7684;&#x5DE5;&#x4F5C;&#xFF0C;&#x6216;&#x662F;&#x50CF;&#x52D5;&#x7A0B;&#x79D1;&#x6280;&#x8A2D;&#x8A08;&#x7684;&#x8EF8;&#x63A7;&#x7CFB;&#x7D71;&#xFF0C;&#x6709;&#x5169;&#x500B;&#x7D42;&#x7AEF;&#x5DE5;&#x4F5C;&#xFF0C;&#x4E09;&#x500B;&#x80CC;&#x666F;&#x5DE5;&#x4F5C;&#xFF0C;&#x540C;&#x6642;&#x6BCF;&#x500B;&#x5DE5;&#x4F5C;&#x90FD;&#x6709;&#x81EA;&#x5DF1;&#x7684;&#x8F38;&#x5165;&#x53CA;&#x8F38;&#x51FA;&#x7DE9;&#x885D;&#x5340;&#x3002;</p>
+<p>&#x5728;&#x672C;&#x66F8;&#x4E2D;&#x5176;&#x4ED6;&#x7AE0;&#x7BC0;&#x4E2D;&#x7684;&#x6240;&#x6709;&#x6307;&#x4EE4;&#x90FD;&#x4E0D;&#x6703;&#x57F7;&#x884C; <code>pause</code>&#x3002;&#x5728;&#x672C;&#x7AE0;&#x4E2D;&#x6703;&#x57F7;&#x884C; <code>pause</code> &#x7684;&#x6307;&#x4EE4;&#x90FD;&#x6703;&#x8AAA;&#x660E;&#x3002;</p>
+<h3 id="&#x6307;&#x4EE4;-activate-&#x548C;-pause">&#x6307;&#x4EE4; <code>ACTIVATE</code> &#x548C; <code>PAUSE</code></h3>
+<p>&#x5148;&#x770B;&#x4EE5;&#x4E0B;&#x7684;&#x7A0B;&#x5F0F;&#x7BC4;&#x4F8B;&#xFF0C;&#x4E26;&#x8ACB;&#x5BE6;&#x969B;&#x57F7;&#x884C;&#x3002;</p>
+<pre><code class="lang-forth">rf&gt; variable counter
+ ok
+rf&gt; : up   2 activate  begin pause 1 counter +! again ;
+ ok
+rf&gt; : down   2 activate  begin pause -1 counter +! again ;
+ ok
+rf&gt; : watch ( n -- )   0 ?do pause counter ? loop ;
+ ok
+rf&gt; up
+ ok
+rf&gt; 5 watch
+0 1 2 3 4  ok
+rf&gt; 8 watch
+5 6 7 8 9 10 11 12  ok
+rf&gt; down
+ ok
+rf&gt; 7 watch
+12 11 10 9 8 7 6  ok
+</code></pre>
+<p>&#x4EE5;&#x4E0A;&#x7BC4;&#x4F8B;&#x5148;&#x5B9A;&#x7FA9;&#x4E86;&#x4E00;&#x500B;&#x8B8A;&#x6578; <code>counter</code>&#xFF0C;&#x56E0;&#x70BA;&#x6240;&#x6709;&#x7684;&#x5DE5;&#x4F5C;&#x5171;&#x7528;&#x4E00;&#x5957;&#x5B57;&#x5178;&#xFF0C;&#x6240;&#x6709;&#x7684;&#x5DE5;&#x4F5C;&#x90FD;&#x53EF;&#x4EE5;&#x5B58;&#x53D6;&#x9019;&#x500B;&#x8B8A;&#x6578;&#x3002;</p>
+<p>&#x6307;&#x4EE4; <code>up</code> &#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>activate</code> &#x6307;&#x6D3E;&#x5DE5;&#x4F5C;&#x4E8C;&#x57F7;&#x884C;&#x5728; <code>activate</code> &#x5F8C;&#x7684;&#x7A0B;&#x5F0F;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x5F9E; <code>begin</code> &#x958B;&#x59CB;&#xFF0C;&#x5230; <code>again</code> &#x7684;&#x9019;&#x500B;&#x7121;&#x7AAE;&#x8FF4;&#x5708;&#x3002;&#x9019;&#x500B;&#x8FF4;&#x5708;&#x4E0D;&#x65B7;&#x5C07; <code>counter</code> &#x7684;&#x5167;&#x5BB9;&#x52A0;&#x4E00;&#xFF0C;&#x4E26;&#x4E14;&#x6BCF;&#x52A0;&#x4E00;&#x6B21;&#x90FD;&#x6703;&#x4F7F;&#x7528; <code>pause</code> &#x4EA4;&#x51FA;&#x865A;&#x64EC;&#x6A5F;&#x7684;&#x4F7F;&#x7528;&#x6B0A;&#x3002;&#x6CE8;&#x610F;&#x57F7;&#x884C; <code>up</code> &#x53EA;&#x6307;&#x6D3E;&#x4E86;&#x5DE5;&#x4F5C;&#x4E8C;&#x7684;&#x5DE5;&#x4F5C;&#x5167;&#x5BB9;&#xFF0C;&#x7A0B;&#x5F0F;&#x57F7;&#x884C;&#x5230; <code>activate</code> &#x5F8C;&#x5C31;&#x8FD4;&#x56DE;&#x4E86;&#x3002;&#x5728; <code>activate</code> &#x5F8C;&#x7684;&#x90A3;&#x500B;&#x7121;&#x7AAE;&#x8FF4;&#x5708;&#x8981;&#x7B49;&#x5230;&#x5DE5;&#x4F5C;&#x4E8C;&#x53D6;&#x5F97;&#x865A;&#x64EC;&#x6A5F;&#x4F7F;&#x7528;&#x6B0A;&#x5F8C;&#x624D;&#x6703;&#x88AB;&#x57F7;&#x884C;&#x3002;</p>
+<p>&#x6307;&#x4EE4; <code>down</code> &#x884C;&#x70BA;&#x985E;&#x4F3C; <code>up</code>&#xFF0C;&#x4F46;&#x662F;&#x5728;&#x8FF4;&#x5708;&#x4E2D;&#x4E0D;&#x65B7;&#x7684;&#x5C07; <code>counter</code> &#x7684;&#x5167;&#x5BB9;&#x6E1B;&#x4E00;&#x3002;</p>
+<p>&#x6307;&#x4EE4; <code>watch</code> &#x6839;&#x64DA;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x6B21;&#x6578;&#x76E3;&#x63A7;&#x8B8A;&#x6578; <code>counter</code> &#x7684;&#x8B8A;&#x5316;&#x3002;&#x540C;&#x6A23;&#x7684;&#xFF0C;&#x6BCF;&#x5370;&#x4E00;&#x6B21; <code>counter</code> &#x7684;&#x5167;&#x5BB9;&#xFF0C;&#x5C31;&#x6703;&#x4F7F;&#x7528; <code>pause</code> &#x4EA4;&#x51FA;&#x865A;&#x64EC;&#x6A5F;&#x7684;&#x4F7F;&#x7528;&#x6B0A;&#x3002;</p>
+<p>&#x65BC;&#x662F;&#xFF0C;&#x4E00;&#x958B;&#x59CB;&#x6642;&#x6211;&#x5011;&#x57F7;&#x884C;&#x6307;&#x4EE4; <code>up</code> &#x6307;&#x6D3E;&#x5DE5;&#x4F5C;&#x4E8C;&#x8981;&#x5F80;&#x4E0A;&#x8A08;&#x6578;&#xFF0C;&#x6B64;&#x6642;&#x64C1;&#x6709;&#x865A;&#x64EC;&#x6A5F;&#x57F7;&#x884C;&#x6B0A;&#x7684;&#x662F;&#x5DE5;&#x4F5C;&#x4E00;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x64CD;&#x4F5C;&#x8005; (operator)&#x3002;&#x4E4B;&#x5F8C;&#xFF0C;&#x7576;&#x5DE5;&#x4F5C;&#x4E00;&#x57F7;&#x884C; <code>5 watch</code> &#x6642;&#xFF0C;<code>watch</code> pause &#x4E86;&#x4E94;&#x6B21;&#xFF0C;&#x4F7F;&#x5F97;&#x5DE5;&#x4F5C;&#x4E8C;&#x6709;&#x4E94;&#x6B21;&#x6A5F;&#x6703;&#x53D6;&#x5F97;&#x865A;&#x64EC;&#x6A5F;&#x7684;&#x57F7;&#x884C;&#x6B0A;&#xFF0C;&#x56E0;&#x6B64;&#x5F80;&#x4E0A;&#x8A08;&#x6578;&#x4E86;&#x4E94;&#x6B21;&#xFF0C;&#x6240;&#x4EE5;&#x6211;&#x5011;&#x770B;&#x5230;&#x756B;&#x9762;&#x4E0A;&#x51FA;&#x73FE;&#x4E86; <code>0 1 2 3 4</code>&#x3002;&#x4E8B;&#x5BE6;&#x4E0A; <code>counter</code> &#x5728;&#x7B2C;&#x4E94;&#x6B21;&#x6642;&#x5DF2;&#x7D93;&#x88AB;&#x8A08;&#x6578;&#x5230; 5&#xFF0C;&#x9019;&#x6578;&#x503C;&#x5728;&#x4E4B;&#x5F8C;&#x7684; <code>8 watch</code> &#x624D;&#x88AB;&#x5370;&#x51FA;&#x4F86;&#x3002;</p>
+<p>&#x6700;&#x5F8C;&#x6211;&#x5011;&#x4F7F;&#x7528; <code>down</code> &#x91CD;&#x65B0;&#x6307;&#x6D3E;&#x5DE5;&#x4F5C;&#x4E8C;&#x9032;&#x884C;&#x5012;&#x6578;&#x3002;&#x4E26;&#x7528; <code>7 watch</code> &#x6AA2;&#x8996; <code>counter</code> &#x7684;&#x8B8A;&#x5316;&#x3002;</p>
+<p>&#x672C;&#x7AE0;&#x4E2D;&#x6240;&#x6709;&#x542B;&#x6709; <code>pause</code> &#x7684;&#x8FF4;&#x5708;&#x90FD;&#x5148; <code>pause</code> &#xFF0C;&#x518D;&#x505A;&#x5176;&#x4ED6;&#x7684;&#x4E8B;&#x3002;&#x9019;&#x4F7F;&#x5F97;&#x9019;&#x985E;&#x6307;&#x4EE4;&#x90FD;&#x81F3;&#x5C11;&#x6703;&#x57F7;&#x884C;&#x4E00;&#x6B21; <code>pause</code> &#xFF0C;&#x628A;&#x865A;&#x64EC;&#x6A5F;&#x4F7F;&#x7528;&#x6B0A;&#x4EA4;&#x7D66;&#x5176;&#x4ED6;&#x5DE5;&#x4F5C;&#x3002;</p>
+<h3 id="&#x6307;&#x4EE4;-suspend-&#x548C;-resume">&#x6307;&#x4EE4; <code>SUSPEND</code> &#x548C; <code>RESUME</code></h3>
+<p>&#x5EF6;&#x7E8C;&#x4E0A;&#x4E00;&#x5C0F;&#x7BC0;&#x7684;&#x4F8B;&#x5B50;&#xFF0C;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x4F7F;&#x7528; <code>suspend</code> &#x66AB;&#x505C;&#x5DE5;&#x4F5C;&#x4E8C;&#xFF0C;&#x518D;&#x4EE5; <code>resume</code> &#x8B93;&#x5DE5;&#x4F5C;&#x4E8C;&#x7E7C;&#x7E8C;&#x57F7;&#x884C;&#x3002;</p>
+<pre><code class="lang-forth">rf&gt; 2 suspend
+ ok
+rf&gt; 6 watch
+6 6 6 6 6 6  ok
+rf&gt; 2 resume 6 watch
+5 4 3 2 1 0  ok
+</code></pre>
+<h3 id="&#x6307;&#x4EE4;-nod-&#x3001;stop-&#x548C;-halt">&#x6307;&#x4EE4; <code>NOD</code> &#x3001;<code>STOP</code> &#x548C; <code>HALT</code></h3>
+<p>&#x5DE5;&#x4F5C;&#x7684;&#x57F7;&#x884C;&#x4E0D;&#x80FD;&#x4EE5; <code>exit</code> &#x7D50;&#x675F;&#xFF0C;&#x5FC5;&#x9808;&#x4EE5;&#x7121;&#x7AAE;&#x8FF4;&#x5708;&#x7D50;&#x675F;&#x6216;&#x662F;&#x4EE5; <code>stop</code> &#x7D50;&#x675F;&#x3002;&#x6307;&#x4EE4; <code>nod</code> &#x662F;&#x70BA;&#x6B64;&#x8A2D;&#x8A08;&#x7684;&#x4E00;&#x500B;&#x7121;&#x7AAE;&#x8FF4;&#x5708;&#x3002;&#x4EE5;&#x4E0B;&#x662F; <code>stop</code> &#x548C; <code>nod</code> &#x7684;&#x5B9A;&#x7FA9;&#xFF1A;</p>
+<pre><code class="lang-forth">: nod   begin pause again ;
+: stop   me suspend pause ;
+</code></pre>
+<p>&#x6307;&#x4EE4; <code>stop</code> &#x4F7F;&#x7528;&#x4E86;&#x6307;&#x4EE4; <code>me</code> &#x53D6;&#x5F97;&#x57F7;&#x884C; <code>stop</code> &#x7684;&#x5DE5;&#x4F5C;&#x7684;&#x8B58;&#x5225;&#x78BC;&#xFF0C;&#x518D;&#x4F7F;&#x7528; <code>suspend</code> &#x66AB;&#x505C;&#x4E86;&#x9019;&#x500B;&#x5DE5;&#x4F5C;&#xFF0C;&#x7136;&#x5F8C;&#x57F7;&#x884C; <code>pause</code> &#x5C07;&#x865A;&#x64EC;&#x6A5F;&#x7684;&#x4F7F;&#x7528;&#x6B0A;&#x4EA4;&#x51FA;&#x53BB;&#x3002;</p>
+<p>&#x4EE5;&#x4E0B;&#x662F;&#x4E00;&#x500B;&#x4F8B;&#x5B50;&#xFF1A;</p>
+<pre><code class="lang-forth">variable counter
+rf&gt; : up-down  2 activate  5 0 do pause 1 counter +! loop stop 3 0 do pause -1 counter +! loop nod ;
+ ok
+rf&gt; : watch 0 ?do pause counter ? loop ;
+ ok
+rf&gt; up-down 10 watch
+0 1 2 3 4 5 5 5 5 5  ok
+rf&gt; 2 resume 10 watch
+5 4 3 2 2 2 2 2 2 2  ok
+</code></pre>
+<p>&#x6307;&#x4EE4; <code>up-down</code> &#x5148;&#x9023;&#x7E8C;&#x5C07; <code>counter</code> &#x4E0A;&#x6578; 5 &#x6B21;&#xFF0C;&#x7136;&#x5F8C;&#x4EE5; stop &#x66AB;&#x505C;&#x57F7;&#x884C;&#xFF0C;&#x88AB;&#x559A;&#x9192;&#x5F8C;&#x5C07; <code>counter</code> &#x5012;&#x6578; 3 &#x6B21;&#xFF0C;&#x7136;&#x5F8C;&#x57F7;&#x884C; <code>nod</code> &#x9019;&#x500B;&#x7121;&#x7AAE;&#x7B49;&#x5F85;&#x7684;&#x8FF4;&#x5708;&#x3002;</p>
+<p>&#x6211;&#x5011;&#x4E5F;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>halt</code> &#x4F7F;&#x5F97;&#x53E6;&#x4E00;&#x500B;&#x5DE5;&#x4F5C;&#x57F7;&#x884C; <code>nod</code> &#x9019;&#x500B;&#x7121;&#x7AAE;&#x7B49;&#x5F85;&#x7684;&#x8FF4;&#x5708;&#x3002;&#x4EE5;&#x4E0B;&#x662F; <code>halt</code> &#x7684;&#x5B9A;&#x7FA9;&#xFF1A;</p>
+<pre><code class="lang-forth">: halt ( n -- )   activate [&apos;] nod handler!  nod ;
+</code></pre>
+<p>&#x6307;&#x4EE4; <code>halt</code> &#x8A2D;&#x5B9A;&#x5DE5;&#x4F5C;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x70BA; <code>nod</code>&#xFF0C;&#x540C;&#x6642;&#x6307;&#x6D3E;&#x5DE5;&#x4F5C;&#x9032;&#x5165;&#x7121;&#x7AAE;&#x7B49;&#x5F85;&#x7684;&#x8FF4;&#x5708;&#x3002;&#x4E0B;&#x4E00;&#x7BC0;&#x6703;&#x8AAA;&#x660E; <code>handler!</code> &#x9019;&#x500B;&#x6307;&#x4EE4;&#x4EE5;&#x53CA;&#x7570;&#x5E38;&#x8655;&#x7406;&#x7A0B;&#x5F0F;&#x3002;</p>
+<p>&#x6709;&#x8208;&#x8DA3;&#x7684;&#x8B80;&#x8005;&#x53EF;&#x4EE5;&#x8A66;&#x8A66;&#x8B93;&#x5DE5;&#x4F5C;&#x57F7;&#x884C;&#x5230;&#x7D50;&#x5C3E;&#x7684;&#x5206;&#x865F;&#xFF0C;&#x6BD4;&#x5982;</p>
+<pre><code class="lang-forth">: wrong   2 activate ;
+</code></pre>
+<p>&#x76EE;&#x524D; rtForth (v0.5.0) &#x4E26;&#x672A;&#x70BA;&#x91DD;&#x5C0D;&#x9019;&#x4E00;&#x884C;&#x70BA;&#x9032;&#x884C;&#x4FDD;&#x8B77;&#x3002;&#x56E0;&#x6B64;&#x57F7;&#x884C;&#x4EE5;&#x4E0A;&#x7A0B;&#x5F0F;&#x53EF;&#x80FD;&#x6703;&#x56E0;&#x4E0D;&#x540C;&#x7248;&#x672C;&#x7684; rtForth &#x800C;&#x6709;&#x4E0D;&#x540C;&#x7684;&#x7D50;&#x679C;&#x3002;&#x5927;&#x591A;&#x6578;&#x90FD;&#x6703;&#x9020;&#x6210;&#x7A0B;&#x5F0F;&#x7D50;&#x675F;&#x6216;&#x662F;&#x7A0B;&#x5F0F;&#x8A18;&#x61B6;&#x5340;&#x6BB5;&#x932F;&#x8AA4;&#x3002;&#x56E0;&#x6B64;&#x5728;&#x5DE5;&#x4F5C;&#x4E2D;&#x8ACB;&#x52D9;&#x5FC5;&#x4EE5;&#x5167;&#x6709;&#x57F7;&#x884C; <code>pause</code> &#x7684;&#x7121;&#x7AAE;&#x8FF4;&#x5708;&#x6216; <code>nod</code> &#x6216; <code>stop</code> &#x7D50;&#x675F;&#x3002;&#x800C;&#x82E5;&#x662F;&#x4F7F;&#x7528; <code>stop</code> &#x7D50;&#x675F;&#xFF0C;&#x8ACB;&#x52D9;&#x5FC5;&#x4E0D;&#x8981; <code>resume</code> &#x9019;&#x500B;&#x5DE5;&#x4F5C;&#xFF0C;&#x5C0E;&#x81F3;&#x6700;&#x5F8C;&#x4ECD;&#x57F7;&#x884C;&#x5230;&#x5C3E;&#x7AEF;&#x7684;&#x5206;&#x865F;&#x3002;</p>
+<h3 id="&#x6307;&#x4EE4;-get-&#x548C;-release">&#x6307;&#x4EE4; <code>GET</code> &#x548C; <code>RELEASE</code></h3>
+<p>&#x7576;&#x591A;&#x500B;&#x5DE5;&#x4F5C;&#x5171;&#x4EAB;&#x4E00;&#x500B;&#x7CFB;&#x7D71;&#x8CC7;&#x6E90;&#xFF0C;&#x4E14;&#x4F7F;&#x7528;&#x9019;&#x8CC7;&#x6E90;&#x4E2D;&#x9014;&#x6709;&#x53EF;&#x80FD;&#x4EE5; <code>pause</code> &#x91CB;&#x653E;&#x865A;&#x64EC;&#x6A5F;&#x4F7F;&#x7528;&#x6B0A;&#x6642;&#xFF0C;&#x5FC5;&#x9808;&#x8003;&#x616E;&#x5982;&#x679C;&#x53E6;&#x4E00;&#x500B;&#x5DE5;&#x4F5C;&#x6436;&#x7528;&#x9019;&#x500B;&#x8CC7;&#x6E90;&#x662F;&#x5426;&#x6703;&#x9020;&#x6210;&#x554F;&#x984C;&#x3002;&#x82E5;&#x6709;&#x5FC5;&#x8981;&#xFF0C;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x4E00;&#x500B;&#x8B8A;&#x6578;&#x8A18;&#x9304;&#x8CC7;&#x6E90;&#x76EE;&#x524D;&#x7684;&#x4F7F;&#x7528;&#x8005;&#xFF0C;&#x7576;&#x9019;&#x8B8A;&#x6578;&#x5167;&#x5BB9;&#x70BA; 0 &#x6642;&#xFF0C;&#x4EE3;&#x8868;&#x6C92;&#x6709;&#x5DE5;&#x4F5C;&#x6B63;&#x5728;&#x4F7F;&#x7528;&#x9019;&#x8CC7;&#x6E90;&#xFF0C;&#x6B64;&#x6642;&#x5DE5;&#x4F5C;&#x53EF;&#x4EE5;&#x5C07;&#x81EA;&#x5DF1;&#x7684;&#x8B58;&#x5225;&#x78BC;&#x653E;&#x9032;&#x8B8A;&#x6578;&#x4E2D;&#xFF0C;&#x544A;&#x77E5;&#x5176;&#x4ED6;&#x7684;&#x5DE5;&#x4F5C;&#x9019;&#x8CC7;&#x6E90;&#x5DF2;&#x7D93;&#x88AB;&#x4F54;&#x7528;&#x3002;&#x7576;&#x9019;&#x8B8A;&#x6578;&#x5167;&#x5BB9;&#x70BA;&#x53E6;&#x4E00;&#x500B;&#x5DE5;&#x4F5C;&#x7684;&#x8B58;&#x5225;&#x78BC;&#x6642;&#xFF0C;&#x5C31;&#x5FC5;&#x9808;&#x7B49;&#x5F85;&#x90A3;&#x500B;&#x5DE5;&#x4F5C;&#x91CB;&#x653E;&#x4E86;&#x9019;&#x9805;&#x8CC7;&#x6E90;&#xFF0C;&#x8B8A;&#x6578;&#x5167;&#x5BB9;&#x70BA;&#x96F6;&#x6642;&#x624D;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x3002;</p>
+<p>&#x6307;&#x4EE4; <code>get</code> &#x548C; <code>release</code> &#x5C31;&#x662F;&#x5728;&#x8655;&#x7406;&#x9019;&#x7A2E;&#x8CC7;&#x6E90;&#x5171;&#x4EAB;&#x7684;&#x60C5;&#x6CC1;&#x3002;&#x4EE5;&#x4E0B;&#x662F; rtForth &#x4E2D; <code>get</code> &#x548C; <code>release</code> &#x7684;&#x5B9A;&#x7FA9;&#x3002;</p>
+<pre><code class="lang-forth">\ &#x53D6;&#x5F97;&#x8CC7;&#x6E90; a&#xFF0C;&#x5982;&#x679C; a &#x6B63;&#x88AB;&#x5176;&#x4ED6;&#x5DE5;&#x4F5C;&#x4F54;&#x7528;&#xFF0C;&#x5247;&#x7B49;&#x5F85; a &#x88AB;&#x91CB;&#x653E;&#x5F8C;&#xFF0C;&#x5728; a &#x4E2D;&#x586B;&#x5165;&#x81EA;&#x5DF1;&#x7684;&#x8B58;&#x5225;&#x78BC;&#x3002;
+: get ( a -- )   begin  pause dup @  while repeat me swap ! ;
+\ &#x5982;&#x679C;&#x8CC7;&#x6E90; a &#x4E2D;&#x7684;&#x8B58;&#x5225;&#x78BC;&#x662F;&#x81EA;&#x5DF1;&#xFF0C;&#x90A3;&#x5C31;&#x586B;&#x5165; 0 &#x91CB;&#x653E;&#x9019;&#x9805;&#x8CC7;&#x6E90;&#x3002;
+: release ( a -- )   dup @ me = if 0 swap ! else drop then ;
+</code></pre>
+<p>&#x4EE5;&#x4E0A;&#x7A0B;&#x5F0F;&#x4E2D;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>me</code> &#x53D6;&#x5F97;&#x76EE;&#x524D;&#x5DE5;&#x4F5C;&#x7684;&#x8B58;&#x5225;&#x78BC;&#x3002;</p>
+<p>&#x4EE5;&#x5370;&#x8868;&#x6A5F;&#x9019;&#x9805;&#x8CC7;&#x6E90;&#x70BA;&#x4F8B;&#xFF0C;&#x7576;&#x4E00;&#x5DE5;&#x4F5C;&#x6B63;&#x5728;&#x5217;&#x5370;&#x6642;&#xFF0C;&#x53E6;&#x4E00;&#x5DE5;&#x4F5C;&#x9700;&#x8981;&#x7B49;&#x5F85;&#x3002;&#x56E0;&#x6B64;&#xFF0C;</p>
+<pre><code class="lang-forth">variable printer
+: print   printer get  (print)  printer release ;
+</code></pre>
+<p>&#x4EE5;&#x4E0A;&#x7A0B;&#x5F0F;&#x4E2D;&#x7684; <code>printer</code> &#x662F;&#x4E00;&#x500B;&#x4EE3;&#x8868;&#x67D0;&#x9805;&#x8CC7;&#x6E90;&#x7684;&#x8B8A;&#x6578;&#xFF0C;&#x800C;&#x6307;&#x4EE4; <code>(print)</code> &#x57F7;&#x884C;&#x5BE6;&#x969B;&#x7684;&#x5217;&#x5370;&#x52D5;&#x4F5C;&#x3002;&#x5728;&#x5217;&#x5370;&#x4E4B;&#x524D;&#x5FC5;&#x9808;&#x5148;&#x4EE5; <code>printer get</code> &#x53D6;&#x5F97;&#x5370;&#x8868;&#x6A5F;&#x7684;&#x4F7F;&#x7528;&#x6B0A;&#xFF0C;&#x4E26;&#x5728;&#x5217;&#x5370;&#x5B8C;&#x6210;&#x5F8C;&#x4EE5; <code>printer release</code> &#x91CB;&#x653E;&#x9019;&#x9805;&#x8CC7;&#x6E90;&#x3002;</p>
+<p>&#x8981;&#x6CE8;&#x610F;&#x7576;&#x6709;&#x591A;&#x65BC;&#x4E00;&#x500B;&#x4EE5;&#x4E0A;&#x7684;&#x7CFB;&#x7D71;&#x8CC7;&#x6E90;&#x6642;&#xFF0C;&#x6BCF;&#x500B;&#x5DE5;&#x4F5C;&#x6700;&#x597D;&#x4E00;&#x6B21;&#x53EA;&#x53D6;&#x5F97;&#x4E00;&#x9805;&#x8CC7;&#x6E90;&#x7684;&#x4F7F;&#x7528;&#x6B0A;&#xFF0C;&#x7528;&#x5B8C;&#x91CB;&#x653E;&#x4F7F;&#x7528;&#x6B0A;&#x5F8C;&#x624D;&#x518D;&#x53D6;&#x5F97;&#x53E6;&#x4E00;&#x9805;&#x8CC7;&#x6E90;&#x7684;&#x4F7F;&#x7528;&#x6B0A;&#x3002;&#x5426;&#x5247;&#x5F88;&#x6709;&#x53EF;&#x80FD;&#x9020;&#x6210;&#x6240;&#x8B02;&#x7684;&#x6B7B;&#x7D50; (deadlock)&#xFF0C;&#x4EE5;&#x4E0B;&#x662F;&#x4E00;&#x500B;&#x6B7B;&#x7D50;&#x7684;&#x4F8B;&#x5B50;&#xFF1A;</p>
+<pre><code class="lang-forth">variable a
+variable b
+: start-task2   2 activate  a get b get  do-task2  a release b release nod ;
+: start-task3   3 activate  b get a get  do-task3  b release a release nod ;
+</code></pre>
+<p>&#x5F88;&#x53EF;&#x80FD;&#x56E0;&#x70BA;&#x5DE5;&#x4F5C;&#x4E8C;&#x4F54;&#x7528;&#x4E86;&#x8CC7;&#x6E90; a&#xFF0C;&#x5DE5;&#x4F5C;&#x4E09;&#x4F54;&#x7528;&#x4E86;&#x8CC7;&#x6E90; b&#xFF0C;&#x5F7C;&#x6B64;&#x90FD;&#x7B49;&#x4E0D;&#x5230;&#x5C0D;&#x65B9;&#x91CB;&#x653E;&#x8CC7;&#x6E90;&#x3002;</p>
+<h3 id="&#x6642;&#x9593;">&#x6642;&#x9593;</h3>
+<p>&#x6709;&#x6642;&#xFF0C;&#x4E00;&#x500B;&#x5DE5;&#x4F5C;&#x5728;&#x9032;&#x884C;&#x5B8C;&#x67D0;&#x500B;&#x6B65;&#x9A5F;&#x5F8C;&#xFF0C;&#x9700;&#x8981;&#x7B49;&#x5F85;&#x4E00;&#x6BB5;&#x6642;&#x9593;&#xFF0C;&#x624D;&#x80FD;&#x9032;&#x884C;&#x53E6;&#x4E00;&#x500B;&#x6B65;&#x9A5F;&#x3002;&#x9019;&#x6642;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>ms</code>&#x3002;&#x5EF6;&#x7E8C;&#x4E4B;&#x524D; <code>up</code> &#x90A3;&#x500B;&#x7BC4;&#x4F8B;&#xFF0C;&#x5047;&#x8A2D;&#x6211;&#x5011;&#x4E0D;&#x60F3;&#x6642;&#x6642;&#x76E3;&#x63A7; <code>counter</code> &#x7684;&#x503C;&#xFF0C;&#x53EA;&#x8981;&#x6BCF; 100 &#x6BEB;&#x79D2;&#x76E3;&#x63A7;&#x4E00;&#x6B21;&#x5C31;&#x597D;&#x3002;&#x91CD;&#x65B0;&#x5B9A;&#x7FA9; <code>watch</code> &#x5982;&#x4E0B;&#xFF1A;</p>
+<pre><code class="lang-forth">rf&gt; : watch ( n -- )   0 ?do 100 ms counter ? loop ;
+ ok
+rf&gt; up
+ ok
+rf&gt; 10 watch
+19457 41712 63963 86238 108512 130786 153056 175337 197533 219802  ok
+</code></pre>
+<p>&#x5982;&#x672C;&#x7AE0;&#x5176;&#x4ED6;&#x4F7F;&#x7528; pause &#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x5728;&#x9019; <code>watch</code> &#x7684;&#x8FF4;&#x5708;&#x4E2D;&#x6211;&#x5011;&#x4E5F;&#x5148;&#x57F7;&#x884C; <code>100 ms</code> &#x91CB;&#x653E;&#x865A;&#x64EC;&#x6A5F;&#x4F7F;&#x7528;&#x6B0A;&#xFF0C;&#x7B49;&#x53D6;&#x56DE;&#x4F7F;&#x7528;&#x6B0A;&#x5F8C;&#x624D;&#x505A;&#x5176;&#x4ED6;&#x7684;&#x4E8B;&#x3002;</p>
+<p>&#x4EE5;&#x4E0B;&#x662F;&#x6307;&#x4EE4; <code>ms</code> &#x7684;&#x5B9A;&#x7FA9;&#xFF0C;&#x5B83;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>mtime</code> &#x53D6;&#x5F97;&#x6642;&#x9593;&#xFF0C;&#x4E4B;&#x5F8C;&#x4E0D;&#x65B7; <code>pause</code> &#x76F4;&#x5230;&#x6700;&#x65B0;&#x7684;&#x6642;&#x9593;&#x548C;&#x4E4B;&#x524D;&#x7684;&#x6642;&#x9593;&#x5DEE;&#x5927;&#x65BC;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x6578;&#x5B57; <code>n</code> &#x70BA;&#x6B62;&#x3002;<code>ms</code> &#x548C; <code>mtime</code> &#x4F7F;&#x7528;&#x7684;&#x6642;&#x9593;&#x55AE;&#x4F4D;&#x90FD;&#x662F;&#x6BEB;&#x79D2;&#x3002;</p>
+<pre><code class="lang-forth">: ms ( n -- )   mtime  begin pause mtime over -  2 pick &lt;  while repeat  2drop ;
+</code></pre>
+<p>&#x53E6;&#x6709;&#x4E00;&#x500B;&#x985E;&#x4F3C; <code>mtime</code> &#x7684;&#x6307;&#x4EE4; <code>utime</code>&#xFF0C;&#x4F46;&#x7528;&#x4F86;&#x53D6;&#x5F97;&#x6E96;&#x78BA;&#x5230;&#x5FAE;&#x79D2;&#x7684;&#x6642;&#x9593;&#x3002;&#x6CE8;&#x610F;&#x5728; 32 &#x4F4D;&#x5143;&#x7684;&#x7CFB;&#x7D71;&#x4E0A;&#xFF0C;<code>utime</code> &#x548C; <code>mtime</code> &#x5F97;&#x5230;&#x7684;&#x6642;&#x9593;&#x662F;&#x4E00;&#x500B; 32 &#x4F4D;&#x5143;&#x7684;&#x6578;&#x5B57;&#xFF0C;&#x80FD;&#x8868;&#x9054;&#x7684;&#x6700;&#x5927;&#x6642;&#x9593;&#x6709;&#x9650;&#x3002;<code>mtime</code> &#x80FD;&#x8868;&#x9054;&#x7D04; 24 &#x5929;&#x7684;&#x6642;&#x9593;&#x3002;&#x800C; <code>utime</code> &#x53EA;&#x80FD;&#x8868;&#x9054;&#x5230; 35 &#x5206;&#x9418;&#x3002;&#x4F46;&#x5B83;&#x5011;&#x5F88;&#x9069;&#x5408;&#x7528;&#x4F86;&#x8868;&#x793A;&#x63A7;&#x5236;&#x8A2D;&#x5099;&#x6642;&#x7684;&#x6642;&#x9593;&#x5EF6;&#x9072;&#xFF0C;&#x6216;&#x662F;&#x7528;&#x4F86;&#x8A08;&#x7B97;&#x5176;&#x4ED6; Forth &#x6307;&#x4EE4;&#x57F7;&#x884C;&#x6240;&#x9700;&#x7684;&#x6642;&#x9593;&#x3002;</p>
+<p>&#x7531;&#x65BC;&#x5E38;&#x6709;&#x9700;&#x8981;&#x77AD;&#x89E3; Forth &#x6307;&#x4EE4;&#x57F7;&#x884C;&#x7684;&#x6642;&#x9593;&#xFF0C;rtForth &#x914D;&#x5408; <code>utime</code> &#x63D0;&#x4F9B;&#x4E86;&#x4E09;&#x500B;&#x6307;&#x4EE4; <code>xtime</code> &#x3001;<code>.xtime</code> &#x548C; <code>0xtime</code> &#x4F86;&#x9032;&#x884C;&#x57F7;&#x884C;&#x6642;&#x9593;&#x5206;&#x6790;&#x3002;&#x8AAA;&#x660E;&#x5982;&#x4E0B;&#xFF0C;</p>
+<ul>
+<li><code>xtime ( xt -- )</code> &#x57F7;&#x884C;&#x547D;&#x724C; <code>xt</code> &#x6240;&#x4EE3;&#x8868;&#x7684;&#x6307;&#x4EE4;&#x4E26;&#x7D71;&#x8A08;&#x9019;&#x500B;&#x6307;&#x4EE4;&#x7684;&#x6700;&#x5927;&#x53CA;&#x6700;&#x5C0F;&#x57F7;&#x884C;&#x6642;&#x9593;&#x3002;</li>
+<li><code>.xtime ( -- )</code> &#x5370;&#x51FA;&#x6240;&#x6709;&#x6307;&#x4EE4;&#x7684;&#x6700;&#x5927;&#x53CA;&#x6700;&#x5C0F;&#x57F7;&#x884C;&#x6642;&#x9593;&#x3002;</li>
+<li><code>0xtime ( -- )</code> &#x6E05;&#x9664;&#x6240;&#x6709;&#x6307;&#x4EE4;&#x7684;&#x6700;&#x5927;&#x53CA;&#x6700;&#x5C0F;&#x57F7;&#x884C;&#x6642;&#x9593;&#x3002;</li>
+</ul>
+<p>&#x8ACB;&#x898B;&#x4E0B;&#x4F8B;&#xFF1A;</p>
+<pre><code>rf&gt; &apos; noop xtime .xtime
+noop|3,3 ok
+rf&gt; : noops   0 ?do [&apos;] noop xtime loop ;
+ ok
+rf&gt; 80 noops
+ ok
+rf&gt; .xtime
+noop|1,4 ok
+rf&gt; 0xtime
+ ok
+rf&gt; .xtime
+ ok
+</code></pre><p>&#x5728;&#x4F8B;&#x5B50;&#x4E2D;&#x7684; noop &#x662F;&#x4E00;&#x500B;&#x4EC0;&#x9EBC;&#x4E5F;&#x4E0D;&#x505A;&#x7684; rtForth &#x6307;&#x4EE4;&#x3002;&#x6211;&#x5011;&#x5148;&#x4F7F;&#x7528; <code>utime</code> &#x53D6;&#x5F97;&#x76EE;&#x524D;&#x7684;&#x6642;&#x9593;&#xFF0C;&#x518D;&#x4F7F;&#x7528; <code>&apos; noop</code> &#x53D6;&#x5F97; <code>noop</code> &#x7684;&#x4EE4;&#x724C;&#x3002;&#x518D;&#x4EE5; <code>xtime</code> &#x57F7;&#x884C;&#x9019;&#x500B;&#x4EE4;&#x724C;&#x4E26;&#x5206;&#x6790;&#x57F7;&#x884C;&#x6642;&#x9593;&#x3002;&#x7136;&#x5F8C;&#x4EE5; <code>.xtime</code> &#x5370;&#x51FA;&#x7D71;&#x8A08;&#x7D50;&#x679C;&#x3002;&#x5F97;&#x5230;&#x7684; <code>noop|3,3</code> &#x986F;&#x793A;&#x57F7;&#x884C; <code>noop</code> &#x9700;&#x8981; 3 &#x5FAE;&#x79D2;&#x3002;</p>
+<p>&#x7136;&#x5F8C;&#x6211;&#x5011;&#x5B9A;&#x7FA9;&#x4E86; <code>noops</code>&#xFF0C;&#x8B93;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x57F7;&#x884C;&#x591A;&#x6B21; <code>noop</code> &#x4E26;&#x7D71;&#x8A08;&#x5176;&#x6642;&#x9593;&#x3002;&#x5728;&#x57F7;&#x884C;&#x4E86; <code>80 noops</code> &#x5F8C;&#xFF0C;&#x4EE5; <code>.xtime</code> &#x5370;&#x51FA;&#x7D71;&#x8A08;&#x7D50;&#x679C;&#xFF0C;<code>noop</code> &#x7684;&#x6700;&#x5C0F;&#x57F7;&#x884C;&#x6642;&#x9593;&#x662F; 1 &#x5FAE;&#x79D2;&#xFF0C;&#x6700;&#x5927;&#x662F; 4 &#x5FAE;&#x79D2;&#x3002;&#x56E0;&#x70BA; <code>xtime</code> &#x6700;&#x5C0F;&#x80FD;&#x8655;&#x7406;&#x7684;&#x6642;&#x9593;&#x662F; 1 &#x5FAE;&#x79D2;&#xFF0C;&#x5C0F;&#x65BC; 1 &#x5FAE;&#x79D2;&#x7684;&#x6642;&#x9593;&#x662F;&#x7121;&#x6CD5;&#x91CF;&#x5F97;&#x7684;&#x3002;</p>
+<p>&#x9019;&#x5E7E;&#x500B;&#x6307;&#x4EE4;&#x6709;&#x52A9;&#x65BC;&#x6211;&#x5011;&#x6539;&#x9032; Forth &#x6307;&#x4EE4;&#x5728;&#x5BE6;&#x6642;&#x7CFB;&#x7D71;&#x4E0B;&#x591A;&#x5DE5;&#x6642;&#x7684;&#x6027;&#x80FD;&#x3002;</p>
+<h3 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h3>
+<p>&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x90FD;&#x975E; Forth 2012 &#x6A19;&#x6E96;&#x6307;&#x4EE4;&#x3002;&#x6307;&#x4EE4;&#x96C6;&#x7684;&#x8A2D;&#x8A08;&#x53C3;&#x8003;&#x4E86; Forth Inc. &#x7684; SwiftOS &#x7684;&#x591A;&#x5DE5;&#x6307;&#x4EE4;&#x96C6;&#x3002;
+&#x5176;&#x4E2D; <code>activate</code> &#x3001;<code>pause</code> &#x548C; <code>ms</code> &#x5E38;&#x898B;&#x65BC;&#x5404;&#x7A2E;&#x4E0D;&#x540C;&#x7684; Forth &#x7CFB;&#x7D71;&#x591A;&#x5DE5;&#x6307;&#x4EE4;&#x96C6;&#x3002;</p>
+<table>
+<thead>
+<tr>
+<th>&#x6307;&#x4EE4;</th>
+<th>&#x5806;&#x758A;&#x6548;&#x679C;&#x53CA;&#x6307;&#x4EE4;&#x8AAA;&#x660E;</th>
+<th>&#x53E3;&#x8A9E;&#x5538;&#x6CD5;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>me</code></td>
+<td>( -- n ) &#x2003; &#x76EE;&#x524D;&#x5DE5;&#x4F5C;&#x7684;&#x8B58;&#x5225;&#x78BC;</td>
+<td>me</td>
+</tr>
+<tr>
+<td><code>activate</code></td>
+<td>( n -- ) &#x2003; &#x6307;&#x6D3E;&#x5DE5;&#x4F5C; <code>n</code> &#x7684;&#x5DE5;&#x4F5C;&#x5167;&#x5BB9;&#xFF0C;&#x4E26;&#x559A;&#x9192;&#x5DE5;&#x4F5C; <code>n</code>&#x3002;</td>
+<td>activate</td>
+</tr>
+<tr>
+<td><code>pause</code></td>
+<td>( n -- ) &#x2003; &#x5C07;&#x865A;&#x64EC;&#x6A5F;&#x7684;&#x4F7F;&#x7528;&#x6B0A;&#x4EA4;&#x7D66;&#x4E0B;&#x4E00;&#x500B;&#x9192;&#x8457;&#x7684;&#x5DE5;&#x4F5C;&#x3002;</td>
+<td>pause</td>
+</tr>
+<tr>
+<td><code>suspend</code></td>
+<td>( n -- ) &#x2003; &#x66AB;&#x505C;&#x5DE5;&#x4F5C; <code>n</code>&#xFF0C;&#x4F7F;&#x5B83;&#x9032;&#x5165;&#x4F11;&#x7720;&#x72C0;&#x614B;&#x3002;</td>
+<td>suspend</td>
+</tr>
+<tr>
+<td><code>resume</code></td>
+<td>( n -- ) &#x2003; &#x6062;&#x5FA9;&#x5DE5;&#x4F5C; <code>n</code> &#x7684;&#x57F7;&#x884C;&#xFF0C;&#x4F7F;&#x5B83;&#x9032;&#x5165;&#x6E05;&#x9192;&#x72C0;&#x614B;&#x3002;</td>
+<td>resume</td>
+</tr>
+<tr>
+<td><code>stop</code></td>
+<td>( -- ) &#x2003; &#x4F7F;&#x76EE;&#x524D;&#x7684;&#x5DE5;&#x4F5C;&#x9032;&#x5165;&#x4F11;&#x7720;&#x72C0;&#x614B;&#x3002;</td>
+<td>stop</td>
+</tr>
+<tr>
+<td><code>nod</code></td>
+<td>( -- ) &#x2003; &#x4E00;&#x500B;&#x4E0D;&#x65B7; <code>pause</code> &#x7684;&#x7121;&#x7AAE;&#x8FF4;&#x5708;&#x3002;</td>
+<td>nod</td>
+</tr>
+<tr>
+<td><code>halt</code></td>
+<td>( n -- ) &#x2003; &#x4F7F;&#x5DE5;&#x4F5C; <code>n</code> &#x57F7;&#x884C; <code>nod</code> &#x3002;</td>
+<td>halt</td>
+</tr>
+<tr>
+<td><code>get</code></td>
+<td>( n -- ) &#x2003; &#x53D6;&#x5F97;&#x8CC7;&#x6E90;&#x8B8A;&#x6578; <code>n</code> &#x7684;&#x4F7F;&#x7528;&#x6B0A;&#x3002;&#x82E5;&#x8B8A;&#x6578; <code>n</code> &#x5DF2;&#x88AB;&#x5176;&#x4ED6;&#x5DE5;&#x4F5C;&#x4F54;&#x7528;&#xFF0C;&#x7B49;&#x5F85;&#x76F4;&#x5230;&#x5176;&#x4ED6;&#x5DE5;&#x4F5C;&#x91CB;&#x653E;&#x6B64;&#x4E00;&#x8B8A;&#x6578;&#x3002;</td>
+<td>get</td>
+</tr>
+<tr>
+<td><code>release</code></td>
+<td>( n -- ) &#x2003; &#x91CB;&#x653E;&#x8CC7;&#x6E90;&#x8B8A;&#x6578; <code>n</code> &#x3002;</td>
+<td>release</td>
+</tr>
+<tr>
+<td><code>mtime</code></td>
+<td>( -- n ) &#x2003; &#x76EE;&#x524D;&#x7684;&#x7CFB;&#x7D71;&#x6642;&#x9593;&#x3002;&#x55AE;&#x4F4D;&#x70BA;&#x6BEB;&#x79D2;&#x3002;</td>
+<td>m-time</td>
+</tr>
+<tr>
+<td><code>ms</code></td>
+<td>( n -- ) &#x2003; &#x7B49;&#x5F85; <code>n</code> &#x6BEB;&#x79D2;&#x3002;</td>
+<td>ms</td>
+</tr>
+<tr>
+<td><code>utime</code></td>
+<td>( -- n ) &#x2003; &#x76EE;&#x524D;&#x7684;&#x7CFB;&#x7D71;&#x6642;&#x9593;&#x3002;&#x55AE;&#x4F4D;&#x70BA;&#x5FAE;&#x79D2;&#x3002;</td>
+<td>u-time</td>
+</tr>
+<tr>
+<td><code>xtime</code></td>
+<td>( t0 xt -- ) &#x2003; &#x8A08;&#x7B97; <code>t0</code> &#x5230;&#x73FE;&#x5728;&#x7684;&#x6642;&#x9593;&#x5F8C;&#xFF0C;&#x7D71;&#x8A08;&#x4EE4;&#x724C; <code>xt</code> &#x5C0D;&#x61C9;&#x7684;&#x6307;&#x4EE4;&#x7684;&#x6700;&#x5927;&#x53CA;&#x6700;&#x5C0F;&#x57F7;&#x884C;&#x6642;&#x9593;&#x3002;<code>t0</code> &#x7684;&#x55AE;&#x4F4D;&#x662F;&#x5FAE;&#x79D2;&#x3002;</td>
+<td>x-time</td>
+</tr>
+<tr>
+<td><code>.xtime</code></td>
+<td>( -- ) &#x5370;&#x51FA;&#x6240;&#x6709;&#x6307;&#x4EE4;&#x7684;&#x6700;&#x5927;&#x53CA;&#x6700;&#x5C0F;&#x57F7;&#x884C;&#x6642;&#x9593;&#x3002;&#x5982;&#x679C;&#x6642;&#x9593;&#x70BA; 0 &#x5247;&#x4E0D;&#x986F;&#x793A;&#x3002;</td>
+<td>dot-x-time</td>
+</tr>
+<tr>
+<td><code>0xtime</code></td>
+<td>( -- ) &#x6E05;&#x9664;&#x6240;&#x6709;&#x6307;&#x4EE4;&#x7684;&#x6700;&#x5927;&#x53CA;&#x6700;&#x5C0F;&#x57F7;&#x884C;&#x6642;&#x9593;&#x3002;</td>
+<td>zero-x-time</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="&#x7570;&#x5E38;&#x8655;&#x7406;">&#x7570;&#x5E38;&#x8655;&#x7406;</h2>
+<p>&#x7576;&#x6211;&#x5011;&#x57F7;&#x884C;&#x4E00;&#x500B;&#x5B57;&#x5178;&#x4E2D;&#x6C92;&#x6709;&#x7684;&#x6307;&#x4EE4; <code>xx</code> &#x6642;&#xFF0C;&#x6703;&#x5370;&#x51FA; <code>Undefined</code> &#x7684;&#x932F;&#x8AA4;&#x8A0A;&#x606F;&#x3002;&#x7576;&#x57F7;&#x884C; <code>0 0 /</code> &#x6642;&#xFF0C;&#x6703;&#x5370;&#x51FA; <code>Division by zero</code> &#x7684;&#x932F;&#x8AA4;&#x8A0A;&#x606F;&#x3002;</p>
+<pre><code>rf&gt; xx
+xx Undefined word
+rf&gt; 0 0 /
+/ Division by zero
+</code></pre><p>&#x7576; RtForth &#x767C;&#x73FE;&#x932F;&#x8AA4;&#x6642;&#xFF0C;&#x6703;&#x5148;&#x57F7;&#x884C;&#x9810;&#x8A2D;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;&#x7136;&#x5F8C;&#xFF0C;&#x91CD;&#x8A2D;&#x7CFB;&#x7D71;&#xFF0C;&#x57F7;&#x884C;&#x7CFB;&#x7D71;&#x7684;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x3002;&#x4E0B;&#x5217;&#x7A0B;&#x5F0F;&#x4E2D;&#x7684; <code>(abort)</code> &#x6307;&#x4EE4;&#x5C31;&#x662F; RtForth &#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x7A0B;&#x5F0F;&#x3002;&#x4EE5;&#x4E0B;&#x8AAA;&#x660E;&#x5B83;&#x4F7F;&#x7528;&#x5230;&#x7684;&#x5E7E;&#x500B;&#x6307;&#x4EE4;&#xFF1A;</p>
+<ul>
+<li><code>0stacks</code>&#xFF1A;&#x6E05;&#x7A7A;&#x5806;&#x758A;&#x3002;</li>
+<li><code>error</code>&#xFF1A;&#x53D6;&#x5F97;&#x932F;&#x8AA4;&#x78BC;&#x3002;&#x5982;&#x679C;&#x4E0D;&#x70BA;&#x96F6;&#x4EE3;&#x8868;&#x6709;&#x7570;&#x5E38;&#x767C;&#x751F;&#x3002;</li>
+<li><code>.token</code>&#xFF1A;&#x5370;&#x51FA;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x6700;&#x8FD1;&#x8B80;&#x5230;&#x7684;&#x6307;&#x4EE4;&#x3002;</li>
+<li><code>.error</code>&#xFF1A;&#x5370;&#x51FA;&#x932F;&#x8AA4;&#x8A0A;&#x606F;&#x3002;</li>
+<li><code>0error</code>&#xFF1A;&#x6E05;&#x9664;&#x932F;&#x8AA4;&#x78BC;&#x3002;</li>
+<li><code>flush-output</code>&#xFF1A;&#x5370;&#x51FA;&#x8F38;&#x51FA;&#x7DE9;&#x885D;&#x5340;&#x7684;&#x5167;&#x5BB9;&#x3002;</li>
+<li><code>quit</code>&#xFF1A; &#x91CD;&#x8A2D;&#x5DE5;&#x4F5C;&#xFF0C;&#x4E26;&#x57F7;&#x884C;&#x5DE5;&#x4F5C;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#x3002;&#x901A;&#x5E38;&#x9019;&#x9810;&#x8A2D;&#x7684;&#x884C;&#x70BA;&#x5C31;&#x662F; Forth &#x7684;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x3002;</li>
+</ul>
+<pre><code class="lang-forth">: (abort)
+    0stacks error -2 1 within not if
+      .token space .error
+    then flush-output 0error quit ;
+</code></pre>
+<p>&#x6307;&#x4EE4; <code>(abort)</code> &#x53EA;&#x5728;&#x932F;&#x8AA4;&#x78BC;&#x4E0D;&#x662F; 0&#x3001;-1&#x3001;-2 &#x6642;&#x624D;&#x6703;&#x5370;&#x51FA;&#x932F;&#x8AA4;&#x8A0A;&#x606F;&#x3002;0 &#x4EE3;&#x8868;&#x6C92;&#x6709;&#x932F;&#x8AA4;&#xFF0C;-1 &#x662F;&#x7531;&#x67D0;&#x500B;&#x540D;&#x70BA; <code>abort</code> &#x7684;&#x6307;&#x4EE4;&#x767C;&#x51FA;&#x7684;&#x932F;&#x8AA4;&#x78BC;&#xFF0C;&#x7CFB;&#x7D71;&#x6536;&#x5230;&#x9019;&#x500B;&#x932F;&#x8AA4;&#x78BC;&#x6642;&#xFF0C;&#x53EA;&#x57F7;&#x884C;&#x932F;&#x8AA4;&#x8655;&#x7406;&#xFF0C;&#x4E0D;&#x5370;&#x51FA;&#x4EFB;&#x4F55;&#x8A0A;&#x606F;&#x3002;-2 &#x662F;&#x7531;&#x53E6;&#x4E00;&#x500B;&#x540D;&#x70BA; <code>abort&quot;</code> &#x7684;&#x6307;&#x4EE4;&#x767C;&#x51FA;&#x7684;&#x932F;&#x8AA4;&#x8A0A;&#x606F;&#x3002;&#x76EE;&#x524D; rtForth &#x5C1A;&#x672A;&#x652F;&#x63F4;&#x6307;&#x4EE4; <code>abort&quot;</code>&#x3002;</p>
+<p>&#x4F7F;&#x7528;&#x8005;&#x7684;&#x7A0B;&#x5F0F;&#x4E2D;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>abort</code> &#x653E;&#x68C4;&#x7A0B;&#x5F0F;&#x7684;&#x57F7;&#x884C;&#xFF0C;&#x6E05;&#x9664;&#x5806;&#x758A;&#xFF0C;&#x56DE;&#x5230;&#x5DE5;&#x4F5C;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#x3002;</p>
+<p>&#x82E5;&#x6709;&#x5FC5;&#x8981;&#xFF0C;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x4FEE;&#x6539;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#xFF0C;&#x751A;&#x81F3;&#x4FEE;&#x6539;&#x7CFB;&#x7D71;&#x51B7;&#x8D77;&#x52D5;&#x5F8C;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#x3002;&#x672C;&#x7BC0;&#x6703;&#x8AAA;&#x660E;&#x5982;&#x4F55;&#x4FEE;&#x6539;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#xFF0C;&#x4E0B;&#x4E00;&#x7BC0;&#x8AAA;&#x660E; <code>quit</code> &#x4EE5;&#x53CA;&#x5982;&#x4F55;&#x4FEE;&#x6539;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#x3002;</p>
+<p>&#x5728;&#x4E4B;&#x524D;&#x7684;&#x7AE0;&#x7BC0;&#x66FE;&#x63D0;&#x5230;&#x5411;&#x91CF;&#x57F7;&#x884C;&#x3002;RtForth &#x5728;&#x7570;&#x5E38;&#x8655;&#x7406;&#x4E0A;&#x4F7F;&#x7528;&#x5411;&#x91CF;&#x57F7;&#x884C;&#x7684;&#x6982;&#x5FF5;&#xFF0C;&#x6BCF;&#x500B;&#x5DE5;&#x4F5C;&#x90FD;&#x6709;&#x81EA;&#x5DF1;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x5411;&#x91CF;&#x3002;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>handler!</code> &#x4F86;&#x4FEE;&#x6539;&#x9019;&#x5411;&#x91CF;&#xFF0C;&#x4EE5;&#x6539;&#x8B8A;&#x7570;&#x5E38;&#x8655;&#x7406;&#x7684;&#x884C;&#x70BA;&#x3002;&#x5728;&#x4E0A;&#x4E00;&#x7BC0;&#xFF0C;&#x6307;&#x4EE4; <code>halt</code> &#x4F7F;&#x7528; <code>[&apos;] nod handler!</code> &#x8A2D;&#x5B9A;&#x5DE5;&#x4F5C;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x70BA; <code>nod</code>&#x3002;RtForth &#x7684;&#x51B7;&#x8D77;&#x52D5;&#x6307;&#x4EE4; <code>cold</code> &#x8A2D;&#x5B9A;&#x4E86;&#x6240;&#x6709;&#x5DE5;&#x4F5C;&#x9810;&#x8A2D;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x4EE5;&#x53CA;&#x9810;&#x8A2D;&#x7684;&#x884C;&#x70BA;&#xFF0C;&#x4EE5;&#x4E0B;&#x662F;&#x5B83;&#x7684;&#x5B9A;&#x7FA9;&#xFF1A;</p>
+<pre><code class="lang-forth">\ Cold start
+: cold
+    2 halt  3 halt  4 halt  5 halt
+    [&apos;] (abort) handler!  quit ;
+</code></pre>
+<p>&#x57F7;&#x884C;&#x51B7;&#x8D77;&#x52D5;&#x7684;&#x5DE5;&#x4F5C;&#x662F;&#x64CD;&#x4F5C;&#x8005;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x5DE5;&#x4F5C;&#x4E00;&#x3002;&#x9996;&#x5148;&#x5B83;&#x4F7F;&#x7528; <code>halt</code> &#x8A2D;&#x5B9A;&#x4E86;&#x5DE5;&#x4F5C; 2-5 &#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x7A0B;&#x5F0F;&#x70BA; <code>nod</code>&#xFF0C;&#x4E26;&#x6307;&#x6D3E;&#x5B83;&#x5011;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#x540C;&#x6A23;&#x662F; <code>nod</code>&#x3002;&#x4E4B;&#x5F8C; <code>cold</code> &#x53D6;&#x5F97;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4; <code>(abort)</code> &#x7684;&#x57F7;&#x884C;&#x4EE4;&#x724C;&#xFF0C;&#x4E26;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>handler!</code> &#x8A2D;&#x5B9A;&#x5B83;&#x70BA;&#x5DE5;&#x4F5C;&#x4E00;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;&#x6700;&#x5F8C;&#x57F7;&#x884C; <code>quit</code> &#x91CD;&#x8A2D;&#x5DE5;&#x4F5C;&#x4E00;&#xFF0C;&#x4E26;&#x555F;&#x52D5;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x3002;</p>
+<p>&#x4EE5;&#x4E0B;&#x7BC4;&#x4F8B;&#x4FEE;&#x6539;&#x4E86;&#x5DE5;&#x4F5C;&#x4E00;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x5411;&#x91CF;&#xFF0C;&#x4EE5;&#x4E0D;&#x540C;&#x7684;&#x65B9;&#x5F0F;&#x986F;&#x793A;&#x932F;&#x8AA4;&#x8A0A;&#x606F;&#xFF1A;</p>
+<pre><code class="lang-forth">rf&gt; : (my-abort)   0stacks error -2 1 within not if .token .&quot;  ===&gt; &quot; .error 0error then flush-output quit ;
+ ok
+rf&gt; &apos; (my-abort) handler!
+ ok
+rf&gt; 0 0 /
+/ ===&gt; Division by zero
+</code></pre>
+<h3 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h3>
+<p>&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x4E2D;&#x50C5; <code>quit</code> &#x548C; <code>abort</code> &#x70BA; Forth 2012 &#x7684;&#x6A19;&#x6E96;&#x6307;&#x4EE4;&#x3002;</p>
+<table>
+<thead>
+<tr>
+<th>&#x6307;&#x4EE4;</th>
+<th>&#x5806;&#x758A;&#x6548;&#x679C;&#x53CA;&#x6307;&#x4EE4;&#x8AAA;&#x660E;</th>
+<th>&#x53E3;&#x8A9E;&#x5538;&#x6CD5;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>quit</code></td>
+<td>( -- ) &#x2003; &#x91CD;&#x8A2D;&#x5DE5;&#x4F5C;&#xFF0C;&#x4E26;&#x57F7;&#x884C;&#x5DE5;&#x4F5C;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#x3002;&#x901A;&#x5E38;&#x9019;&#x9810;&#x8A2D;&#x7684;&#x884C;&#x70BA;&#x5C31;&#x662F; Forth &#x7684;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x3002;</td>
+<td>quit</td>
+</tr>
+<tr>
+<td><code>abort</code></td>
+<td>( -- ) &#x2003; &#x653E;&#x68C4;&#x7A0B;&#x5F0F;&#x7684;&#x57F7;&#x884C;&#xFF0C;&#x6E05;&#x9664;&#x5806;&#x758A;&#xFF0C;&#x56DE;&#x5230;&#x5DE5;&#x4F5C;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#x3002;</td>
+<td>abort</td>
+</tr>
+<tr>
+<td><code>handler!</code></td>
+<td>( xt -- ) &#x2003; &#x8A2D;&#x5B9A;&#x76EE;&#x524D;&#x5DE5;&#x4F5C;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x70BA; <code>xt</code> &#x3002;</td>
+<td>handler-store</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>( -- n ) &#x2003; &#x53D6;&#x5F97;&#x932F;&#x8AA4;&#x78BC;&#x3002;&#x5982;&#x679C;&#x4E0D;&#x70BA;&#x96F6;&#x4EE3;&#x8868;&#x6709;&#x7570;&#x5E38;&#x767C;&#x751F;&#x3002;</td>
+<td>error</td>
+</tr>
+<tr>
+<td><code>0error</code></td>
+<td>( -- ) &#x2003; &#x6E05;&#x9664;&#x932F;&#x8AA4;&#x78BC;&#x3002;</td>
+<td>zero-error</td>
+</tr>
+<tr>
+<td><code>.error</code></td>
+<td>( -- ) &#x2003; &#x5370;&#x51FA;&#x932F;&#x8AA4;&#x8A0A;&#x606F;&#x3002;</td>
+<td>dot-error</td>
+</tr>
+<tr>
+<td><code>.token</code></td>
+<td>( -- ) &#x2003; &#x5370;&#x51FA;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x6700;&#x8FD1;&#x8B80;&#x5230;&#x7684;&#x6307;&#x4EE4;&#x3002;</td>
+<td>dot-token</td>
+</tr>
+<tr>
+<td><code>0stacks</code></td>
+<td>( -- ) &#x2003; &#x6E05;&#x7A7A;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x548C;&#x6D6E;&#x9EDE;&#x5806;&#x758A;</td>
+<td>zero-stacks</td>
+</tr>
+<tr>
+<td><code>flush-output</code></td>
+<td>( -- ) &#x2003; &#x5370;&#x51FA;&#x8F38;&#x51FA;&#x7DE9;&#x885D;&#x5340;&#x7684;&#x5167;&#x5BB9;&#x3002;</td>
+<td>flush-output</td>
+</tr>
+<tr>
+<td><code>cold</code></td>
+<td>( -- ) &#x2003; &#x51B7;&#x8D77;&#x52D5; rtForth&#x3002;</td>
+<td>cold</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;">&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;</h2>
+<p>&#x4E0A;&#x4E00;&#x7BC0;&#x63D0;&#x5230;&#xFF0C;&#x51B7;&#x8D77;&#x52D5;&#x6642; rtForth &#x6703;&#x8A2D;&#x5B9A;&#x5404;&#x500B;&#x5DE5;&#x4F5C;&#x7684;&#x9810;&#x8A2D;&#x5DE5;&#x4F5C;&#x5167;&#x5BB9;&#xFF0C;&#x4E26;&#x4E14;&#x8A2D;&#x5B9A;&#x5B83;&#x5011;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;&#x56E0;&#x6B64;&#xFF0C;&#x53EA;&#x8981;&#x4FEE;&#x6539; <code>cold</code> &#x7684;&#x5B9A;&#x7FA9;&#xFF0C;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x8B93; rtForth &#x51B7;&#x8D77;&#x52D5;&#x5C31;&#x57F7;&#x884C;&#x6211;&#x5011;&#x81EA;&#x5DF1;&#x7684;&#x61C9;&#x7528;&#x7A0B;&#x5F0F;&#xFF0C;&#x6BD4;&#x5982;&#x63A7;&#x5236;&#x4E00;&#x53F0;&#x8A2D;&#x5099;&#xFF0C;&#x6216;&#x662F;&#x641C;&#x96C6;&#x5916;&#x90E8;&#x611F;&#x6E2C;&#x5668;&#x7684;&#x8CC7;&#x8A0A;&#x3002;</p>
+<p>&#x4F46;&#x73FE;&#x5728;&#x5148;&#x8B93;&#x6211;&#x5011;&#x77AD;&#x89E3; rtForth &#x51B7;&#x8D77;&#x52D5;&#x6642;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA; <code>quit</code>&#xFF0C;&#x4EE5;&#x4E0B;&#x662F;&#x5B83;&#x7684;&#x7A0B;&#x5F0F;&#x3002;</p>
+<pre><code class="lang-forth">\ &#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;
+: evaluate-input
+    begin parse-word
+      token-empty? not
+    while
+      compiling? if compile-token ?stacks else interpret-token ?stacks then
+    repeat ;
+
+\ Operator &#x5DE5;&#x4F5C;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#xFF0C;&#x91CD;&#x8A2D;&#x8FD4;&#x56DE;&#x5806;&#x758A;&#x5F8C;&#x9032;&#x5165;&#x4E00;&#x500B;&#x63A5;&#x53D7;&#x4F7F;&#x7528;&#x8005;&#x8F38;&#x5165;&#xFF0C;
+\ &#x4E26;&#x57F7;&#x884C;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x7684;&#x7121;&#x7AAE;&#x8FF4;&#x5708;&#x3002;&#x82E5;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x57F7;&#x884C;&#x904E;&#x7A0B;&#x4E2D;&#x6709;&#x7570;&#x5E38;&#xFF0C;&#x6703;&#x900F;
+\ &#x904E;&#x547C;&#x53EB;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#xFF0C;&#x91CD;&#x65B0;&#x57F7;&#x884C; `quit`&#x3002;
+: quit
+    reset
+    begin receive evaluate-input
+    .&quot;  ok&quot; flush-output
+    again ;
+</code></pre>
+<p>&#x9996;&#x5148;&#xFF0C;&#x6307;&#x4EE4; <code>evaluate-input</code> &#x5C31;&#x662F;&#x6240;&#x8B02;&#x7684;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#xFF0C;&#x5B83;&#x4F7F;&#x7528;&#x4E86;&#x5E7E;&#x500B;&#x6211;&#x5011;&#x4E4B;&#x524D;&#x672A;&#x63A5;&#x89F8;&#x904E;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x9019;&#x4E9B;&#x6307;&#x4EE4;&#x5927;&#x591A;&#x4F7F;&#x7528; rust &#x8A9E;&#x8A00;&#x5BE6;&#x4F5C;&#xFF0C;&#x5728; rtForth &#x7684;&#x958B;&#x6E90;&#x7A0B;&#x5F0F;&#x4E2D;&#x53EF;&#x4EE5;&#x627E;&#x5230;&#x3002;&#x6307;&#x4EE4;&#x7684;&#x884C;&#x70BA;&#x5982;&#x4E0B;&#xFF1A;</p>
+<ul>
+<li><code>parse-word ( -- )</code>&#xFF1A;&#x5F9E;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x53D6;&#x51FA;&#x4E00;&#x4E32;&#x7531;&#x7A7A;&#x767D;&#x5B57;&#x5143; (&#x7A7A;&#x683C;&#x548C;&#x63DB;&#x884C;) &#x9694;&#x958B;&#x7684;&#x5B57;&#x4E32; (token)&#x3002;</li>
+<li><code>token-empty? ( -- t )</code>&#xFF1A;&#x53D6;&#x5F97;&#x7684;&#x5B57;&#x4E32;&#x662F;&#x5426;&#x662F;&#x7A7A;&#x5B57;&#x4E32;&#xFF1F;&#x7A7A;&#x5B57;&#x4E32;&#x4EE3;&#x8868;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x5167;&#x6240;&#x6709;&#x7684;&#x8CC7;&#x6599;&#x90FD;&#x88AB;&#x8655;&#x7406;&#x5B8C;&#x4E86;&#x3002;</li>
+<li><code>compiling? ( -- t )</code>&#xFF1A;&#x73FE;&#x5728;&#x662F;&#x5426;&#x5728;&#x7DE8;&#x8B6F;&#x6A21;&#x5F0F;&#xFF1F;&#x7DE8;&#x8B6F;&#x6A21;&#x5F0F;&#x5C31;&#x662F;&#x7531;&#x5192;&#x865F;&#x5B9A;&#x7FA9;&#x6307;&#x4EE4; : &#x958B;&#x59CB;&#xFF0C;&#x7531;&#x5206;&#x865F;&#x6307;&#x4EE4; ; &#x7D50;&#x675F;&#x7684;&#x6A21;&#x5F0F;&#x3002;</li>
+<li><code>compile-token ( -- )</code>&#xFF1A;&#x5224;&#x65B7;&#x53D6;&#x5F97;&#x7684;&#x5B57;&#x4E32;&#x662F;&#x5B57;&#x5178;&#x4E2D;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x9084;&#x662F;&#x6574;&#x6578;&#xFF0C;&#x6216;&#x662F;&#x6D6E;&#x9EDE;&#x6578;&#xFF0C;&#x4E26;&#x4F9D;&#x64DA;&#x5224;&#x65B7;&#x7D50;&#x679C;&#x5C07;&#x5B83;&#x7DE8;&#x8B6F;&#x9032;&#x5B57;&#x5178;&#x4E2D;&#x3002;&#x5982;&#x679C;&#x7DE8;&#x8B6F;&#x5931;&#x6557;&#xFF0C;&#x6703;&#x547C;&#x53EB;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;</li>
+<li><code>interpret-token ( -- )</code>&#xFF1A;&#x5224;&#x65B7;&#x53D6;&#x5F97;&#x7684;&#x5B57;&#x4E32;&#x662F;&#x5B57;&#x5178;&#x4E2D;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x9084;&#x662F;&#x6574;&#x6578;&#xFF0C;&#x6216;&#x662F;&#x6D6E;&#x9EDE;&#x6578;&#xFF0C;&#x4E26;&#x4F9D;&#x64DA;&#x5224;&#x65B7;&#x7D50;&#x679C;&#x57F7;&#x884C;&#x5B83;&#x3002;&#x5982;&#x679C;&#x57F7;&#x884C;&#x5931;&#x6557;&#xFF0C;&#x6703;&#x547C;&#x53EB;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;</li>
+<li><code>?stacks ( -- )</code>&#xFF1A;&#x6AA2;&#x67E5;&#x6D6E;&#x9EDE;&#x5806;&#x758A;&#x6216;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x662F;&#x5426;&#x6709;&#x6EFF;&#x6EA2; (overflow) &#x6216;&#x4E0D;&#x8DB3; (underflow) &#x7684;&#x932F;&#x8AA4;&#x3002;&#x5982;&#x679C;&#x6709;&#x5C31;&#x57F7;&#x884C;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;
+&#x6240;&#x4EE5;&#xFF0C;<code>evaluate-input</code> &#x9019;&#x500B;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x9010;&#x5B57;&#x7684;&#x8B80;&#x53D6;&#x5DE5;&#x4F5C;&#x7684;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#xFF0C;&#x5982;&#x679C;&#x7DE9;&#x885D;&#x5340;&#x5167;&#x5DF2;&#x7121;&#x8CC7;&#x6599;&#xFF0C;&#x5C31;&#x4EE5;&#x6B63;&#x5E38;&#x7684;&#x65B9;&#x5F0F;&#x56DE;&#x5230; <code>quit</code>&#xFF0C;&#x5426;&#x5247;&#x4F9D;&#x64DA;&#x5DE5;&#x4F5C;&#x7684;&#x72C0;&#x614B; (&#x7DE8;&#x8B6F;&#x8207;&#x5426;) &#x4EE5;&#x53CA;&#x53D6;&#x5F97;&#x7684;&#x5B57;&#x4E32;&#x7684;&#x985E;&#x578B; (&#x6307;&#x4EE4;&#x3001;&#x6574;&#x6578;&#x3001;&#x6D6E;&#x9EDE;&#x6578;&#x6216;&#x662F;&#x4E0D;&#x8A8D;&#x5F97;&#x7684;&#x5B57;&#x4E32;) &#x6C7A;&#x5B9A;&#x8981;&#x7DE8;&#x8B6F;&#x6216;&#x57F7;&#x884C;&#x9019;&#x500B;&#x5B57;&#x4E32;&#xFF0C;&#x5982;&#x679C;&#x6709;&#x7DE8;&#x8B6F;&#x6216;&#x57F7;&#x884C;&#x6709;&#x932F;&#x6703;&#x547C;&#x53EB;&#x4E0A;&#x4E00;&#x7BC0;&#x63D0;&#x5230;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x7A0B;&#x5F0F;&#x76F4;&#x63A5;&#x56DE;&#x5230; <code>quit</code>&#xFF0C;&#x5728;&#x6210;&#x529F;&#x7DE8;&#x8B6F;&#x6216;&#x57F7;&#x884C;&#x4E86;&#x9019;&#x5B57;&#x4E32;&#x5F8C;&#xFF0C;&#x6703;&#x6AA2;&#x67E5;&#x5806;&#x758A;&#x662F;&#x5426;&#x6709;&#x7570;&#x5E38;&#xFF0C;&#x82E5;&#x6709;&#x7570;&#x5E38;&#x4E5F;&#x6703;&#x547C;&#x53EB;&#x7570;&#x5E38;&#x8655;&#x7406;&#x7A0B;&#x5F0F;&#x56DE;&#x5230; <code>quit</code>&#x3002;</li>
+</ul>
+<p>&#x5176;&#x6B21;&#xFF0C;&#x5728;&#x6307;&#x4EE4; <code>quit</code> &#x7684;&#x5B9A;&#x7FA9;&#x4E2D;&#x5148;&#x57F7;&#x884C;&#x4E86; <code>reset</code>&#x3002;&#x6307;&#x4EE4; <code>reset</code> &#x91CD;&#x8A2D;&#x4E86;&#x8FD4;&#x56DE;&#x5806;&#x758A;&#xFF0C;&#x6E05;&#x9664;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#xFF0C;&#x9032;&#x5165;&#x975E;&#x7DE8;&#x8B6F;&#x6A21;&#x5F0F;&#xFF0C;&#x6E05;&#x9664;&#x932F;&#x8AA4;&#x3002;&#x5728;&#x6B64;&#xFF0C;&#x91CD;&#x8A2D;&#x8FD4;&#x56DE;&#x5806;&#x758A;&#x7684;&#x539F;&#x56E0;&#x5982;&#x4E0B;&#xFF1A;&#x7B2C;&#x4E00;&#xFF0C;&#x5982;&#x679C;&#x6C92;&#x6709;&#x91CD;&#x8A2D;&#xFF0C;&#x6BCF;&#x6B21;&#x547C;&#x53EB; <code>quit</code> &#x90FD;&#x6703;&#x5728;&#x8FD4;&#x56DE;&#x5806;&#x758A;&#x4E0A;&#x653E;&#x4E00;&#x500B;&#x8FD4;&#x56DE;&#x4F4D;&#x5740;&#xFF0C;&#x547C;&#x53EB;&#x592A;&#x591A;&#x6B21;&#x5F8C;&#x6703;&#x9020;&#x6210;&#x8FD4;&#x56DE;&#x5806;&#x758A;&#x6EFF;&#x6EA2;&#x3002;&#x7B2C;&#x4E8C;&#xFF0C;<code>quit</code> &#x6703;&#x9032;&#x5165;&#x4E00;&#x500B;&#x7531; <code>begin ... again</code> &#x69CB;&#x6210;&#x7684;&#x7121;&#x7AAE;&#x8FF4;&#x5708;&#xFF0C;&#x4E0D;&#x6703;&#x8FD4;&#x56DE;&#x5B83;&#x7684;&#x547C;&#x53EB;&#x8005;&#xFF0C;&#x6240;&#x4EE5;&#x53EF;&#x4EE5;&#x653E;&#x5FC3;&#x91CD;&#x8A2D;&#x8FD4;&#x56DE;&#x5806;&#x758A;&#x3002;</p>
+<p>&#x5728;&#x4E4B;&#x5F8C;&#x7684; <code>begin ... again</code> &#x7684;&#x7121;&#x7AAE;&#x8FF4;&#x5708;&#x4E2D;&#xFF0C;<code>quit</code> &#x5148;&#x547C;&#x53EB; <code>receive</code>&#xFF0C;&#x7B49;&#x5F85;&#x4F7F;&#x7528;&#x8005;&#x8F38;&#x5165;&#x6307;&#x4EE4;&#xFF0C;&#x4E26;&#x5C07;&#x4F7F;&#x7528;&#x8005;&#x7684;&#x8F38;&#x5165;&#x653E;&#x9032;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x4E2D;&#x3002;&#x4E4B;&#x5F8C;&#x57F7;&#x884C; <code>evaluate-input</code>&#xFF0C;&#x89E3;&#x8B6F;&#x6216;&#x7DE8;&#x8B6F;&#x4F7F;&#x7528;&#x8005;&#x7684;&#x8F38;&#x5165;&#x3002;&#x7576; <code>quit</code> &#x6210;&#x529F;&#x57F7;&#x884C; <code>evaluate-input</code> &#x5F8C;&#xFF0C;&#x6703;&#x5370;&#x51FA; ok &#x3002;&#x5982;&#x679C;&#x57F7;&#x884C;&#x904E;&#x7A0B;&#x4E2D;&#x767C;&#x751F;&#x7570;&#x5E38;&#xFF0C;&#x4E4B;&#x524D;&#x63CF;&#x8FF0;&#x904E;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x6703;&#x57F7;&#x884C; <code>quit</code>&#xFF0C;&#x4E5F;&#x5C31;&#x4E0D;&#x6703;&#x57F7;&#x884C; <code>evaluate-input</code> &#x4E4B;&#x5F8C;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x56E0;&#x6B64;&#x4E0D;&#x6703;&#x5370;&#x51FA; ok &#x3002;</p>
+<p>RtForth &#x7684; <code>receive</code> &#x6307;&#x4EE4;&#x5167;&#x4E26;&#x672A;&#x57F7;&#x884C; <code>pause</code> &#x6307;&#x4EE4;&#x3002;&#x56E0;&#x6B64;&#xFF0C;&#x5728;&#x7B49;&#x5F85;&#x4F7F;&#x7528;&#x8005;&#x8F38;&#x5165;&#x6642;&#xFF0C;&#x5176;&#x4ED6;&#x7684;&#x5DE5;&#x4F5C;&#x90FD;&#x7121;&#x6CD5;&#x57F7;&#x884C;&#x3002;&#x5176;&#x4ED6;&#x4F7F;&#x7528; rtforth &#x51FD;&#x5F0F;&#x5EAB;&#x5BE6;&#x4F5C;&#x7684;&#x7CFB;&#x7D71;&#x5982;&#x52D5;&#x7A0B;&#x79D1;&#x6280;&#x7684;&#x9738;&#x8549;&#x63A7;&#x5236;&#x5668;(Botnana Control) &#x7528;&#x53E6;&#x4E00;&#x500B;&#x7DDA;&#x7A0B;&#x4F86;&#x89E3;&#x6C7A;&#x9019;&#x500B;&#x554F;&#x984C;&#x3002;&#x800C; RtForth &#x4E5F;&#x6703;&#x5728;&#x672A;&#x4F86;&#x63A1;&#x7528;&#x985E;&#x4F3C;&#x4F5C;&#x6CD5;&#x89E3;&#x6C7A;&#x9019;&#x554F;&#x984C;&#x3002;</p>
+<p>&#x611F;&#x8B1D;&#x60A8;&#x82B1;&#x4E86;&#x4E0D;&#x5C11;&#x6642;&#x9593;&#x95B1;&#x8B80;&#x9019;&#x672C;&#x624B;&#x518A;&#xFF0C;&#x4E5F;&#x606D;&#x559C;&#x60A8;&#xFF0C;&#x60A8;&#x5B78;&#x6703;&#x4E86; rtForth&#x3002;&#x5982;&#x679C;&#x5C0D;&#x672C;&#x624B;&#x518A;&#x6216;&#x662F; rtForth &#x6709;&#x4EFB;&#x4F55;&#x5EFA;&#x8B70;&#xFF0C;&#x8ACB;&#x5728;&#x4EE5;&#x4E0B;&#x7DB2;&#x5740;&#x63D0;&#x51FA;&#x60A8;&#x7684; issues&#x3002;</p>
+<p><a href="https://github.com/mapacode/rtforth" target="_blank">https://github.com/mapacode/rtforth</a></p>
+<h3 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h3>
+<p>&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x90FD;&#x975E; Forth 2012 &#x6A19;&#x6E96;&#x6307;&#x4EE4;&#x3002;</p>
+<table>
+<thead>
+<tr>
+<th>&#x6307;&#x4EE4;</th>
+<th>&#x5806;&#x758A;&#x6548;&#x679C;&#x53CA;&#x6307;&#x4EE4;&#x8AAA;&#x660E;</th>
+<th>&#x53E3;&#x8A9E;&#x5538;&#x6CD5;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>evaluate-input</code></td>
+<td>( -- ) &#x2003; &#x57F7;&#x884C;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x3002;</td>
+<td>evaluate-input</td>
+</tr>
+<tr>
+<td><code>token-empty?</code></td>
+<td>( -- t ) &#x2003; &#x53D6;&#x5F97;&#x7684;&#x5B57;&#x4E32;&#x662F;&#x5426;&#x662F;&#x7A7A;&#x5B57;&#x4E32;&#xFF1F;&#x82E5;&#x662F;&#xFF0C;<code>t</code> &#x70BA;&#x771F;&#x3002;&#x7A7A;&#x5B57;&#x4E32;&#x4EE3;&#x8868;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x5167;&#x6240;&#x6709;&#x7684;&#x8CC7;&#x6599;&#x90FD;&#x88AB;&#x8655;&#x7406;&#x5B8C;&#x4E86;&#x3002;</td>
+<td>token-empty</td>
+</tr>
+<tr>
+<td><code>compiling?</code></td>
+<td>( -- t ) &#x2003; &#x73FE;&#x5728;&#x662F;&#x5426;&#x5728;&#x7DE8;&#x8B6F;&#x6A21;&#x5F0F;&#xFF1F;&#x82E5;&#x662F;&#xFF0C;<code>t</code> &#x70BA;&#x771F;&#x3002;&#x7DE8;&#x8B6F;&#x6A21;&#x5F0F;&#x5C31;&#x662F;&#x7531;&#x5192;&#x865F;&#x5B9A;&#x7FA9;&#x6307;&#x4EE4; : &#x958B;&#x59CB;&#xFF0C;&#x7531;&#x5206;&#x865F;&#x6307;&#x4EE4; ; &#x7D50;&#x675F;&#x7684;&#x6A21;&#x5F0F;&#x3002;</td>
+<td>compiling</td>
+</tr>
+<tr>
+<td><code>compile-token</code></td>
+<td>( -- ) &#x2003; &#x5224;&#x65B7;&#x53D6;&#x5F97;&#x7684;&#x5B57;&#x4E32;&#x662F;&#x5B57;&#x5178;&#x4E2D;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x9084;&#x662F;&#x6574;&#x6578;&#xFF0C;&#x6216;&#x662F;&#x6D6E;&#x9EDE;&#x6578;&#xFF0C;&#x4E26;&#x4F9D;&#x64DA;&#x5224;&#x65B7;&#x7D50;&#x679C;&#x5C07;&#x5B83;&#x7DE8;&#x8B6F;&#x9032;&#x5B57;&#x5178;&#x4E2D;&#x3002;&#x5982;&#x679C;&#x7DE8;&#x8B6F;&#x5931;&#x6557;&#xFF0C;&#x6703;&#x547C;&#x53EB;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;</td>
+<td>compile-token</td>
+</tr>
+<tr>
+<td><code>interpret-token</code></td>
+<td>( -- ) &#x2003; &#x5224;&#x65B7;&#x53D6;&#x5F97;&#x7684;&#x5B57;&#x4E32;&#x662F;&#x5B57;&#x5178;&#x4E2D;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x9084;&#x662F;&#x6574;&#x6578;&#xFF0C;&#x6216;&#x662F;&#x6D6E;&#x9EDE;&#x6578;&#xFF0C;&#x4E26;&#x4F9D;&#x64DA;&#x5224;&#x65B7;&#x7D50;&#x679C;&#x57F7;&#x884C;&#x5B83;&#x3002;&#x5982;&#x679C;&#x57F7;&#x884C;&#x5931;&#x6557;&#xFF0C;&#x6703;&#x547C;&#x53EB;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;</td>
+<td>interpret-token</td>
+</tr>
+<tr>
+<td><code>?stacks</code></td>
+<td>( -- ) &#x2003; &#x6AA2;&#x67E5;&#x6D6E;&#x9EDE;&#x5806;&#x758A;&#x6216;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x662F;&#x5426;&#x6709;&#x6EFF;&#x6EA2; (overflow) &#x6216;&#x4E0D;&#x8DB3; (underflow) &#x7684;&#x932F;&#x8AA4;&#x3002;&#x5982;&#x679C;&#x6709;&#x5C31;&#x57F7;&#x884C;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;</td>
+<td>question-stacks</td>
+</tr>
+<tr>
+<td><code>parse-word</code></td>
+<td>( -- ) &#x2003; &#x5F9E;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x53D6;&#x51FA;&#x4E00;&#x4E32;&#x7531;&#x7A7A;&#x767D;&#x5B57;&#x5143; (&#x7A7A;&#x683C;&#x548C;&#x63DB;&#x884C;) &#x9694;&#x958B;&#x7684;&#x5B57;&#x4E32; (token)&#x3002;</td>
+<td>parse-word</td>
+</tr>
+<tr>
+<td><code>reset</code></td>
+<td>( -- ) &#x2003; &#x91CD;&#x8A2D;&#x8FD4;&#x56DE;&#x5806;&#x758A;&#xFF0C;&#x6E05;&#x9664;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#xFF0C;&#x9032;&#x5165;&#x975E;&#x7DE8;&#x8B6F;&#x6A21;&#x5F0F;&#xFF0C;&#x6E05;&#x9664;&#x932F;&#x8AA4;&#x3002;</td>
+<td>reset</td>
+</tr>
+<tr>
+<td><code>receive</code></td>
+<td>( -- ) &#x2003; &#x7B49;&#x5F85;&#x4F7F;&#x7528;&#x8005;&#x8F38;&#x5165;&#x6307;&#x4EE4;&#xFF0C;&#x4E26;&#x5C07;&#x8F38;&#x5165;&#x653E;&#x9032;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x3002;</td>
+<td>receive</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="&#x672C;&#x7AE0;&#x91CD;&#x9EDE;&#x6574;&#x7406;">&#x672C;&#x7AE0;&#x91CD;&#x9EDE;&#x6574;&#x7406;</h2>
+<ul>
+<li>Terminal task&#xFF1A;&#x5177;&#x8F38;&#x5165;&#x548C;&#x8F38;&#x51FA;&#x7DE9;&#x885D;&#x5340;&#xFF0C;&#x65B9;&#x4FBF;&#x548C;&#x4F7F;&#x7528;&#x8005;&#x4E92;&#x52D5;&#x7684;&#x5DE5;&#x4F5C;&#x3002;</li>
+<li>Background task&#xFF1A;&#x4E0D;&#x5177;&#x5099;&#x8F38;&#x5165;&#x548C;&#x8F38;&#x51FA;&#x7DE9;&#x885D;&#x5340;&#xFF0C;&#x6216;&#x4E0D;&#x5177;&#x5099;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x4F46;&#x548C; Terminal task
+&#x5171;&#x7528;&#x8F38;&#x51FA;&#x7DE9;&#x885D;&#x5340;&#x7684;&#x5DE5;&#x4F5C;&#x3002;&#x591A;&#x7528;&#x65BC;&#x8A2D;&#x5099;&#x7684;&#x63A7;&#x5236;&#x6216;&#x9577;&#x6642;&#x9593;&#x7684;&#x904B;&#x7B97;&#x3002;</li>
+<li>&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#xFF1A;&#x6BCF;&#x500B;&#x5DE5;&#x4F5C;&#x53EF;&#x4EE5;&#x8A2D;&#x5B9A;&#x81EA;&#x5DF1;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;&#x7576;&#x5DE5;&#x4F5C;&#x4E2D;&#x6709;&#x932F;&#x8AA4;&#x767C;&#x751F;&#x6642;&#xFF0C;&#x6703;&#x57F7;&#x884C;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#xFF0C;&#x4E26;&#x900F;&#x904E;&#x9019;&#x6307;&#x4EE4;&#x91CD;&#x65B0;&#x958B;&#x59CB;&#x5DE5;&#x4F5C;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#x3002;</li>
+</ul>
+<hr>
+<h2 id="&#x672C;&#x7AE0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7AE0;&#x6307;&#x4EE4;&#x96C6;</h2>
+<table>
+<thead>
+<tr>
+<th>&#x6307;&#x4EE4;</th>
+<th>&#x5806;&#x758A;&#x6548;&#x679C;&#x53CA;&#x6307;&#x4EE4;&#x8AAA;&#x660E;</th>
+<th>&#x53E3;&#x8A9E;&#x5538;&#x6CD5;</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>me</code></td>
+<td>( -- n ) &#x2003; &#x76EE;&#x524D;&#x5DE5;&#x4F5C;&#x7684;&#x8B58;&#x5225;&#x78BC;</td>
+<td>me</td>
+</tr>
+<tr>
+<td><code>activate</code></td>
+<td>( n -- ) &#x2003; &#x6307;&#x6D3E;&#x5DE5;&#x4F5C; <code>n</code> &#x7684;&#x5DE5;&#x4F5C;&#x5167;&#x5BB9;&#xFF0C;&#x4E26;&#x559A;&#x9192;&#x5DE5;&#x4F5C; <code>n</code>&#x3002;</td>
+<td>activate</td>
+</tr>
+<tr>
+<td><code>pause</code></td>
+<td>( n -- ) &#x2003; &#x5C07;&#x865A;&#x64EC;&#x6A5F;&#x7684;&#x4F7F;&#x7528;&#x6B0A;&#x4EA4;&#x7D66;&#x4E0B;&#x4E00;&#x500B;&#x9192;&#x8457;&#x7684;&#x5DE5;&#x4F5C;&#x3002;</td>
+<td>pause</td>
+</tr>
+<tr>
+<td><code>suspend</code></td>
+<td>( n -- ) &#x2003; &#x66AB;&#x505C;&#x5DE5;&#x4F5C; <code>n</code>&#xFF0C;&#x4F7F;&#x5B83;&#x9032;&#x5165;&#x4F11;&#x7720;&#x72C0;&#x614B;&#x3002;</td>
+<td>suspend</td>
+</tr>
+<tr>
+<td><code>resume</code></td>
+<td>( n -- ) &#x2003; &#x6062;&#x5FA9;&#x5DE5;&#x4F5C; <code>n</code> &#x7684;&#x57F7;&#x884C;&#xFF0C;&#x4F7F;&#x5B83;&#x9032;&#x5165;&#x6E05;&#x9192;&#x72C0;&#x614B;&#x3002;</td>
+<td>resume</td>
+</tr>
+<tr>
+<td><code>stop</code></td>
+<td>( -- ) &#x2003; &#x4F7F;&#x76EE;&#x524D;&#x7684;&#x5DE5;&#x4F5C;&#x9032;&#x5165;&#x4F11;&#x7720;&#x72C0;&#x614B;&#x3002;</td>
+<td>stop</td>
+</tr>
+<tr>
+<td><code>nod</code></td>
+<td>( -- ) &#x2003; &#x4E00;&#x500B;&#x4E0D;&#x65B7; <code>pause</code> &#x7684;&#x7121;&#x7AAE;&#x8FF4;&#x5708;&#x3002;</td>
+<td>nod</td>
+</tr>
+<tr>
+<td><code>halt</code></td>
+<td>( n -- ) &#x2003; &#x4F7F;&#x5DE5;&#x4F5C; <code>n</code> &#x57F7;&#x884C; <code>nod</code> &#x3002;</td>
+<td>halt</td>
+</tr>
+<tr>
+<td><code>get</code></td>
+<td>( n -- ) &#x2003; &#x53D6;&#x5F97;&#x8CC7;&#x6E90;&#x8B8A;&#x6578; <code>n</code> &#x7684;&#x4F7F;&#x7528;&#x6B0A;&#x3002;&#x82E5;&#x8B8A;&#x6578; <code>n</code> &#x5DF2;&#x88AB;&#x5176;&#x4ED6;&#x5DE5;&#x4F5C;&#x4F54;&#x7528;&#xFF0C;&#x7B49;&#x5F85;&#x76F4;&#x5230;&#x5176;&#x4ED6;&#x5DE5;&#x4F5C;&#x91CB;&#x653E;&#x6B64;&#x4E00;&#x8B8A;&#x6578;&#x3002;</td>
+<td>get</td>
+</tr>
+<tr>
+<td><code>release</code></td>
+<td>( n -- ) &#x2003; &#x91CB;&#x653E;&#x8CC7;&#x6E90;&#x8B8A;&#x6578; <code>n</code> &#x3002;</td>
+<td>release</td>
+</tr>
+<tr>
+<td><code>mtime</code></td>
+<td>( -- n ) &#x2003; &#x76EE;&#x524D;&#x7684;&#x7CFB;&#x7D71;&#x6642;&#x9593;&#x3002;&#x55AE;&#x4F4D;&#x70BA;&#x6BEB;&#x79D2;&#x3002;</td>
+<td>m-time</td>
+</tr>
+<tr>
+<td><code>ms</code></td>
+<td>( n -- ) &#x2003; &#x7B49;&#x5F85; <code>n</code> &#x6BEB;&#x79D2;&#x3002;</td>
+<td>ms</td>
+</tr>
+<tr>
+<td><code>utime</code></td>
+<td>( -- n ) &#x2003; &#x76EE;&#x524D;&#x7684;&#x7CFB;&#x7D71;&#x6642;&#x9593;&#x3002;&#x55AE;&#x4F4D;&#x70BA;&#x5FAE;&#x79D2;&#x3002;</td>
+<td>u-time</td>
+</tr>
+<tr>
+<td><code>xtime</code></td>
+<td>( t0 xt -- ) &#x2003; &#x8A08;&#x7B97; <code>t0</code> &#x5230;&#x73FE;&#x5728;&#x7684;&#x6642;&#x9593;&#x5F8C;&#xFF0C;&#x7D71;&#x8A08;&#x4EE4;&#x724C; <code>xt</code> &#x5C0D;&#x61C9;&#x7684;&#x6307;&#x4EE4;&#x7684;&#x6700;&#x5927;&#x53CA;&#x6700;&#x5C0F;&#x57F7;&#x884C;&#x6642;&#x9593;&#x3002;<code>t0</code> &#x7684;&#x55AE;&#x4F4D;&#x662F;&#x5FAE;&#x79D2;&#x3002;</td>
+<td>x-time</td>
+</tr>
+<tr>
+<td><code>.xtime</code></td>
+<td>( -- ) &#x5370;&#x51FA;&#x6240;&#x6709;&#x6307;&#x4EE4;&#x7684;&#x6700;&#x5927;&#x53CA;&#x6700;&#x5C0F;&#x57F7;&#x884C;&#x6642;&#x9593;&#x3002;&#x5982;&#x679C;&#x6642;&#x9593;&#x70BA; 0 &#x5247;&#x4E0D;&#x986F;&#x793A;&#x3002;</td>
+<td>dot-x-time</td>
+</tr>
+<tr>
+<td><code>0xtime</code></td>
+<td>( -- ) &#x6E05;&#x9664;&#x6240;&#x6709;&#x6307;&#x4EE4;&#x7684;&#x6700;&#x5927;&#x53CA;&#x6700;&#x5C0F;&#x57F7;&#x884C;&#x6642;&#x9593;&#x3002;</td>
+<td>zero-x-time</td>
+</tr>
+<tr>
+<td><code>quit</code></td>
+<td>( -- ) &#x2003; &#x91CD;&#x8A2D;&#x5DE5;&#x4F5C;&#xFF0C;&#x4E26;&#x57F7;&#x884C;&#x5DE5;&#x4F5C;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#x3002;&#x901A;&#x5E38;&#x9019;&#x9810;&#x8A2D;&#x7684;&#x884C;&#x70BA;&#x5C31;&#x662F; Forth &#x7684;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x3002;</td>
+<td>quit</td>
+</tr>
+<tr>
+<td><code>abort</code></td>
+<td>( -- ) &#x2003; &#x653E;&#x68C4;&#x7A0B;&#x5F0F;&#x7684;&#x57F7;&#x884C;&#xFF0C;&#x6E05;&#x9664;&#x5806;&#x758A;&#xFF0C;&#x56DE;&#x5230;&#x5DE5;&#x4F5C;&#x7684;&#x9810;&#x8A2D;&#x884C;&#x70BA;&#x3002;</td>
+<td>abort</td>
+</tr>
+<tr>
+<td><code>handler!</code></td>
+<td>( xt -- ) &#x2003; &#x8A2D;&#x5B9A;&#x76EE;&#x524D;&#x5DE5;&#x4F5C;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x70BA; <code>xt</code> &#x3002;</td>
+<td>handler-store</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>( -- n ) &#x2003; &#x53D6;&#x5F97;&#x932F;&#x8AA4;&#x78BC;&#x3002;&#x5982;&#x679C;&#x4E0D;&#x70BA;&#x96F6;&#x4EE3;&#x8868;&#x6709;&#x7570;&#x5E38;&#x767C;&#x751F;&#x3002;</td>
+<td>error</td>
+</tr>
+<tr>
+<td><code>0error</code></td>
+<td>( -- ) &#x2003; &#x6E05;&#x9664;&#x932F;&#x8AA4;&#x78BC;&#x3002;</td>
+<td>zero-error</td>
+</tr>
+<tr>
+<td><code>.error</code></td>
+<td>( -- ) &#x2003; &#x5370;&#x51FA;&#x932F;&#x8AA4;&#x8A0A;&#x606F;&#x3002;</td>
+<td>dot-error</td>
+</tr>
+<tr>
+<td><code>.token</code></td>
+<td>( -- ) &#x2003; &#x5370;&#x51FA;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x6700;&#x8FD1;&#x8B80;&#x5230;&#x7684;&#x6307;&#x4EE4;&#x3002;</td>
+<td>dot-token</td>
+</tr>
+<tr>
+<td><code>0stacks</code></td>
+<td>( -- ) &#x2003; &#x6E05;&#x7A7A;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x548C;&#x6D6E;&#x9EDE;&#x5806;&#x758A;</td>
+<td>zero-stacks</td>
+</tr>
+<tr>
+<td><code>flush-output</code></td>
+<td>( -- ) &#x2003; &#x5370;&#x51FA;&#x8F38;&#x51FA;&#x7DE9;&#x885D;&#x5340;&#x7684;&#x5167;&#x5BB9;&#x3002;</td>
+<td>flush-output</td>
+</tr>
+<tr>
+<td><code>cold</code></td>
+<td>( -- ) &#x2003; &#x51B7;&#x8D77;&#x52D5; rtForth&#x3002;</td>
+<td>cold</td>
+</tr>
+<tr>
+<td><code>evaluate-input</code></td>
+<td>( -- ) &#x2003; &#x57F7;&#x884C;&#x6587;&#x672C;&#x76F4;&#x8B6F;&#x5668;&#x3002;</td>
+<td>evaluate-input</td>
+</tr>
+<tr>
+<td><code>token-empty?</code></td>
+<td>( -- ) &#x2003; &#x53D6;&#x5F97;&#x7684;&#x5B57;&#x4E32;&#x662F;&#x5426;&#x662F;&#x7A7A;&#x5B57;&#x4E32;&#xFF1F;&#x82E5;&#x662F;&#xFF0C;<code>t</code> &#x70BA;&#x771F;&#x3002;&#x7A7A;&#x5B57;&#x4E32;&#x4EE3;&#x8868;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x5167;&#x6240;&#x6709;&#x7684;&#x8CC7;&#x6599;&#x90FD;&#x88AB;&#x8655;&#x7406;&#x5B8C;&#x4E86;&#x3002;</td>
+<td>token-empty</td>
+</tr>
+<tr>
+<td><code>compiling?</code></td>
+<td>( -- ) &#x2003; &#x73FE;&#x5728;&#x662F;&#x5426;&#x5728;&#x7DE8;&#x8B6F;&#x6A21;&#x5F0F;&#xFF1F;&#x82E5;&#x662F;&#xFF0C;<code>t</code> &#x70BA;&#x771F;&#x3002;&#x7DE8;&#x8B6F;&#x6A21;&#x5F0F;&#x5C31;&#x662F;&#x7531;&#x5192;&#x865F;&#x5B9A;&#x7FA9;&#x6307;&#x4EE4; : &#x958B;&#x59CB;&#xFF0C;&#x7531;&#x5206;&#x865F;&#x6307;&#x4EE4; ; &#x7D50;&#x675F;&#x7684;&#x6A21;&#x5F0F;&#x3002;</td>
+<td>compiling</td>
+</tr>
+<tr>
+<td><code>compile-token</code></td>
+<td>( -- ) &#x2003; &#x5224;&#x65B7;&#x53D6;&#x5F97;&#x7684;&#x5B57;&#x4E32;&#x662F;&#x5B57;&#x5178;&#x4E2D;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x9084;&#x662F;&#x6574;&#x6578;&#xFF0C;&#x6216;&#x662F;&#x6D6E;&#x9EDE;&#x6578;&#xFF0C;&#x4E26;&#x4F9D;&#x64DA;&#x5224;&#x65B7;&#x7D50;&#x679C;&#x5C07;&#x5B83;&#x7DE8;&#x8B6F;&#x9032;&#x5B57;&#x5178;&#x4E2D;&#x3002;&#x5982;&#x679C;&#x7DE8;&#x8B6F;&#x5931;&#x6557;&#xFF0C;&#x6703;&#x547C;&#x53EB;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;</td>
+<td>compile-token</td>
+</tr>
+<tr>
+<td><code>interpret-token</code></td>
+<td>( -- ) &#x2003; &#x5224;&#x65B7;&#x53D6;&#x5F97;&#x7684;&#x5B57;&#x4E32;&#x662F;&#x5B57;&#x5178;&#x4E2D;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x9084;&#x662F;&#x6574;&#x6578;&#xFF0C;&#x6216;&#x662F;&#x6D6E;&#x9EDE;&#x6578;&#xFF0C;&#x4E26;&#x4F9D;&#x64DA;&#x5224;&#x65B7;&#x7D50;&#x679C;&#x57F7;&#x884C;&#x5B83;&#x3002;&#x5982;&#x679C;&#x57F7;&#x884C;&#x5931;&#x6557;&#xFF0C;&#x6703;&#x547C;&#x53EB;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;</td>
+<td>interpret-token</td>
+</tr>
+<tr>
+<td><code>?stacks</code></td>
+<td>( -- ) &#x2003; &#x6AA2;&#x67E5;&#x6D6E;&#x9EDE;&#x5806;&#x758A;&#x6216;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x662F;&#x5426;&#x6709;&#x6EFF;&#x6EA2; (overflow) &#x6216;&#x4E0D;&#x8DB3; (underflow) &#x7684;&#x932F;&#x8AA4;&#x3002;&#x5982;&#x679C;&#x6709;&#x5C31;&#x57F7;&#x884C;&#x7570;&#x5E38;&#x8655;&#x7406;&#x6307;&#x4EE4;&#x3002;</td>
+<td>question-stacks</td>
+</tr>
+<tr>
+<td><code>parse-word</code></td>
+<td>( -- ) &#x2003; &#x5F9E;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x53D6;&#x51FA;&#x4E00;&#x4E32;&#x7531;&#x7A7A;&#x767D;&#x5B57;&#x5143; (&#x7A7A;&#x683C;&#x548C;&#x63DB;&#x884C;) &#x9694;&#x958B;&#x7684;&#x5B57;&#x4E32; (token)&#x3002;</td>
+<td>parse-word</td>
+</tr>
+<tr>
+<td><code>reset</code></td>
+<td>( -- ) &#x2003; &#x91CD;&#x8A2D;&#x8FD4;&#x56DE;&#x5806;&#x758A;&#xFF0C;&#x6E05;&#x9664;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#xFF0C;&#x9032;&#x5165;&#x975E;&#x7DE8;&#x8B6F;&#x6A21;&#x5F0F;&#xFF0C;&#x6E05;&#x9664;&#x932F;&#x8AA4;&#x3002;</td>
+<td>reset</td>
+</tr>
+<tr>
+<td><code>receive</code></td>
+<td>( -- ) &#x2003; &#x7B49;&#x5F85;&#x4F7F;&#x7528;&#x8005;&#x8F38;&#x5165;&#x6307;&#x4EE4;&#xFF0C;&#x4E26;&#x5C07;&#x8F38;&#x5165;&#x653E;&#x9032;&#x8F38;&#x5165;&#x7DE9;&#x885D;&#x5340;&#x3002;</td>
+<td>receive</td>
+</tr>
+</tbody>
+</table>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class='search-results-count'></span> results matching "<span class='search-query'></span>"</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching "<span class='search-query'></span>"</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="dictionary.html" class="navigation navigation-prev " aria-label="Previous page: 字典">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+                <a href="style.html" class="navigation navigation-next " aria-label="Next page: 程式碼風格">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"多工、異常處理與文本直譯器","level":"1.4.4","depth":2,"next":{"title":"程式碼風格","level":"1.4.5","depth":2,"path":"style.md","ref":"style.md","articles":[]},"previous":{"title":"字典","level":"1.4.3","depth":2,"path":"dictionary.md","ref":"dictionary.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":[],"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"tasking.md","mtime":"2018-12-12T05:08:06.153Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2018-12-12T05:14:11.040Z"},"basePath":".","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    <script src="gitbook/gitbook.js"></script>
+    <script src="gitbook/theme.js"></script>
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-sharing/buttons.js"></script>
+        
+    
+        
+        <script src="gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    </body>
+</html>
+

@@ -330,15 +330,16 @@
 <li>&#x5B9A;&#x7FA9;&#x8CC7;&#x6599;&#x7D50;&#x69CB;&#xFF1A;<code>create</code> &#x3001; <code>+field</code></li>
 </ul>
 <p>&#x6211;&#x5011;&#x4E5F;&#x5C07;&#x5B78;&#x7FD2;&#x5982;&#x4F55;&#x4F7F;&#x7528;&#x5B57;&#x5178;&#x4E2D;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x3002;</p>
+<p>&#x4EE5;&#x4E0B;&#x7BC4;&#x4F8B;&#x4F7F;&#x7528; 32 &#x4F4D;&#x5143;&#x7684; rtForth v0.6.0&#x3002;&#x5982;&#x679C;&#x60A8;&#x4F7F;&#x7528;&#x7684;&#x662F; 64 &#x4F4D;&#x5143;&#x7684; rtForth &#x6216;&#x5176;&#x4ED6;&#x7248;&#x672C;&#x7684; rtForth&#xFF0C;&#x8A18;&#x61B6;&#x9AD4;&#x4F4D;&#x5740;&#x7684;&#x6578;&#x503C;&#x6703;&#x6709;&#x5F88;&#x5927;&#x7684;&#x5DEE;&#x7570;&#x3002;</p>
 <h2 id="&#x6307;&#x4EE4;-words">&#x6307;&#x4EE4; words</h2>
 <p>Forth &#x80FD;&#x57F7;&#x884C; <code>+</code> &#x3001; <code>-</code> &#x3001;<code>*</code> &#x3001; <code>/</code> &#x9019;&#x4E9B;&#x6307;&#x4EE4;&#xFF0C;&#x662F;&#x56E0;&#x70BA;&#x5B83;&#x5167;&#x5EFA;&#x7684;&#x5B57;&#x5178; (dictionary) &#x63D0;&#x4F9B;&#x4E86;&#x641C;&#x5C0B;&#x53CA;&#x57F7;&#x884C;&#x6307;&#x4EE4;&#x7684;&#x529F;&#x80FD;&#x3002;&#x5982;&#x679C;&#x6211;&#x5011;&#x60F3;&#x77E5;&#x9053;&#x5B57;&#x5178;&#x4E2D;&#x6709;&#x591A;&#x5C11;&#x6307;&#x4EE4;&#xFF0C;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x57F7;&#x884C;&#x6307;&#x4EE4; <code>words</code>&#x3002;</p>
 <pre><code>rf&gt; words
 
--work (abort) quit evaluate &gt;in source tib #tib fill c, min
-max +! 2variable 2! 2@ align aligned spaces space bl cr
-?dup f&gt; &gt;= &lt;= h. hex decimal accept 1/sec hz rpm um/msec
-mm/min usec msec sec minute hr rad deg um mm meter fnegate
-fceil fround floor fmax fmin f&lt; f0= f0&lt; f~ f** f/ f* f- f+
+-work cold (abort) quit evaluate-input ms release get stop
+halt nod operator xtime dump _dump _type &gt;char bounds count
+pad &gt;in source tib #tib +field fvariable 2variable 2constant
+does&gt; variable fill c, chars min max 2, +! 2! 2@ f, cr ?dup
+f&gt; &gt;= &lt;= h.r h. hex decimal ? f. . spaces space bl bye receive
 ...
 </code></pre><p>&#x5B57;&#x5178;&#x8A18;&#x8F09;&#x4E86;&#x6307;&#x4EE4;&#x7684;&#x540D;&#x7A31;&#x3001;&#x884C;&#x70BA;&#x3001;&#x8CC7;&#x6599;&#xFF0C;&#x4E26;&#x63D0;&#x4F9B;&#x641C;&#x5C0B;&#x6307;&#x4EE4;&#x7684;&#x65B9;&#x6CD5;&#x3002;</p>
 <pre><code>&#x6307;&#x4EE4;
@@ -364,8 +365,8 @@ fceil fround floor fmax fmin f&lt; f0= f0&lt; f~ f** f/ f* f- f+
  ok
 rf&gt; words
 
-hello -work (abort) quit evaluate &gt;in source tib #tib fill
-c, min max +! 2variable 2! 2@ align aligned spaces space bl
+hello -work cold (abort) quit evaluate-input ms release get
+stop halt nod operator xtime dump _dump _type &gt;char bounds
 ...
 </code></pre><p>&#x53EF;&#x4EE5;&#x770B;&#x5230; <code>words</code> &#x986F;&#x793A;&#x7684;&#x6700;&#x5F8C;&#x4E00;&#x500B;&#x6307;&#x4EE4;&#x662F;&#x525B;&#x624D;&#x5B9A;&#x7FA9;&#x7684; <code>hello</code>&#x3002;</p>
 <pre><code>: hello   .&quot; Hello World!&quot; ;
@@ -387,9 +388,9 @@ LAST -&gt; &#x540D;&#x7A31; | hello | -------------------------------&gt; | -wor
 : hello-2   s&quot; Hello World!&quot; type ;
 </code></pre><p>RtForth &#x7684;&#x6307;&#x4EE4; <code>.memory</code> &#x5217;&#x51FA; rtForth &#x5C0D;&#x7A0B;&#x5F0F;&#x78BC;&#x7A7A;&#x9593;&#x548C;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x7684;&#x4F7F;&#x7528;&#x60C5;&#x5F62;&#xFF0C;</p>
 <pre><code>rf&gt; .memory
-code space capacity: 4194304, used: 0, start: 0x7F9520C00000, limit: 0x7F9521000000, here: 0x7F9520C00000
-data space capacity: 4194304, used: 5344, start: 0x7F9521000000, limit: 0x7F9521400000, here: 0x7F95210014E0
-</code></pre><p>&#x5728;&#x4E0A;&#x9762;&#x7684;&#x4F8B;&#x5B50;&#x4E2D;&#xFF0C;&#x7A0B;&#x5F0F;&#x78BC;&#x548C;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x5BB9;&#x91CF;&#x5404;&#x70BA; 4Mb&#x3002;&#x7A0B;&#x5F0F;&#x7A7A;&#x9593;&#x76EE;&#x524D;&#x6C92;&#x88AB;&#x4F7F;&#x7528;&#xFF0C;&#x8CC7;&#x6599;&#x78BC;&#x7A7A;&#x9593;&#x4F7F;&#x7528;&#x4E86; 5344 &#x500B;&#x4F4D;&#x5143;&#x3002;</p>
+code space capacity: 4194304, used: 0, start: 0x9D1000, limit: 0xDD1000, here: 0x9D1000
+data space capacity: 4194304, used: 4936, start: 0x5C1000, limit: 0x9C1000, here: 0x5C2348
+</code></pre><p>&#x5728;&#x4E0A;&#x9762;&#x7684;&#x4F8B;&#x5B50;&#x4E2D;&#xFF0C;&#x7A0B;&#x5F0F;&#x78BC;&#x548C;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x5BB9;&#x91CF;&#x5404;&#x70BA; 4Mb&#x3002;&#x7A0B;&#x5F0F;&#x7A7A;&#x9593;&#x76EE;&#x524D;&#x6C92;&#x88AB;&#x4F7F;&#x7528;&#xFF0C;&#x8CC7;&#x6599;&#x78BC;&#x7A7A;&#x9593;&#x4F7F;&#x7528;&#x4E86; 4936 &#x500B;&#x4F4D;&#x5143;&#x7D44;&#x3002;</p>
 <h3 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h3>
 <table>
 <thead>
@@ -429,8 +430,8 @@ data space capacity: 4194304, used: 5344, start: 0x7F9521000000, limit: 0x7F9521
  ok
 rf&gt; words
 
-(abort) quit evaluate &gt;in source tib #tib fill c, min max
-+! 2variable 2! 2@ align aligned ...
+cold (abort) quit evaluate-input ms release get stop halt
+nod operator xtime dump _dump _type &gt;char ...
 </code></pre><p>&#x4F60;&#x6703;&#x767C;&#x73FE;&#xFF0C;&#x4E0D;&#x53EA;&#x662F;&#x525B;&#x525B;&#x5B9A;&#x7FA9;&#x7684; <code>hello</code> &#x4E0D;&#x898B;&#x4E86;&#xFF0C;&#x9023; <code>-work</code> &#x4E5F;&#x4E0D;&#x898B;&#x3002;</p>
 <p>&#x6307;&#x4EE4; <code>-work</code> &#x6A19;&#x8A18;&#x4E86;&#x5B57;&#x5178;&#x7684;&#x7279;&#x5B9A;&#x4F4D;&#x7F6E; (&#x5305;&#x62EC;&#x5B9A;&#x7FA9; -work &#x6642;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x548C;&#x7A0B;&#x5F0F;&#x78BC;&#x7A7A;&#x9593;&#x7684;&#x4F4D;&#x7F6E;)&#x3002;&#x57F7;&#x884C;&#x6642;&#xFF0C;&#x6703;&#x4E1F;&#x68C4;&#x6307;&#x4EE4;&#x672C;&#x8EAB;&#x4EE5;&#x53CA;&#x5176;&#x5F8C;&#x7684;&#x6240;&#x6709;&#x6307;&#x4EE4;&#xFF0C;&#x4E26;&#x4E14;&#x6B78;&#x9084;&#x9019;&#x4E9B;&#x6307;&#x4EE4;&#x4F7F;&#x7528;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x548C;&#x7A0B;&#x5F0F;&#x78BC;&#x7A7A;&#x9593;&#x3002;</p>
 <p>&#x4F60;&#x53EF;&#x4EE5;&#x4F7F;&#x7528; <code>marker</code> &#x5B9A;&#x7FA9;&#x9019;&#x985E;&#x6A19;&#x8A18;&#x6307;&#x4EE4;&#x3002;</p>
@@ -438,8 +439,8 @@ rf&gt; words
  ok
 rf&gt; words
 
--work (abort) quit evaluate &gt;in source tib #tib fill c, min
-max +! 2variable 2! 2@ align aligned ...
+-work cold (abort) quit evaluate-input ms release get stop halt
+nod operator xtime dump _dump _type &gt;char ...
 </code></pre><p>&#x65BC;&#x662F;&#x4E00;&#x500B;&#x65B0;&#x7684; `-work &#x53C8;&#x51FA;&#x73FE;&#x4E86;&#x3002;</p>
 <p>&#x6307;&#x4EE4; <code>-work</code> &#x4E26;&#x4E0D;&#x662F; Forth 2012 &#x7684;&#x6A19;&#x6E96;&#x6307;&#x4EE4;&#x3002;&#x4F46;&#x662F; <code>marker</code> &#x662F;&#x4E00;&#x500B;&#x6A19;&#x6E96;&#x6307;&#x4EE4;&#x3002;&#x5B83;&#x7684;&#x4E3B;&#x8981;&#x7528;&#x8655;&#x662F;&#x6A19;&#x8A18;&#x5B57;&#x5178;&#x7684;&#x7279;&#x5B9A;&#x4F4D;&#x7F6E;&#xFF0C;&#x4EE5;&#x4FBF;&#x5728;&#x5FC5;&#x8981;&#x6642;&#x79FB;&#x9664;&#x4E00;&#x7FA4;&#x6307;&#x4EE4;&#x3002;</p>
 <h3 id="&#x4F8B;&#x5B50;&#xFF1A;cnc-&#x5DE5;&#x5177;&#x6A5F;">&#x4F8B;&#x5B50;&#xFF1A;CNC &#x5DE5;&#x5177;&#x6A5F;</h3>
@@ -569,7 +570,7 @@ rf&gt; my-true .  my-false .  my-pi f.
 <table>
 <thead>
 <tr>
-<th>Fort  h</th>
+<th>Forth</th>
 <th>&#x4F5C;&#x696D;&#x7CFB;&#x7D71;</th>
 <th>&#x8CC7;&#x6599;&#x5806;&#x758A;&#x4E0A;&#x6574;&#x6578;&#x6240;&#x4F54;&#x4F4D;&#x5143;&#x7D44;&#x6578;</th>
 <th>&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E2D;&#x6574;&#x6578;&#x6240;&#x4F54;&#x4F4D;&#x5143;&#x7D44;&#x6578;</th>
@@ -580,15 +581,15 @@ rf&gt; my-true .  my-false .  my-pi f.
 <tbody>
 <tr>
 <td>rtForth</td>
-<td>64 &#x4F4D;&#x5143; Linux</td>
+<td>64 &#x4F4D;&#x5143; Linux/Windows</td>
 <td>8</td>
-<td>4</td>
 <td>8</td>
-<td>4</td>
+<td>8</td>
+<td>8</td>
 </tr>
 <tr>
 <td>rtForth</td>
-<td>32 &#x4F4D;&#x5143; Linux</td>
+<td>32 &#x4F4D;&#x5143; Linux/Windows</td>
 <td>4</td>
 <td>4</td>
 <td>8</td>
@@ -612,12 +613,12 @@ rf&gt; my-true .  my-false .  my-pi f.
 </tr>
 </tbody>
 </table>
-<p>&#x4E0A;&#x8868;&#x4E2D; rtForth &#x5728; 64 &#x4F4D;&#x5143;&#x7684;&#x4F5C;&#x696D;&#x7CFB;&#x7D71;&#x4E0B;&#xFF0C;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x7684;&#x6574;&#x6578;&#x4F54;&#x4E86; 8 &#x500B;&#x4F4D;&#x5143;&#x7D44;&#xFF0C;&#x4E5F;&#x5C31;&#x662F; 64 &#x4F4D;&#x5143;&#x3002;&#x4F46;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E2D;&#x7684;&#x6574;&#x6578;&#x53EA;&#x4F54;&#x4E86; 4 &#x500B;&#x4F4D;&#x5143;&#x7D44;&#xFF0C;&#x4E5F;&#x5C31;&#x662F; 32 &#x4F4D;&#x5143;&#x3002;&#x9019;&#x4F7F;&#x5F97;&#x653E;&#x5728;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x6574;&#x6578;&#x53EF;&#x4EE5;&#x6BD4;&#x653E;&#x5728;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E2D;&#x7684;&#x6574;&#x6578;&#x5927;&#x5F97;&#x591A;&#x3002;&#x5C07;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x6574;&#x6578;&#x653E;&#x9032;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E2D;&#x6642;&#xFF0C;&#x6700;&#x9AD8;&#x7684; 32 &#x4F4D;&#x5143;&#x6703;&#x88AB;&#x622A;&#x53BB;&#x3002;&#x5982;&#x4E0B;&#x4F8B;&#xFF0C;</p>
+<p>&#x5728; 32 &#x4F4D;&#x5143;&#x7684; rtForth &#x4E00;&#x500B;&#x55AE;&#x5143;&#x662F; 4 &#x500B;&#x4F4D;&#x5143;&#x7D44;&#xFF0C;&#x56E0;&#x6B64;&#x5982;&#x679C;&#x8F38;&#x5165;&#x5927;&#x65BC; 32 &#x4F4D;&#x5143;&#x7684;&#x8CC7;&#x6599;&#xFF0C;&#x9AD8;&#x65BC;32&#x4F4D;&#x5143;&#x7684;&#x90E8;&#x4EFD;&#x6703;&#x6368;&#x53BB;&#x3002;&#x5982;&#x4E0B;&#x4F8B;&#xFF0C;</p>
 <pre><code>rf&gt; $1234123412341234 constant all
  ok
 rf&gt; all h.
 12341234  ok
-</code></pre><p>&#x7531;&#x65BC; 32 &#x4F4D;&#x5143;&#x6574;&#x6578;&#x80FD;&#x8868;&#x793A;&#x7684;&#x6700;&#x5927;&#x6574;&#x6578;&#x70BA; 2147483647 &#x3002;&#x9019;&#x7BC4;&#x570D;&#x5C0D;&#x5DE5;&#x696D;&#x63A7;&#x5236;&#x7DBD;&#x7DBD;&#x6709;&#x9918;&#x3002;&#x6B64;&#x4E00;&#x73FE;&#x8C61;&#x4E0D;&#x9700;&#x8981;&#x592A;&#x904E;&#x9867;&#x616E;&#x3002;</p>
+</code></pre><p>32 &#x4F4D;&#x5143;&#x6574;&#x6578;&#x80FD;&#x8868;&#x793A;&#x7684;&#x6700;&#x5927;&#x6574;&#x6578;&#x70BA; 2147483647 &#x3002;&#x9019;&#x7BC4;&#x570D;&#x5C0D;&#x5DE5;&#x696D;&#x63A7;&#x5236;&#x7DBD;&#x7DBD;&#x6709;&#x9918;&#x3002;&#x6B64;&#x4E00;&#x73FE;&#x8C61;&#x4E0D;&#x9700;&#x8981;&#x592A;&#x904E;&#x9867;&#x616E;&#x3002;</p>
 <pre><code>rf&gt; $7fffffff .
 2147483647  ok
 </code></pre><p>Forth &#x6307;&#x4EE4; <code>cells</code> &#x53EF;&#x4EE5;&#x5F97;&#x5230;&#x4E00;&#x500B;&#x55AE;&#x5143;&#x6240;&#x9700;&#x7684;&#x4F4D;&#x5143;&#x7D44;&#x6578;&#x3002;</p>
@@ -631,41 +632,41 @@ rf&gt; all h.
 5 9  ok
 </code></pre><h3 id="&#x4E00;&#x500B;&#x55AE;&#x5143;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x6307;&#x4EE4;">&#x4E00;&#x500B;&#x55AE;&#x5143;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x6307;&#x4EE4;</h3>
 <p>Forth &#x6307;&#x4EE4; <code>here</code> &#x53EF;&#x4EE5;&#x5F97;&#x5230;&#x76EE;&#x524D;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x672A;&#x4F7F;&#x7528;&#x90E8;&#x4EFD;&#x7684;&#x958B;&#x59CB;&#x4F4D;&#x5740;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E0B;&#x4E00;&#x500B;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x7684;&#x4F4D;&#x7F6E;&#x3002;&#x6211;&#x5011;&#x5148;&#x4EE5; <code>-work  marker -work</code> &#x6E05;&#x9664;&#x81EA;&#x5DF1;&#x5B9A;&#x7FA9;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x7136;&#x5F8C;&#x4F7F;&#x7528; <code>here .</code> &#x6AA2;&#x67E5;&#x4E00;&#x4E0B;&#x4E0B;&#x4E00;&#x500B;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x7684;&#x4F4D;&#x5740;&#x3002;&#x7136;&#x5F8C;&#x518D;&#x5B9A;&#x7FA9;&#x4E00;&#x500B;&#x5E38;&#x6578;&#x770B;&#x770B;&#x3002;</p>
-<pre><code>rf&gt; -work  marker -work
+<pre><code>rf&gt; -work marker -work
  ok
 rf&gt; here h.
-7F95210014E0  ok
+13222D0  ok
 rf&gt; -1 constant my-true
  ok
 rf&gt; here h.
-7F95210014E8  ok
+13222E0  ok
 </code></pre><p>&#x56E0;&#x70BA;&#x65B0;&#x5B9A;&#x7FA9;&#x7684;&#x6307;&#x4EE4;&#x4F7F;&#x7528;&#x4E86;&#x90E8;&#x4EFD;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x3002;&#x6211;&#x5011;&#x767C;&#x73FE; <code>here</code> &#x7684;&#x6578;&#x503C;&#x6539;&#x8B8A;&#x4E86;&#x3002;</p>
 <p>&#x4F60;&#x4F7F;&#x7528;&#x7684; Forth &#x7CFB;&#x7D71;&#x5728;&#x6E05;&#x9664;&#x4E86;&#x81EA;&#x5DF1;&#x5B9A;&#x7FA9;&#x7684;&#x6307;&#x4EE4;&#x5F8C;&#xFF0C;<code>here</code> &#x7684;&#x4F4D;&#x7F6E;&#x53EF;&#x80FD;&#x548C;&#x672C;&#x66F8;&#x4F8B;&#x5B50;&#x4E2D;&#x7684;&#x4E0D;&#x4E00;&#x81F4;&#x3002;&#x5617;&#x8A66;&#x4EE5;&#x4E0B;&#x4F8B;&#x5B50;&#x6642;&#x8ACB;&#x4F9D;&#x64DA;&#x81EA;&#x5DF1;&#x7CFB;&#x7D71;&#x7684;&#x60C5;&#x5F62;&#x4FEE;&#x6539;&#x8F38;&#x5165;&#x7684;&#x6578;&#x503C;&#x3002;</p>
 <p>&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>allot</code> &#x4FDD;&#x7559;&#x4E00;&#x90E8;&#x4EFD;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x7D66;&#x6211;&#x5011;&#x7684;&#x7A0B;&#x5F0F;&#x4F7F;&#x7528;&#x3002;</p>
 <pre><code>rf&gt; 1 cells allot here h.
-7F95210014F0  ok
+13222E4  ok
 </code></pre><p>&#x6307;&#x4EE4; <code>1 cells allot</code> &#x4FDD;&#x7559;&#x4E86;&#x4E00;&#x500B;&#x55AE;&#x5143;&#xFF0C;&#x5728;&#x6B64;&#x662F; 4 &#x500B;&#x4F4D;&#x5143;&#x7D44;&#x3002;&#x56E0;&#x6B64; <code>here</code> &#x7684;&#x503C;&#x589E;&#x52A0;&#x4E86;&#x3002;</p>
 <p>&#x6307;&#x4EE4; <code>!</code> &#x53EF;&#x4EE5;&#x7528;&#x4F86;&#x5C07;&#x4E00;&#x500B;&#x6574;&#x6578;&#x5B58;&#x653E;&#x5728;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E2D;&#x67D0;&#x500B;&#x8A18;&#x61B6;&#x9AD4;&#x4F4D;&#x5740;&#x5167;&#x3002;&#x800C;&#x6307;&#x4EE4; <code>@</code> &#x53EF;&#x4EE5;&#x5C07;&#x6307;&#x5B9A;&#x7684;&#x8A18;&#x61B6;&#x9AD4;&#x4F4D;&#x5740;&#x5167;&#x7684;&#x6574;&#x6578;&#x53D6;&#x51FA;&#x653E;&#x5230;&#x5806;&#x758A;&#x4E0A;&#x3002;</p>
-<pre><code>rf&gt; 1234 $7F95210014E8 !
+<pre><code>rf&gt; 1234 $13222E0 !
  ok
-rf&gt; $7F95210014E8 @ .
+rf&gt; $13222E0 @ .
 1234  ok
 </code></pre><p>&#x5728;&#x4E0A;&#x4F8B;&#x4E2D;&#x6211;&#x5011;&#x4EE5;&#x6307;&#x4EE4; <code>!</code> &#x5C07; 1234 &#x653E;&#x9032;&#x525B;&#x525B;&#x4FDD;&#x7559;&#x4E86;&#x4E00;&#x500B;&#x55AE;&#x5143;&#x7684;&#x8A18;&#x61B6;&#x9AD4;&#x4F4D;&#x5740; 1260 &#x4E2D;&#x3002;&#x7136;&#x5F8C;&#x518D;&#x4EE5;&#x6307;&#x4EE4; <code>@ .</code> &#x5C07;&#x4F4D;&#x5740; 1260 &#x5167;&#x7684;&#x6574;&#x6578;&#x5370;&#x51FA;&#x4F86;&#x3002;&#x679C;&#x7136;&#x90A3;&#x500B;&#x4F4D;&#x5740;&#x5167;&#x7684;&#x6574;&#x6578;&#x662F; 1234&#x3002;&#x6709;&#x4E00;&#x500B;&#x6307;&#x4EE4; <code>?</code> &#x7684;&#x884C;&#x70BA;&#x5C31;&#x662F; <code>@ .</code> &#x3002;&#x56E0;&#x6B64;&#x6211;&#x5011;&#x4E5F;&#x53EF;&#x4EE5;&#x4EE5;&#x4E0B;&#x65B9;&#x5F0F;&#x5C07; 1260 &#x5167;&#x7684;&#x8CC7;&#x6599;&#x5370;&#x51FA;&#x3002;</p>
-<pre><code>rf&gt; $7F95210014E8 ?
+<pre><code>rf&gt; $13222E0 ?
 1234  ok
 </code></pre><p>&#x53E6;&#x6709;&#x4E00;&#x6307;&#x4EE4; <code>dump</code> &#x53EF;&#x4EE5;&#x8B93;&#x6211;&#x5011;&#x6AA2;&#x8996;&#x4E00;&#x584A;&#x8A18;&#x61B6;&#x9AD4;&#x7684;&#x5167;&#x5BB9;&#x3002;</p>
-<pre><code>rf&gt; $7F95210014E8 2 dump
-7F95210014E8 :  D2  4  0  0   0  0  0  0 - 0  0  0  0   0  0  0  0  0_______________
+<pre><code>rf&gt; $13222E0 2 dump
+13222E0:  D2  4  0  0  0  0  0  0  R_______
  ok
 rf&gt; $4D2 .
 1234  ok
 </code></pre><p>&#x6307;&#x4EE4; <code>+!</code> &#x6703;&#x5C07;&#x6307;&#x5B9A;&#x4F4D;&#x5740;&#x5167;&#x7684;&#x6574;&#x6578;&#x52A0;&#x4E0A;&#x5806;&#x758A;&#x4E0A;&#x7684;&#x6578;&#x5B57;&#x3002;</p>
-<pre><code>rf&gt; 1 $7F41CEE014E8 +!  $7F41CEE014E8 ?
+<pre><code>rf&gt; 1 $13222E0 +! $13222E0 ?
 1235  ok
 </code></pre><p>&#x6307;&#x4EE4; <code>,</code> &#x6703;&#x914D;&#x7F6E;&#x4E00;&#x500B;&#x55AE;&#x5143;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#xFF0C;&#x7136;&#x5F8C;&#x628A;&#x8CC7;&#x6599;&#x5806;&#x758A;&#x758A;&#x9802;&#x7684;&#x6574;&#x6578;&#x653E;&#x9032;&#x9019;&#x500B;&#x525B;&#x914D;&#x7F6E;&#x7684;&#x7A7A;&#x9593;&#x4E2D;&#x3002;&#x6211;&#x5011;&#x7FD2;&#x6163;&#x5C07;&#x9019;&#x7A2E;&#x914D;&#x7F6E;&#x8A18;&#x61B6;&#x9AD4;&#x540C;&#x6642;&#x586B;&#x5165;&#x6578;&#x503C;&#x7684;&#x884C;&#x70BA;&#x7A31;&#x70BA;&#x300C;&#x7DE8;&#x8B6F;&#x300D;&#x3002;&#x56E0;&#x70BA;&#x7F16;&#x8B6F;&#x6307;&#x4EE4; <code>if</code>&#xFF0C; <code>.&quot;</code>&#xFF0C; <code>;</code> &#x7B49;&#x90FD;&#x6703;&#x505A;&#x985E;&#x4F3C;&#x7684;&#x4E8B;&#x3002;&#x6211;&#x5011;&#x6703;&#x8AAA;&#x6307;&#x4EE4; <code>,</code> &#x5C07;&#x4E00;&#x500B;&#x6574;&#x6578;&#x300C;&#x7DE8;&#x8B6F;&#x300D;&#x5230;&#x5B57;&#x5178;&#x88E1;&#x9762;&#x3002;</p>
-<pre><code>rf&gt; here h.  1 ,  here h.  2 ,
-7F41CEE014F0 7F41CEE014F8  ok
-rf&gt; $7F41CEE014F0 ?  $7F41CEE014F8 ?
+<pre><code>rf&gt; here h.  1 , here h.  2 ,
+13222E4 13222E8  ok
+rf&gt; $13222E4 ?  $13222E8 ?
 1 2  ok
 </code></pre><p>&#x5728;&#x4E0A;&#x4F8B;&#x4E2D;&#x6211;&#x5011;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>,</code> &#x5C07; 1 &#x3001; 2 &#x7DE8;&#x8B6F;&#x5230;&#x5B57;&#x5178;&#x88E1;&#x3002;&#x56E0;&#x70BA;&#x6BCF;&#x500B;&#x6574;&#x6578;&#x5728;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E2D;&#x4F54;&#x4E00;&#x500B;&#x55AE;&#x5143;&#xFF0C;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x77E5;&#x9053;&#x6BCF;&#x500B;&#x6574;&#x6578;&#x6240;&#x5728;&#x7684;&#x4F4D;&#x5740;&#xFF0C;&#x4E26;&#x7528;&#x6307;&#x4EE4; <code>?</code> &#x5C07;&#x5B83;&#x5011;&#x5370;&#x51FA;&#x4F86;&#x3002;</p>
 <h3 id="&#x96D9;&#x55AE;&#x5143;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x6307;&#x4EE4;">&#x96D9;&#x55AE;&#x5143;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x6307;&#x4EE4;</h3>
@@ -673,13 +674,17 @@ rf&gt; $7F41CEE014F0 ?  $7F41CEE014F8 ?
 <p>&#x8ACB;&#x9032;&#x884C;&#x4EE5;&#x4E0B;&#x7DF4;&#x7FD2;&#xFF1A;</p>
 <pre><code>rf&gt; -work marker -work
  ok
-rf&gt; here h.  2 cells allot
-7F41CEE014E0  ok
-rf&gt; 1 2 $7F41CEE014E0  2!  .s
+rf&gt; .s
  ok
-rf&gt; $7F41CEE014E0 2@ .s
+rf&gt; here h.  2 cells allot
+13222D0  ok
+rf&gt; .s
+ ok
+rf&gt; 1 2 $13222D0 2! .s
+ ok
+rf&gt; $13222D0 2@ .s
 1 2  ok
-rf&gt; $7F41CEE014E0 dup @  swap cell+ @  .s
+rf&gt; $13222D0 dup @ swap cell+ @ .s
 1 2 2 1  ok
 rf&gt; xx
 xx Undefined word
@@ -728,19 +733,21 @@ xx Undefined word
 <p>&#x6307;&#x4EE4; <code>aligned</code> &#x53CA; <code>faligned</code> &#x5206;&#x5225;&#x8ABF;&#x6574;&#x758A;&#x9802;&#x7684;&#x6574;&#x6578;&#x4F7F;&#x5176;&#x7B26;&#x5408;&#x6574;&#x6578;&#x53CA;&#x6D6E;&#x9EDE;&#x7684;&#x5C0D;&#x9F4A;&#x539F;&#x5247;&#x3002;</p>
 <p>&#x4F8B;&#x5B50;&#xFF1A;</p>
 <pre><code>rf&gt; 0 aligned .  1 aligned .
-0 8  ok
+0 4  ok
 rf&gt; 0 faligned .  1 faligned .
 0 8  ok
 </code></pre><p>&#x4E0A;&#x4F8B;&#x4E2D;&#x56E0;&#x70BA; 1 &#x4E0D;&#x7B26;&#x5408;&#x5C0D;&#x9F4A;&#x539F;&#x5247;&#x800C;&#x88AB; <code>aligned</code> &#x53CA; <code>faligned</code> &#x8ABF;&#x6574;&#x70BA;&#x7B26;&#x5408;&#x7684;&#x6578;&#x503C;&#x3002;</p>
 <p>&#x6307;&#x4EE4; <code>align</code> &#x548C; <code>falign</code> &#x5247;&#x5206;&#x5225;&#x8ABF;&#x6574; <code>here</code> &#x7684;&#x56DE;&#x50B3;&#x503C;&#x4F7F;&#x5176;&#x7B26;&#x5408;&#x6574;&#x6578;&#x53CA;&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x5C0D;&#x9F4A;&#x539F;&#x5247;&#x3002;</p>
 <p>&#x4F8B;&#x5B50;&#xFF1A;</p>
-<pre><code>rf&gt; 1 allot  here h.
-7F41CEE014F1  ok
+<pre><code>rf&gt; -work marker -work
+ ok
+rf&gt; 1 allot here h.
+13222D1  ok
 rf&gt; align here h.
-7F41CEE014F8  ok
+13222D4  ok
 rf&gt; 2 allot here h.  falign here h.
-7F41CEE014FA 7F41CEE01500  ok
-</code></pre><p>&#x4E0A;&#x4F8B;&#x4E2D;&#x5728;&#x57F7;&#x884C;&#x4E86; <code>1 allot</code> &#x5F8C;&#xFF0C;<code>here</code> &#x8B8A;&#x6210; $7F41CEE014F1&#xFF0C;&#x4E0D;&#x7B26;&#x5408;&#x5C0D;&#x9F4A;&#x539F;&#x5247;&#x3002;&#x6211;&#x5011;&#x4EE5; <code>align</code> &#x4FEE;&#x6B63;&#x4F7F;&#x5F97; here &#x8B8A;&#x6210;&#x7B26;&#x5408;&#x6574;&#x6578;&#x5C0D;&#x9F4A;&#x539F;&#x5247;&#x7684; $7F41CEE014F8&#xFF0C;&#x5728; 2 allot &#x4E4B;&#x5F8C;&#xFF0C;&#x53C8;&#x4EE5; <code>falign</code> &#x4FEE;&#x6B63;&#x4F7F;&#x5176;&#x8B8A;&#x6210;&#x7B26;&#x5408;&#x6D6E;&#x9EDE;&#x6578;&#x5C0D;&#x9F4A;&#x539F;&#x5247;&#x7684; $7F41CEE01500&#x3002;</p>
+13222D6 13222D8  ok
+</code></pre><p>&#x4E0A;&#x4F8B;&#x4E2D;&#x5728;&#x57F7;&#x884C;&#x4E86; <code>1 allot</code> &#x5F8C;&#xFF0C;<code>here</code> &#x8B8A;&#x6210; $13222D1&#xFF0C;&#x4E0D;&#x7B26;&#x5408;&#x5C0D;&#x9F4A;&#x539F;&#x5247;&#x3002;&#x6211;&#x5011;&#x4EE5; <code>align</code> &#x4FEE;&#x6B63;&#x4F7F;&#x5F97; here &#x8B8A;&#x6210;&#x7B26;&#x5408;&#x6574;&#x6578;&#x5C0D;&#x9F4A;&#x539F;&#x5247;&#x7684; $13222D4&#xFF0C;&#x5728; 2 allot &#x4E4B;&#x5F8C;&#xFF0C;&#x53C8;&#x4EE5; <code>falign</code> &#x4FEE;&#x6B63;&#x4F7F;&#x5176;&#x8B8A;&#x6210;&#x7B26;&#x5408;&#x6D6E;&#x9EDE;&#x6578;&#x5C0D;&#x9F4A;&#x539F;&#x5247;&#x7684; $13222D8&#x3002;</p>
 <h3 id="&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x6307;&#x4EE4;">&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x6307;&#x4EE4;</h3>
 <p>&#x985E;&#x4F3C; <code>!</code> &#x3001; <code>@</code> &#x548C; <code>,</code>&#xFF0C;Forth &#x63D0;&#x4F9B;&#x4E86;&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x7248;&#x672C;&#xFF1A; <code>f!</code> &#x3001;<code>f@</code> &#x3001; <code>f,</code> &#x3002;
 &#x56E0;&#x70BA; <code>f,</code> &#x4E0D;&#x662F; Forth 2012 &#x6A19;&#x6E96;&#xFF0C;&#x5982;&#x679C;&#x4F60;&#x7684;&#x7CFB;&#x7D71;&#x6C92;&#x6709; <code>f,</code>&#xFF0C;&#x53EF;&#x4EE5;&#x5B9A;&#x7FA9; <code>f,</code> &#x5982;&#x4E0B;&#xFF1A;</p>
@@ -751,18 +758,35 @@ rf&gt; 2 allot here h.  falign here h.
 <pre><code>rf&gt; -work marker -work
  ok
 rf&gt; here h.
-7FEFB0E014E0  ok
+13222D0  ok
 rf&gt; 2 ,  falign  1e f,  2e f,
  ok
-rf&gt; $7FEFB0E014E0  dup ?  cell+ faligned dup f@ f.  float+ dup f@ f.
+rf&gt; $13222D0  dup ?  cell+ faligned dup f@ f.  float+ dup f@ f.
 2 1.0000000 2.0000000  ok
-rf&gt; $7FEFB0E014E0  20 dump
-7FEFB0E014E0 :   2  0  0  0   0  0  0  0 -  0  0  0  0   0  0 F0 3F  ______________p?
-7FEFB0E014F0 :   0  0  0  0   0  0  0 40 -  0  0  0  0   0  0  0  0  _______@________
+rf&gt; $13222D0 20 dump
+13222D0:   2  0  0  0  1  0  0  0  ________
+13222D8:   0  0  0  0  0  0 F0 3F  ______p?
+13222E0:   0  0  0  0  0  0  0 40  _______@
+</code></pre><p>&#x5728;&#x7DF4;&#x7FD2;&#x4E2D;&#xFF0C;&#x6211;&#x5011;&#x7DE8;&#x8B6F;&#x4E86;&#x4E00;&#x500B;&#x5927;&#x5C0F;&#x70BA;&#x4E8C;&#x7684;&#x6D6E;&#x9EDE;&#x6578;&#x9663;&#x5217;&#x5230;&#x5B57;&#x5178;&#x4E2D;&#x3002;&#x9996;&#x5148;&#x6211;&#x5011;&#x4F7F;&#x7528; <code>2 ,</code> &#x5148;&#x7DE8;&#x8B6F;&#x4E86;&#x9019;&#x500B;&#x9663;&#x5217;&#x7684;&#x5927;&#x5C0F;&#xFF0C;&#x4E5F;&#x5C31;&#x662F; 2&#x3002;&#x56E0;&#x70BA;&#x9019;&#x500B;&#x7DE8;&#x8B6F;&#x884C;&#x70BA;&#x6703;&#x9020;&#x6210; <code>here</code> &#x4E0D;&#x518D;&#x5C0D;&#x9F4A;&#x6D6E;&#x9EDE;&#x6578;&#x6240;&#x9700;&#x7684;&#x4F4D;&#x5740;&#x3002;&#x6240;&#x4EE5;&#x6211;&#x5011;&#x4F7F;&#x7528; <code>falign</code> &#x8ABF;&#x6574; <code>here</code>&#xFF0C;&#x4E4B;&#x5F8C;&#x518D;&#x4EE5; <code>1e f, 2e f,</code> &#x5C07;&#x5169;&#x500B;&#x6D6E;&#x9EDE;&#x6578;&#x7DE8;&#x8B6F;&#x5230;&#x5B57;&#x5178;&#x4E2D;&#x3002;</p>
+<p>&#x8981;&#x5370;&#x51FA;&#x90A3;&#x9663;&#x5217;&#x7684;&#x8CC7;&#x6599;&#x6642;&#xFF0C;&#x6211;&#x5011;&#x5148;&#x4EE5; <code>?</code> &#x5370;&#x51FA;&#x9663;&#x5217;&#x7684;&#x9577;&#x5EA6;&#xFF0C;&#x518D;&#x4EE5; <code>cell+ faligned</code> &#x8DF3;&#x904E;&#x9663;&#x5217;&#x7684;&#x9577;&#x5EA6;&#x5230;&#x4E0B;&#x4E00;&#x500B;&#x5C0D;&#x9F4A;&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x4F4D;&#x5740;&#xFF0C;&#x4EE5; <code>f@ f.</code> &#x5370;&#x51FA;&#xFF0C;&#x518D;&#x4EE5; <code>float+ dup f@ f.</code> &#x8DF3;&#x904E;&#x9019;&#x500B;&#x6D6E;&#x9EDE;&#x6578;&#x4E26;&#x5370;&#x51FA;&#x4E0B;&#x4E00;&#x500B;&#x3002;</p>
+<p>&#x5728;&#x6700;&#x5F8C;&#x51FA;&#x65BC;&#x597D;&#x5947;&#x6211;&#x5011;&#x4EE5; <code>dump</code> &#x5370;&#x51FA;&#x4E4B;&#x524D;&#x5B58;&#x5728;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E2D;&#x7684;&#x8CC7;&#x6599;&#xFF0C;&#x6211;&#x5011;&#x767C;&#x73FE;&#x5728;&#x4F4D;&#x5740; $1322D0 &#x958B;&#x59CB;&#x7684;&#x56DB;&#x500B;&#x4F4D;&#x5143;&#x5B58;&#x653E;&#x7684;&#x662F;&#x6578;&#x5B57; 2&#x3002;&#x5728; $1322D4 &#x958B;&#x59CB;&#x7684;&#x56DB;&#x500B;&#x4F4D;&#x5143;&#x5B58;&#x653E;&#x7684;&#x6578;&#x5947;&#x602A;&#x7684;&#x6578;&#x5B57; 1&#x3002;&#x5728; $1322D8 &#x958B;&#x59CB;&#x7684; 8 &#x500B;&#x4F4D;&#x5143;&#x5B58;&#x653E;&#x7684;&#x662F;&#x6D6E;&#x9EDE;&#x6578; 1.0e &#x7684;&#x5341;&#x516D;&#x9032;&#x4F4D;&#x8868;&#x793A;&#x6CD5; $3FF0000000000000 &#xFF0C;&#x5728; $13222E0 &#x958B;&#x59CB;&#x7684; 8 &#x500B;&#x4F4D;&#x5143;&#x5B58;&#x653E;&#x7684;&#x662F;&#x6D6E;&#x9EDE;&#x6578; 2.0e &#x7684;&#x5341;&#x516D;&#x4F4D;&#x5143;&#x8868;&#x793A;&#x6CD5; $4000000000000000 &#x3002;&#x5728;&#x96FB;&#x8166;&#x4F7F;&#x7528;&#x7684;&#x6D6E;&#x9EDE;&#x6578;&#x88AB;&#x96FB;&#x6C23;&#x96FB;&#x5B50;&#x5DE5;&#x7A0B;&#x5E2B;&#x5354;&#x6703;&#xFF08;IEEE&#xFF09;&#x898F;&#x7BC4;&#x5316;&#x70BA; IEEE 754&#xFF0C;&#x5728;&#x6B64;&#x4E0D;&#x8AAA;&#x660E;&#xFF0C;&#x6709;&#x8208;&#x8DA3;&#x7684;&#x4EBA;&#x53EF;&#x770B;&#x76F8;&#x95DC;&#x6587;&#x4EF6;&#x3002;</p>
+<p>&#x5728;&#x9019;&#x7BC4;&#x4F8B;&#x4E2D;&#xFF0C;&#x4F4D;&#x65BC; $13222D4 &#x958B;&#x59CB;&#x7684;&#x5947;&#x602A;&#x7684;&#x6578;&#x5B57; 1&#xFF0C;&#x662F;&#x66FE;&#x4F7F;&#x7528;&#x904E;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x7684;&#x6B98;&#x7559;&#x7269;&#x3002;&#x56E0;&#x70BA; <code>-work</code> &#x4E0D;&#x6703;&#x6E05;&#x9664;&#x88AB;&#x6B78;&#x9084;&#x7684;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x3002;&#x800C; <code>falign</code> &#x8ABF;&#x6574;&#x5C0D;&#x9F4A;&#x4F4D;&#x5740;&#x6642;&#x4E5F;&#x4E0D;&#x6703;&#x6E05;&#x9664;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x7684;&#x5167;&#x5BB9;&#x3002;</p>
+<p>&#x8981;&#x6CE8;&#x610F;&#x6307;&#x4EE4; <code>f!</code> &#x548C; <code>f@</code> &#x6703;&#x5C07;&#x8CC7;&#x6599;&#x653E;&#x5728;&#x5C0D;&#x9F4A;&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x4F4D;&#x5740;&#x3002;&#x5982;&#x679C;&#x4F60;&#x7D66;&#x7684;&#x4F4D;&#x5740;&#x4E0D;&#x5408;&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x5C0D;&#x9F4A;&#x8981;&#x6C42;&#xFF0C;&#x8CC7;&#x6599;&#x6703;&#x88AB;&#x653E;&#x5728;&#x9760;&#x8FD1;&#x5B83;&#x4F46;&#x5408;&#x4E4E;&#x6D6E;&#x9EDE;&#x6578;&#x5C0D;&#x9F4A;&#x7684;&#x4F4D;&#x5740;&#x3002;&#x9019;&#x6703;&#x5C0E;&#x81F4;&#x5176;&#x4ED6;&#x7684;&#x8CC7;&#x6599;&#x88AB;&#x8986;&#x84CB;&#x3002;&#x6AA2;&#x67E5;&#x9019;&#x7A2E;&#x554F;&#x984C;&#x7684;&#x65B9;&#x6E22;&#x662F;&#x4F7F;&#x7528; <code>dump</code> &#x770B;&#x770B;&#x8CC7;&#x6599;&#x662F;&#x5426;&#x653E;&#x932F;&#x4E86;&#x4F4D;&#x7F6E;&#x3002;&#x4EE5;&#x4E0B;&#x662F;&#x4E00;&#x500B;&#x7BC4;&#x4F8B;&#xFF1A;</p>
+<pre><code>rf&gt; -work marker -work
  ok
-</code></pre><p>&#x5728;&#x7DF4;&#x7FD2;&#x4E2D;&#xFF0C;&#x6211;&#x5011;&#x7DE8;&#x8B6F;&#x4E86;&#x4E00;&#x500B;&#x5927;&#x5C0F;&#x70BA;&#x4E8C;&#x7684;&#x6D6E;&#x9EDE;&#x6578;&#x9663;&#x5217;&#x5230;&#x5B57;&#x5178;&#x4E2D;&#x3002;&#x9996;&#x5148;&#x6211;&#x5011;&#x4F7F;&#x7528; <code>3 ,</code> &#x5148;&#x7DE8;&#x8B6F;&#x4E86;&#x9019;&#x500B;&#x9663;&#x5217;&#x7684;&#x5927;&#x5C0F;&#xFF0C;&#x4E5F;&#x5C31;&#x662F; 3&#x3002;&#x56E0;&#x70BA;&#x9019;&#x500B;&#x7DE8;&#x8B6F;&#x884C;&#x70BA;&#x6703;&#x9020;&#x6210; <code>here</code> &#x4E0D;&#x518D;&#x5C0D;&#x9F4A;&#x6D6E;&#x9EDE;&#x6578;&#x6240;&#x9700;&#x7684;&#x4F4D;&#x5740;&#x3002;&#x6240;&#x4EE5;&#x6211;&#x5011;&#x4F7F;&#x7528; <code>falign</code> &#x8ABF;&#x6574; <code>here</code>&#xFF0C;&#x4E4B;&#x5F8C;&#x518D;&#x4EE5; <code>1e f, 2e f,</code> &#x5C07;&#x5169;&#x500B;&#x6D6E;&#x9EDE;&#x6578;&#x7DE8;&#x8B6F;&#x5230;&#x5B57;&#x5178;&#x4E2D;&#x3002;</p>
-<p>&#x8981;&#x53D6;&#x51FA;&#x90A3;&#x9663;&#x5217;&#x7684;&#x8CC7;&#x6599;&#x6642;&#xFF0C;&#x6211;&#x5011;&#x5148;&#x4EE5; <code>?</code> &#x5370;&#x51FA;&#x9663;&#x5217;&#x7684;&#x9577;&#x5EA6;&#xFF0C;&#x518D;&#x4EE5; <code>cell+ faligned</code> &#x8DF3;&#x904E;&#x9663;&#x5217;&#x7684;&#x9577;&#x5EA6;&#x5230;&#x4E0B;&#x4E00;&#x500B;&#x5C0D;&#x9F4A;&#x6D6E;&#x9EDE;&#x6578;&#x7684;&#x4F4D;&#x5740;&#xFF0C;&#x4EE5; <code>f@ f.</code> &#x5370;&#x51FA;&#xFF0C;&#x518D;&#x4EE5; <code>float+ dup f@ f.</code> &#x8DF3;&#x904E;&#x9019;&#x500B;&#x6D6E;&#x9EDE;&#x6578;&#x4E26;&#x5370;&#x51FA;&#x4E0B;&#x4E00;&#x500B;&#x3002;</p>
-<p>&#x5728;&#x6700;&#x5F8C;&#x51FA;&#x65BC;&#x597D;&#x5947;&#x6211;&#x5011;&#x4EE5; <code>dump</code> &#x5370;&#x51FA;&#x4E4B;&#x524D;&#x5B58;&#x5728;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E2D;&#x7684;&#x8CC7;&#x6599;&#xFF0C;&#x5728;&#x6B64;&#x4E0D;&#x5C0D;&#x5176;&#x5167;&#x5BB9;&#x9032;&#x884C;&#x89E3;&#x8B80;&#x3002;</p>
+rf&gt; here h.
+13222D0  ok
+rf&gt; 1 allot here h.
+13222D1  ok
+rf&gt; 1 floats allot
+ ok
+rf&gt; 1e $13222E9 f!
+ ok
+rf&gt; $13222E9 20 dump
+13222E9:   0  0  0  0  0  0  0  0  ________
+13222F1:   0  0  0  0  0 F0 3F  0  _____p?_
+13222F9:   0  0  0  0  0  0  0  0  ________
+</code></pre><p>&#x6307;&#x4EE4; <code>dump</code> &#x986F;&#x793A;&#x6D6E;&#x9EDE;&#x6578; 1.0 &#x4E26;&#x672A;&#x88AB;&#x653E;&#x5728; $13222E9 &#x7684;&#x4F4D;&#x7F6E;&#xFF0C;&#x800C;&#x662F;&#x653E;&#x5728;&#x4E4B;&#x5F8C;&#x7B26;&#x5408;&#x6D6E;&#x9EDE;&#x6578;&#x5C0D;&#x9F4A;&#x8981;&#x6C42;&#x7684; $13222F0 &#x958B;&#x59CB;&#x7684; 8 &#x500B;&#x4F4D;&#x5143;&#x7D44;&#x3002;</p>
 <h3 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h3>
 <table>
 <thead>
@@ -898,7 +922,7 @@ rf&gt; the-one ?
 <pre><code>rf&gt; variable x 2variable xy fvariable fxy
  ok
 rf&gt; x h.  xy h.  fxy h.  here h.
-7F6303C014F0 7F6303C014F8 7F6303C01508 7F6303C01510  ok
+5122D8 5122E4 5122F8 512300  ok
 rf&gt; x @ .  xy 2@ . .  fxy f@ f.
 0 0 0 0.0000000  ok
 rf&gt; 1 x !  2 3 xy 2!  4e fxy f!
@@ -914,9 +938,9 @@ variable seed   2463534242 seed !
 </code></pre><p>&#x4EE5;&#x4E0A;&#x7684; <code>xorshift</code> &#x5C31;&#x662F;&#x4E4B;&#x524D;&#x7684; <code>xorshift</code>&#x3002;&#x6211;&#x5011;&#x4EE5; <code>variable</code> &#x5B9A;&#x7FA9;&#x4E86;&#x4E00;&#x500B;&#x8B8A;&#x6578; <code>seed</code>&#xFF0C;&#x4E26;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>!</code> &#x96A8;&#x4FBF;&#x5B58;&#x4E86;&#x4E00;&#x500B;&#x6574;&#x6578; 2463534242 &#x5230;&#x9019;&#x500B;&#x8B8A;&#x6578;&#x4E2D;&#x3002;&#x4E4B;&#x5F8C;&#x5B9A;&#x4E86;&#x4E00;&#x500B;&#x6307;&#x4EE4; <code>rnd</code> &#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>@</code> &#x5F9E; <code>seed</code> &#x62FF;&#x51FA;&#x76EE;&#x524D;&#x7684;&#x7A2E;&#x5B50;&#xFF0C;&#x4F7F;&#x7528; <code>xorshift</code> &#x7B97;&#x51FA;&#x65B0;&#x7684;&#x7A2E;&#x5B50;&#xFF0C;&#x8907;&#x88FD;&#x4E00;&#x4EFD;&#x4FDD;&#x5B58;&#x5728; <code>seed</code> &#x4E2D;&#x3002;&#x7136;&#x5F8C;&#x628A;&#x9019;&#x65B0;&#x7684;&#x7A2E;&#x5B50;&#x4F9D;&#x524D;&#x4E00;&#x7AE0;&#x7684;&#x65B9;&#x5F0F;&#x6C42; <code>n1</code> &#x7684;&#x9918;&#x6578;&#xFF0C;&#x4E26;&#x4EE5; <code>abs</code> &#x6C42;&#x6B63;&#x6578;&#x3002;</p>
 <p>&#x6E2C;&#x8A66;&#x4E00;&#x4E0B;&#xFF1A;</p>
 <pre><code>rf&gt; 100 rnd .
-79  ok
+15  ok
 rf&gt; 100 rnd .
-60  ok
+90  ok
 rf&gt; 100 rnd .
 0  ok
 </code></pre><h3 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h3>
@@ -966,7 +990,7 @@ rf&gt; italian language !
  ok
 rf&gt; greet
 Ciao! ok
-</code></pre><p>&#x9019;&#x7A0B;&#x5F0F;&#x96D6;&#x7136;&#x7B26;&#x5408;&#x6211;&#x5011;&#x7684;&#x9810;&#x671F;&#xFF0C;&#x4F46;&#x6709;&#x500B;&#x7F3A;&#x9EDE;&#xFF1A;&#x6BCF;&#x589E;&#x52A0;&#x4E00;&#x7A2E;&#x8A9E;&#x8A00;&#x6211;&#x5011;&#x5C31;&#x9700;&#x8981;&#x4FEE;&#x6539; <code>greet</code> &#x9019;&#x500B;&#x6307;&#x4EE4;&#x3002;&#x5982;&#x679C;&#x9019;&#x662F;&#x6211;&#x5011;&#x63D0;&#x4F9B;&#x7D66;&#x5225;&#x4EBA;&#x7684;&#x51FD;ft&#x5F0F;&#x5EAB;&#xFF0C;&#x90A3;&#x9EBC;&#x5225;&#x4EBA;&#x5FC5;&#x9808;&#x4FEE;&#x6539;&#x6211;&#x5011;&#x63D0;&#x4F9B;&#x7684;&#x6307;&#x4EE4;&#x3002;</p>
+</code></pre><p>&#x9019;&#x7A0B;&#x5F0F;&#x96D6;&#x7136;&#x7B26;&#x5408;&#x6211;&#x5011;&#x7684;&#x9810;&#x671F;&#xFF0C;&#x4F46;&#x6709;&#x500B;&#x7F3A;&#x9EDE;&#xFF1A;&#x6BCF;&#x589E;&#x52A0;&#x4E00;&#x7A2E;&#x8A9E;&#x8A00;&#x6211;&#x5011;&#x5C31;&#x9700;&#x8981;&#x4FEE;&#x6539; <code>greet</code> &#x9019;&#x500B;&#x6307;&#x4EE4;&#x3002;&#x5982;&#x679C;&#x9019;&#x662F;&#x6211;&#x5011;&#x63D0;&#x4F9B;&#x7D66;&#x5225;&#x4EBA;&#x7684;&#x51FD;&#x5F0F;&#x5EAB;&#xFF0C;&#x90A3;&#x9EBC;&#x5225;&#x4EBA;&#x5FC5;&#x9808;&#x4FEE;&#x6539;&#x6211;&#x5011;&#x63D0;&#x4F9B;&#x7684;&#x6307;&#x4EE4;&#x624D;&#x80FD;&#x589E;&#x52A0;&#x81EA;&#x5DF1;&#x60F3;&#x8981;&#x7684;&#x8A9E;&#x8A00;&#x3002;</p>
 <p>&#x4E00;&#x500B;&#x89E3;&#x6C7A;&#x7684;&#x65B9;&#x6CD5;&#x662F;&#x4F7F;&#x7528;&#x300C;&#x4EE4;&#x724C;&#x300D;(execution token)&#x3002;&#x4EE4;&#x724C;&#x662F;&#x4E00;&#x500B;&#x4EE3;&#x8868; Forth &#x6307;&#x4EE4;&#x7684;&#x6578;&#x5B57;&#x3002;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x4F7F;&#x7528;&#x9019;&#x500B;&#x6578;&#x5B57;&#x4F86;&#x57F7;&#x884C;&#x5C0D;&#x61C9;&#x7684;&#x6307;&#x4EE4;&#x3002;</p>
 <p>&#x5148;&#x5B9A;&#x7FA9;&#x4EE5;&#x4E0B;&#x5169;&#x500B;&#x6307;&#x4EE4;&#xFF0C;</p>
 <pre><code>: hello   .&quot; Hello!&quot; ;
@@ -996,7 +1020,10 @@ Ciao! ok
 <pre><code>: english   [&apos;] hello  &apos;greet ! ;
 : italian   [&apos;] ciao  &apos;greet ! ;
 </code></pre><p>&#x5728;&#x9019;&#x5152;&#xFF0C;&#x6211;&#x5011;&#x4F7F;&#x7528;&#x6307;&#x4EE4; <code>&apos;</code> &#x7684;&#x7DE8;&#x8B6F;&#x7248;&#x672C; <code>[&apos;]</code>&#x3002;&#x6307;&#x4EE4; <code>[&apos;]</code> &#x6703;&#x53D6;&#x5F97;&#x5176;&#x5F8C;&#x6307;&#x4EE4;&#x7684;&#x4EE4;&#x724C;&#xFF0C;&#x7DE8;&#x8B6F;&#x9032;&#x5B57;&#x5178;&#x4E2D;&#xFF0C;&#x5728;&#x57F7;&#x884C; <code>english</code> &#x6216; <code>italian</code> &#x6642;&#x9019;&#x4EE4;&#x724C;&#x6703;&#x88AB;&#x63A8;&#x4E0A;&#x5806;&#x758A;&#x3002;</p>
-<p>&#x7576;&#x67D0;&#x7A2E;&#x884C;&#x70BA;&#x6709;&#x76F4;&#x8B6F;&#x548C;&#x7DE8;&#x8B6F;&#x5169;&#x7A2E;&#x7248;&#x672C;&#x6642;&#xFF0C;Forth &#x7FD2;&#x6163;&#x5728;&#x76F4;&#x8B6F;&#x7684;&#x7248;&#x672C;&#x5916;&#x52A0;&#x4E0A;<code>[</code>&#x548C;<code>]</code>&#x4F86;&#x547D;&#x540D;&#x7DE8;&#x8B6F;&#x7684;&#x7248;&#x672C;&#x3002;&#x50CF;&#x4E4B;&#x524D;&#x63D0;&#x904E;&#x7684; <code>[char]</code>&#xFF0C;&#x5B83;&#x7684;&#x76F4;&#x8B6F;&#x7248;&#x672C;&#x662F; <code>char</code>&#x3002;&#x6E2C;&#x8A66;&#x4E00;&#x4E0B;&#xFF1A;</p>
+<p>&#x5C07;&#x4EE4;&#x724C;&#x653E;&#x9032;&#x8A18;&#x61B6;&#x9AD4;&#x4E2D;&#xFF0C;&#x7559;&#x5F85;&#x672A;&#x4F86;&#x57F7;&#x884C;&#x7684;&#x6280;&#x5DE7;&#x88AB;&#x7A31;&#x70BA;&#x5411;&#x91CF;&#x57F7;&#x884C; (vectored execution)&#x3002;
+&#x5192;&#x865F;&#x5B9A;&#x7FA9;&#x672C;&#x8EAB;&#x5C31;&#x662F;&#x5411;&#x91CF;&#x57F7;&#x884C;&#x7684;&#x4E00;&#x500B;&#x4F8B;&#x5B50;&#x3002;&#x5728;&#x4E0B;&#x4E00;&#x7AE0;&#x4E2D;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x662F;&#x53E6;&#x4E00;&#x500B;&#x4F8B;&#x5B50;&#x3002;</p>
+<h3 id="&#x76F4;&#x8B6F;&#x7684;&#x7248;&#x672C;&#x548C;&#x7DE8;&#x8B6F;&#x7684;&#x7248;&#x672C;">&#x76F4;&#x8B6F;&#x7684;&#x7248;&#x672C;&#x548C;&#x7DE8;&#x8B6F;&#x7684;&#x7248;&#x672C;</h3>
+<p>&#x525B;&#x624D;&#x6211;&#x5011;&#x63D0;&#x53CA;&#x6307;&#x4EE4; <code>[&apos;]</code> &#x662F;&#x6307;&#x4EE4; <code>&apos;</code> &#x7684;&#x7DE8;&#x8B6F;&#x7248;&#x672C;&#x3002;&#x7576;&#x67D0;&#x7A2E;&#x884C;&#x70BA;&#x6709;&#x76F4;&#x8B6F;&#x548C;&#x7DE8;&#x8B6F;&#x5169;&#x7A2E;&#x7248;&#x672C;&#x6642;&#xFF0C;Forth &#x7FD2;&#x6163;&#x52A0;&#x4E0A;&#x3000;<code>[</code>&#x3000;&#x548C;&#x3000;<code>]</code>&#x3000;&#x4F86;&#x5340;&#x5206;&#x5169;&#x500B;&#x7248;&#x672C;&#x3002;&#x50CF;&#x4E4B;&#x524D;&#x63D0;&#x904E;&#x7684; <code>[char]</code>&#xFF0C;&#x5B83;&#x7684;&#x76F4;&#x8B6F;&#x7248;&#x672C;&#x662F; <code>char</code>&#x3002;&#x6E2C;&#x8A66;&#x4E00;&#x4E0B;&#xFF1A;</p>
 <pre><code>rf&gt; char * emit
 * ok
 </code></pre><p>&#x6211;&#x5011;&#x4EE5;&#x4EE5;&#x4E0B;&#x5169;&#x500B;&#x7A0B;&#x5F0F;&#x8AAA;&#x660E;&#x76F4;&#x8B6F;&#x7248;&#x548C;&#x7F16;&#x8B6F;&#x7248;&#x7684;&#x4E0D;&#x540C;&#xFF1A;</p>
@@ -1015,8 +1042,6 @@ Ciao! ok
 <pre><code>rf&gt; 2 ex2 1
 b ok
 </code></pre><p>&#x6211;&#x5011;&#x5148;&#x653E;&#x4E86;&#x4E00;&#x500B;&#x6578;&#x5B57; 2&#xFF0C;&#x624D;&#x57F7;&#x884C; <code>ex2</code>&#x3002;<code>ex2</code> &#x6703;&#x5F97;&#x5230;&#x4E4B;&#x5F8C;&#x7684;&#x5B57;&#x5143; <code>1</code> &#x7684; ASCII &#x78BC; 49&#xFF0C;&#x5C07;&#x5B83;&#x4E58;&#x4EE5; 2&#xFF0C;&#x5F97;&#x5230; 98&#xFF0C;&#x518D;&#x4EE5; <code>emit</code> &#x986F;&#x793A;&#x5F97;&#x5230; <code>b</code>&#x3002;</p>
-<p>&#x5C07;&#x4EE4;&#x724C;&#x653E;&#x9032;&#x8A18;&#x61B6;&#x9AD4;&#x4E2D;&#xFF0C;&#x7559;&#x5F85;&#x672A;&#x4F86;&#x57F7;&#x884C;&#x7684;&#x6280;&#x5DE7;&#x88AB;&#x7A31;&#x70BA;&#x5411;&#x91CF;&#x57F7;&#x884C; (vectored execution)&#x3002;
-&#x5192;&#x865F;&#x5B9A;&#x7FA9;&#x672C;&#x8EAB;&#x5C31;&#x662F;&#x5411;&#x91CF;&#x57F7;&#x884C;&#x7684;&#x4E00;&#x500B;&#x4F8B;&#x5B50;&#x3002;&#x5728;&#x4E0B;&#x4E00;&#x7AE0;&#x4E2D;&#x7684;&#x7570;&#x5E38;&#x8655;&#x7406;&#x662F;&#x53E6;&#x4E00;&#x500B;&#x4F8B;&#x5B50;&#x3002;</p>
 <h3 id="&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;">&#x672C;&#x7BC0;&#x6307;&#x4EE4;&#x96C6;</h3>
 <table>
 <thead>
@@ -1055,7 +1080,7 @@ b ok
 <p>&#x4E4B;&#x524D;&#x6211;&#x5011;&#x5B78;&#x5230;&#x4E86;&#x5E7E;&#x500B;&#x5B9A;&#x7FA9;&#x6307;&#x4EE4;&#xFF1A; <code>variable</code>, <code>2variable</code> &#x548C; <code>fvariable</code>&#x3002;&#x5728; rtForth &#x4E2D;&#xFF0C;&#x4ED6;&#x5011;&#x90FD;&#x662F;&#x4F7F;&#x7528;&#x5192;&#x865F;&#x5B9A;&#x7FA9;&#x51FA;&#x4F86;&#x7684;&#xFF1A;</p>
 <pre><code>: variable   create  0 , ;
 : 2variable   create  0 , 0 , ;
-: fvariable   create falign 0e f, does&gt; faligned ;
+: fvariable   create falign  0e f,  does&gt; faligned ;
 </code></pre><p>&#x6307;&#x4EE4; <code>create</code> &#x662F;&#x6700;&#x57FA;&#x672C;&#x7684;&#x5B9A;&#x7FA9;&#x8CC7;&#x6599;&#x7D50;&#x69CB;&#x7684;&#x6307;&#x4EE4;&#x3002;&#x5B83;&#x53EF;&#x4EE5;&#x5B9A;&#x7FA9;&#x4E00;&#x500B;&#x65B0;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x7576;&#x9019;&#x6307;&#x4EE4;&#x57F7;&#x884C;&#x6642;&#x5C31;&#x6703;&#x56DE;&#x50B3;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E0B;&#x4E00;&#x500B;&#x53EF;&#x914D;&#x7F6E;&#x7684;&#x8A18;&#x61B6;&#x9AD4;&#x4F4D;&#x5740;&#xFF0C;&#x6307;&#x4EE4; <code>create</code> &#x4E0D;&#x914D;&#x7F6E;&#x4EFB;&#x4F55;&#x8A18;&#x61B6;&#x9AD4;&#x7D66;&#x9019;&#x65B0;&#x7684;&#x6307;&#x4EE4;&#x4F7F;&#x7528;&#x3002;&#x6211;&#x5011;&#x53EF;&#x4EE5;&#x7528; <code>allot</code> &#x3001; <code>,</code> &#x3001; <code>f,</code> &#x7B49;&#x914D;&#x7F6E;&#x9069;&#x7576;&#x7684;&#x8A18;&#x61B6;&#x9AD4;&#x7D66;&#x9019;&#x500B;&#x6307;&#x4EE4;&#x4F7F;&#x7528;&#x3002;&#x6BD4;&#x5982;&#x6307;&#x4EE4; <code>variable</code>&#xFF0C;&#x5C31;&#x662F;&#x5148;&#x7528; <code>create</code> &#x5EFA;&#x7ACB;&#x4E86;&#x4E00;&#x500B;&#x80FD;&#x56DE;&#x50B3;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x4E0B;&#x4E00;&#x500B;&#x53EF;&#x914D;&#x7F6E;&#x8A18;&#x61B6;&#x9AD4;&#x4F4D;&#x5740;&#x7684;&#x6307;&#x4EE4;&#xFF0C;&#x7136;&#x5F8C;&#x7528; <code>0 ,</code> &#x5728;&#x4E4B;&#x5F8C;&#x9644;&#x52A0;&#x4E86;&#x4E00;&#x500B;&#x9577;&#x5EA6;&#x70BA;&#x4E00;&#x500B;&#x55AE;&#x5143;&#xFF0C;&#x5167;&#x5BB9;&#x70BA; 0 &#x7684;&#x8A18;&#x61B6;&#x9AD4;&#x3002;</p>
 <p>&#x4F8B;&#x5B50;&#xFF1A;&#x7528; <code>create</code> &#x5B9A;&#x7FA9;&#x4E00;&#x500B; 3&#xD7;3 &#x7684;&#x55AE;&#x4F4D;&#x6D6E;&#x9EDE;&#x6578;&#x77E9;&#x9663;&#x3002;
 &#x4E00;&#x500B; 3&#xD7;3 &#x7684;&#x55AE;&#x4F4D;&#x77E9;&#x9663;&#x7E3D;&#x5171;&#x6709; 9 &#x500B;&#x5143;&#x7D20;&#xFF0C;&#x5176;&#x4E2D;&#x6709;&#x4E09;&#x500B;&#x5143;&#x7D20;&#x70BA; 1.0&#xFF0C;&#x5176;&#x4ED6;&#x70BA; 0.0&#x3002;</p>
@@ -1158,8 +1183,10 @@ range                             |
 <p>&#x7576; <code>range</code> &#x57F7;&#x884C;&#x6642;&#xFF0C;&#x56E0;&#x70BA;&#x5B83;&#x7684;&#x884C;&#x70BA;&#x662F; <code>does</code>&#xFF0C;&#x6703;&#x628A;&#x8CC7;&#x6599;&#x7A7A;&#x9593;&#x7684;&#x8D77;&#x59CB;&#x4F4D;&#x5740;&#x653E;&#x4E0A;&#x5806;&#x758A;&#x3002;&#x7136;&#x5F8C;&#x4F9D;&#x64DA;&#x7A0B;&#x5F0F;&#x78BC;&#x7A7A;&#x9593;&#x4E2D;&#x7684; x &#x7684;&#x6307;&#x793A;&#xFF0C;&#x8DF3;&#x5230; <code>does&gt;</code> &#x4E4B;&#x5F8C;&#x7684; <code>2@ exit</code> &#x90A3;&#x5152;&#x958B;&#x59CB;&#x57F7;&#x884C;&#x3002;</p>
 <h3 id="&#x4F7F;&#x7528;-field-&#x5B9A;&#x7FA9;&#x6B04;&#x4F4D;">&#x4F7F;&#x7528; +FIELD &#x5B9A;&#x7FA9;&#x6B04;&#x4F4D;</h3>
 <p>&#x4E4B;&#x524D;&#x5B9A;&#x7FA9;&#x77E9;&#x9663;&#x6642;&#xFF0C;&#x6211;&#x5011;&#x4E26;&#x672A;&#x5B9A;&#x7FA9;&#x8DDD;&#x9663;&#x7684;&#x5404;&#x500B;&#x6B04;&#x4F4D;&#x3002;&#x9019;&#x5728; Forth &#x662F;&#x5E38;&#x898B;&#x7684;&#x4F5C;&#x6CD5;&#x3002;&#x4F46;&#x6709;&#x7684;&#x6642;&#x5019;&#x6211;&#x5011;&#x9084;&#x662F;&#x5E0C;&#x671B;&#x80FD;&#x70BA;&#x5404;&#x500B;&#x6B04;&#x4F4D;&#x53D6;&#x500B;&#x5BB9;&#x6613;&#x8A18;&#x61B6;&#x7684;&#x540D;&#x7A31;&#x3002;Forth 2012 &#x6A19;&#x6E96;&#x4E2D;&#x63D0;&#x5230;&#x4E86;&#x4E00;&#x500B;&#x6307;&#x4EE4; <code>+field</code> &#x53EF;&#x4EE5;&#x6EFF;&#x8DB3;&#x6211;&#x5011;&#x7684;&#x671F;&#x671B;&#x3002;&#x5B83;&#x4E5F;&#x662F;&#x4E00;&#x500B;&#x53EF;&#x4EE5;&#x4F7F;&#x7528; <code>create ... does&gt; ... ;</code> &#x5B9A;&#x7FA9;&#x51FA;&#x4F86;&#x7684;&#x6307;&#x4EE4;&#x3002;</p>
-<pre><code>\ &#x5B9A;&#x7FA9;&#x6642;&#x5EFA;&#x7ACB;&#x4E00;&#x500B;&#x6B04;&#x4F4D;&#xFF0C;&#x8A18;&#x4F4F;&#x6B04;&#x4F4D;&#x5728;&#x8CC7;&#x6599;&#x7D50;&#x69CB;&#x4E2D;&#x7684;&#x504F;&#x79FB;&#x91CF; offset&#xFF0C;&#x7136;&#x5F8C;&#x8A08;&#x7B97;&#x51FA;&#x4E0B;&#x4E00;&#x500B;&#x504F;&#x79FB;&#x91CF; offset&apos; = offset + size&#xFF0C;&#x7559;&#x7D66;&#x4E4B;&#x5F8C;&#x7684;&#x6307;&#x4EE4;&#x4F7F;&#x7528;&#x3002;
-\ &#x88AB;&#x5B9A;&#x7FA9;&#x51FA;&#x4F86;&#x7684;&#x6307;&#x4EE4;&#x57F7;&#x884C;&#x6642;&#xFF0C;&#x6703;&#x5C07;&#x8CC7;&#x6599;&#x7D50;&#x69CB;&#x7684;&#x958B;&#x59CB;&#x4F4D;&#x5740; addr &#x52A0;&#x4E0A;&#x4E4B;&#x524D;&#x8A18;&#x4F4F;&#x7684;&#x504F;&#x79FB;&#x91CF; offset&#xFF0C;&#x5F97;&#x5230;&#x8CC7;&#x6599;&#x7D50;&#x69CB;&#x4E2D;&#x6240;&#x5728;&#x6B04;&#x4F4D;&#x7684;&#x4F4D;&#x5740; addr&apos; = addr + offset&#x3002;
+<pre><code>\ &#x5B9A;&#x7FA9;&#x6642;&#x5EFA;&#x7ACB;&#x4E00;&#x500B;&#x6B04;&#x4F4D;&#xFF0C;&#x8A18;&#x4F4F;&#x6B04;&#x4F4D;&#x5728;&#x8CC7;&#x6599;&#x7D50;&#x69CB;&#x4E2D;&#x7684;&#x504F;&#x79FB;&#x91CF; offset&#xFF0C;&#x7136;&#x5F8C;&#x8A08;&#x7B97;&#x51FA;&#x4E0B;&#x4E00;&#x500B;&#x504F;&#x79FB;
+\ &#x91CF; offset&apos; = offset + size&#xFF0C;&#x7559;&#x7D66;&#x4E4B;&#x5F8C;&#x7684;&#x6307;&#x4EE4;&#x4F7F;&#x7528;&#x3002;
+\ &#x88AB;&#x5B9A;&#x7FA9;&#x51FA;&#x4F86;&#x7684;&#x6307;&#x4EE4;&#x57F7;&#x884C;&#x6642;&#xFF0C;&#x6703;&#x5C07;&#x8CC7;&#x6599;&#x7D50;&#x69CB;&#x7684;&#x958B;&#x59CB;&#x4F4D;&#x5740; addr &#x52A0;&#x4E0A;&#x4E4B;&#x524D;&#x8A18;&#x4F4F;&#x7684;&#x504F;&#x79FB;&#x91CF;
+\ offset&#xFF0C;&#x5F97;&#x5230;&#x8CC7;&#x6599;&#x7D50;&#x69CB;&#x4E2D;&#x6240;&#x5728;&#x6B04;&#x4F4D;&#x7684;&#x4F4D;&#x5740; addr&apos; = addr + offset&#x3002;
 : +field ( offset size -- offset&apos; )
     create over , +
     does&gt; ( addr -- addr&apos; )   @ + ;
@@ -1198,8 +1225,8 @@ constant /point           \ &#x9EDE;&#x7684;&#x4F4D;&#x5143;&#x7D44;&#x6578;
 : point2   create  falign  /point allot  does&gt; faligned ;
 \ &#x5370;&#x51FA;&#x9EDE; p &#x7684;&#x5167;&#x5BB9;&#x3002;
 : .point ( p -- )
-    [char] ( emit  dup p.x f@ f.
-    [char] , emit      p.y f@ f.  [char] ) emit ;
+    [char] ( emit  dup p.x f@ 0 7 f.r
+    [char] , emit  space  p.y f@ 0 7 f.r  [char] ) emit ;
 </code></pre><p>&#x6E2C;&#x8A66;&#x4E00;&#x4E0B;&#xFF1A;</p>
 <pre><code>rf&gt; point2 p1
   ok
@@ -1208,7 +1235,7 @@ rf&gt; 1e p1 p.x f!
 rf&gt; 2e p1 p.y f!
   ok
 rf&gt; p1 .point
-(1.0000000 ,2.0000000 )  ok
+(1.0000000, 2.0000000) ok
 </code></pre><h3 id="&#x9663;&#x5217;">&#x9663;&#x5217;</h3>
 <p>Forth 2012 &#x6A19;&#x6E96;&#x4E2D;&#x4E26;&#x672A;&#x63D0;&#x4F9B;&#x5B9A;&#x7FA9;&#x9663;&#x5217;&#x7684;&#x6307;&#x4EE4;&#x3002;&#x56E0;&#x70BA; Forth &#x7684;&#x4F7F;&#x7528;&#x8005;&#x5F88;&#x5BB9;&#x6613;&#x4F9D;&#x81EA;&#x5DF1;&#x7684;&#x9700;&#x6C42;&#x5B9A;&#x7FA9;&#x81EA;&#x5DF1;&#x7684;&#x9663;&#x5217;&#x5B9A;&#x7FA9;&#x6307;&#x4EE4;&#x3002;
 &#x521D;&#x5B78; Forth &#x7684;&#x4EBA;&#x53EF;&#x4EE5;&#x5F9E;&#x4EE5;&#x4E0B;&#x7684;&#x5169;&#x7A2E;&#x5B9A;&#x7FA9;&#x65B9;&#x5F0F;&#x958B;&#x59CB;&#x3002;&#x5176;&#x4E2D;&#x8F03;&#x7C21;&#x55AE;&#x7248;&#x672C;&#x7684;&#x9663;&#x5217;&#x7D22;&#x5F15;&#x5F9E; 0 &#x958B;&#x59CB;&#xFF0C;&#x4E0D;&#x505A;&#x7D22;&#x5F15;&#x7BC4;&#x570D;&#x6AA2;&#x67E5;&#xFF0C;&#x56E0;&#x6B64;&#x6027;&#x80FD;&#x6BD4;&#x8F03;&#x597D;&#x4F46;&#x4F7F;&#x7528;&#x8005;&#x8981;&#x6CE8;&#x610F;&#x5B89;&#x5168;&#x3002;&#x8F03;&#x8907;&#x96DC;&#x7248;&#x672C;&#x7684;&#x7D22;&#x5F15;&#x5F9E; 1 &#x958B;&#x59CB;&#xFF0C;&#x6703;&#x6AA2;&#x67E5;&#x7D22;&#x5F15;&#x7BC4;&#x570D;&#xFF0C;&#x7BC4;&#x570D;&#x6709;&#x554F;&#x984C;&#x6642;&#x6703;&#x7D50;&#x675F;&#x7A0B;&#x5F0F;&#x57F7;&#x884C;&#x3002;&#x56E0;&#x70BA;&#x5728;&#x4E0B;&#x4E00;&#x7AE0;&#x624D;&#x6703;&#x8AAA;&#x660E;&#x7A0B;&#x5F0F;&#x9047;&#x5230;&#x7570;&#x5E38;&#x72C0;&#x6CC1;&#x7684;&#x8655;&#x7406;&#x65B9;&#x5F0F;&#xFF0C;&#x672C;&#x7BC0;&#x7684;&#x4F8B;&#x5B50;&#x4F7F;&#x7528;&#x4E0D;&#x505A;&#x7BC4;&#x570D;&#x6AA2;&#x67E5;&#x7684;&#x9663;&#x5217;&#x5B9A;&#x7FA9;&#x6307;&#x4EE4;&#x3002;</p>
@@ -1577,7 +1604,7 @@ rf&gt; red# 4 control
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"字典","level":"1.4.3","depth":2,"next":{"title":"多工、異常處理與文本直譯器","level":"1.4.4","depth":2,"path":"tasking.md","ref":"tasking.md","articles":[]},"previous":{"title":"循環","level":"1.4.2","depth":2,"path":"repetition.md","ref":"repetition.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":[],"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"dictionary.md","mtime":"2018-10-23T18:04:43.011Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2018-10-23T18:07:00.068Z"},"basePath":".","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"字典","level":"1.4.3","depth":2,"next":{"title":"多工、異常處理與文本直譯器","level":"1.4.4","depth":2,"path":"tasking.md","ref":"tasking.md","articles":[]},"previous":{"title":"循環","level":"1.4.2","depth":2,"path":"repetition.md","ref":"repetition.md","articles":[]},"dir":"ltr"},"config":{"gitbook":"*","theme":"default","variables":{},"plugins":[],"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"}},"file":{"path":"dictionary.md","mtime":"2018-12-12T04:20:08.110Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2018-12-12T05:01:41.344Z"},"basePath":".","book":{"language":""}});
         });
     </script>
 </div>

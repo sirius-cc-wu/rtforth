@@ -1,4 +1,5 @@
 #![feature(test)]
+#![feature(allocator_api)]
 
 #[cfg(target_arch = "arm")]
 #[macro_export]

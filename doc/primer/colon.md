@@ -280,6 +280,7 @@ $ ./target/debug/examples/rf /tmp/square.fs
 | `2over` | ( n1 n2 n3 n4 -- n1 n2 n3 n4 n1 n2 ) &emsp; 複製資料堆疊從頂端數來的第三、第四個數| two-over |
 | `fdup` | ( F: r  -- r r ) &emsp; 複製浮點堆疊頂端的數值 | f-dup |
 | `fdrop` | ( F: r -- ) &emsp; 拋棄浮點堆疊頂端的數值 | f-drop |
+| `fnip` | ( F: r1 r2 -- r2 ) &emsp; 拋棄浮點堆疊頂端數來第二個數 | f-nip |
 | `fswap` | ( F: r1 r2 -- r2 r1 ) &emsp; 交換浮點堆疊頂端的兩個數值 | f-swap |
 | `fover` | ( F: r1 r2 -- r1 r2 r1 ) &emsp; 複製浮點堆疊從頂端數來的第二個數值 | f-over |
 | `frot` | ( F: r1 r2 r3 -- r2 r3 r1 ) &emsp; 旋轉浮點堆疊頂端的三個數，使得第三個數被移到頂端 | f-rote |

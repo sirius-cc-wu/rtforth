@@ -94,11 +94,7 @@ before 是指令會使用的資料堆疊上的資料，after 是指令執行後�
 * `ec-din@ ( n=channel n=slave -- t=on )` 或者
 * `ec-din@ ( channel slave -- t=on )`
 
-或是
-
-```forth
-: game ( seed -- | n2 ) ... ;
-```
+後者比較簡潔，是建議的寫法。`t=on` 不寫成 `on` 的原因是要表達這是一個布林值，也就是只有 0 和 -1 兩種可能，而 -1 時表示 on。
 
 堆疊效果的註解放的位置有三處：
 

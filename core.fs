@@ -27,6 +27,8 @@
     swap dup 0> if >r swap r>  0 do 2dup i + c! loop
     else drop then 2drop ;
 : variable   create  0 , ;
+: on ( a -- )   true swap ! ;
+: off ( a -- )   false swap ! ;
 : does> ( -- ) ['] _does compile,  ['] exit compile, ; immediate compile-only
 : 2constant   create 2, does>  2@ ;
 : 2variable   create  0 , 0 , ;

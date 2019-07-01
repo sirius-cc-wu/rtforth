@@ -26,7 +26,9 @@
 : fill ( c-addr u char -- )
     swap dup 0> if >r swap r>  0 do 2dup i + c! loop
     else drop then 2drop ;
-: /string ( c-addr1 u1 n -- c-addr2 u2 )   dup >r - swap r> chars + swap ;
+: count ( a -- a+1 n ) ( 6.1.0980 )  dup c@  swap 1 +  swap ;
+: /string ( c-addr1 u1 n -- c-addr2 u2 ) ( 17.6.1.0245 )  dup >r - swap r> chars + swap ;
+: append ( c-addr1 u c-addr2 - )  2>r  2r@ count + swap move  2r> dup >r c@ + r> c! ;
 : variable   create  0 , ;
 : on ( a -- )   true swap ! ;
 : off ( a -- )   false swap ! ;
@@ -42,7 +44,6 @@ variable >in  0 >in !
 : pad ( -- addr )   here 512 + aligned ;
 
 \ Dump
-: count ( a -- a+1 n ) ( 6.1.0980 )  dup c@  swap 1 +  swap ;
 : bounds ( a n -- a+n a )   over + swap ;
 : >char ( c -- c )
   $7f and dup bl 127 within invert if drop [char] _ then ;

@@ -26,6 +26,7 @@
 : fill ( c-addr u char -- )
     swap dup 0> if >r swap r>  0 do 2dup i + c! loop
     else drop then 2drop ;
+: /string ( c-addr1 u1 n -- c-addr2 u2 )   dup >r - swap r> chars + swap ;
 : variable   create  0 , ;
 : on ( a -- )   true swap ! ;
 : off ( a -- )   false swap ! ;
@@ -57,6 +58,9 @@ variable >in  0 >in !
       space space  2dup _type
       chars +  cr
     repeat  2drop ;
+
+\ WORD
+: word ( char -- c-addr )   dup _skip  _parse  here !token  here ;
 
 \ Execution time
 : xtime ( xt -- )   utime >r >r r@ execute r> r> (xtime) ;

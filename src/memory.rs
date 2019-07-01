@@ -216,7 +216,7 @@ pub(crate) trait Memory {
             }
             self.allot(mem::size_of::<u8>() as isize);
         } else {
-            panic!("Error: compile_u8 while code space is full.");
+            panic!("Error: compile_u8 while space is full.");
         }
     }
 
@@ -232,7 +232,7 @@ pub(crate) trait Memory {
             }
             self.allot(mem::size_of::<usize>() as isize);
         } else {
-            panic!("Error: compile_usize while code space is full.");
+            panic!("Error: compile_usize while space is full.");
         }
     }
 
@@ -254,7 +254,7 @@ pub(crate) trait Memory {
             }
             self.allot(mem::size_of::<isize>() as isize);
         } else {
-            panic!("Error: compile_isize while code space is full.");
+            panic!("Error: compile_isize while space is full.");
         }
     }
     unsafe fn put_f64(&mut self, v: f64, pos: usize) {
@@ -269,8 +269,25 @@ pub(crate) trait Memory {
             }
             self.allot(mem::size_of::<f64>() as isize);
         } else {
-            panic!("Error: compile_f64 while code space is full.");
+            panic!("Error: compile_f64 while space is full.");
         }
+    }
+
+    // Put counted string.
+    fn put_cstr(&mut self, s: &str, pos: usize) {
+        let bytes = s.as_bytes();
+        let len = bytes.len().min(255);
+        if pos + len + mem::size_of::<usize>() <= self.limit() {
+            let mut p = pos;
+            unsafe{ *(p as *mut u8) = len as u8; }
+            for byte in &bytes[0..len] {
+                p += 1;
+                unsafe{ *(p as *mut u8) = *byte; }
+            }
+        } else {
+            panic!("Error: put_cstr while space is full.");
+        }
+
     }
 
     fn compile_str(&mut self, s: &str) -> usize {
@@ -284,7 +301,7 @@ pub(crate) trait Memory {
             }
             here
         } else {
-            panic!("Error: compile_str while code space is full.");
+            panic!("Error: compile_str while space is full.");
         }
     }
 
@@ -318,7 +335,7 @@ pub(crate) trait Memory {
         (pos + align - 1) & align.wrapping_neg()
     }
 
-    /// If the code-space pointer is not aligned to 16-byte boundary, reserve enough space to align it.
+    /// If the space pointer is not aligned to 16-byte boundary, reserve enough space to align it.
     fn align_16bytes(&mut self) {
         let here = self.here();
         self.set_here(Self::aligned_16bytes(here));

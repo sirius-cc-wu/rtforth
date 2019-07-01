@@ -552,6 +552,7 @@ pub trait Core: Sized {
         self.add_primitive("align", Core::align);
         self.add_primitive("c@", Core::c_fetch);
         self.add_primitive("c!", Core::c_store);
+        self.add_primitive("move", Core::p_move);
         self.add_primitive("base", Core::base);
         self.add_primitive("immediate", Core::immediate);
         self.add_primitive("compile-only", Core::compile_only);
@@ -3330,6 +3331,44 @@ compilation_semantics: fn(&mut Self, usize)){
             unsafe{ self.data_space().put_u8(n as u8, t as usize) };
         } else {
             self.abort_with(InvalidMemoryAddress);
+        }
+    }}
+
+    /// Run-time: ( addr1 addr2 u -- )
+    ///
+    /// If u is greater than zero, copy the contents of u consecutive address
+    /// units at addr1 to the u consecutive address units at addr2. After MOVE
+    /// completes, the u consecutive address units at addr2 contain exactly
+    /// what the u consecutive address units at addr1 contained before the
+    /// move.
+    primitive!{fn p_move(&mut self) {
+        let (addr1, addr2, u) = self.s_stack().pop3();
+        if u > 0 {
+            let u = u as usize;
+            let addr1 = addr1 as usize;
+            let addr2 = addr2 as usize;
+            if
+                self.data_space().start() < addr1
+                && addr1 + u  <= self.data_space().limit()
+                && self.data_space().start() < addr2
+                && addr2 + u  <= self.data_space().limit()
+            {
+                unsafe{
+                    if addr1 < addr2 {
+                        for p in (addr1..(addr1+u)).into_iter().zip(addr2..(addr2+u)) {
+                            let value = self.data_space().get_u8(p.0);
+                            self.data_space().put_u8(value, p.1);
+                        }
+                    } else {
+                        for p in (addr1..(addr1+u)).into_iter().zip(addr2..(addr2+u)).rev() {
+                            let value = self.data_space().get_u8(p.0);
+                            self.data_space().put_u8(value, p.1);
+                        }
+                    }
+                }
+            } else {
+                self.abort_with(InvalidMemoryAddress);
+            }
         }
     }}
 

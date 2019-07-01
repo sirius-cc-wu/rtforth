@@ -105,7 +105,7 @@ Section number | Definition name | Compatibility
 6.1.1870 | MAX | Y
 6.1.1880 | MIN | Y
 6.1.1890 | MOD | Y
-6.1.1900 | MOVE |
+6.1.1900 | MOVE | Y
 6.1.1910 | NEGATE | Y
 6.1.1980 | OR | Y
 6.1.1990 | OVER | Y

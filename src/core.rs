@@ -2584,7 +2584,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 }
                 None => {
                     unsafe{
-                        if c_addr + 1 < self.data_space().limit() {
+                        if c_addr < self.data_space().limit() {
                             self.data_space().put_u8(0, c_addr);
                         } else {
                             panic!("Error: store_token while space is full.");

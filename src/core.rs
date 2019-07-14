@@ -552,6 +552,7 @@ pub trait Core: Sized {
         self.add_primitive("align", Core::align);
         self.add_primitive("c@", Core::c_fetch);
         self.add_primitive("c!", Core::c_store);
+        self.add_primitive("move", Core::p_move);
         self.add_primitive("base", Core::base);
         self.add_primitive("immediate", Core::immediate);
         self.add_primitive("compile-only", Core::compile_only);
@@ -604,6 +605,7 @@ pub trait Core: Sized {
         self.add_primitive("negate", Core::negate);
         self.add_primitive("parse-word", Core::parse_word);
         self.add_primitive("char", Core::char);
+        self.add_primitive("_skip", Core::_skip);
         self.add_primitive("parse", Core::parse);
         self.add_primitive(":", Core::colon);
         self.add_primitive("constant", Core::constant);
@@ -622,6 +624,7 @@ pub trait Core: Sized {
         self.add_primitive("compiling?", Core::p_compiling);
         self.add_primitive("token-empty?", Core::token_empty);
         self.add_primitive(".token", Core::dot_token);
+        self.add_primitive("!token", Core::store_token);
         self.add_primitive("compile-token", Core::compile_token);
         self.add_primitive("interpret-token", Core::interpret_token);
 
@@ -2422,6 +2425,35 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.set_input_buffer(input_buffer);
     }}
 
+    /// Run-time: ( char "ccc" -- )
+    ///
+    /// Skip all of the delimiter char.
+    primitive!{fn _skip(&mut self) {
+        let input_buffer = self.input_buffer().take().expect("input buffer");
+        let v = self.s_stack().pop();
+        {
+            let source = &input_buffer[self.state().source_index..];
+            let mut cnt = 0;
+            let mut char_indices = source.char_indices();
+            loop {
+                match char_indices.next() {
+                    Some((idx, ch)) => {
+                        if ch as isize == v {
+                            cnt += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    None => {
+                        break;
+                    }
+                }
+            }
+            self.state().source_index = self.state().source_index + cnt;
+        }
+        self.set_input_buffer(input_buffer);
+    }}
+
     primitive!{fn imm_paren(&mut self) {
         self.s_stack().push(')' as isize);
         self.parse();
@@ -2535,6 +2567,33 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 self.set_last_token(t);
             }
             None => {}
+        }
+    }}
+
+    /// Store token. `!token ( c-addr -- )
+    ///
+    /// Store token in counted string at `c-addr`.`
+    primitive!{fn store_token(&mut self) {
+        let c_addr = self.s_stack().pop() as usize;
+        if self.data_space().start() <= c_addr {
+            match self.last_token().take() {
+                Some(mut t) => {
+                    self.data_space().put_cstr(&t, c_addr);
+                    t.clear();
+                    self.set_last_token(t);
+                }
+                None => {
+                    unsafe{
+                        if c_addr < self.data_space().limit() {
+                            self.data_space().put_u8(0, c_addr);
+                        } else {
+                            panic!("Error: store_token while space is full.");
+                        }
+                    }
+                }
+            }
+        } else {
+            self.abort_with(InvalidMemoryAddress);
         }
     }}
 
@@ -3330,6 +3389,44 @@ compilation_semantics: fn(&mut Self, usize)){
             unsafe{ self.data_space().put_u8(n as u8, t as usize) };
         } else {
             self.abort_with(InvalidMemoryAddress);
+        }
+    }}
+
+    /// Run-time: ( addr1 addr2 u -- )
+    ///
+    /// If u is greater than zero, copy the contents of u consecutive address
+    /// units at addr1 to the u consecutive address units at addr2. After MOVE
+    /// completes, the u consecutive address units at addr2 contain exactly
+    /// what the u consecutive address units at addr1 contained before the
+    /// move.
+    primitive!{fn p_move(&mut self) {
+        let (addr1, addr2, u) = self.s_stack().pop3();
+        if u > 0 {
+            let u = u as usize;
+            let addr1 = addr1 as usize;
+            let addr2 = addr2 as usize;
+            if
+                self.data_space().start() < addr1
+                && addr1 + u  <= self.data_space().limit()
+                && self.data_space().start() < addr2
+                && addr2 + u  <= self.data_space().limit()
+            {
+                unsafe{
+                    if addr1 < addr2 {
+                        for p in (addr1..(addr1+u)).into_iter().zip(addr2..(addr2+u)) {
+                            let value = self.data_space().get_u8(p.0);
+                            self.data_space().put_u8(value, p.1);
+                        }
+                    } else {
+                        for p in (addr1..(addr1+u)).into_iter().zip(addr2..(addr2+u)).rev() {
+                            let value = self.data_space().get_u8(p.0);
+                            self.data_space().put_u8(value, p.1);
+                        }
+                    }
+                }
+            } else {
+                self.abort_with(InvalidMemoryAddress);
+            }
         }
     }}
 

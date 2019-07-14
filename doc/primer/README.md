@@ -44,19 +44,3 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 
 建議依序閱讀各章節中進階課題以前的部份，並實際練習書中的例子。進階課題內的各章是獨立的，可以只在有興趣或需要時才閱讀。
 現在就讓我們開始！
-
-## 目錄
-
-* [簡介](README.md)
-* [安裝 rtForth](installation.md)
-* [Forth 計算機](calculator.md)
-  * [整數運算](integer.md)
-  * [浮點運算](float.md)
-  * [比較及邏輯運算](logic.md)
-  * [自己定義運算指令](colon.md)
-* [Forth 程式入門](programming.md)
-  * [選擇](selection.md)
-  * [循環](repetition.md)
-  * [字典](dictionary.md)
-  * [多工、異常處理與文本直譯器](tasking.md)
-  * [程式碼風格](style.md)

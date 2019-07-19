@@ -34,6 +34,8 @@
 : off ( a -- )   false swap ! ;
 : does> ( -- )   postpone _does  postpone exit ; immediate compile-only
 : literal ( n -- ) ( 6.1.1780 )   postpone lit  , ; immediate compile-only
+: 2literal ( n1 n2 -- ) ( 8.6.1.0390 )
+    swap postpone lit  ,  postpone lit  , ; immediate compile-only
 : fliteral ( F: r -- ) ( 12.6.1.1552 )   postpone flit  f, ; immediate compile-only
 : 2constant   create 2, does>  2@ ;
 : 2variable   create  0 , 0 , ;

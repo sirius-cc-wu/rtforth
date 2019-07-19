@@ -98,7 +98,7 @@ Section number | Definition name | Compatibility
 6.1.1730 | J | Y
 6.1.1750 | KEY |
 6.1.1760 | LEAVE | Y
-6.1.1780 | LITERAL |
+6.1.1780 | LITERAL | Y
 6.1.1800 | LOOP | Y
 6.1.1805 | LSHIFT | Y
 6.1.1810 | M* |
@@ -109,7 +109,7 @@ Section number | Definition name | Compatibility
 6.1.1910 | NEGATE | Y
 6.1.1980 | OR | Y
 6.1.1990 | OVER | Y
-6.1.2033 | POSTPONE |
+6.1.2033 | POSTPONE | Y
 6.1.2050 | QUIT |
 6.1.2060 | R> | Y
 6.1.2070 | R@ | Y
@@ -219,7 +219,7 @@ Section number | Definition name | Compatibility
 12.6.1.1497 | FDEPTH |
 12.6.1.1500 | FDROP | Y
 12.6.1.1510 | FDUP | Y
-12.6.1.1552 | FLITERAL |
+12.6.1.1552 | FLITERAL | Y
 12.6.1.1555 | FLOAT+ | Y
 12.6.1.1556 | FLOATS | Y
 12.6.1.1558 | FLOOR | Y

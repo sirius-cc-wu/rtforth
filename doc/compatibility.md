@@ -117,7 +117,7 @@ Section number | Definition name | Compatibility
 6.1.2140 | REPEAT | Y
 6.1.2160 | ROT | Y
 6.1.2162 | RSHIFT | Y
-6.1.2165 | S" |
+6.1.2165 | S" | Y
 6.1.2170 | S>D |
 6.1.2210 | SIGN |
 6.1.2214 | SM/REM |

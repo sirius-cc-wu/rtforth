@@ -30,7 +30,9 @@
 : /string ( c-addr1 u1 n -- c-addr2 u2 ) ( 17.6.1.0245 )  dup >r - swap r> chars + swap ;
 : append ( c-addr1 u c-addr2 - )  2>r  2r@ count + swap move  2r> dup >r c@ + r> c! ;
 : variable   create  0 , ;
-: does> ( -- ) ['] _does compile,  ['] exit compile, ; immediate compile-only
+: does> ( -- )   postpone _does  postpone exit ; immediate compile-only
+: literal ( n -- ) ( 6.1.1780 )   postpone lit  , ; immediate compile-only
+: fliteral ( F: r -- ) ( 12.6.1.1552 )   postpone flit  f, ; immediate compile-only
 : 2constant   create 2, does>  2@ ;
 : 2variable   create  0 , 0 , ;
 : fvariable   create falign 0e f, does> faligned ;

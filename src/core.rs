@@ -344,6 +344,7 @@ impl fmt::Debug for Stack<f64> {
     }
 }
 
+#[allow(non_snake_case)]
 pub struct ForwardReferences {
     pub idx_lit: usize,
     pub idx_flit: usize,
@@ -359,6 +360,7 @@ pub struct ForwardReferences {
     pub idx_over: usize,
     pub idx_equal: usize,
     pub idx_drop: usize,
+    pub idx__postpone: usize,
 }
 
 impl ForwardReferences {
@@ -378,6 +380,7 @@ impl ForwardReferences {
             idx_over: 0,
             idx_equal: 0,
             idx_drop: 0,
+            idx__postpone: 0,
         }
     }
 }
@@ -517,6 +520,7 @@ pub trait Core: Sized {
         self.add_compile_only("2r@", Core::two_r_fetch);
         self.add_compile_only("compile,", Core::compile_comma);
         self.add_compile_only("_does", Core::_does);
+        self.add_compile_only("_postpone", Core::_postpone);
 
         self.add_primitive("execute", Core::execute); // jx, eForth
         self.add_primitive("dup", Core::dup); // j1, Ngaro, jx, eForth
@@ -581,6 +585,7 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("?do", Core::imm_qdo);
         self.add_immediate_and_compile_only("loop", Core::imm_loop);
         self.add_immediate_and_compile_only("+loop", Core::imm_plus_loop);
+        self.add_immediate_and_compile_only("postpone", Core::postpone);
 
         // More Primitives
         self.add_primitive("true", Core::p_true);
@@ -640,6 +645,7 @@ pub trait Core: Sized {
         self.references().idx_over = self.find("over").expect("over undefined");
         self.references().idx_equal = self.find("=").expect("= undefined");
         self.references().idx_drop = self.find("drop").expect("drop undefined");
+        self.references().idx__postpone = self.find("_postpone").expect("_postpone undefined");
 
         self.patch_compilation_semanticses();
 
@@ -2463,6 +2469,58 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     primitive!{fn imm_backslash(&mut self) {
         self.s_stack().push('\n' as isize);
         self.parse();
+    }}
+
+    /// postpone ( "<spaces>name" -- )
+    ///
+    /// Skip leading space delimiters. Parse name delimited by a space.
+    /// Find name. Append the compilation semantics of name to the current definition.
+    ///
+    /// For example:
+    ///
+    /// : does>   postpone _does  postpone exit ;
+    ///
+    /// +------+-------------+-----------+------+------------+-----------+
+    /// | _lit | xt of _does | _postpone | _lit | xt of exit | _postpone |
+    /// +--------------------+-----------+------+------------+-----------+
+    primitive!{fn postpone(&mut self) {
+        self.parse_word();
+        let last_token = self.last_token().take().expect("token");
+        if last_token.is_empty() {
+            self.set_last_token(last_token);
+            self.abort_with(UnexpectedEndOfFile);
+        } else {
+            match self.find(&last_token) {
+                Some(xt) => {
+                    self.set_last_token(last_token);
+                    self.compile_integer(xt as isize);
+                    let idx = self.references().idx__postpone;
+                    self.compile_word(idx);
+                }
+                None => {
+                    self.set_last_token(last_token);
+                    self.abort_with(UndefinedWord);
+                }
+            }
+        }
+    }}
+
+    /// _POSTPONE ( xt -- )
+    ///
+    /// Execute the compilation semantics of an xt on stack.
+    ///
+    /// _POSTPONE is a hidden word which is only compiled by POSTPONE.
+    primitive!{fn _postpone(&mut self) {
+        // : A ;
+        // : B   POSTPONE A ;
+        // which generate
+        // --+------+---------+-----------+--
+        //   | _lit | xt of A | _postpone |
+        // --+------+---------+-----------+--
+        // Because B comes after A, the xt of A is valid during execution of B.
+        let xt = self.s_stack().pop() as usize;
+        let compilation_semantics = self.wordlist()[xt].compilation_semantics;
+        compilation_semantics(self, xt);
     }}
 
     primitive!{fn compile_token(&mut self) {

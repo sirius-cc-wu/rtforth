@@ -2,8 +2,8 @@
 
 The following words are not compatible to ANS Forth:
 
-* parse 
-* flush
+* PARSE
+* FLUSH
 
 ## 6.1 Core words
 
@@ -121,7 +121,7 @@ Section number | Definition name | Compatibility
 6.1.2170 | S>D |
 6.1.2210 | SIGN |
 6.1.2214 | SM/REM |
-6.1.2216 | SOURCE |
+6.1.2216 | SOURCE | TODO
 6.1.2220 | SPACE | Y
 6.1.2230 | SPACES | Y
 6.1.2250 | STATE |
@@ -177,15 +177,15 @@ Section number | Definition name | Compatibility
 6.2.1930 | NIP | Y
 6.2.1950 | OF | Y
 6.2.2000 | PAD | Y
-6.2.2008 | PARSE |
+6.2.2008 | PARSE | TODO
 6.2.2020 | PARSE-NAME |
 6.2.2030 | PICK |
 6.2.2125 | REFILL |
-6.2.2148 | RESTORE-INPUT |
+6.2.2148 | RESTORE-INPUT | TODO
 6.2.2150 | ROLL |
 6.2.2266 | S\" | Y
-6.2.2182 | SAVE-INPUT |
-6.2.2218 | SOURCE-ID |
+6.2.2182 | SAVE-INPUT | TODO
+6.2.2218 | SOURCE-ID | TODO
 6.2.2295 | TO |
 6.2.2298 | TRUE | Y
 6.2.2300 | TUCK | Y
@@ -196,6 +196,42 @@ Section number | Definition name | Compatibility
 6.2.2440 | WITHIN | Y
 6.2.2530 | [COMPILE] |
 6.2.2535 | \ | Y
+
+## 8.6.1 Double-Number words
+
+Section number | Definition name | Compatibility
+---------------|-----------------|--------------
+8.6.1.0360 2CONSTANT | Y
+8.6.1.0390 2LITERAL | Y
+8.6.1.0440 2VARIABLE | Y
+
+Other words are not planned.
+
+## 11.6.1 File Access words
+
+Section number | Definition name | Compatibility
+---------------|-----------------|--------------
+11.6.1.0080 | ( | TODO
+11.6.1.0765 | BIN |
+11.6.1.0900 | CLOSE-FILE | TODO
+11.6.1.1010 | CREATE-FILE | TODO
+11.6.1.1190 | DELETE-FILE | TODO
+11.6.1.1520 | FILE-POSITION |
+11.6.1.1522 | FILE-SIZE |
+11.6.1.1717 | INCLUDE-FILE | TODO
+11.6.1.1718 | INCLUDED | TODO
+11.6.1.1970 | OPEN-FILE | TODO
+11.6.1.2054 | R/O | TODO
+11.6.1.2056 | R/W | TODO
+11.6.1.2080 | READ-FILE | TODO
+11.6.1.2090 | READ-LINE | TODO
+11.6.1.2142 | REPOSITION-FILE |
+11.6.1.2147 | RESIZE-FILE |
+11.6.1.2165 | S" | TODO
+11.6.1.2218 | SOURCE-ID | TODO
+11.6.1.2425 | W/O | TODO
+11.6.1.2480 | WRITE-FILE | TODO
+11.6.1.2485 | WRITE-LINE | TODO
 
 ## 12.6.1 Floating-Point words
 

@@ -3471,12 +3471,12 @@ compilation_semantics: fn(&mut Self, usize)){
             {
                 unsafe{
                     if addr1 < addr2 {
-                        for p in (addr1..(addr1+u)).into_iter().zip(addr2..(addr2+u)) {
+                        for p in (addr1..(addr1+u)).into_iter().zip(addr2..(addr2+u)).rev() {
                             let value = self.data_space().get_u8(p.0);
                             self.data_space().put_u8(value, p.1);
                         }
                     } else {
-                        for p in (addr1..(addr1+u)).into_iter().zip(addr2..(addr2+u)).rev() {
+                        for p in (addr1..(addr1+u)).into_iter().zip(addr2..(addr2+u)) {
                             let value = self.data_space().get_u8(p.0);
                             self.data_space().put_u8(value, p.1);
                         }

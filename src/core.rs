@@ -1,13 +1,13 @@
 extern crate libc;
-
 use memory::{CodeSpace, DataSpace, Memory};
-use exception::Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
+use Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
                            FloatingPointStackOverflow, FloatingPointStackUnderflow,
                            InterpretingACompileOnlyWord, InvalidMemoryAddress,
                            InvalidNumericArgument, ReturnStackOverflow, ReturnStackUnderflow,
                            StackOverflow, StackUnderflow, UndefinedWord, UnexpectedEndOfFile,
                            UnsupportedOperation};
 use parser;
+use std::fs::File;
 use std::fmt::Write;
 use std::fmt::{self, Display};
 use std::mem;
@@ -465,6 +465,8 @@ pub trait Core: Sized {
     fn input_buffer(&mut self) -> &mut Option<String>;
     /// Set `input_buffer` to `Some(buffer)`.
     fn set_input_buffer(&mut self, buffer: String);
+    fn files(&self) -> &Vec<Option<File>>;
+    fn files_mut(&mut self) -> &mut Vec<Option<File>>;
     fn last_token(&mut self) -> &mut Option<String>;
     fn set_last_token(&mut self, buffer: String);
     fn regs(&mut self) -> &mut [usize; 2];

@@ -45,7 +45,7 @@ Section number | Definition name | Compatibility
 6.1.0490 | <# |
 6.1.0530 | = | Y
 6.1.0540 | > | Y
-6.1.0550 | >BODY |
+6.1.0550 | >BODY | Y
 6.1.0560 | >IN |
 6.1.0570 | >NUMBER |
 6.1.0580 | >R | Y
@@ -163,9 +163,9 @@ Section number | Definition name | Compatibility
 6.2.0855 | C" |
 6.2.0873 | CASE | Y
 6.2.0945 | COMPILE, | Y
-6.2.1173 | DEFER |
-6.2.1175 | DEFER! |
-6.2.1177 | DEFER@ |
+6.2.1173 | DEFER | Y
+6.2.1175 | DEFER! | Y
+6.2.1177 | DEFER@ | Y
 6.2.1342 | ENDCASE | Y
 6.2.1343 | ENDOF | Y
 6.2.1350 | ERASE |
@@ -221,15 +221,15 @@ Section number | Definition name | Compatibility
 11.6.1.1717 | INCLUDE-FILE | TODO
 11.6.1.1718 | INCLUDED | TODO
 11.6.1.1970 | OPEN-FILE | TODO
-11.6.1.2054 | R/O | TODO
-11.6.1.2056 | R/W | TODO
+11.6.1.2054 | R/O | Y
+11.6.1.2056 | R/W | Y
 11.6.1.2080 | READ-FILE | TODO
 11.6.1.2090 | READ-LINE | TODO
 11.6.1.2142 | REPOSITION-FILE |
 11.6.1.2147 | RESIZE-FILE |
 11.6.1.2165 | S" | TODO
 11.6.1.2218 | SOURCE-ID | TODO
-11.6.1.2425 | W/O | TODO
+11.6.1.2425 | W/O | Y
 11.6.1.2480 | WRITE-FILE | TODO
 11.6.1.2485 | WRITE-LINE | TODO
 

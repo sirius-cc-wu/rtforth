@@ -16,8 +16,8 @@ Section number | Definition name | Compatibility
 6.1.0070 | ' | Y
 6.1.0080 | ( | Y
 6.1.0090 | * | Y
-6.1.0100 | */ |
-6.1.0110 | */MOD |
+6.1.0100 | */ | N, do not support mixed-precision.
+6.1.0110 | */MOD | N, do not support mixed-precision.
 6.1.0120 | + | Y
 6.1.0130 | +! | Y
 6.1.0140 | +LOOP | Y
@@ -88,7 +88,7 @@ Section number | Definition name | Compatibility
 6.1.1380 | EXIT | Y
 6.1.1540 | FILL | Y
 6.1.1550 | FIND |
-6.1.1561 | FM/MOD |
+6.1.1561 | FM/MOD | N, do not support mixed-precision
 6.1.1650 | HERE | Y
 6.1.1670 | HOLD |
 6.1.1680 | I | Y
@@ -96,12 +96,12 @@ Section number | Definition name | Compatibility
 6.1.1710 | IMMEDIATE | Y
 6.1.1720 | INVERT | Y
 6.1.1730 | J | Y
-6.1.1750 | KEY |
+6.1.1750 | KEY | N
 6.1.1760 | LEAVE | Y
 6.1.1780 | LITERAL | Y
 6.1.1800 | LOOP | Y
 6.1.1805 | LSHIFT | Y
-6.1.1810 | M* |
+6.1.1810 | M* | N, do not support mixed-precision
 6.1.1870 | MAX | Y
 6.1.1880 | MIN | Y
 6.1.1890 | MOD | Y
@@ -118,9 +118,9 @@ Section number | Definition name | Compatibility
 6.1.2160 | ROT | Y
 6.1.2162 | RSHIFT | Y
 6.1.2165 | S" | Y
-6.1.2170 | S>D |
+6.1.2170 | S>D | N, do not support double-precision
 6.1.2210 | SIGN |
-6.1.2214 | SM/REM |
+6.1.2214 | SM/REM | N, do not support mixed-precision
 6.1.2216 | SOURCE | TODO
 6.1.2220 | SPACE | Y
 6.1.2230 | SPACES | Y
@@ -128,10 +128,10 @@ Section number | Definition name | Compatibility
 6.1.2260 | SWAP | Y
 6.1.2270 | THEN | Y
 6.1.2310 | TYPE | Y
-6.1.2320 | U. |
-6.1.2340 | U< |
-6.1.2360 | UM* |
-6.1.2370 | UM/MOD |
+6.1.2320 | U. | N, do not support unsigned integer
+6.1.2340 | U< | N, do not support unsigned integer
+6.1.2360 | UM* | N, do not support mixed-precision
+6.1.2370 | UM/MOD | N
 6.1.2380 | UNLOOP | Y
 6.1.2390 | UNTIL | Y
 6.1.2410 | VARIABLE | Y
@@ -189,8 +189,8 @@ Section number | Definition name | Compatibility
 6.2.2295 | TO |
 6.2.2298 | TRUE | Y
 6.2.2300 | TUCK | Y
-6.2.2330 | U.R |
-6.2.2350 | U> |
+6.2.2330 | U.R | N, do not support unsigned integer
+6.2.2350 | U> | N, do not support unsigned integer
 6.2.2395 | UNUSED |
 6.2.2405 | VALUE |
 6.2.2440 | WITHIN | Y
@@ -238,7 +238,7 @@ Section number | Definition name | Compatibility
 Section number | Definition name | Compatibility
 ---------------|-----------------|--------------
 12.6.1.0558 | >FLOAT |
-12.6.1.1130 | D>F |
+12.6.1.1130 | D>F | N, do not support double-precision
 12.6.1.1400 | F! | Y
 12.6.1.1410 | F* | Y
 12.6.1.1420 | F+ | Y
@@ -247,7 +247,7 @@ Section number | Definition name | Compatibility
 12.6.1.1440 | F0< | Y
 12.6.1.1450 | F0= | Y
 12.6.1.1460 | F< | Y
-12.6.1.1470 | F>D |
+12.6.1.1470 | F>D | N, do not support double-precision
 12.6.1.1472 | F@ | Y
 12.6.1.1479 | FALIGN | Y
 12.6.1.1483 | FALIGNED | Y
@@ -273,13 +273,13 @@ Section number | Definition name | Compatibility
 
 Section number | Definition name | Compatibility
 ---------------|-----------------|--------------
-12.6.2.1203 | DF! |
-12.6.2.1204 | DF@ |
-12.6.2.1205 | DFALIGN |
-12.6.2.1207 | DFALIGNED |
-12.6.2.1207.40 | DFFIELD: |
-12.6.2.1208 | DFLOAT+ |
-12.6.2.1209 | DFLOATS |
+12.6.2.1203 | DF! | N, do not support double precision
+12.6.2.1204 | DF@ | N, do not support double precision
+12.6.2.1205 | DFALIGN | N, do not support double precision
+12.6.2.1207 | DFALIGNED | N, do not support double precision
+12.6.2.1207.40 | DFFIELD: | N, do not support double precision
+12.6.2.1208 | DFLOAT+ | N, do not support double precision
+12.6.2.1209 | DFLOATS | N, do not support double precision
 12.6.2.1415 | F** | Y
 12.6.2.1427 | F. | Y
 12.6.2.1471 | F>S | Y
@@ -314,13 +314,13 @@ Section number | Definition name | Compatibility
 12.6.2.2035 | PRECISION |
 12.6.2.2175 | S>F | Y
 12.6.2.2200 | SET-PRECISION |
-12.6.2.2202 | SF! |
-12.6.2.2203 | SF@ |
-12.6.2.2204 | SFALIGN |
-12.6.2.2206 | SFALIGNED |
-12.6.2.2206.40 | SFFIELD: |
-12.6.2.2207 | SFLOAT+ |
-12.6.2.2208 | SFLOATS |
+12.6.2.2202 | SF! | N, do not support single float
+12.6.2.2203 | SF@ | N, do not support single float
+12.6.2.2204 | SFALIGN | N, do not support single float
+12.6.2.2206 | SFALIGNED | N, do not support single float
+12.6.2.2206.40 | SFFIELD: | N, do not support single float
+12.6.2.2207 | SFLOAT+ | N, do not support single float
+12.6.2.2208 | SFLOATS | N, do not support single float
 
 ## 15.6.1 Programming-Tools words
 

@@ -13,9 +13,7 @@ pub trait FileAccess: Core {
         self.add_primitive("delete-file", FileAccess::delete_file);
         self.add_primitive("open-file", FileAccess::open_file);
         self.add_primitive("read-file", FileAccess::read_file);
-        self.add_primitive("read-line", FileAccess::read_line);
         self.add_primitive("write-file", FileAccess::write_file);
-        self.add_primitive("write-line", FileAccess::write_line);
     }
 
     /// ( fileid -- ior )
@@ -214,13 +212,7 @@ pub trait FileAccess: Core {
         }
     }}
 
-    primitive!{fn read_line(&mut self) {
-    }}
-
     primitive!{fn write_file(&mut self) {
-    }}
-
-    primitive!{fn write_line(&mut self) {
     }}
 
 }

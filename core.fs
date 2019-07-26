@@ -90,5 +90,6 @@ variable >in  0 >in !
 0 constant r/o
 1 constant w/o
 2 constant r/w
+: bin ( -- )   ;
 
 marker -work

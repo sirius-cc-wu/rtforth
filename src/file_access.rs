@@ -1,5 +1,5 @@
 use std::fs::OpenOptions;
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use Exception;
 use Core;
 use Memory;
@@ -8,6 +8,8 @@ const PATH_NAME_MAX_LEN: isize = 256;
 
 pub trait FileAccess: Core {
     fn add_file_access(&mut self) {
+        self.add_primitive("file-size", FileAccess::file_size);
+        self.add_primitive("file-position", FileAccess::file_position);
         self.add_primitive("close-file", FileAccess::close_file);
         self.add_primitive("create-file", FileAccess::create_file);
         self.add_primitive("delete-file", FileAccess::delete_file);
@@ -15,6 +17,84 @@ pub trait FileAccess: Core {
         self.add_primitive("read-file", FileAccess::read_file);
         self.add_primitive("write-file", FileAccess::write_file);
     }
+
+    /// ( fileid -- ud ior )
+    ///
+    /// ud is the size, in characters, of the file identified by fileid. ior is
+    /// the implementation-defined I/O result code. This operation does not
+    /// affect the value returned by FILE- POSITION. ud is undefined if ior is
+    /// non-zero.
+    /// 
+    /// Note: rtForth does not support double precision integers, the higher
+    /// part of ud is 0. rtForth also does not support unsigned integers, the
+    /// maximum value of ud allowed isize::max_value(). So an exception
+    /// ResultOutOfRange will be returned for a file size larger than
+    /// isize::max_value().
+    primitive!{fn file_size(&mut self) {
+        let fileid = self.s_stack().pop() as usize;
+        if fileid < self.files().len() {
+            match &self.files()[fileid] {
+                Some(f) => {
+                    match f.metadata() {
+                        Ok(m) => {
+                            let ud = m.len();
+                            if ud <= isize::max_value() as u64 {
+                                self.s_stack().push3(ud as isize, 0, 0);
+                            } else {
+                                self.s_stack().push3(-1, -1, Exception::ResultOutOfRange as _);
+                            }
+                        }
+                        Err(_) => {
+                            self.s_stack().push3(-1, -1, Exception::FileIOException as _);
+                        }
+                    }
+                }
+                None => {
+                    self.s_stack().push3(-1, -1, Exception::InvalidNumericArgument as _);
+                }
+            }
+        } else {
+            self.s_stack().push3(-1, -1, Exception::InvalidNumericArgument as _);
+        }
+    }}
+
+    /// ( fileid -- ud ior )
+    ///
+    /// ud is the current file position for the file identified by fileid. ior
+    /// is the implementation-defined I/O result code. ud is undefined if ior
+    /// is non-zero.
+    /// 
+    /// Note: rtForth does not support double precision integers, the higher
+    /// part of ud is 0. rtForth also does not support unsigned integers, the
+    /// maximum value of ud allowed isize::max_value(). So an exception
+    /// ResultOutOfRange will be returned for a file position larger than
+    /// isize::max_value().
+    primitive!{fn file_position(&mut self) {
+        let fileid = self.s_stack().pop() as usize;
+        if fileid < self.files().len() {
+            match &mut self.files_mut()[fileid] {
+                Some(ref mut f) => {
+                    match f.seek(SeekFrom::Current(0)) {
+                        Ok(ud) => {
+                            if ud <= isize::max_value() as u64 {
+                                self.s_stack().push3(ud as isize, 0, 0);
+                            } else {
+                                self.s_stack().push3(-1, -1, Exception::ResultOutOfRange as _);
+                            }
+                        }
+                        Err(_) => {
+                            self.s_stack().push3(-1, -1, Exception::FileIOException as _);
+                        }
+                    }
+                }
+                None => {
+                    self.s_stack().push3(-1, -1, Exception::InvalidNumericArgument as _)
+                }
+            }
+        } else {
+            self.s_stack().push3(-1, -1, Exception::InvalidNumericArgument as _);
+        }
+    }}
 
     /// ( fileid -- ior )
     ///

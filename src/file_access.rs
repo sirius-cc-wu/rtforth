@@ -1,4 +1,5 @@
 use std::fs::OpenOptions;
+use std::io::Read;
 use Exception;
 use Core;
 use Memory;
@@ -74,9 +75,20 @@ pub trait FileAccess: Core {
                 self.s_stack().push2(-1, Exception::FileIOException as _);
             }
             Ok(file) => {
-                let fileid = self.files().len() as _;
-                self.s_stack().push2(fileid, 0);
-                self.files_mut().push(Some(file));
+                let position = self.files_mut().iter().position(|x| {
+                    x.is_none()
+                });
+                match position {
+                    Some(p) => {
+                        self.files_mut()[p] = Some(file);
+                        self.s_stack().push2(p as _, 0);
+                    }
+                    None => {
+                        let fileid = self.files().len() as _;
+                        self.s_stack().push2(fileid, 0);
+                        self.files_mut().push(Some(file));
+                    }
+                }
             },
         };
     }}
@@ -136,14 +148,70 @@ pub trait FileAccess: Core {
                 self.s_stack().push2(-1, Exception::FileIOException as _);
             }
             Ok(file) => {
-                let fileid = self.files().len() as _;
-                self.s_stack().push2(fileid, 0);
-                self.files_mut().push(Some(file));
+                let position = self.files_mut().iter().position(|x| {
+                    x.is_none()
+                });
+                match position {
+                    Some(p) => {
+                        self.files_mut()[p] = Some(file);
+                        self.s_stack().push2(p as _, 0);
+                    }
+                    None => {
+                        let fileid = self.files().len() as _;
+                        self.s_stack().push2(fileid, 0);
+                        self.files_mut().push(Some(file));
+                    }
+                }
             },
         };
     }}
 
+    /// ( c-addr u1 fileid -- u2 ior )
+    ///
+    /// Read u1 consecutive characters to c-addr from the current position of
+    /// the file identified by fileid.
+    ///
+    /// If u1 characters are read without an exception, ior is zero and u2 is
+    /// equal to u1.
+    ///
+    /// If the end of the file is reached before u1 characters are read, ior is
+    /// zero and u2 is the number of characters actually read.
+    ///
+    /// If the operation is initiated when the value returned by FILE-POSITION
+    /// is equal to the value returned by FILE-SIZE for the file identified by
+    /// fileid, ior is zero and u2 is zero.
+    ///
+    /// If an exception occurs, ior is the implementation-defined I/O result
+    /// code, and u2 is the number of characters transferred to c-addr without
+    /// an exception.
+    ///
+    /// An ambiguous condition exists if the operation is initiated when the
+    /// value returned by FILE-POSITION is greater than the value returned by
+    /// FILE-SIZE for the file identified by fileid, or if the requested
+    /// operation attempts to read portions of the file not written.
+    ///
+    /// At the conclusion of the operation, FILE-POSITION returns the next file
+    /// position after the last character read.
     primitive!{fn read_file(&mut self) {
+        let (caddr, u1, fileid) = self.s_stack().pop3();
+        let fileid = fileid as usize;
+        if u1 < 0 {
+            self.s_stack().push2(0, Exception::FileIOException as _);
+        } else if fileid >= self.files().len() || self.files()[fileid].is_none() {
+            self.s_stack().push2(0, Exception::InvalidNumericArgument as _);
+        } else {
+            let mut file = self.files_mut()[fileid].take().unwrap();
+            let mut buf = unsafe{ self.data_space().buffer_mut_from_raw_parts(caddr as _, u1 as _) };
+            match file.read(&mut buf) {
+                Ok(u2) => {
+                    self.s_stack().push2(u2 as _, 0);
+                }
+                Err(_) => {
+                    self.s_stack().push2(0, Exception::FileIOException as _);
+                }
+            }
+            self.files_mut()[fileid] = Some(file);
+        }
     }}
 
     primitive!{fn read_line(&mut self) {

@@ -205,7 +205,7 @@ pub(crate) trait Memory {
         slice::from_raw_parts::<u8>(addr as *const u8, len)
     }
 
-    unsafe fn buffer_mut_from_raw_parts(&mut self, addr: usize, len: usize) -> &mut [u8] {
+    unsafe fn buffer_from_raw_parts_mut(&mut self, addr: usize, len: usize) -> &mut [u8] {
         slice::from_raw_parts_mut::<u8>(addr as *mut u8, len)
     }
 

@@ -216,8 +216,8 @@ Section number | Definition name | Compatibility
 11.6.1.0900 | CLOSE-FILE | Y
 11.6.1.1010 | CREATE-FILE | Y
 11.6.1.1190 | DELETE-FILE | Y
-11.6.1.1520 | FILE-POSITION | TODO
-11.6.1.1522 | FILE-SIZE | TODO
+11.6.1.1520 | FILE-POSITION | Y
+11.6.1.1522 | FILE-SIZE | Y
 11.6.1.1717 | INCLUDE-FILE | TODO
 11.6.1.1718 | INCLUDED | TODO
 11.6.1.1970 | OPEN-FILE | Y
@@ -225,12 +225,12 @@ Section number | Definition name | Compatibility
 11.6.1.2056 | R/W | Y
 11.6.1.2080 | READ-FILE | Y
 11.6.1.2090 | READ-LINE | N, because without buffer it's not efficient.
-11.6.1.2142 | REPOSITION-FILE | TODO
-11.6.1.2147 | RESIZE-FILE | TODO
+11.6.1.2142 | REPOSITION-FILE | Y
+11.6.1.2147 | RESIZE-FILE | Y
 11.6.1.2165 | S" | TODO
 11.6.1.2218 | SOURCE-ID | TODO
 11.6.1.2425 | W/O | Y
-11.6.1.2480 | WRITE-FILE | TODO
+11.6.1.2480 | WRITE-FILE | Y
 11.6.1.2485 | WRITE-LINE | N, because without buffer it's not efficient.
 
 ## 12.6.1 Floating-Point words

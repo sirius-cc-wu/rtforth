@@ -224,14 +224,14 @@ Section number | Definition name | Compatibility
 11.6.1.2054 | R/O | Y
 11.6.1.2056 | R/W | Y
 11.6.1.2080 | READ-FILE | Y
-11.6.1.2090 | READ-LINE | TODO
+11.6.1.2090 | READ-LINE | N, because without buffer it's not efficient.
 11.6.1.2142 | REPOSITION-FILE | TODO
 11.6.1.2147 | RESIZE-FILE | TODO
 11.6.1.2165 | S" | TODO
 11.6.1.2218 | SOURCE-ID | TODO
 11.6.1.2425 | W/O | Y
 11.6.1.2480 | WRITE-FILE | TODO
-11.6.1.2485 | WRITE-LINE | TODO
+11.6.1.2485 | WRITE-LINE | N, because without buffer it's not efficient.
 
 ## 12.6.1 Floating-Point words
 

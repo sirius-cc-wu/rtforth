@@ -29,6 +29,7 @@ pub mod env;
 pub mod exception;
 pub mod facility;
 pub mod float;
+pub mod file_access;
 pub mod loader;
 pub mod output;
 pub(crate) mod parser;
@@ -37,6 +38,8 @@ pub mod units;
 mod mock_vm;
 
 use std::result;
+use core::Core;
+use memory::Memory;
 use exception::Exception;
 
 pub const TRUE: isize = -1;

@@ -61,6 +61,7 @@ pub struct VM {
     wordlist: Wordlist<VM>,
     data_space: DataSpace,
     code_space: CodeSpace,
+    files: Vec<Option<File>>,
     tkn: Option<String>,
     outbuf: Option<String>,
     hldbuf: String,
@@ -87,6 +88,7 @@ impl VM {
             wordlist: Wordlist::with_capacity(1000),
             data_space: DataSpace::new(data_pages),
             code_space: CodeSpace::new(code_pages),
+            files: Vec::new(),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
@@ -146,6 +148,12 @@ impl Core for VM {
     }
     fn set_input_buffer(&mut self, buffer: String) {
         self.tasks[self.current_task].inbuf = Some(buffer);
+    }
+    fn files(&self) -> &Vec<Option<File>> {
+        &self.files
+    }
+    fn files_mut(&mut self) -> &mut Vec<Option<File>> {
+        &mut self.files
     }
     fn last_token(&mut self) -> &mut Option<String> {
         &mut self.tkn

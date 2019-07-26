@@ -198,7 +198,15 @@ pub(crate) trait Memory {
     }
 
     unsafe fn str_from_raw_parts(&self, addr: usize, len: usize) -> &str {
-        mem::transmute(slice::from_raw_parts::<u8>(addr as *mut u8, len))
+        mem::transmute(slice::from_raw_parts::<u8>(addr as *const u8, len))
+    }
+
+    unsafe fn buffer_from_raw_parts(&self, addr: usize, len: usize) -> &[u8] {
+        slice::from_raw_parts::<u8>(addr as *const u8, len)
+    }
+
+    unsafe fn buffer_from_raw_parts_mut(&mut self, addr: usize, len: usize) -> &mut [u8] {
+        slice::from_raw_parts_mut::<u8>(addr as *mut u8, len)
     }
 
     // Basic operations

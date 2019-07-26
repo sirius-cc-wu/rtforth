@@ -16,11 +16,13 @@ use rtforth::loader::HasLoader;
 use rtforth::output::Output;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
+use rtforth::file_access::FileAccess;
 use rtforth::NUM_TASKS;
 use std::env;
 use std::fmt::Write;
 use std::process;
 use std::time::SystemTime;
+use std::fs::File;
 
 const BUFFER_SIZE: usize = 0x400;
 
@@ -72,6 +74,7 @@ pub struct VM {
     wordlist: Wordlist<VM>,
     data_space: DataSpace,
     code_space: CodeSpace,
+    files: Vec<Option<File>>,
     tkn: Option<String>,
     outbuf: Option<String>,
     hldbuf: String,
@@ -100,6 +103,7 @@ impl VM {
             wordlist: Wordlist::with_capacity(1000),
             data_space: DataSpace::new(data_pages),
             code_space: CodeSpace::new(code_pages),
+            files: Vec::new(),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
@@ -113,6 +117,7 @@ impl VM {
         vm.add_facility();
         vm.add_float();
         vm.add_units();
+        vm.add_file_access();
         vm.add_primitive("receive", receive);
         vm.add_primitive("bye", bye);
 
@@ -169,6 +174,12 @@ impl Core for VM {
     }
     fn set_input_buffer(&mut self, buffer: String) {
         self.tasks[self.current_task].inbuf = Some(buffer);
+    }
+    fn files(&self) -> &Vec<Option<File>> {
+        &self.files
+    }
+    fn files_mut(&mut self) -> &mut Vec<Option<File>> {
+        &mut self.files
     }
     fn last_token(&mut self) -> &mut Option<String> {
         &mut self.tkn
@@ -242,6 +253,7 @@ impl Units for VM {}
 impl HasLoader for VM {}
 impl Output for VM {}
 impl Tools for VM {}
+impl FileAccess for VM {}
 
 fn main() {
     let vm = &mut VM::new(1024, 1024);

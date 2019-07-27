@@ -27,9 +27,9 @@ pub trait FileAccess: Core {
     /// affect the value returned by FILE- POSITION. ud is undefined if ior is
     /// non-zero.
     /// 
-    /// Note: As rtForth does not support double precision integers, the higher
+    /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
-    /// maximum value of ud allowed isize::max_value(). So an exception
+    /// maximum value of ud allowed is isize::max_value(). So an exception
     /// ResultOutOfRange will be returned for a file size larger than
     /// isize::max_value().
     primitive!{fn file_size(&mut self) {
@@ -66,9 +66,9 @@ pub trait FileAccess: Core {
     /// is the implementation-defined I/O result code. ud is undefined if ior
     /// is non-zero.
     /// 
-    /// Note: As rtForth does not support double precision integers, the higher
+    /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
-    /// maximum value of ud allowed isize::max_value(). So an exception
+    /// maximum value of ud allowed is isize::max_value(). So an exception
     /// ResultOutOfRange will be returned for a file position larger than
     /// isize::max_value().
     primitive!{fn file_position(&mut self) {
@@ -338,9 +338,9 @@ pub trait FileAccess: Core {
     /// At the conclusion of the operation, FILE-SIZE returns the value ud and
     /// FILE- POSITION returns an unspecified value.
     /// 
-    /// Note: As rtForth does not support double precision integers, the higher
+    /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
-    /// maximum value of ud allowed isize::max_value(). So an exception
+    /// maximum value of ud allowed is isize::max_value(). So an exception
     /// InvalidNumericArgument will be returned for a ud larger than
     /// isize::max_value().
     primitive!{fn resize_file(&mut self) {
@@ -375,9 +375,9 @@ pub trait FileAccess: Core {
     ///
     /// At the conclusion of the operation, FILE-POSITION returns the value ud.
     /// 
-    /// Note: As rtForth does not support double precision integers, the higher
+    /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
-    /// maximum value of ud allowed isize::max_value(). So an exception
+    /// maximum value of ud allowed is isize::max_value(). So an exception
     /// InvalidNumericArgument will be returned for a ud larger than
     /// isize::max_value().
     primitive!{fn reposition_file(&mut self) {

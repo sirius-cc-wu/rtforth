@@ -495,7 +495,6 @@ pub trait Core: Sized {
 
     /// Add core primitives to self.
     fn add_core(&mut self) {
-        // Bytecodes
         self.add_primitive("", Core::noop);
         self.add_primitive("noop", Core::noop);
         self.add_compile_only("exit", Core::exit);
@@ -519,37 +518,37 @@ pub trait Core: Sized {
         self.add_compile_only("2r>", Core::two_r_from);
         self.add_compile_only("2r@", Core::two_r_fetch);
         self.add_compile_only("compile,", Core::compile_comma);
-        self.add_compile_only("_does", Core::_does);
         self.add_compile_only("_postpone", Core::_postpone);
+        self.add_compile_only("_does", Core::_does);
 
-        self.add_primitive("execute", Core::execute); // jx, eForth
-        self.add_primitive("dup", Core::dup); // j1, Ngaro, jx, eForth
-        self.add_primitive("drop", Core::p_drop); // j1, Ngaro, jx, eForth
-        self.add_primitive("swap", Core::swap); // j1, Ngaro, jx, eForth
-        self.add_primitive("over", Core::over); // j1, jx, eForth
-        self.add_primitive("nip", Core::nip); // j1, jx
-        self.add_primitive("depth", Core::depth); // j1, jx
-        self.add_primitive("?stacks", Core::check_stacks); // j1, jx
-        self.add_primitive("0<", Core::zero_less); // eForth
-        self.add_primitive("=", Core::equals); // j1, jx
-        self.add_primitive("<", Core::less_than); // j1, jx
-        self.add_primitive("invert", Core::invert); // j1, jx
-        self.add_primitive("and", Core::and); // j1, Ngaro, jx, eForth
-        self.add_primitive("or", Core::or); // j1, Ngaro, jx, eForth
-        self.add_primitive("xor", Core::xor); // j1, Ngaro, jx, eForth
-        self.add_primitive("lshift", Core::lshift); // jx, Ngaro
-        self.add_primitive("rshift", Core::rshift); // jx
-        self.add_primitive("1+", Core::one_plus); // Ngaro
-        self.add_primitive("1-", Core::one_minus); // Ngaro, jx
-        self.add_primitive("-", Core::minus); // Ngaro
-        self.add_primitive("+", Core::plus); // j1, Ngaro, jx
-        self.add_primitive("*", Core::star); // Ngaro
-        self.add_primitive("/mod", Core::slash_mod); // Ngaro
-        self.add_primitive("cell+", Core::cell_plus); // eForth
-        self.add_primitive("cells", Core::cells); // eForth
-        self.add_primitive("@", Core::fetch); // j1, jx, eForth
-        self.add_primitive("!", Core::store); // j1, jx, eForth
-        self.add_primitive("char+", Core::char_plus); // eForth
+        self.add_primitive("execute", Core::execute);
+        self.add_primitive("dup", Core::dup);
+        self.add_primitive("drop", Core::p_drop);
+        self.add_primitive("swap", Core::swap);
+        self.add_primitive("over", Core::over);
+        self.add_primitive("nip", Core::nip);
+        self.add_primitive("depth", Core::depth);
+        self.add_primitive("?stacks", Core::check_stacks);
+        self.add_primitive("0<", Core::zero_less);
+        self.add_primitive("=", Core::equals);
+        self.add_primitive("<", Core::less_than);
+        self.add_primitive("invert", Core::invert);
+        self.add_primitive("and", Core::and);
+        self.add_primitive("or", Core::or);
+        self.add_primitive("xor", Core::xor);
+        self.add_primitive("lshift", Core::lshift);
+        self.add_primitive("rshift", Core::rshift);
+        self.add_primitive("1+", Core::one_plus);
+        self.add_primitive("1-", Core::one_minus);
+        self.add_primitive("-", Core::minus);
+        self.add_primitive("+", Core::plus);
+        self.add_primitive("*", Core::star);
+        self.add_primitive("/mod", Core::slash_mod);
+        self.add_primitive("cell+", Core::cell_plus);
+        self.add_primitive("cells", Core::cells);
+        self.add_primitive("@", Core::fetch);
+        self.add_primitive("!", Core::store);
+        self.add_primitive("char+", Core::char_plus);
         self.add_primitive("here", Core::here);
         self.add_primitive("allot", Core::allot);
         self.add_primitive("aligned", Core::aligned);
@@ -616,6 +615,7 @@ pub trait Core: Sized {
         self.add_primitive("constant", Core::constant);
         self.add_primitive("create", Core::create);
         self.add_primitive("'", Core::tick);
+        self.add_primitive(">body", Core::to_body);
         self.add_primitive("]", Core::right_bracket);
         self.add_primitive(",", Core::comma);
         self.add_primitive("marker", Core::marker);
@@ -3510,6 +3510,19 @@ compilation_semantics: fn(&mut Self, usize)){
                     self.abort_with(UndefinedWord);
                 }
             }
+        }
+    }}
+
+    /// ( xt -- a-addr )
+    /// a-addr is the data-field address corresponding to xt. An ambiguous
+    /// condition exists if xt is not for a word defined via CREATE.
+    primitive!{fn to_body(&mut self) {
+        let t = self.s_stack().pop() as usize;
+        if t < self.wordlist().len() {
+            let dfa = self.wordlist()[t].dfa() as isize;
+            self.s_stack().push(dfa);
+        } else {
+            self.abort_with(InvalidNumericArgument);
         }
     }}
 

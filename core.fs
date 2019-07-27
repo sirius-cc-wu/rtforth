@@ -21,24 +21,30 @@
 : 2, ( n1 n2 -- )   here  2 cells allot  2! ;
 : max ( n1 n2 -- n3 )   2dup < if nip else drop then ;
 : min ( n1 n2 -- n3 )   2dup < if drop else nip then ;
-: chars ( n -- n1 ) ( 6.1.0898 )  ; immediate
+: chars ( n -- n1 )  ; immediate
 : c, ( char -- )   here 1 chars allot c! ;
 : fill ( c-addr u char -- )
     swap dup 0> if >r swap r>  0 do 2dup i + c! loop
     else drop then 2drop ;
-: count ( a -- a+1 n ) ( 6.1.0980 )  dup c@  swap 1 +  swap ;
+: count ( a -- a+1 n )  dup c@  swap 1 +  swap ;
 : /string ( c-addr1 u1 n -- c-addr2 u2 ) ( 17.6.1.0245 )  dup >r - swap r> chars + swap ;
 : append ( c-addr1 u c-addr2 - )  2>r  2r@ count + swap move  2r> dup >r c@ + r> c! ;
 : variable   create  0 , ;
+: on ( a -- )   true swap ! ;
+: off ( a -- )   false swap ! ;
 : does> ( -- )   postpone _does  postpone exit ; immediate compile-only
-: literal ( n -- ) ( 6.1.1780 )   postpone lit  , ; immediate compile-only
-: 2literal ( n1 n2 -- ) ( 8.6.1.0390 )
+: literal ( n -- )   postpone lit  , ; immediate compile-only
+: 2literal ( n1 n2 -- )
     swap postpone lit  ,  postpone lit  , ; immediate compile-only
-: fliteral ( F: r -- ) ( 12.6.1.1552 )   postpone flit  f, ; immediate compile-only
+: fliteral ( F: r -- )   postpone flit  f, ; immediate compile-only
 : 2constant   create 2, does>  2@ ;
 : 2variable   create  0 , 0 , ;
 : fvariable   create falign 0e f, does> faligned ;
 : +field ( n1 n2 -- n3 )   create over , + does> @ + ;
+: defer   create ['] noop ,  does> @ execute ;
+: defer@ ( xt1 -- xt2 )   >body @ ;
+: defer! ( xt2 xt1 -- )   >body ! ;
+
 variable #tib  0 #tib !
 variable tib 256 allot
 : source ( -- c-addr u )   tib #tib @ ;
@@ -79,5 +85,10 @@ variable >in  0 >in !
 : release ( a -- )   dup @ me = if 0 swap ! else drop then ;
 \ Wait `n` milli-seconds.
 : ms ( n -- )   mtime  begin mtime over -  2 pick <  while pause repeat  2drop ;
+
+\ File access
+0 constant r/o
+1 constant w/o
+2 constant r/w
 
 marker -work

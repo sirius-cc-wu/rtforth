@@ -170,7 +170,7 @@ pub trait FileAccess: Core {
                 self.s_stack().push2(-1, Exception::FileIOException as _);
             }
             Ok(file) => {
-                let position = self.files_mut().iter().position(|x| {
+                let position = self.files().iter().position(|x| {
                     x.is_none()
                 });
                 match position {

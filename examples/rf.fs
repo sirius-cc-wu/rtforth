@@ -1,12 +1,5 @@
 -work
 
-: evaluate-input
-    begin parse-word
-      token-empty? not
-    while
-      compiling? if compile-token ?stacks else interpret-token ?stacks then
-    repeat ;
-
 : quit
     reset
     begin receive evaluate-input

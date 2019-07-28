@@ -32,8 +32,8 @@ Section number | Definition name | Compatibility
 6.1.0290 | 1+ | Y
 6.1.0300 | 1- | Y
 6.1.0310 | 2! | Y
-6.1.0320 | 2* |
-6.1.0330 | 2/ |
+6.1.0320 | 2* | Y
+6.1.0330 | 2/ | Y
 6.1.0350 | 2@ | Y
 6.1.0370 | 2DROP | Y
 6.1.0380 | 2DUP | Y
@@ -121,7 +121,7 @@ Section number | Definition name | Compatibility
 6.1.2170 | S>D | N, do not support double-precision
 6.1.2210 | SIGN |
 6.1.2214 | SM/REM | N, do not support mixed-precision
-6.1.2216 | SOURCE | TODO
+6.1.2216 | SOURCE |
 6.1.2220 | SPACE | Y
 6.1.2230 | SPACES | Y
 6.1.2250 | STATE |
@@ -181,11 +181,11 @@ Section number | Definition name | Compatibility
 6.2.2020 | PARSE-NAME |
 6.2.2030 | PICK |
 6.2.2125 | REFILL |
-6.2.2148 | RESTORE-INPUT | TODO
+6.2.2148 | RESTORE-INPUT | Y
 6.2.2150 | ROLL |
 6.2.2266 | S\" | Y
-6.2.2182 | SAVE-INPUT | TODO
-6.2.2218 | SOURCE-ID | TODO
+6.2.2182 | SAVE-INPUT | Y
+6.2.2218 | SOURCE-ID | Y
 6.2.2295 | TO |
 6.2.2298 | TRUE | Y
 6.2.2300 | TUCK | Y
@@ -218,8 +218,8 @@ Section number | Definition name | Compatibility
 11.6.1.1190 | DELETE-FILE | Y
 11.6.1.1520 | FILE-POSITION | Y
 11.6.1.1522 | FILE-SIZE | Y
-11.6.1.1717 | INCLUDE-FILE | TODO
-11.6.1.1718 | INCLUDED | TODO
+11.6.1.1717 | INCLUDE-FILE | Y
+11.6.1.1718 | INCLUDED | Y
 11.6.1.1970 | OPEN-FILE | Y
 11.6.1.2054 | R/O | Y
 11.6.1.2056 | R/W | Y
@@ -228,7 +228,7 @@ Section number | Definition name | Compatibility
 11.6.1.2142 | REPOSITION-FILE | Y
 11.6.1.2147 | RESIZE-FILE | Y
 11.6.1.2165 | S" | TODO
-11.6.1.2218 | SOURCE-ID | TODO
+11.6.1.2218 | SOURCE-ID | Y
 11.6.1.2425 | W/O | Y
 11.6.1.2480 | WRITE-FILE | Y
 11.6.1.2485 | WRITE-LINE | N, because without buffer it's not efficient.

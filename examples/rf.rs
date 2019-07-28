@@ -23,6 +23,7 @@ use std::fmt::Write;
 use std::process;
 use std::time::SystemTime;
 use std::fs::File;
+use std::io::BufReader;
 
 const BUFFER_SIZE: usize = 0x400;
 
@@ -39,6 +40,9 @@ pub struct Task {
     c_stk: Stack<Control>,
     f_stk: Stack<f64>,
     inbuf: Option<String>,
+    files: Vec<Option<File>>,
+    readers: Vec<Option<BufReader<File>>>,
+    lines: Vec<Option<String>>,
 }
 
 impl Task {
@@ -53,6 +57,9 @@ impl Task {
             c_stk: Stack::new(Control::Default),
             f_stk: Stack::new(1.234567890),
             inbuf: None,
+            files: Vec::new(),
+            readers: Vec::new(),
+            lines: Vec::new(),
         }
     }
 
@@ -74,7 +81,6 @@ pub struct VM {
     wordlist: Wordlist<VM>,
     data_space: DataSpace,
     code_space: CodeSpace,
-    files: Vec<Option<File>>,
     tkn: Option<String>,
     outbuf: Option<String>,
     hldbuf: String,
@@ -103,7 +109,6 @@ impl VM {
             wordlist: Wordlist::with_capacity(1000),
             data_space: DataSpace::new(data_pages),
             code_space: CodeSpace::new(code_pages),
-            files: Vec::new(),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
@@ -118,6 +123,7 @@ impl VM {
         vm.add_float();
         vm.add_units();
         vm.add_file_access();
+        vm.add_loader();
         vm.add_primitive("receive", receive);
         vm.add_primitive("bye", bye);
 
@@ -169,17 +175,38 @@ impl Core for VM {
     fn set_output_buffer(&mut self, buffer: String) {
         self.outbuf = Some(buffer);
     }
+    fn source_id(&self) -> isize {
+        self.tasks[self.current_task].state.source_id
+    }
     fn input_buffer(&mut self) -> &mut Option<String> {
-        &mut self.tasks[self.current_task].inbuf
+        let source_id = self.source_id();
+        if source_id > 0 {
+            &mut self.lines_mut()[source_id as usize - 1]
+        } else {
+            &mut self.tasks[self.current_task].inbuf
+        }
     }
     fn set_input_buffer(&mut self, buffer: String) {
-        self.tasks[self.current_task].inbuf = Some(buffer);
+        // self.tasks[self.current_task].inbuf = Some(buffer);
+        *self.input_buffer() = Some(buffer);
     }
     fn files(&self) -> &Vec<Option<File>> {
-        &self.files
+        &self.tasks[self.current_task].files
     }
     fn files_mut(&mut self) -> &mut Vec<Option<File>> {
-        &mut self.files
+        &mut self.tasks[self.current_task].files
+    }
+    fn readers(&self) -> &Vec<Option<BufReader<File>>> {
+        &self.tasks[self.current_task].readers
+    }
+    fn readers_mut(&mut self) -> &mut Vec<Option<BufReader<File>>> {
+        &mut self.tasks[self.current_task].readers
+    }
+    fn lines(&self) -> &Vec<Option<String>> {
+        &self.tasks[self.current_task].lines
+    }
+    fn lines_mut(&mut self) -> &mut Vec<Option<String>> {
+        &mut self.tasks[self.current_task].lines
     }
     fn last_token(&mut self) -> &mut Option<String> {
         &mut self.tkn

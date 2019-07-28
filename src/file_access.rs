@@ -27,13 +27,18 @@ pub trait FileAccess: Core {
     /// affect the value returned by FILE- POSITION. ud is undefined if ior is
     /// non-zero.
     /// 
-    /// Note: As rtForth does not support double precision integers, the higher
+    /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
-    /// maximum value of ud allowed isize::max_value(). So an exception
+    /// maximum value of ud allowed is isize::max_value(). So an exception
     /// ResultOutOfRange will be returned for a file size larger than
     /// isize::max_value().
     primitive!{fn file_size(&mut self) {
-        let fileid = self.s_stack().pop() as usize;
+        let fileid = self.s_stack().pop();
+        if fileid <= 0 {
+            self.s_stack().push3(-1, -1, Exception::InvalidNumericArgument as _);
+            return;
+        }
+        let fileid = fileid as usize - 1;
         if fileid < self.files().len() {
             match &self.files()[fileid] {
                 Some(f) => {
@@ -66,13 +71,18 @@ pub trait FileAccess: Core {
     /// is the implementation-defined I/O result code. ud is undefined if ior
     /// is non-zero.
     /// 
-    /// Note: As rtForth does not support double precision integers, the higher
+    /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
-    /// maximum value of ud allowed isize::max_value(). So an exception
+    /// maximum value of ud allowed is isize::max_value(). So an exception
     /// ResultOutOfRange will be returned for a file position larger than
     /// isize::max_value().
     primitive!{fn file_position(&mut self) {
-        let fileid = self.s_stack().pop() as usize;
+        let fileid = self.s_stack().pop();
+        if fileid <= 0 {
+            self.s_stack().push3(-1, -1, Exception::InvalidNumericArgument as _);
+            return;
+        }
+        let fileid = fileid as usize - 1;
         if fileid < self.files().len() {
             match &mut self.files_mut()[fileid] {
                 Some(ref mut f) => {
@@ -103,7 +113,12 @@ pub trait FileAccess: Core {
     /// Close the file identified by fileid. ior is the implementation-defined
     /// I/O result code. 
     primitive!{fn close_file(&mut self) {
-        let fileid = self.s_stack().pop() as usize;
+        let fileid = self.s_stack().pop();
+        if fileid <= 0 {
+            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            return;
+        }
+        let fileid = fileid as usize - 1;
         if fileid < self.files().len() && self.files()[fileid].is_some() {
             self.files_mut()[fileid] = None;
             self.s_stack().push(0);
@@ -155,17 +170,17 @@ pub trait FileAccess: Core {
                 self.s_stack().push2(-1, Exception::FileIOException as _);
             }
             Ok(file) => {
-                let position = self.files_mut().iter().position(|x| {
+                let position = self.files().iter().position(|x| {
                     x.is_none()
                 });
                 match position {
                     Some(p) => {
                         self.files_mut()[p] = Some(file);
-                        self.s_stack().push2(p as _, 0);
+                        self.s_stack().push2(p as isize + 1, 0);
                     }
                     None => {
-                        let fileid = self.files().len() as _;
-                        self.s_stack().push2(fileid, 0);
+                        let fileid = self.files().len() as isize;
+                        self.s_stack().push2(fileid + 1, 0);
                         self.files_mut().push(Some(file));
                     }
                 }
@@ -234,11 +249,11 @@ pub trait FileAccess: Core {
                 match position {
                     Some(p) => {
                         self.files_mut()[p] = Some(file);
-                        self.s_stack().push2(p as _, 0);
+                        self.s_stack().push2(p as isize + 1, 0);
                     }
                     None => {
-                        let fileid = self.files().len() as _;
-                        self.s_stack().push2(fileid, 0);
+                        let fileid = self.files().len() as isize;
+                        self.s_stack().push2(fileid + 1, 0);
                         self.files_mut().push(Some(file));
                     }
                 }
@@ -274,7 +289,11 @@ pub trait FileAccess: Core {
     /// position after the last character read.
     primitive!{fn read_file(&mut self) {
         let (caddr, u1, fileid) = self.s_stack().pop3();
-        let fileid = fileid as usize;
+        if fileid <= 0 {
+            self.s_stack().push2(-1, Exception::InvalidNumericArgument as _);
+            return;
+        }
+        let fileid = fileid as usize - 1;
         if u1 < 0 {
             self.s_stack().push2(0, Exception::FileIOException as _);
         } else if fileid >= self.files().len() || self.files()[fileid].is_none() {
@@ -306,7 +325,11 @@ pub trait FileAccess: Core {
     /// FILE-POSITION.
     primitive!{fn write_file(&mut self) {
         let (caddr, u, fileid) = self.s_stack().pop3();
-        let fileid = fileid as usize;
+        if fileid <= 0 {
+            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            return;
+        }
+        let fileid = fileid as usize - 1;
         if fileid < self.files().len() {
             match self.files_mut()[fileid].take() {
                 Some(mut f) => {
@@ -338,14 +361,18 @@ pub trait FileAccess: Core {
     /// At the conclusion of the operation, FILE-SIZE returns the value ud and
     /// FILE- POSITION returns an unspecified value.
     /// 
-    /// Note: As rtForth does not support double precision integers, the higher
+    /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
-    /// maximum value of ud allowed isize::max_value(). So an exception
+    /// maximum value of ud allowed is isize::max_value(). So an exception
     /// InvalidNumericArgument will be returned for a ud larger than
     /// isize::max_value().
     primitive!{fn resize_file(&mut self) {
         let (ud_lower, ud_upper, fileid) = self.s_stack().pop3();
-        let fileid = fileid as usize;
+        if fileid <= 0 {
+            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            return;
+        }
+        let fileid = fileid as usize - 1;
         let ud_lower = ud_lower as usize;
         if ud_upper != 0 {
             self.s_stack().push(Exception::InvalidNumericArgument as _);
@@ -356,9 +383,15 @@ pub trait FileAccess: Core {
         } else {
             match self.files_mut()[fileid].take() {
                 Some(f) => {
-                    f.set_len(ud_lower as u64);
+                    match f.set_len(ud_lower as u64) {
+                        Ok(_) => {
+                            self.s_stack().push(0);
+                        }
+                        Err(_) => {
+                            self.s_stack().push(Exception::FileIOException as _);
+                        }
+                    }
                     self.files_mut()[fileid] = Some(f);
-                    self.s_stack().push(0);
                 }
                 None => {
                     self.s_stack().push(Exception::InvalidNumericArgument as _);
@@ -375,14 +408,18 @@ pub trait FileAccess: Core {
     ///
     /// At the conclusion of the operation, FILE-POSITION returns the value ud.
     /// 
-    /// Note: As rtForth does not support double precision integers, the higher
+    /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
-    /// maximum value of ud allowed isize::max_value(). So an exception
+    /// maximum value of ud allowed is isize::max_value(). So an exception
     /// InvalidNumericArgument will be returned for a ud larger than
     /// isize::max_value().
     primitive!{fn reposition_file(&mut self) {
         let (ud_lower, ud_upper, fileid) = self.s_stack().pop3();
-        let fileid = fileid as usize;
+        if fileid <= 0 {
+            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            return;
+        }
+        let fileid = fileid as usize - 1;
         let ud_lower = ud_lower as usize;
         if ud_upper != 0 {
             self.s_stack().push(Exception::InvalidNumericArgument as _);

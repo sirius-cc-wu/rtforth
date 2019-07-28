@@ -8,6 +8,7 @@ use Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
                            UnsupportedOperation};
 use parser;
 use std::fs::File;
+use std::io::BufReader;
 use std::fmt::Write;
 use std::fmt::{self, Display};
 use std::mem;
@@ -390,6 +391,7 @@ pub struct State {
     pub instruction_pointer: usize,
     word_pointer: usize,
     pub source_index: usize,
+    pub source_id: isize,
 }
 
 impl State {
@@ -399,6 +401,7 @@ impl State {
             instruction_pointer: 0,
             word_pointer: 0,
             source_index: 0,
+            source_id: 0,
         }
     }
 
@@ -461,12 +464,22 @@ pub trait Core: Sized {
     fn output_buffer(&mut self) -> &mut Option<String>;
     /// Set `output_buffer` to `Some(buffer)`.
     fn set_output_buffer(&mut self, buffer: String);
+    /// Input source identifier
+    /// 
+    /// > 0: input from file at `self.files[source_id]` using file reader
+    /// `self.readers[source_id] and input buffer `self.lines[source_id].
+    /// = 0: input from the default user input buffer.
+    fn source_id(&self) -> isize;
     /// Get `input_buffer`.
     fn input_buffer(&mut self) -> &mut Option<String>;
     /// Set `input_buffer` to `Some(buffer)`.
     fn set_input_buffer(&mut self, buffer: String);
     fn files(&self) -> &Vec<Option<File>>;
     fn files_mut(&mut self) -> &mut Vec<Option<File>>;
+    fn readers(&self) -> &Vec<Option<BufReader<File>>>;
+    fn readers_mut(&mut self) -> &mut Vec<Option<BufReader<File>>>;
+    fn lines(&self) -> &Vec<Option<String>>;
+    fn lines_mut(&mut self) -> &mut Vec<Option<String>>;
     fn last_token(&mut self) -> &mut Option<String>;
     fn set_last_token(&mut self, buffer: String);
     fn regs(&mut self) -> &mut [usize; 2];
@@ -634,6 +647,10 @@ pub trait Core: Sized {
         self.add_primitive("!token", Core::store_token);
         self.add_primitive("compile-token", Core::compile_token);
         self.add_primitive("interpret-token", Core::interpret_token);
+        self.add_primitive("source-id", Core::p_source_id);
+        self.add_primitive("source-id!", Core::p_set_source_id);
+        self.add_primitive("source-idx", Core::p_source_idx);
+        self.add_primitive("source-idx!", Core::p_set_source_idx);
 
         self.references().idx_lit = self.find("lit").expect("lit undefined");
         self.references().idx_flit = self.find("flit").expect("flit undefined");
@@ -3734,10 +3751,60 @@ compilation_semantics: fn(&mut Self, usize)){
         self.c_stack().reset();
     }}
 
+    /// ( -- source-id )
+    ///
+    /// Current source id.
+    primitive!{fn p_source_id(&mut self) {
+        let source_id = self.source_id();
+        self.s_stack().push(source_id);
+    }}
+
+    /// ( source-id -- )
+    ///
+    /// Set source id.
+    primitive!{fn p_set_source_id(&mut self) {
+        let id = self.s_stack().pop();
+        self.set_source_id(id);
+    }}
+
+    /// Set source id.
+    fn set_source_id(&mut self, id: isize) {
+        if id > 0 {
+            // File source
+            if id - 1 < self.readers().len() as isize && self.readers()[id as usize - 1].is_some()
+            && self.lines()[id as usize - 1].is_some() {
+                self.state().source_id = id;
+            } else {
+                self.abort_with(Exception::InvalidNumericArgument);
+            }
+        } else if id == 0 {
+            self.state().source_id = id;
+        } else {
+            self.abort_with(Exception::InvalidNumericArgument);
+        }
+    }
+
+    /// ( -- source-idx )
+    ///
+    /// Current source index.
+    primitive!{fn p_source_idx(&mut self) {
+        let source_idx = self.state().source_index as isize;
+        self.s_stack().push(source_idx);
+    }}
+
+    /// ( source-idx -- )
+    ///
+    /// Set source index.
+    primitive!{fn p_set_source_idx(&mut self) {
+        let idx = self.s_stack().pop() as usize;
+        self.state().source_index = idx;
+    }}
+
     /// Reset VM, do not clear data stack, floating point and control stack.
     /// Called by VM's client upon Quit.
     primitive!{fn reset(&mut self) {
         self.r_stack().reset();
+        self.set_source_id(0);
         if let Some(ref mut buf) = *self.input_buffer() {
             buf.clear()
         }

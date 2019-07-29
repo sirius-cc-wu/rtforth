@@ -4,7 +4,7 @@ use Exception;
 use Core;
 use Memory;
 
-const PATH_NAME_MAX_LEN: isize = 256;
+const PATH_NAME_MAX_LEN: usize = 256;
 
 pub trait FileAccess: Core {
     fn add_file_access(&mut self) {
@@ -158,7 +158,9 @@ pub trait FileAccess: Core {
     /// is undefined.
     primitive!{fn create_file(&mut self) {
         let (caddr, u, fam) = self.s_stack().pop3();
-        if u < 0 || u > PATH_NAME_MAX_LEN {
+        let caddr = caddr as usize;
+        let u = u as usize;
+        if u > PATH_NAME_MAX_LEN {
             self.s_stack().push2(-1, Exception::InvalidNumericArgument as _);
             return;            
         }
@@ -181,14 +183,18 @@ pub trait FileAccess: Core {
             }
         };
         let file = {
-            let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _) };
-            match options.open(&path_name) {
-                Err(_) => {
-                    Err(Exception::FileIOException)
+            if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
+                let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr, u) };
+                match options.open(&path_name) {
+                    Err(_) => {
+                        Err(Exception::FileIOException)
+                    }
+                    Ok(file) => {
+                        Ok(file)
+                    }
                 }
-                Ok(file) => {
-                    Ok(file)
-                }
+            } else {
+                Err(Exception::InvalidMemoryAddress)
             }
         };
         match file {
@@ -220,14 +226,20 @@ pub trait FileAccess: Core {
     /// ior is the implementation-defined I/O result code.
     primitive!{fn delete_file(&mut self) {
         let (caddr, u) = self.s_stack().pop2();
-        if u < 0 || u > PATH_NAME_MAX_LEN {
+        let caddr = caddr as usize;
+        let u = u as usize;
+        if u > PATH_NAME_MAX_LEN {
             self.s_stack().push2(-1, Exception::InvalidNumericArgument as _);
         } else {
             let result = {
-                let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _) };
-                match fs::remove_file(path_name) {
-                    Err(_) => Exception::FileIOException as _,
-                    Ok(_) => 0
+                if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
+                    let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr, u) };
+                    match fs::remove_file(path_name) {
+                        Err(_) => Exception::FileIOException as _,
+                        Ok(_) => 0
+                    }
+                } else {
+                    Exception::InvalidMemoryAddress as _
                 }
             };
             self.s_stack().push(result);
@@ -246,7 +258,9 @@ pub trait FileAccess: Core {
     /// is undefined.
     primitive!{fn open_file(&mut self) {
         let (caddr, u, fam) = self.s_stack().pop3();
-        if u < 0 || u > PATH_NAME_MAX_LEN {
+        let caddr = caddr as usize;
+        let u = u as usize;
+        if u > PATH_NAME_MAX_LEN {
             self.s_stack().push2(-1, Exception::InvalidNumericArgument as _);
             return;            
         }
@@ -267,14 +281,18 @@ pub trait FileAccess: Core {
             }
         };
         let file = {
-            let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _) };
-            match options.open(&path_name) {
-                Err(_) => {
-                    Err(Exception::FileIOException)
+            if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
+                let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr, u) };
+                match options.open(&path_name) {
+                    Err(_) => {
+                        Err(Exception::FileIOException)
+                    }
+                    Ok(file) => {
+                        Ok(file)
+                    }
                 }
-                Ok(file) => {
-                    Ok(file)
-                }
+            } else {
+                Err(Exception::InvalidMemoryAddress)
             }
         };
         match file {
@@ -328,27 +346,32 @@ pub trait FileAccess: Core {
     /// position after the last character read.
     primitive!{fn read_file(&mut self) {
         let (caddr, u1, fileid) = self.s_stack().pop3();
-        if fileid <= 0 {
+        let caddr = caddr as usize;
+        let u1 = u1 as usize;
+        let fileid = fileid as usize;
+        if fileid == 0 {
             self.s_stack().push2(-1, Exception::InvalidNumericArgument as _);
             return;
         }
-        let fileid = fileid as usize - 1;
-        if u1 < 0 {
-            self.s_stack().push2(0, Exception::FileIOException as _);
-        } else if fileid >= self.files().len() || self.files()[fileid].is_none() {
+        let fileid = fileid - 1;
+        if fileid >= self.files().len() || self.files()[fileid].is_none() {
             self.s_stack().push2(0, Exception::InvalidNumericArgument as _);
         } else {
             let mut file = self.files_mut()[fileid].take().unwrap();
             let result = {
-                let mut buf = unsafe{ self.data_space().buffer_from_raw_parts_mut(caddr as _, u1 as _) };
-                file.read(&mut buf)
+                if self.data_space().start() <= caddr && caddr + u1 <= self.data_space().limit() {
+                    let mut buf = unsafe{ self.data_space().buffer_from_raw_parts_mut(caddr, u1) };
+                    file.read(&mut buf).or(Err(Exception::FileIOException as _))
+                } else {
+                    Err(Exception::InvalidMemoryAddress as _)
+                }
             };
             match result {
                 Ok(u2) => {
                     self.s_stack().push2(u2 as _, 0);
                 }
-                Err(_) => {
-                    self.s_stack().push2(0, Exception::FileIOException as _);
+                Err(e) => {
+                    self.s_stack().push2(0, e);
                 }
             }
             self.files_mut()[fileid] = Some(file);
@@ -367,6 +390,8 @@ pub trait FileAccess: Core {
     /// FILE-POSITION.
     primitive!{fn write_file(&mut self) {
         let (caddr, u, fileid) = self.s_stack().pop3();
+        let caddr = caddr as usize;
+        let u = u as usize;
         if fileid <= 0 {
             self.s_stack().push(Exception::InvalidNumericArgument as _);
             return;
@@ -376,8 +401,12 @@ pub trait FileAccess: Core {
             match self.files_mut()[fileid].take() {
                 Some(mut f) => {
                     let result = {
-                        let buf = unsafe{ self.data_space().buffer_from_raw_parts(caddr as _, u as _) };
-                        f.write_all(buf)
+                        if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
+                            let buf = unsafe{ self.data_space().buffer_from_raw_parts(caddr as _, u as _) };
+                            f.write_all(buf).or(Err(Exception::FileIOException))
+                        } else {
+                            Err(Exception::InvalidMemoryAddress)
+                        }
                     };
                     match result {
                         Ok(_) => self.s_stack().push(0),

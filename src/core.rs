@@ -1,5 +1,6 @@
 extern crate libc;
 use memory::{CodeSpace, DataSpace, Memory};
+use loader::Source;
 use Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
                            FloatingPointStackOverflow, FloatingPointStackUnderflow,
                            InterpretingACompileOnlyWord, InvalidMemoryAddress,
@@ -8,7 +9,6 @@ use Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
                            UnsupportedOperation};
 use parser;
 use std::fs::File;
-use std::io::BufReader;
 use std::fmt::Write;
 use std::fmt::{self, Display};
 use std::mem;
@@ -466,8 +466,8 @@ pub trait Core: Sized {
     fn set_output_buffer(&mut self, buffer: String);
     /// Input source identifier
     /// 
-    /// > 0: input from file at `self.files[source_id]` using file reader
-    /// `self.readers[source_id] and input buffer `self.lines[source_id].
+    /// > 0: input from source at `self.sources[source_id] and input buffer
+    /// `self.lines[source_id]`.
     /// = 0: input from the default user input buffer.
     fn source_id(&self) -> isize;
     /// Get `input_buffer`.
@@ -476,8 +476,8 @@ pub trait Core: Sized {
     fn set_input_buffer(&mut self, buffer: String);
     fn files(&self) -> &Vec<Option<File>>;
     fn files_mut(&mut self) -> &mut Vec<Option<File>>;
-    fn readers(&self) -> &Vec<Option<BufReader<File>>>;
-    fn readers_mut(&mut self) -> &mut Vec<Option<BufReader<File>>>;
+    fn sources(&self) -> &Vec<Option<Source>>;
+    fn sources_mut(&mut self) -> &mut Vec<Option<Source>>;
     fn lines(&self) -> &Vec<Option<String>>;
     fn lines_mut(&mut self) -> &mut Vec<Option<String>>;
     fn last_token(&mut self) -> &mut Option<String>;
@@ -3770,7 +3770,7 @@ compilation_semantics: fn(&mut Self, usize)){
     fn set_source_id(&mut self, id: isize) {
         if id > 0 {
             // File source
-            if id - 1 < self.readers().len() as isize && self.readers()[id as usize - 1].is_some()
+            if id - 1 < self.sources().len() as isize && self.sources()[id as usize - 1].is_some()
             && self.lines()[id as usize - 1].is_some() {
                 self.state().source_id = id;
             } else {

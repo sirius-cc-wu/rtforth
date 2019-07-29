@@ -218,7 +218,7 @@ Section number | Definition name | Compatibility
 11.6.1.1190 | DELETE-FILE | Y
 11.6.1.1520 | FILE-POSITION | Y
 11.6.1.1522 | FILE-SIZE | Y
-11.6.1.1717 | INCLUDE-FILE | Y
+11.6.1.1717 | INCLUDE-FILE |
 11.6.1.1718 | INCLUDED | Y
 11.6.1.1970 | OPEN-FILE | Y
 11.6.1.2054 | R/O | Y
@@ -232,6 +232,7 @@ Section number | Definition name | Compatibility
 11.6.1.2425 | W/O | Y
 11.6.1.2480 | WRITE-FILE | Y
 11.6.1.2485 | WRITE-LINE | N, because without buffer it's not efficient.
+11.6.2.1714 | INCLUDE | Y
 
 ## 12.6.1 Floating-Point words
 

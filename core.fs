@@ -142,6 +142,6 @@ create src-stack 16 , 0 , 16 2* cells allot
         abort
     then
 ;
-: include-file ( "path" -- )   32 word count included ;
+: include ( "path" -- )   32 word count included ;
 
 marker -work

@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::BufReader;
+use loader::Source;
 use memory::{CodeSpace, DataSpace};
 use NUM_TASKS;
 use core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
@@ -29,7 +29,7 @@ pub struct Task {
     f_stk: Stack<f64>,
     inbuf: Option<String>,
     files: Vec<Option<File>>,
-    readers: Vec<Option<BufReader<File>>>,
+    sources: Vec<Option<Source>>,
     lines: Vec<Option<String>>,
 }
 
@@ -46,7 +46,7 @@ impl Task {
             f_stk: Stack::new(1.234567890),
             inbuf: None,
             files: Vec::new(),
-            readers: Vec::new(),
+            sources: Vec::new(),
             lines: Vec::new(),
         }
     }
@@ -176,11 +176,11 @@ impl Core for VM {
     fn files_mut(&mut self) -> &mut Vec<Option<File>> {
         &mut self.tasks[self.current_task].files
     }
-    fn readers(&self) -> &Vec<Option<BufReader<File>>> {
-        &self.tasks[self.current_task].readers
+    fn sources(&self) -> &Vec<Option<Source>> {
+        &self.tasks[self.current_task].sources
     }
-    fn readers_mut(&mut self) -> &mut Vec<Option<BufReader<File>>> {
-        &mut self.tasks[self.current_task].readers
+    fn sources_mut(&mut self) -> &mut Vec<Option<Source>> {
+        &mut self.tasks[self.current_task].sources
     }
     fn lines(&self) -> &Vec<Option<String>> {
         &self.tasks[self.current_task].lines

@@ -19,6 +19,16 @@ pub trait Output: Core {
         self.references().idx_type = self.find("type").expect("type undefined");
     }
 
+    fn push_output(&mut self, text: &str) {
+        match self.output_buffer().take() {
+            Some(mut buffer) => {
+                buffer.push_str(text);
+                self.set_output_buffer(buffer);
+            }
+            None => {}
+        }
+    }
+
     /// Run-time: ( x -- )
     ///
     /// Put x into output buffer.
@@ -209,6 +219,7 @@ pub trait Output: Core {
             None => {}
         }
     }}
+
 }
 
 #[cfg(test)]

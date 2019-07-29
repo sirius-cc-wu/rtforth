@@ -132,13 +132,12 @@ create src-stack 16 , 0 , 16 2* cells allot
       evaluate-input  flush-output
     repeat ;
 : included ( c-addr u -- )
-    r/o open-file 0= if
+    2dup  r/o open-file 0= if
         save-source
-        open-source source-id!
+        ( c-addr u file-id ) open-source source-id!
         postpone [
         load-source-file
-        source-id close-source
-        restore-source
+        source-id  restore-source  close-source
     else
         abort
     then

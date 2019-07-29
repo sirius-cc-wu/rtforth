@@ -8,7 +8,7 @@
 
 : (abort)
     0stacks error -2 1 within not if
-      .token space .error
+      .token space .error source-id dup if ."  (" .source-path ." )" then
     then flush-output 0error quit ;
 
 \ Cold start

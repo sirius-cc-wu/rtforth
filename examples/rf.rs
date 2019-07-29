@@ -12,7 +12,7 @@ use rtforth::env::Environment;
 use rtforth::exception::Exception;
 use rtforth::facility::Facility;
 use rtforth::float::Float;
-use rtforth::loader::HasLoader;
+use rtforth::loader::{HasLoader, Source};
 use rtforth::output::Output;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
@@ -23,7 +23,6 @@ use std::fmt::Write;
 use std::process;
 use std::time::SystemTime;
 use std::fs::File;
-use std::io::BufReader;
 
 const BUFFER_SIZE: usize = 0x400;
 
@@ -41,7 +40,7 @@ pub struct Task {
     f_stk: Stack<f64>,
     inbuf: Option<String>,
     files: Vec<Option<File>>,
-    readers: Vec<Option<BufReader<File>>>,
+    sources: Vec<Option<Source>>,
     lines: Vec<Option<String>>,
 }
 
@@ -58,7 +57,7 @@ impl Task {
             f_stk: Stack::new(1.234567890),
             inbuf: None,
             files: Vec::new(),
-            readers: Vec::new(),
+            sources: Vec::new(),
             lines: Vec::new(),
         }
     }
@@ -196,11 +195,11 @@ impl Core for VM {
     fn files_mut(&mut self) -> &mut Vec<Option<File>> {
         &mut self.tasks[self.current_task].files
     }
-    fn readers(&self) -> &Vec<Option<BufReader<File>>> {
-        &self.tasks[self.current_task].readers
+    fn sources(&self) -> &Vec<Option<Source>> {
+        &self.tasks[self.current_task].sources
     }
-    fn readers_mut(&mut self) -> &mut Vec<Option<BufReader<File>>> {
-        &mut self.tasks[self.current_task].readers
+    fn sources_mut(&mut self) -> &mut Vec<Option<Source>> {
+        &mut self.tasks[self.current_task].sources
     }
     fn lines(&self) -> &Vec<Option<String>> {
         &self.tasks[self.current_task].lines

@@ -7,13 +7,12 @@ use rtforth::exception::Exception;
 use rtforth::facility::Facility;
 use rtforth::float::Float;
 use rtforth::file_access::FileAccess;
-use rtforth::loader::HasLoader;
+use rtforth::loader::{HasLoader, Source};
 use rtforth::output::Output;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
 use std::time::SystemTime;
 use std::fs::File;
-use std::io::BufReader;
 
 const BUFFER_SIZE: usize = 0x400;
 
@@ -172,18 +171,17 @@ impl Core for VM {
     fn files_mut(&mut self) -> &mut Vec<Option<File>> {
         &mut self.tasks[self.current_task].files
     }
-    fn readers(&self) -> &Vec<Option<BufReader<File>>> {
-        &self.tasks[self.current_task].readers
+    fn sources(&self) -> &Vec<Option<Source>> {
+        &self.tasks[self.current_task].sources
     }
-    fn readers_mut(&mut self) -> &mut Vec<Option<BufReader<File>>> {
-        &mut self.tasks[self.current_task].readers
+    fn sources_mut(&mut self) -> &mut Vec<Option<Source>> {
+        &mut self.tasks[self.current_task].sources
     }
     fn lines(&self) -> &Vec<Option<String>> {
         &self.tasks[self.current_task].lines
     }
     fn lines_mut(&mut self) -> &mut Vec<Option<String>> {
         &mut self.tasks[self.current_task].lines
-    }
     fn last_token(&mut self) -> &mut Option<String> {
         &mut self.tkn
     }

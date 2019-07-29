@@ -1,4 +1,4 @@
-use std::fs::OpenOptions;
+use std::fs::{self, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use Exception;
 use Core;
@@ -40,24 +40,32 @@ pub trait FileAccess: Core {
         }
         let fileid = fileid as usize - 1;
         if fileid < self.files().len() {
-            match &self.files()[fileid] {
-                Some(f) => {
+            let ud = match &self.files()[fileid] {
+                &Some(ref f) => {
                     match f.metadata() {
                         Ok(m) => {
                             let ud = m.len();
                             if ud <= isize::max_value() as u64 {
-                                self.s_stack().push3(ud as isize, 0, 0);
+                                Ok(ud)
                             } else {
-                                self.s_stack().push3(-1, -1, Exception::ResultOutOfRange as _);
+                                Err(Exception::ResultOutOfRange)
                             }
                         }
                         Err(_) => {
-                            self.s_stack().push3(-1, -1, Exception::FileIOException as _);
+                            Err(Exception::FileIOException)
                         }
                     }
                 }
-                None => {
-                    self.s_stack().push3(-1, -1, Exception::InvalidNumericArgument as _);
+                &None => {
+                    Err(Exception::InvalidNumericArgument)
+                }
+            };
+            match ud {
+                Ok(ud) => {
+                    self.s_stack().push3(ud as isize, 0, 0);
+                }
+                Err(e) => {
+                    self.s_stack().push3(-1, -1, e as _);
                 }
             }
         } else {
@@ -84,23 +92,31 @@ pub trait FileAccess: Core {
         }
         let fileid = fileid as usize - 1;
         if fileid < self.files().len() {
-            match &mut self.files_mut()[fileid] {
-                Some(ref mut f) => {
+            let ud = match &mut self.files_mut()[fileid] {
+                &mut Some(ref mut f) => {
                     match f.seek(SeekFrom::Current(0)) {
                         Ok(ud) => {
                             if ud <= isize::max_value() as u64 {
-                                self.s_stack().push3(ud as isize, 0, 0);
+                                Ok(ud)
                             } else {
-                                self.s_stack().push3(-1, -1, Exception::ResultOutOfRange as _);
+                                Err(Exception::ResultOutOfRange)
                             }
                         }
                         Err(_) => {
-                            self.s_stack().push3(-1, -1, Exception::FileIOException as _);
+                            Err(Exception::FileIOException)
                         }
                     }
                 }
-                None => {
-                    self.s_stack().push3(-1, -1, Exception::InvalidNumericArgument as _)
+                &mut None => {
+                    Err(Exception::InvalidNumericArgument)
+                }
+            };
+            match ud {
+                Ok(ud) => {
+                    self.s_stack().push3(ud as isize, 0, 0);
+                }
+                Err(e) => {
+                    self.s_stack().push3(-1, -1, e as _)
                 }
             }
         } else {
@@ -146,7 +162,6 @@ pub trait FileAccess: Core {
             self.s_stack().push2(-1, Exception::InvalidNumericArgument as _);
             return;            
         }
-        let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _) };
         let mut options = OpenOptions::new();
         match fam {
             0 => {
@@ -165,9 +180,20 @@ pub trait FileAccess: Core {
                 return;
             }
         };
-        match options.open(&path_name) {
-            Err(_) => {
-                self.s_stack().push2(-1, Exception::FileIOException as _);
+        let file = {
+            let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _) };
+            match options.open(&path_name) {
+                Err(_) => {
+                    Err(Exception::FileIOException)
+                }
+                Ok(file) => {
+                    Ok(file)
+                }
+            }
+        };
+        match file {
+            Err(e) => {
+                self.s_stack().push2(-1, e as _);
             }
             Ok(file) => {
                 let position = self.files().iter().position(|x| {
@@ -184,8 +210,8 @@ pub trait FileAccess: Core {
                         self.files_mut().push(Some(file));
                     }
                 }
-            },
-        };
+            }
+        }
     }}
 
     /// ( c-addr u -- ior )
@@ -197,11 +223,14 @@ pub trait FileAccess: Core {
         if u < 0 || u > PATH_NAME_MAX_LEN {
             self.s_stack().push2(-1, Exception::InvalidNumericArgument as _);
         } else {
-            let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _) };
-            match std::fs::remove_file(path_name) {
-                Err(_) => self.s_stack().push(Exception::FileIOException as _),
-                Ok(_) => self.s_stack().push(0)
-            }
+            let result = {
+                let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _) };
+                match fs::remove_file(path_name) {
+                    Err(_) => Exception::FileIOException as _,
+                    Ok(_) => 0
+                }
+            };
+            self.s_stack().push(result);
         }
     }}
 
@@ -221,7 +250,6 @@ pub trait FileAccess: Core {
             self.s_stack().push2(-1, Exception::InvalidNumericArgument as _);
             return;            
         }
-        let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _) };
         let mut options = OpenOptions::new();
         match fam {
             0 => {
@@ -238,9 +266,20 @@ pub trait FileAccess: Core {
                 return;
             }
         };
-        match options.open(&path_name) {
-            Err(_) => {
-                self.s_stack().push2(-1, Exception::FileIOException as _);
+        let file = {
+            let path_name = unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _) };
+            match options.open(&path_name) {
+                Err(_) => {
+                    Err(Exception::FileIOException)
+                }
+                Ok(file) => {
+                    Ok(file)
+                }
+            }
+        };
+        match file {
+            Err(e) => {
+                self.s_stack().push2(-1, e as _);
             }
             Ok(file) => {
                 let position = self.files_mut().iter().position(|x| {
@@ -257,8 +296,8 @@ pub trait FileAccess: Core {
                         self.files_mut().push(Some(file));
                     }
                 }
-            },
-        };
+            }
+        }
     }}
 
     /// ( c-addr u1 fileid -- u2 ior )
@@ -300,8 +339,11 @@ pub trait FileAccess: Core {
             self.s_stack().push2(0, Exception::InvalidNumericArgument as _);
         } else {
             let mut file = self.files_mut()[fileid].take().unwrap();
-            let mut buf = unsafe{ self.data_space().buffer_from_raw_parts_mut(caddr as _, u1 as _) };
-            match file.read(&mut buf) {
+            let result = {
+                let mut buf = unsafe{ self.data_space().buffer_from_raw_parts_mut(caddr as _, u1 as _) };
+                file.read(&mut buf)
+            };
+            match result {
                 Ok(u2) => {
                     self.s_stack().push2(u2 as _, 0);
                 }
@@ -333,8 +375,11 @@ pub trait FileAccess: Core {
         if fileid < self.files().len() {
             match self.files_mut()[fileid].take() {
                 Some(mut f) => {
-                    let buf = unsafe{ self.data_space().buffer_from_raw_parts(caddr as _, u as _) };
-                    match f.write_all(buf) {
+                    let result = {
+                        let buf = unsafe{ self.data_space().buffer_from_raw_parts(caddr as _, u as _) };
+                        f.write_all(buf)
+                    };
+                    match result {
                         Ok(_) => self.s_stack().push(0),
                         Err(_) => self.s_stack().push(Exception::FileIOException as _)
                     }

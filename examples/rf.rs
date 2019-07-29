@@ -4,6 +4,7 @@ extern crate getopts;
 #[macro_use(primitive)]
 extern crate rtforth;
 extern crate rustyline;
+extern crate time;
 
 use getopts::Options;
 use rtforth::memory::{CodeSpace, DataSpace};
@@ -21,7 +22,6 @@ use rtforth::NUM_TASKS;
 use std::env;
 use std::fmt::Write;
 use std::process;
-use std::time::SystemTime;
 use std::fs::File;
 
 const BUFFER_SIZE: usize = 0x400;
@@ -84,7 +84,7 @@ pub struct VM {
     outbuf: Option<String>,
     hldbuf: String,
     references: ForwardReferences,
-    now: SystemTime,
+    now: time::Tm,
 }
 
 impl VM {
@@ -112,7 +112,7 @@ impl VM {
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
             references: ForwardReferences::new(),
-            now: SystemTime::now(),
+            now: time::now(),
         };
         vm.add_core();
         vm.add_output();
@@ -241,9 +241,10 @@ impl Core for VM {
         &mut self.references
     }
     fn system_time_ns(&self) -> u64 {
-        match self.now.elapsed() {
-            Ok(d) => d.as_nanos() as u64,
-            Err(_) => 0u64,
+        let elapsed = time::now() - self.now;
+        match elapsed.num_nanoseconds() {
+            Some(d) => d as u64,
+            None => 0
         }
     }
     fn current_task(&self) -> usize {

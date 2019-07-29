@@ -1,4 +1,5 @@
 extern crate rtforth;
+extern crate time;
 use rtforth::memory::{CodeSpace, DataSpace};
 use rtforth::NUM_TASKS;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
@@ -30,7 +31,7 @@ pub struct Task {
     f_stk: Stack<f64>,
     inbuf: Option<String>,
     files: Vec<Option<File>>,
-    readers: Vec<Option<BufReader<File>>>,
+    sources: Vec<Option<Source>>,
     lines: Vec<Option<String>>,
 }
 
@@ -47,7 +48,7 @@ impl Task {
             f_stk: Stack::new(1.234567890),
             inbuf: None,
             files: Vec::new(),
-            readers: Vec::new(),
+            sources: Vec::new(),
             lines: Vec::new(),
         }
     }
@@ -73,7 +74,7 @@ pub struct VM {
     outbuf: Option<String>,
     hldbuf: String,
     references: ForwardReferences,
-    now: SystemTime,
+    now: time::Tm,
 }
 
 impl VM {
@@ -99,7 +100,7 @@ impl VM {
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
             references: ForwardReferences::new(),
-            now: SystemTime::now(),
+            now: time::now(),
         };
         vm.add_core();
         vm.add_output();
@@ -182,6 +183,7 @@ impl Core for VM {
     }
     fn lines_mut(&mut self) -> &mut Vec<Option<String>> {
         &mut self.tasks[self.current_task].lines
+    }
     fn last_token(&mut self) -> &mut Option<String> {
         &mut self.tkn
     }
@@ -216,9 +218,10 @@ impl Core for VM {
         &mut self.references
     }
     fn system_time_ns(&self) -> u64 {
-        match self.now.elapsed() {
-            Ok(d) => d.as_nanos() as u64,
-            Err(_) => 0u64,
+        let elapsed = time::now() - self.now;
+        match elapsed.num_nanoseconds() {
+            Some(d) => d as u64,
+            None => 0
         }
     }
     fn current_task(&self) -> usize {

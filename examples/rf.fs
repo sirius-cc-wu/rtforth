@@ -12,6 +12,7 @@
       source-id dup if dup
         ."  (" .source-path
         ." :"  load-line# @  0 .r ." : " .source-line ." )"
+      else drop
       then
     then flush-output 0error quit ;
 

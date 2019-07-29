@@ -1,20 +1,32 @@
 use core::Core;
+use output::Output;
 use exception::Exception;
+use memory::Memory;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 
-pub trait HasLoader: Core {
+pub struct Source {
+    reader: BufReader<File>,
+    path: String,
+}
+
+pub trait HasLoader: Core + Output {
     fn add_loader(&mut self) {
         self.add_primitive("open-source", HasLoader::open_source);
         self.add_primitive("close-source", HasLoader::close_source);
+        self.add_primitive(".source-path", HasLoader::dot_source_path);
         self.add_primitive("load-line", HasLoader::p_load_line);
+        self.add_primitive(".source-line", HasLoader::dot_source_line);
     }
 
-    /// ( file-id -- source-id )
+    /// ( c-addr u file-id -- source-id )
     ///
     /// Open input source from file.
-    /// 
+    ///
+    /// The source path has length u and is stored in the data space starts
+    /// with c-addr.
+    ///
     /// Note: different from the Forth 2012 standard, after open, the file
     /// is owned by the input source, the file-id associated with the file is
     /// also gone, so it can no more be used with file access words like
@@ -23,23 +35,24 @@ pub trait HasLoader: Core {
     /// Also note that it is not checked if the file corresponding to file-id is opened read
     /// or opened read-write.
     primitive!{fn open_source(&mut self) {
-        let id = self.s_stack().pop();
+        let (caddr, u, id )= self.s_stack().pop3();
         if id > 0 && id - 1 < self.files().len() as isize {
             match self.files_mut()[id as usize - 1].take() {
                 Some(file) => {
-                    let reader = BufReader::new(file);
-                    let position = self.readers().iter().position(|x| {
+                    let position = self.sources().iter().position(|x| {
                         x.is_none()
                     });
+                    let reader = BufReader::new(file);
+                    let path = String::from(unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _)} );
                     match position {
                         Some(sid) => {
-                            self.readers_mut()[sid] = Some(reader);
+                            self.sources_mut()[sid] = Some(Source {reader, path});
                             self.s_stack().push(sid as isize + 1);
                         }
                         None => {
-                            let sid = self.readers().len() as isize;
+                            let sid = self.sources().len() as isize;
                             self.s_stack().push(sid as isize + 1);
-                            self.readers_mut().push(Some(reader));
+                            self.sources_mut().push(Some(Source {reader, path}));
                             self.lines_mut().push(Some(String::with_capacity(128)));
                         }
                     }
@@ -56,14 +69,58 @@ pub trait HasLoader: Core {
     /// ( source-id -- )
     ///
     /// Close input source.
-    /// 
+    ///
     /// The file owned by the resource is also closed.
+    ///
+    /// Failed if the source-id is the current source id or if the source-id doesn't exist.
     primitive!{fn close_source(&mut self) {
         let id = self.s_stack().pop();
-        if id > 0 && id - 1 < self.readers().len() as isize && self.readers()[id as usize - 1].is_some() {
-            let _ = self.readers_mut()[id as usize - 1].take();
-        } else {
+        if self.source_id() == id {
             self.abort_with(Exception::InvalidNumericArgument);
+        } else {
+            if id > 0 && id - 1 < self.sources().len() as isize && self.sources()[id as usize - 1].is_some() {
+                let _ = self.sources_mut()[id as usize - 1].take();
+            } else {
+                self.abort_with(Exception::InvalidNumericArgument);
+            }
+        }
+    }}
+
+    /// ( source-id -- )
+    primitive!{fn dot_source_path(&mut self) {
+        let id = self.s_stack().pop();
+        if id > 0 && id - 1 < self.sources().len() as isize {
+            let source = self.sources_mut()[id as usize - 1].take();
+            match source {
+                Some(s) => {
+                    self.push_output(&s.path);
+                    self.sources_mut()[id as usize - 1] = Some(s);
+                }
+                None => {
+                    self.abort_with(Exception::InvalidNumericArgument)
+                }
+            }
+        } else {
+            self.abort_with(Exception::InvalidNumericArgument)
+        }
+    }}
+
+    /// ( source-id -- )
+    primitive!{fn dot_source_line(&mut self) {
+        let id = self.s_stack().pop();
+        if id > 0 && id - 1 < self.lines().len() as isize {
+            let line = self.lines_mut()[id as usize - 1].take();
+            match line {
+                Some(s) => {
+                    self.push_output(&s);
+                    self.lines_mut()[id as usize - 1] = Some(s);
+                }
+                None => {
+                    self.abort_with(Exception::InvalidNumericArgument)
+                }
+            }
+        } else {
+            self.abort_with(Exception::InvalidNumericArgument)
         }
     }}
 
@@ -85,8 +142,11 @@ pub trait HasLoader: Core {
     /// Returns Ok((length, not-eof)) if successful.
     fn load_line(&mut self, source_id: usize) -> Result<(usize, bool), Exception> {
         // Read line
-        let mut reader = match self.readers_mut()[source_id-1].take() {
-            Some(reader) => reader,
+        if !(source_id > 0 && source_id - 1 < self.sources().len()) {
+            return Err(Exception::InvalidNumericArgument);
+        }
+        let mut source = match self.sources_mut()[source_id-1].take() {
+            Some(s) => s,
             None => {
                 return Err(Exception::InvalidNumericArgument);
             }
@@ -94,19 +154,20 @@ pub trait HasLoader: Core {
         let mut line = match self.lines_mut()[source_id-1].take() {
             Some(line) => line,
             None => {
+                self.sources_mut()[source_id-1] = Some(source);
                 return Err(Exception::InvalidNumericArgument);
             }
         };
         line.clear();
-        let result = match reader.read_line(&mut line) {
+        let result = match source.reader.read_line(&mut line) {
             Ok(len) => {
                 let not_eof = !(len == 0);
                 if line.ends_with('\n') {
+                    line.truncate(len-1);
                     if line.ends_with('\r') {
                         line.truncate(len-2);
                         Ok((len-2, not_eof))
                     } else {
-                        line.truncate(len-1);
                         Ok((len-1, not_eof))
                     }
                 } else {
@@ -115,8 +176,8 @@ pub trait HasLoader: Core {
             },
             Err(_) => Err(Exception::FileIOException)
         };
-        self.readers_mut()[source_id-1] = Some(reader);
         self.lines_mut()[source_id-1] = Some(line);
+        self.sources_mut()[source_id-1] = Some(source);
         result
     }
 

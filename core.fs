@@ -124,25 +124,29 @@ create src-stack 16 , 0 , 16 2* cells allot
       compiling? if compile-token
       ?stacks else interpret-token ?stacks then
     repeat ;
+\ Multitasking is not considered here.
+variable load-line#
 : load-source-file ( -- )
     begin
-      source-id load-line not if exit then
-      0 source-idx!
+      source-id load-line
     while
+      drop
+      0 source-idx!
       evaluate-input  flush-output
+      1 load-line# +!
     repeat ;
 : included ( c-addr u -- )
-    r/o open-file 0= if
+    2dup  r/o open-file 0= if
         save-source
-        open-source source-id!
+        ( c-addr u file-id ) open-source source-id!
         postpone [
+        0 load-line# !
         load-source-file
-        source-id close-source
-        restore-source
+        source-id  restore-source  close-source
     else
         abort
     then
 ;
-: include-file ( "path" -- )   32 word count included ;
+: include ( "path" -- )   32 word count included ;
 
 marker -work

@@ -17,6 +17,7 @@ pub trait HasLoader: Core + Output {
         self.add_primitive("close-source", HasLoader::close_source);
         self.add_primitive(".source-path", HasLoader::dot_source_path);
         self.add_primitive("load-line", HasLoader::p_load_line);
+        self.add_primitive(".source-line", HasLoader::dot_source_line);
     }
 
     /// ( c-addr u file-id -- source-id )
@@ -94,6 +95,25 @@ pub trait HasLoader: Core + Output {
                 Some(s) => {
                     self.push_output(&s.path);
                     self.sources_mut()[id as usize - 1] = Some(s);
+                }
+                None => {
+                    self.abort_with(Exception::InvalidNumericArgument)
+                }
+            }
+        } else {
+            self.abort_with(Exception::InvalidNumericArgument)
+        }
+    }}
+
+    /// ( source-id -- )
+    primitive!{fn dot_source_line(&mut self) {
+        let id = self.s_stack().pop();
+        if id > 0 && id - 1 < self.lines().len() as isize {
+            let line = self.lines_mut()[id as usize - 1].take();
+            match line {
+                Some(s) => {
+                    self.push_output(&s);
+                    self.lines_mut()[id as usize - 1] = Some(s);
                 }
                 None => {
                     self.abort_with(Exception::InvalidNumericArgument)

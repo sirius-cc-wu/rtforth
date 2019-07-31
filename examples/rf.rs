@@ -304,18 +304,17 @@ fn main() {
     } else if matches.opt_present("v") {
         print_version();
     } else if !matches.free.is_empty() {
-        for file in matches.free {
-            if let Err(e) = vm.load(&file) {
-                vm.clear_stacks();
-                vm.reset();
-                println!("{} ", e.description());
-                bye = true;
-                break;
+        for word in matches.free {
+            match vm.input_buffer().take() {
+                Some(mut buf) => {
+                    buf.push_str(&word);
+                    buf.push_str(" ");
+                    vm.set_input_buffer(buf);
+                }
+                None => { /* Unreachable */ }
             }
         }
-        if !bye {
-            repl(vm);
-        }
+        repl(vm);
     } else {
         print_version();
         println!("Type 'bye' or press Ctrl-D to exit.");
@@ -361,6 +360,6 @@ fn repl(vm: &mut VM) {
 }
 
 fn print_usage(program: &str, opts: Options) {
-    let brief = format!("Usage: {} [files] [options]", program);
+    let brief = format!("Usage: {} [forth words] [options]", program);
     print!("{}", opts.usage(&brief));
 }

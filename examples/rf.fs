@@ -19,6 +19,7 @@
 \ Cold start
 : cold
     2 halt  3 halt  4 halt  5 halt
-    ['] (abort) handler!  quit ;
+    ['] (abort) handler!
+    evaluate-input quit ;
 
 marker -work

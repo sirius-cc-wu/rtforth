@@ -140,7 +140,7 @@ variable load-line#
         save-source
         ( c-addr u file-id ) open-source source-id!
         postpone [
-        0 load-line# !
+        1 load-line# !
         load-source-file
         source-id  restore-source  close-source
     else

@@ -186,7 +186,6 @@ impl Core for VM {
         }
     }
     fn set_input_buffer(&mut self, buffer: String) {
-        // self.tasks[self.current_task].inbuf = Some(buffer);
         *self.input_buffer() = Some(buffer);
     }
     fn files(&self) -> &Vec<Option<File>> {

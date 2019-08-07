@@ -134,7 +134,7 @@ variable load-line#
       0 source-idx!
       evaluate-input  flush-output
       1 load-line# +!
-    repeat ;
+    repeat  drop ;
 : included ( c-addr u -- )
     2dup  r/o open-file 0= if
         save-source
@@ -148,5 +148,6 @@ variable load-line#
     then
 ;
 : include ( "path" -- )   32 word count included ;
+: \\ ( -- )   source-id   begin  dup load-line  while  drop  repeat  2drop ;
 
 marker -work

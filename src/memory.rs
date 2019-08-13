@@ -155,7 +155,7 @@ impl Memory for DataSpace {
     }
 }
 
-pub(crate) trait Memory {
+pub trait Memory {
     /// Start address
     fn start(&self) -> usize;
 

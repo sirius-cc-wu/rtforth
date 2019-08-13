@@ -1,4 +1,3 @@
-#![feature(test)]
 #![feature(allocator_api)]
 
 #[cfg(target_arch = "arm")]
@@ -36,7 +35,7 @@ pub mod output;
 pub(crate) mod parser;
 pub mod tools;
 pub mod units;
-mod mock_vm;
+pub mod mock_vm;
 
 use std::result;
 use core::Core;

@@ -131,7 +131,7 @@ pub trait Tools: Output {
         }
     }}
 
-	/// Print content of the input buffer.
+	/// Print content of the input buffer. `.input (-- )`
     primitive!{fn dot_input(&mut self) {
         match self.input_buffer().take() {
             Some(input) => {

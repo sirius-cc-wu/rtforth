@@ -31,7 +31,7 @@ pub trait HasLoader: Core + Output {
     /// is owned by the input source, the file-id associated with the file is
     /// also gone, so it can no more be used with file access words like
     /// CLOSE-FILE, READ-FILE, WRITE-FILE, RESIZE-FILE...
-    /// 
+    ///
     /// Also note that it is not checked if the file corresponding to file-id is opened read
     /// or opened read-write.
     primitive!{fn open_source(&mut self) {
@@ -43,7 +43,9 @@ pub trait HasLoader: Core + Output {
                         x.is_none()
                     });
                     let reader = BufReader::new(file);
-                    let path = String::from(unsafe{ self.data_space().str_from_raw_parts(caddr as _, u as _)} );
+                    let path = String::from( unsafe {
+                            self.data_space().str_from_raw_parts(caddr as _, u as _)
+                        });
                     match position {
                         Some(sid) => {
                             self.sources_mut()[sid] = Some(Source {reader, path});
@@ -78,7 +80,8 @@ pub trait HasLoader: Core + Output {
         if self.source_id() == id {
             self.abort_with(Exception::InvalidNumericArgument);
         } else {
-            if id > 0 && id - 1 < self.sources().len() as isize && self.sources()[id as usize - 1].is_some() {
+            if id > 0 && id - 1 < self.sources().len() as isize
+                && self.sources()[id as usize - 1].is_some() {
                 let _ = self.sources_mut()[id as usize - 1].take();
             } else {
                 self.abort_with(Exception::InvalidNumericArgument);
@@ -145,16 +148,16 @@ pub trait HasLoader: Core + Output {
         if !(source_id > 0 && source_id - 1 < self.sources().len()) {
             return Err(Exception::InvalidNumericArgument);
         }
-        let mut source = match self.sources_mut()[source_id-1].take() {
+        let mut source = match self.sources_mut()[source_id - 1].take() {
             Some(s) => s,
             None => {
                 return Err(Exception::InvalidNumericArgument);
             }
         };
-        let mut line = match self.lines_mut()[source_id-1].take() {
+        let mut line = match self.lines_mut()[source_id - 1].take() {
             Some(line) => line,
             None => {
-                self.sources_mut()[source_id-1] = Some(source);
+                self.sources_mut()[source_id - 1] = Some(source);
                 return Err(Exception::InvalidNumericArgument);
             }
         };
@@ -163,21 +166,21 @@ pub trait HasLoader: Core + Output {
             Ok(len) => {
                 let not_eof = !(len == 0);
                 if line.ends_with('\n') {
-                    line.truncate(len-1);
+                    line.truncate(len - 1);
                     if line.ends_with('\r') {
-                        line.truncate(len-2);
-                        Ok((len-2, not_eof))
+                        line.truncate(len - 2);
+                        Ok((len - 2, not_eof))
                     } else {
-                        Ok((len-1, not_eof))
+                        Ok((len - 1, not_eof))
                     }
                 } else {
                     Ok((len, not_eof))
                 }
-            },
-            Err(_) => Err(Exception::FileIOException)
+            }
+            Err(_) => Err(Exception::FileIOException),
         };
-        self.lines_mut()[source_id-1] = Some(line);
-        self.sources_mut()[source_id-1] = Some(source);
+        self.lines_mut()[source_id - 1] = Some(line);
+        self.sources_mut()[source_id - 1] = Some(source);
         result
     }
 

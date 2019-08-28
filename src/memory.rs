@@ -303,10 +303,14 @@ pub(crate) trait Memory {
         let len = bytes.len().min(255);
         if pos + len + mem::size_of::<usize>() <= self.limit() {
             let mut p = pos;
-            unsafe{ *(p as *mut u8) = len as u8; }
+            unsafe {
+                *(p as *mut u8) = len as u8;
+            }
             for byte in &bytes[0..len] {
                 p += 1;
-                unsafe{ *(p as *mut u8) = *byte; }
+                unsafe {
+                    *(p as *mut u8) = *byte;
+                }
             }
         } else {
             panic!("Error: put_cstr while space is full.");

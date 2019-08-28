@@ -1,12 +1,10 @@
 extern crate libc;
 use memory::{CodeSpace, DataSpace, Memory};
 use loader::Source;
-use Exception::{self, Abort, ControlStructureMismatch, DivisionByZero,
-                           FloatingPointStackOverflow, FloatingPointStackUnderflow,
-                           InterpretingACompileOnlyWord, InvalidMemoryAddress,
-                           InvalidNumericArgument, ReturnStackOverflow, ReturnStackUnderflow,
-                           StackOverflow, StackUnderflow, UndefinedWord, UnexpectedEndOfFile,
-                           UnsupportedOperation};
+use Exception::{self, Abort, ControlStructureMismatch, DivisionByZero, FloatingPointStackOverflow,
+                FloatingPointStackUnderflow, InterpretingACompileOnlyWord, InvalidMemoryAddress,
+                InvalidNumericArgument, ReturnStackOverflow, ReturnStackUnderflow, StackOverflow,
+                StackUnderflow, UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation};
 use parser;
 use std::fs::File;
 use std::fmt::Write;
@@ -465,7 +463,7 @@ pub trait Core: Sized {
     /// Set `output_buffer` to `Some(buffer)`.
     fn set_output_buffer(&mut self, buffer: String);
     /// Input source identifier
-    /// 
+    ///
     /// > 0: input from source at `self.sources[source_id] and input buffer
     /// `self.lines[source_id]`.
     /// = 0: input from the default user input buffer.
@@ -3771,7 +3769,8 @@ compilation_semantics: fn(&mut Self, usize)){
         if id > 0 {
             // File source
             if id - 1 < self.sources().len() as isize && self.sources()[id as usize - 1].is_some()
-            && self.lines()[id as usize - 1].is_some() {
+                && self.lines()[id as usize - 1].is_some()
+            {
                 self.state().source_id = id;
             } else {
                 self.abort_with(Exception::InvalidNumericArgument);

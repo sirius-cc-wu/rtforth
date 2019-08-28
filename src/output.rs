@@ -219,7 +219,6 @@ pub trait Output: Core {
             None => {}
         }
     }}
-
 }
 
 #[cfg(test)]

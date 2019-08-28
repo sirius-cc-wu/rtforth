@@ -243,7 +243,7 @@ impl Core for VM {
         let elapsed = time::now() - self.now;
         match elapsed.num_nanoseconds() {
             Some(d) => d as u64,
-            None => 0
+            None => 0,
         }
     }
     fn current_task(&self) -> usize {

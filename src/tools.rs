@@ -128,5 +128,4 @@ pub trait Tools: Output {
             }
         }
     }}
-
 }

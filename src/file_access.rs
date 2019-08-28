@@ -26,7 +26,7 @@ pub trait FileAccess: Core {
     /// the implementation-defined I/O result code. This operation does not
     /// affect the value returned by FILE- POSITION. ud is undefined if ior is
     /// non-zero.
-    /// 
+    ///
     /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
     /// maximum value of ud allowed is isize::max_value(). So an exception
@@ -78,7 +78,7 @@ pub trait FileAccess: Core {
     /// ud is the current file position for the file identified by fileid. ior
     /// is the implementation-defined I/O result code. ud is undefined if ior
     /// is non-zero.
-    /// 
+    ///
     /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
     /// maximum value of ud allowed is isize::max_value(). So an exception
@@ -127,7 +127,7 @@ pub trait FileAccess: Core {
     /// ( fileid -- ior )
     ///
     /// Close the file identified by fileid. ior is the implementation-defined
-    /// I/O result code. 
+    /// I/O result code.
     primitive!{fn close_file(&mut self) {
         let fileid = self.s_stack().pop();
         if fileid <= 0 {
@@ -162,7 +162,7 @@ pub trait FileAccess: Core {
         let u = u as usize;
         if u > PATH_NAME_MAX_LEN {
             self.s_stack().push2(-1, Exception::InvalidNumericArgument as _);
-            return;            
+            return;
         }
         let mut options = OpenOptions::new();
         match fam {
@@ -262,7 +262,7 @@ pub trait FileAccess: Core {
         let u = u as usize;
         if u > PATH_NAME_MAX_LEN {
             self.s_stack().push2(-1, Exception::InvalidNumericArgument as _);
-            return;            
+            return;
         }
         let mut options = OpenOptions::new();
         match fam {
@@ -401,8 +401,11 @@ pub trait FileAccess: Core {
             match self.files_mut()[fileid].take() {
                 Some(mut f) => {
                     let result = {
-                        if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
-                            let buf = unsafe{ self.data_space().buffer_from_raw_parts(caddr as _, u as _) };
+                        if self.data_space().start() <= caddr
+                            && caddr + u <= self.data_space().limit() {
+                            let buf = unsafe {
+                                self.data_space().buffer_from_raw_parts(caddr as _, u as _)
+                            };
                             f.write_all(buf).or(Err(Exception::FileIOException))
                         } else {
                             Err(Exception::InvalidMemoryAddress)
@@ -434,7 +437,7 @@ pub trait FileAccess: Core {
     ///
     /// At the conclusion of the operation, FILE-SIZE returns the value ud and
     /// FILE- POSITION returns an unspecified value.
-    /// 
+    ///
     /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
     /// maximum value of ud allowed is isize::max_value(). So an exception
@@ -481,7 +484,7 @@ pub trait FileAccess: Core {
     /// if the file is positioned outside the file boundaries.
     ///
     /// At the conclusion of the operation, FILE-POSITION returns the value ud.
-    /// 
+    ///
     /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
     /// maximum value of ud allowed is isize::max_value(). So an exception
@@ -520,5 +523,4 @@ pub trait FileAccess: Core {
             }
         }
     }}
-
 }

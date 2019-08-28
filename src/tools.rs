@@ -11,6 +11,7 @@ pub trait Tools: Output {
         self.add_primitive("(xtime)", Tools::set_execution_times);
         self.add_primitive(".xtime", Tools::dot_xtime);
         self.add_primitive("0xtime", Tools::clear_xtime);
+        self.add_primitive(".input", Tools::dot_input);
     }
 
     /// Run-time: ( -- )
@@ -127,6 +128,22 @@ pub trait Tools: Output {
                 self.wordlist_mut()[w].min_execution_time = 0;
                 self.wordlist_mut()[w].max_execution_time = 0;
             }
+        }
+    }}
+
+    /// Print content of the input buffer. `.input ( -- )`
+    primitive!{fn dot_input(&mut self) {
+        match self.input_buffer().take() {
+            Some(input) => {
+                match self.output_buffer().as_mut() {
+                    Some(out) => {
+                        out.push_str(&input);
+                    }
+                    None => {}
+                }
+                self.set_input_buffer(input);
+            }
+            None => {}
         }
     }}
 

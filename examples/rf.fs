@@ -1,12 +1,5 @@
 -work
 
-: evaluate-input
-    begin parse-word
-      token-empty? not
-    while
-      compiling? if compile-token ?stacks else interpret-token ?stacks then
-    repeat ;
-
 : quit
     reset
     begin receive evaluate-input
@@ -16,11 +9,17 @@
 : (abort)
     0stacks error -2 1 within not if
       .token space .error
+      source-id dup if dup
+        ."  (" .source-path
+        ." :"  load-line# @  0 .r ." : " .source-line ." )"
+      else drop
+      then
     then flush-output 0error quit ;
 
 \ Cold start
 : cold
     2 halt  3 halt  4 halt  5 halt
-    ['] (abort) handler!  quit ;
+    ['] (abort) handler!
+    evaluate-input quit ;
 
 marker -work

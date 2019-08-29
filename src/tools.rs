@@ -41,7 +41,6 @@ pub trait Tools: Output {
     /// List definition names in word list.
     primitive!{fn words(&mut self) {
         if let Some(mut buf) = self.output_buffer().take() {
-            writeln!(buf, "").unwrap();
             for w in (1..self.wordlist().len()).rev() {
                 if !self.wordlist()[w].is_hidden() {
                     let nfa = self.wordlist()[w].nfa();

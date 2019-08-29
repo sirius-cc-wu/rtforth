@@ -1,3 +1,5 @@
+: 2* ( n -- n*2 )   2 * ;
+: 2/ ( n -- n/2 )   2 / ;
 32 constant bl
 : space ( -- )   32 emit ;
 : spaces ( n -- )   0 begin 2dup > while 1+ space repeat 2drop ;
@@ -90,5 +92,62 @@ variable >in  0 >in !
 0 constant r/o
 1 constant w/o
 2 constant r/w
+: bin ( -- )   ;
+
+\ Input source
+: _save-input ( -- source-id source-idx 2 )   source-id  source-idx 2 ;
+: _restore-input ( source-id source-idx 2 -- )
+    2 = if source-idx! source-id! else abort then ;
+defer save-input   ' _save-input  ' save-input  defer!
+defer restore-input   ' _restore-input  ' restore-input  defer!
+
+\ Stack to save & restore source
+\ content: | capacity | count=N | source-idx1 | source-id1 | ... | source_idxN | source-idN |
+\ NOTE: multitasking is not considered here.
+create src-stack 16 , 0 , 16 2* cells allot
+: save-source
+    source-id source-idx
+    src-stack 2@ over > if
+      ( src-id src-idx count ) 1+ dup src-stack cell+ !
+      ( src-id src-idx count+1 ) 2* cells src-stack +  2!
+    else abort then ;
+: restore-source
+    src-stack 2@ drop  dup 0 > if
+      ( count ) dup 1- src-stack cell+ !
+      ( count ) 2* cells src-stack + 2@
+      source-idx!  source-id!
+    else abort then ;
+: evaluate-input
+    begin parse-word
+      token-empty? not
+    while
+      compiling? if compile-token
+      ?stacks else interpret-token ?stacks then
+    repeat ;
+\ Multitasking is not considered here.
+variable load-line#
+: load-source-file ( -- )
+    begin
+      source-id load-line
+    while
+      drop
+      0 source-idx!
+      evaluate-input  flush-output
+      1 load-line# +!
+    repeat  drop ;
+: included ( c-addr u -- )
+    2dup  r/o open-file 0= if
+        save-source
+        ( c-addr u file-id ) open-source source-id!
+        postpone [
+        1 load-line# !
+        load-source-file
+        source-id  restore-source  close-source
+    else
+        abort
+    then
+;
+: include ( "path" -- )   32 word count included ;
+: \\ ( -- )   source-id   begin  dup load-line  while  drop  repeat  2drop ;
 
 marker -work

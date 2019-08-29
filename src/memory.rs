@@ -214,7 +214,15 @@ pub(crate) trait Memory {
     }
 
     unsafe fn str_from_raw_parts(&self, addr: usize, len: usize) -> &str {
-        mem::transmute(slice::from_raw_parts::<u8>(addr as *mut u8, len))
+        mem::transmute(slice::from_raw_parts::<u8>(addr as *const u8, len))
+    }
+
+    unsafe fn buffer_from_raw_parts(&self, addr: usize, len: usize) -> &[u8] {
+        slice::from_raw_parts::<u8>(addr as *const u8, len)
+    }
+
+    unsafe fn buffer_from_raw_parts_mut(&mut self, addr: usize, len: usize) -> &mut [u8] {
+        slice::from_raw_parts_mut::<u8>(addr as *mut u8, len)
     }
 
     // Basic operations
@@ -295,10 +303,14 @@ pub(crate) trait Memory {
         let len = bytes.len().min(255);
         if pos + len + mem::size_of::<usize>() <= self.limit() {
             let mut p = pos;
-            unsafe{ *(p as *mut u8) = len as u8; }
+            unsafe {
+                *(p as *mut u8) = len as u8;
+            }
             for byte in &bytes[0..len] {
                 p += 1;
-                unsafe{ *(p as *mut u8) = *byte; }
+                unsafe {
+                    *(p as *mut u8) = *byte;
+                }
             }
         } else {
             panic!("Error: put_cstr while space is full.");

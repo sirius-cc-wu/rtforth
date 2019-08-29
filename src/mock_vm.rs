@@ -1,3 +1,5 @@
+use std::fs::File;
+use loader::Source;
 use memory::{CodeSpace, DataSpace};
 use NUM_TASKS;
 use core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
@@ -5,6 +7,7 @@ use env::Environment;
 use exception::Exception;
 use facility::Facility;
 use float::Float;
+use file_access::FileAccess;
 use loader::HasLoader;
 use output::Output;
 use tools::Tools;
@@ -25,6 +28,9 @@ pub struct Task {
     c_stk: Stack<Control>,
     f_stk: Stack<f64>,
     inbuf: Option<String>,
+    files: Vec<Option<File>>,
+    sources: Vec<Option<Source>>,
+    lines: Vec<Option<String>>,
 }
 
 impl Task {
@@ -39,6 +45,9 @@ impl Task {
             c_stk: Stack::new(Control::Canary),
             f_stk: Stack::new(1.234567890),
             inbuf: None,
+            files: Vec::new(),
+            sources: Vec::new(),
+            lines: Vec::new(),
         }
     }
 
@@ -98,6 +107,8 @@ impl VM {
         vm.add_facility();
         vm.add_float();
         vm.add_units();
+        vm.add_file_access();
+        vm.add_loader();
 
         vm.load_core_fs();
 
@@ -144,11 +155,38 @@ impl Core for VM {
     fn set_output_buffer(&mut self, buffer: String) {
         self.outbuf = Some(buffer);
     }
+    fn source_id(&self) -> isize {
+        self.tasks[self.current_task].state.source_id
+    }
     fn input_buffer(&mut self) -> &mut Option<String> {
-        &mut self.tasks[self.current_task].inbuf
+        let source_id = self.source_id();
+        if source_id > 0 {
+            &mut self.lines_mut()[source_id as usize - 1]
+        } else {
+            &mut self.tasks[self.current_task].inbuf
+        }
     }
     fn set_input_buffer(&mut self, buffer: String) {
-        self.tasks[self.current_task].inbuf = Some(buffer);
+        // self.tasks[self.current_task].inbuf = Some(buffer);
+        *self.input_buffer() = Some(buffer);
+    }
+    fn files(&self) -> &Vec<Option<File>> {
+        &self.tasks[self.current_task].files
+    }
+    fn files_mut(&mut self) -> &mut Vec<Option<File>> {
+        &mut self.tasks[self.current_task].files
+    }
+    fn sources(&self) -> &Vec<Option<Source>> {
+        &self.tasks[self.current_task].sources
+    }
+    fn sources_mut(&mut self) -> &mut Vec<Option<Source>> {
+        &mut self.tasks[self.current_task].sources
+    }
+    fn lines(&self) -> &Vec<Option<String>> {
+        &self.tasks[self.current_task].lines
+    }
+    fn lines_mut(&mut self) -> &mut Vec<Option<String>> {
+        &mut self.tasks[self.current_task].lines
     }
     fn last_token(&mut self) -> &mut Option<String> {
         &mut self.tkn
@@ -216,6 +254,7 @@ impl Environment for VM {}
 impl Facility for VM {}
 impl Float for VM {}
 impl Units for VM {}
+impl FileAccess for VM {}
 impl HasLoader for VM {}
 impl Output for VM {}
 impl Tools for VM {}

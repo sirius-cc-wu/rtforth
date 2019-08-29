@@ -11,6 +11,8 @@ pub trait Tools: Output {
         self.add_primitive("(xtime)", Tools::set_execution_times);
         self.add_primitive(".xtime", Tools::dot_xtime);
         self.add_primitive("0xtime", Tools::clear_xtime);
+        self.add_primitive(".input", Tools::dot_input);
+        self.add_primitive("flush-to-err", Tools::flush_to_err);
     }
 
     /// Run-time: ( -- )
@@ -128,4 +130,32 @@ pub trait Tools: Output {
             }
         }
     }}
+
+    /// Print content of the input buffer. `.input ( -- )`
+    primitive!{fn dot_input(&mut self) {
+        match self.input_buffer().take() {
+            Some(input) => {
+                match self.output_buffer().as_mut() {
+                    Some(out) => {
+                        out.push_str(&input);
+                    }
+                    None => {}
+                }
+                self.set_input_buffer(input);
+            }
+            None => {}
+        }
+    }}
+
+	/// Flush output buffer to standard error output. `flush-to-err ( -- )`
+    primitive!{fn flush_to_err(&mut self) {
+        match self.output_buffer().as_mut() {
+            Some(out) => {
+                eprintln!("{}", out);
+                out.clear();
+            }
+            None => {}
+        }
+    }}
+
 }

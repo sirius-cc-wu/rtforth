@@ -26,13 +26,13 @@ name = "simple"
 path = "examples/simple.rs"
 
 [dependencies]
-uom = "0.18"
-approx = "0.2"
-libc = "0.2.41"
+uom = "=0.18.0"
+approx = "=0.2.1"
+libc = "=0.2.48"
 
 [dev-dependencies]
 rustyline = "1.0"
-getopts = "0.2"
+getopts = "=0.2.15"
 time = "0.1"
 
 [profile.release]

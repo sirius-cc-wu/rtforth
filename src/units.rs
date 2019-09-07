@@ -22,6 +22,7 @@ pub trait Units: Core {
         self.add_primitive("usec", Units::from_usec);
 
         self.add_primitive("mm/min", Units::mm_per_min);
+        self.add_primitive("mm/sec", Units::mm_per_sec);
         self.add_primitive("um/msec", Units::um_per_msec);
 
         self.add_primitive("rpm", Units::rpm);
@@ -82,6 +83,11 @@ pub trait Units: Core {
     primitive!{fn mm_per_min(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Length::new::<millimeter>(t).value/Time::new::<minute>(1.0).value);
+    }}
+
+    primitive!{fn mm_per_sec(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(Length::new::<millimeter>(t).value/Time::new::<second>(1.0).value);
     }}
 
     primitive!{fn um_per_msec(&mut self) {

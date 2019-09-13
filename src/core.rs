@@ -4047,7 +4047,7 @@ compilation_semantics: fn(&mut Self, usize)){
 mod tests {
     use super::{Core, Memory};
     use exception::Exception::{Abort, ControlStructureMismatch, InterpretingACompileOnlyWord,
-                               InvalidMemoryAddress, InvalidNumericArgument, ReturnStackUnderflow, StackUnderflow,
+                               InvalidMemoryAddress, ReturnStackUnderflow, StackUnderflow,
                                UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation};
     use std::mem;
     use mock_vm::VM;

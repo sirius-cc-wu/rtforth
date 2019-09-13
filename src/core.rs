@@ -14,7 +14,7 @@ use std::fmt::{self, Display};
 use std::mem;
 use std::ops::{Index, IndexMut};
 use std::str;
-use hibitset::BitSet;
+use hibitset::{BitSet, BitSetLike};
 use {FALSE, NUM_TASKS, TRUE};
 
 // Word
@@ -451,14 +451,6 @@ impl Display for Control {
     }
 }
 
-/// Label
-#[derive(Clone, Debug)]
-pub enum Label {
-    Forward(usize),
-    Address(usize),
-    None,
-}
-
 pub trait Core: Sized {
     // Functions to access VM.
     fn last_error(&self) -> Option<Exception>;
@@ -518,14 +510,18 @@ pub trait Core: Sized {
     ///
     /// No operation if there is no task `i`.
     fn set_awake(&mut self, i: usize, v: bool);
-    /// Bitset to check existence of labels.
-    fn bitset(&self) -> &BitSet;
-    /// Bitset to check existence of labels.
-    fn bitset_mut(&mut self) -> &mut BitSet;
+    /// Bitset to check forward declaration of labels.
+    fn forward_bitset(&self) -> &BitSet;
+    /// Mutable bitset to check forward declaration of labels.
+    fn forward_bitset_mut(&mut self) -> &mut BitSet;
+    /// Bitset to check resolved labels.
+    fn resolved_bitset(&self) -> &BitSet;
+    /// Mutable bitset to check resolved labels.
+    fn resolved_bitset_mut(&mut self) -> &mut BitSet;
     /// Labels to support BASIC-like goto, label, call.
-    fn labels(&self) -> &Vec<Label>;
+    fn labels(&self) -> &Vec<usize>;
     /// Labels to support BASIC-like goto, label, call.
-    fn labels_mut(&mut self) -> &mut Vec<Label>;
+    fn labels_mut(&mut self) -> &mut Vec<usize>;
 
     /// Add core primitives to self.
     fn add_core(&mut self) {
@@ -613,7 +609,7 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("repeat", Core::imm_repeat);
         self.add_immediate_and_compile_only("until", Core::imm_until);
         self.add_immediate_and_compile_only("again", Core::imm_again);
-        self.add_immediate_and_compile_only("0labels", Core::imm_clear_labels);
+        self.add_immediate("0labels", Core::imm_clear_labels);
         self.add_immediate_and_compile_only("label", Core::imm_label);
         self.add_immediate_and_compile_only("goto", Core::imm_goto);
         self.add_immediate_and_compile_only("call", Core::imm_call);
@@ -1379,7 +1375,8 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Clear labels, `0labels ( -- )`
     #[cfg(not(feature = "stc"))]
     primitive! {fn imm_clear_labels(&mut self) {
-        self.bitset_mut().clear();
+        self.forward_bitset_mut().clear();
+        self.resolved_bitset_mut().clear();
     }}
 
     /// Create a label `n`, `label ( n -- )`
@@ -1390,31 +1387,26 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         let n = self.s_stack().pop() as usize;
         if 0 < n && n < self.labels().capacity() {
             let here = self.data_space().here();
-            if self.bitset().contains(n as u32) {
-                match self.labels()[n] {
-                    Label::Forward(mut p) => {
-                        // Resolve forward references.
-                        loop {
-                            let last = unsafe{ self.data_space().get_usize(p) };
-                            unsafe{
-                                self.data_space()
-                                    .put_isize(here as isize, p as usize);
-                            }
-                            if last == 0 { break; }
-                            p = last;
-                        }
-                        self.labels_mut()[n] = Label::Address(here);
+            if self.forward_bitset().contains(n as u32) {
+                // Resolve forward references.
+                let mut p = self.labels()[n];
+                loop {
+                    let last = unsafe{ self.data_space().get_usize(p) };
+                    unsafe{
+                        self.data_space()
+                            .put_isize(here as isize, p as usize);
                     }
-                    Label::Address(_) => {
-                        self.abort_with(Exception::InvalidNumericArgument)
-                    }
-                    Label::None => {
-                        unreachable!();
-                    }
+                    if last == 0 { break; }
+                    p = last;
                 }
+                self.labels_mut()[n] = here;
+                self.forward_bitset_mut().remove(n as u32);
+                self.resolved_bitset_mut().add(n as u32);
+            } else if self.resolved_bitset().contains(n as u32) {
+                    self.abort_with(Exception::InvalidNumericArgument);
             } else {
-                self.labels_mut()[n] = Label::Address(here);
-                self.bitset_mut().add(n as u32);
+                self.labels_mut()[n] = here;
+                self.resolved_bitset_mut().add(n as u32);
             }
         } else {
             self.abort_with(Exception::InvalidNumericArgument);
@@ -1439,24 +1431,20 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     primitive! {fn imm_goto(&mut self) {
         let n = self.s_stack().pop() as usize;
         if 0 < n && n < self.labels().capacity() {
-            if self.bitset().contains(n as u32) {
-                match self.labels()[n] {
-                    Label::Forward(p) => {
-                        let to_patch = self.compile_branch(p) - mem::size_of::<isize>();
-                        self.labels_mut()[n] = Label::Forward(to_patch);
-                    }
-                    Label::Address(p) => {
-                        let _ = self.compile_branch(p);
-                    }
-                    Label::None => {
-                        unreachable!();
-                    }
-                }
+            if self.forward_bitset().contains(n as u32) {
+                let p = self.labels()[n];
+                let to_patch = self.compile_branch(p) - mem::size_of::<isize>();
+                self.labels_mut()[n] = to_patch;
+            } else if self.resolved_bitset().contains(n as u32) {
+                let p = self.labels()[n];
+                let _ = self.compile_branch(p);
             } else {
                 let to_patch = self.compile_branch(0) - mem::size_of::<isize>();
-                self.labels_mut()[n] = Label::Forward(to_patch);
-                self.bitset_mut().add(n as u32);
+                self.labels_mut()[n] = to_patch;
+                self.forward_bitset_mut().add(n as u32);
             }
+        } else {
+            self.abort_with(Exception::InvalidNumericArgument);
         }
     }}
 
@@ -3090,6 +3078,8 @@ compilation_semantics: fn(&mut Self, usize)){
     primitive!{fn semicolon(&mut self) {
         if self.c_stack().len != 0 {
             self.abort_with(ControlStructureMismatch);
+        } else if self.forward_bitset().layer3() != 0 {
+            self.abort_with(ControlStructureMismatch);
         } else {
             let idx = self.references().idx_exit;
             let compile = self.wordlist()[idx].compilation_semantics;
@@ -4057,7 +4047,7 @@ compilation_semantics: fn(&mut Self, usize)){
 mod tests {
     use super::{Core, Memory};
     use exception::Exception::{Abort, ControlStructureMismatch, InterpretingACompileOnlyWord,
-                               InvalidMemoryAddress, ReturnStackUnderflow, StackUnderflow,
+                               InvalidMemoryAddress, InvalidNumericArgument, ReturnStackUnderflow, StackUnderflow,
                                UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation};
     use std::mem;
     use mock_vm::VM;
@@ -5441,6 +5431,29 @@ mod tests {
         vm.evaluate_input();
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), 1);
+        // Foward reference not resolved.
+        vm.clear_stacks();
+        vm.set_source(": test5   0labels  [ 10 ] call ; test5");
+        vm.evaluate_input();
+        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        // 0 goto
+        vm.clear_stacks();
+        vm.clear_error();
+        vm.set_source(": test6   [ 0 ] goto ;");
+        vm.evaluate_input();
+        assert!(vm.last_error() != None);
+        // 0 label
+        vm.clear_stacks();
+        vm.clear_error();
+        vm.set_source(": test7   [ 0 ] label ;");
+        vm.evaluate_input();
+        assert!(vm.last_error() != None);
+        // 0 call
+        vm.clear_stacks();
+        vm.clear_error();
+        vm.set_source(": test8   [ 0 ] call ;");
+        vm.evaluate_input();
+        assert!(vm.last_error() != None);
     }
     
     #[test]

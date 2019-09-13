@@ -9,7 +9,7 @@ extern crate hibitset;
 
 use getopts::Options;
 use rtforth::memory::{CodeSpace, DataSpace};
-use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist, Label};
+use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use rtforth::env::Environment;
 use rtforth::exception::Exception;
 use rtforth::facility::Facility;
@@ -88,8 +88,9 @@ pub struct VM {
     hldbuf: String,
     references: ForwardReferences,
     now: time::Tm,
-    bitset: BitSet,
-    labels: Vec<Label>,
+    forward_bitset: BitSet,
+    resolved_bitset: BitSet,
+    labels: Vec<usize>,
 }
 
 impl VM {
@@ -97,7 +98,7 @@ impl VM {
     /// by `data_pages` and `code_pages`.
     pub fn new(data_pages: usize, code_pages: usize) -> VM {
         let mut labels = Vec::with_capacity(LABEL_COUNT as _);
-        labels.resize(LABEL_COUNT as _, Label::None);
+        labels.resize(LABEL_COUNT as _, 0);
         let mut vm = VM {
             current_task: 0,
             tasks: [
@@ -120,7 +121,8 @@ impl VM {
             hldbuf: String::with_capacity(128),
             references: ForwardReferences::new(),
             now: time::now(),
-            bitset: BitSet::with_capacity(LABEL_COUNT),
+            forward_bitset: BitSet::with_capacity(LABEL_COUNT),
+            resolved_bitset: BitSet::with_capacity(LABEL_COUNT),
             labels,
         };
         vm.add_core();
@@ -280,16 +282,22 @@ impl Core for VM {
             // Do nothing.
         }
     }
-    fn bitset(&self) -> &BitSet {
-        &self.bitset
+    fn forward_bitset(&self) -> &BitSet {
+        &self.forward_bitset
     }
-    fn bitset_mut(&mut self) -> &mut BitSet {
-        &mut self.bitset
+    fn forward_bitset_mut(&mut self) -> &mut BitSet {
+        &mut self.forward_bitset
     }
-    fn labels(&self) -> &Vec<Label> {
+    fn resolved_bitset(&self) -> &BitSet {
+        &self.resolved_bitset
+    }
+    fn resolved_bitset_mut(&mut self) -> &mut BitSet {
+        &mut self.resolved_bitset
+    }
+    fn labels(&self) -> &Vec<usize> {
         &self.labels
     }
-    fn labels_mut(&mut self) -> &mut Vec<Label> {
+    fn labels_mut(&mut self) -> &mut Vec<usize> {
         &mut self.labels
     }
 }

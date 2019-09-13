@@ -1,4 +1,5 @@
 use std::fs::File;
+use hibitset::BitSet;
 use loader::Source;
 use memory::{CodeSpace, DataSpace};
 use NUM_TASKS;
@@ -14,6 +15,7 @@ use tools::Tools;
 use units::Units;
 
 const BUFFER_SIZE: usize = 0x400;
+const LABEL_COUNT: u32 = 1000;
 
 /// Task
 ///
@@ -73,12 +75,17 @@ pub struct VM {
     hldbuf: String,
     references: ForwardReferences,
     now: u64,
+    forward_bitset: BitSet,
+    resolved_bitset: BitSet,
+    labels: Vec<usize>,
 }
 
 impl VM {
     /// Create a VM with data and code space size specified
     /// by `data_pages` and `code_pages`.
     pub fn new(data_pages: usize, code_pages: usize) -> VM {
+        let mut labels = Vec::with_capacity(LABEL_COUNT as _);
+        labels.resize(LABEL_COUNT as _, 0);
         let mut vm = VM {
             current_task: 0,
             tasks: [
@@ -99,6 +106,9 @@ impl VM {
             hldbuf: String::with_capacity(128),
             references: ForwardReferences::new(),
             now: 0,
+            forward_bitset: BitSet::with_capacity(LABEL_COUNT),
+            resolved_bitset: BitSet::with_capacity(LABEL_COUNT),
+            labels,
         };
         vm.add_core();
         vm.add_output();
@@ -247,6 +257,24 @@ impl Core for VM {
         } else {
             // Do nothing.
         }
+    }
+    fn forward_bitset(&self) -> &BitSet {
+        &self.forward_bitset
+    }
+    fn forward_bitset_mut(&mut self) -> &mut BitSet {
+        &mut self.forward_bitset
+    }
+    fn resolved_bitset(&self) -> &BitSet {
+        &self.resolved_bitset
+    }
+    fn resolved_bitset_mut(&mut self) -> &mut BitSet {
+        &mut self.resolved_bitset
+    }
+    fn labels(&self) -> &Vec<usize> {
+        &self.labels
+    }
+    fn labels_mut(&mut self) -> &mut Vec<usize> {
+        &mut self.labels
     }
 }
 

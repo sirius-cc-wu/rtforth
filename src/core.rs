@@ -14,6 +14,7 @@ use std::fmt::{self, Display};
 use std::mem;
 use std::ops::{Index, IndexMut};
 use std::str;
+use hibitset::BitSet;
 use {FALSE, NUM_TASKS, TRUE};
 
 // Word
@@ -362,6 +363,7 @@ pub struct ForwardReferences {
     pub idx_equal: usize,
     pub idx_drop: usize,
     pub idx__postpone: usize,
+    pub idx_to_r: usize,
 }
 
 impl ForwardReferences {
@@ -382,6 +384,7 @@ impl ForwardReferences {
             idx_equal: 0,
             idx_drop: 0,
             idx__postpone: 0,
+            idx_to_r: 0,
         }
     }
 }
@@ -448,6 +451,14 @@ impl Display for Control {
     }
 }
 
+/// Label
+#[derive(Clone, Debug)]
+pub enum Label {
+    Forward(usize),
+    Address(usize),
+    None,
+}
+
 pub trait Core: Sized {
     // Functions to access VM.
     fn last_error(&self) -> Option<Exception>;
@@ -507,6 +518,14 @@ pub trait Core: Sized {
     ///
     /// No operation if there is no task `i`.
     fn set_awake(&mut self, i: usize, v: bool);
+    /// Bitset to check existence of labels.
+    fn bitset(&self) -> &BitSet;
+    /// Bitset to check existence of labels.
+    fn bitset_mut(&mut self) -> &mut BitSet;
+    /// Labels to support BASIC-like goto, label, call.
+    fn labels(&self) -> &Vec<Label>;
+    /// Labels to support BASIC-like goto, label, call.
+    fn labels_mut(&mut self) -> &mut Vec<Label>;
 
     /// Add core primitives to self.
     fn add_core(&mut self) {
@@ -594,6 +613,10 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("repeat", Core::imm_repeat);
         self.add_immediate_and_compile_only("until", Core::imm_until);
         self.add_immediate_and_compile_only("again", Core::imm_again);
+        self.add_immediate_and_compile_only("0labels", Core::imm_clear_labels);
+        self.add_immediate_and_compile_only("label", Core::imm_label);
+        self.add_immediate_and_compile_only("goto", Core::imm_goto);
+        self.add_immediate_and_compile_only("call", Core::imm_call);
         self.add_immediate_and_compile_only("recurse", Core::imm_recurse);
         self.add_immediate_and_compile_only("do", Core::imm_do);
         self.add_immediate_and_compile_only("?do", Core::imm_qdo);
@@ -665,6 +688,7 @@ pub trait Core: Sized {
         self.references().idx_equal = self.find("=").expect("= undefined");
         self.references().idx_drop = self.find("drop").expect("drop undefined");
         self.references().idx__postpone = self.find("_postpone").expect("_postpone undefined");
+        self.references().idx_to_r = self.find(">r").expect(">r");
 
         self.patch_compilation_semanticses();
 
@@ -1350,6 +1374,115 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         } else {
             self.compile_branch(begin_part);
         }
+    }}
+
+    /// Clear labels, `0labels ( -- )`
+    #[cfg(not(feature = "stc"))]
+    primitive! {fn imm_clear_labels(&mut self) {
+        self.bitset_mut().clear();
+    }}
+
+    /// Create a label `n`, `label ( n -- )`
+    ///
+    /// Valid `n`: `0 < n < labels.capacity()`.
+    #[cfg(not(feature = "stc"))]
+    primitive! {fn imm_label(&mut self) {
+        let n = self.s_stack().pop() as usize;
+        if 0 < n && n < self.labels().capacity() {
+            let here = self.data_space().here();
+            if self.bitset().contains(n as u32) {
+                match self.labels()[n] {
+                    Label::Forward(mut p) => {
+                        // Resolve forward references.
+                        loop {
+                            let last = unsafe{ self.data_space().get_usize(p) };
+                            unsafe{
+                                self.data_space()
+                                    .put_isize(here as isize, p as usize);
+                            }
+                            if last == 0 { break; }
+                            p = last;
+                        }
+                        self.labels_mut()[n] = Label::Address(here);
+                    }
+                    Label::Address(_) => {
+                        self.abort_with(Exception::InvalidNumericArgument)
+                    }
+                    Label::None => {
+                        unreachable!();
+                    }
+                }
+            } else {
+                self.labels_mut()[n] = Label::Address(here);
+                self.bitset_mut().add(n as u32);
+            }
+        } else {
+            self.abort_with(Exception::InvalidNumericArgument);
+        }
+    }}
+
+    /// goto ( n -- )
+    ///
+    /// Go to label `n`.
+    ///
+    /// +------------+-------------------------+--+---
+    /// | BRANCH | data ptr of label n | ... |  addr at label n
+    /// +------------+-------------------------+--+---
+    ///                         |                                               ^
+    ///                         +-----------------------------+
+    ///
+    /// ```
+    /// [ n ] goto ... [ n ] label ...
+    /// [ n ] label ... [ n ]  goto
+    /// ```
+    #[cfg(not(feature = "stc"))]
+    primitive! {fn imm_goto(&mut self) {
+        let n = self.s_stack().pop() as usize;
+        if 0 < n && n < self.labels().capacity() {
+            if self.bitset().contains(n as u32) {
+                match self.labels()[n] {
+                    Label::Forward(p) => {
+                        let to_patch = self.compile_branch(p) - mem::size_of::<isize>();
+                        self.labels_mut()[n] = Label::Forward(to_patch);
+                    }
+                    Label::Address(p) => {
+                        let _ = self.compile_branch(p);
+                    }
+                    Label::None => {
+                        unreachable!();
+                    }
+                }
+            } else {
+                let to_patch = self.compile_branch(0) - mem::size_of::<isize>();
+                self.labels_mut()[n] = Label::Forward(to_patch);
+                self.bitset_mut().add(n as u32);
+            }
+        }
+    }}
+
+    /// call ( n -- )
+    ///
+    /// Call subroutine at label `n`.
+    ///
+    /// +----+-----------------+----+------------+-------------------------+--+------+
+    /// | LIT | return_addr | >R |  BRANCH | data ptr of label n | ... | EXIT |
+    /// +----+-----------------+----+------------+-------------------------+--+------+
+    ///                       |                                                                                       ^
+    ///                       +-------------------------------------------------------+
+    ///
+    /// Usage:
+    ///
+    /// ```
+    /// [ n ] call ... [ n ] label ... exit ...
+    /// [ n ] label .. exit ... [ n ] call ...
+    /// ```
+    #[cfg(not(feature = "stc"))]
+    primitive! {fn imm_call(&mut self) {
+         let return_addr = self.data_space().here() + 5 * mem::size_of::<isize>();
+         self.compile_integer(return_addr as _);
+         let idx_to_r = self.references().idx_to_r;
+         self.compile_word(idx_to_r);
+         self.imm_goto();
     }}
 
     /// Execution: ( -- a-ddr )
@@ -5285,6 +5418,31 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), 3);
     }
 
+    #[test]
+    fn test_label_goto_call() {
+        let vm = &mut VM::new(16, 16);
+        // Go backwards.
+        vm.set_source(": test1   0labels  0  [ 10 ] label 1+ dup 3 > if exit then [ 10 ] goto ; test1");
+        vm.evaluate_input();
+        assert_eq!(vm.s_stack().pop(), 4);
+        // Go forwards.
+        vm.clear_stacks();
+        vm.set_source(": test2   0labels  [ 10 ] goto 1 [ 10 ] label 2 3 ; test2");
+        vm.evaluate_input();
+        assert_eq!(vm.s_stack().len(), 2);
+        // Call backwards
+        vm.clear_stacks();
+        vm.set_source(": test3   0labels  [ 10 ] goto [ 20 ] label 2 3  exit  [ 10 ] label  [ 20 ] call 4 5 ; test3");
+        vm.evaluate_input();
+        assert_eq!(vm.s_stack().len(), 4);
+        // Call forwards
+        vm.clear_stacks();
+        vm.set_source(": test4   0labels  [ 10 ] call 1 exit [ 10 ] label 2 3 ; test4");
+        vm.evaluate_input();
+        assert_eq!(vm.s_stack().len(), 3);
+        assert_eq!(vm.s_stack().pop(), 1);
+    }
+    
     #[test]
     fn test_backslash() {
         let vm = &mut VM::new(16, 16);

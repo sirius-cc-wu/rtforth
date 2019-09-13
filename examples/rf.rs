@@ -5,10 +5,11 @@ extern crate getopts;
 extern crate rtforth;
 extern crate rustyline;
 extern crate time;
+extern crate hibitset;
 
 use getopts::Options;
 use rtforth::memory::{CodeSpace, DataSpace};
-use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
+use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist, Label};
 use rtforth::env::Environment;
 use rtforth::exception::Exception;
 use rtforth::facility::Facility;
@@ -23,8 +24,10 @@ use std::env;
 use std::fmt::Write;
 use std::process;
 use std::fs::File;
+use hibitset::BitSet;
 
 const BUFFER_SIZE: usize = 0x400;
+const LABEL_COUNT: u32 = 1000;
 
 /// Task
 ///
@@ -85,12 +88,16 @@ pub struct VM {
     hldbuf: String,
     references: ForwardReferences,
     now: time::Tm,
+    bitset: BitSet,
+    labels: Vec<Label>,
 }
 
 impl VM {
     /// Create a VM with data and code space size specified
     /// by `data_pages` and `code_pages`.
     pub fn new(data_pages: usize, code_pages: usize) -> VM {
+        let mut labels = Vec::with_capacity(LABEL_COUNT as _);
+        labels.resize(LABEL_COUNT as _, Label::None);
         let mut vm = VM {
             current_task: 0,
             tasks: [
@@ -113,6 +120,8 @@ impl VM {
             hldbuf: String::with_capacity(128),
             references: ForwardReferences::new(),
             now: time::now(),
+            bitset: BitSet::with_capacity(LABEL_COUNT),
+            labels,
         };
         vm.add_core();
         vm.add_output();
@@ -270,6 +279,18 @@ impl Core for VM {
         } else {
             // Do nothing.
         }
+    }
+    fn bitset(&self) -> &BitSet {
+        &self.bitset
+    }
+    fn bitset_mut(&mut self) -> &mut BitSet {
+        &mut self.bitset
+    }
+    fn labels(&self) -> &Vec<Label> {
+        &self.labels
+    }
+    fn labels_mut(&mut self) -> &mut Vec<Label> {
+        &mut self.labels
     }
 }
 

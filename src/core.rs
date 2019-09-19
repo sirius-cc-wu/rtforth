@@ -2855,9 +2855,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                             self.set_error(Some(UnsupportedOperation));
                         } else {
                             if self.state().is_compiling {
-                                self.compile_integer(sign * value);
+                                self.compile_integer(sign.wrapping_mul(value));
                             } else {
-                                self.s_stack().push(sign * value);
+                                self.s_stack().push(sign.wrapping_mul(value));
                             }
                         }
                     }

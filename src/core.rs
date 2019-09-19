@@ -947,7 +947,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
         self.state().instruction_pointer += mem::size_of::<isize>();
-        self.two_to_r();
+        let (n, t) = self.s_stack().pop2();
+        let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
+        let rn = t.wrapping_sub(rt);
+        self.r_stack().push2(rn, rt);
     }}
 
     /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
@@ -978,7 +981,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             let ip = self.state().instruction_pointer as isize;
             self.r_stack().push(ip);
             self.state().instruction_pointer += mem::size_of::<isize>();
-            self.r_stack().push2(n1, n2);
+            let (n, t) = self.s_stack().pop2();
+            let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
+            let rn = t.wrapping_sub(rt);
+            self.r_stack().push2(rn, rt);
         }
     }}
 
@@ -991,13 +997,16 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// beginning of the loop.
     #[cfg(not(feature = "stc"))]
     primitive!{fn _loop(&mut self) {
-        let (rn, rt) = self.r_stack().pop2();
-        if rt + 1 < rn {
-            self.r_stack().push2(rn, rt + 1);
-            self.branch();
-        } else {
-            let _ = self.r_stack().pop();
-            self.state().instruction_pointer += mem::size_of::<isize>();
+        let  rt = self.r_stack().pop();
+        match rt .checked_add(1) {
+            Some(sum) => {
+                self.r_stack().push(sum);
+                self.branch();
+            }
+            None => {
+                let _ = self.r_stack().pop2();
+                self.state().instruction_pointer += mem::size_of::<isize>();
+            }
         }
     }}
 
@@ -1011,14 +1020,17 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// following the loop.
     #[cfg(not(feature = "stc"))]
     primitive!{fn _plus_loop(&mut self) {
-        let (rn, rt) = self.r_stack().pop2();
+        let rt = self.r_stack().pop();
         let t = self.s_stack().pop();
-        if rt + t < rn {
-            self.r_stack().push2(rn, rt + t);
-            self.branch();
-        } else {
-            let _ = self.r_stack().pop();
-            self.state().instruction_pointer += mem::size_of::<isize>();
+        match rt.checked_add(t)  {
+            Some(sum) => {
+                self.r_stack().push(sum);
+                self.branch();
+            }
+            None => {
+                let _ = self.r_stack().pop2();
+                self.state().instruction_pointer += mem::size_of::<isize>();
+            }
         }
     }}
 
@@ -1062,7 +1074,14 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     primitive!{fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         match self.r_stack().get(pos) {
-            Some(j) => self.s_stack().push(j),
+            Some(jt) => {
+                match self.r_stack().get(pos-1) {
+                    Some(jn) => {
+                        self.s_stack().push(jt.wrapping_add(jn));
+                    }
+                    None => self.abort_with(ReturnStackUnderflow),
+                }
+            },
             None => self.abort_with(ReturnStackUnderflow),
         }
     }}
@@ -1937,7 +1956,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_do(&mut self) {
-        self.two_to_r();
+        let (n, t) = self.s_stack().pop2();
+        let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
+        let rn = t.wrapping_sub(rt);
+        self.r_stack().push2(rn, rt);
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
@@ -1947,11 +1969,13 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_qdo(&mut self) -> isize {
-        let (n1, n2) = self.s_stack().pop2();
-        if n1 == n2 {
+        let (n, t) = self.s_stack().pop2();
+        if n == t {
             -1
         } else {
-            self.r_stack().push2(n1, n2);
+            let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
+            let rn = t.wrapping_sub(rt);
+            self.r_stack().push2(rn, rt);
             0
         }
     }}
@@ -1963,12 +1987,16 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_loop(&mut self) -> isize {
-        let (rn, rt) = self.r_stack().pop2();
-        if rt + 1 < rn {
-            self.r_stack().push2(rn, rt + 1);
-            0
-        } else {
-            -1
+        let rt = self.r_stack().pop();
+        match rt .wrapping_add(1) {
+            Some(sum) => {
+                self.r_stack().push(sum);
+                0
+            }
+            None => {
+                let _ = self.r_stack().pop();
+                -1
+            }
         }
     }}
 
@@ -1979,12 +2007,15 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive!{fn _stc_plus_loop(&mut self) -> isize {
-        let (rn, rt) = self.r_stack().pop2();
+        let rt = self.r_stack().pop();
         let t = self.s_stack().pop();
-        if rt + t < rn {
-            self.r_stack().push2(rn, rt + t);
-            0
+        match rt .checked_add(t)  {
+            Some(sum) => {
+                self.r_stack().push(sum);
+                0
+            }
         } else {
+            let _ = self.r_stack().pop();
             -1
         }
     }}
@@ -2038,7 +2069,15 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     primitive!{fn p_i(&mut self) {
         match self.r_stack().last() {
-            Some(i) => self.s_stack().push(i),
+            Some(it) => {
+                let next = self.r_stack().len - 2;
+                match self.r_stack().get(next) {
+                    Some(inext) => {
+                        self.s_stack().push(it.wrapping_add(inext));
+                    }
+                    None => self.abort_with(ReturnStackUnderflow),
+                }
+            }
             None => self.abort_with(ReturnStackUnderflow),
         }
     }}
@@ -2047,7 +2086,14 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     primitive!{fn p_j(&mut self) {
         let pos = self.r_stack().len() - 3;
         match self.r_stack().get(pos) {
-            Some(j) => self.s_stack().push(j),
+            Some(jt) => {
+                match self.r_stack().get(pos-1) {
+                    Some(jn) => {
+                        self.s_stack().push(jt.wrapping_add(jn)),
+                    }
+                    None => self.abort_with(ReturnStackUnderflow),
+                }
+            }
             None => self.abort_with(ReturnStackUnderflow),
         }
     }}

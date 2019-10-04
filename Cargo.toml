@@ -29,6 +29,8 @@ path = "examples/simple.rs"
 uom = "=0.18.0"
 approx = "=0.2.1"
 libc = "=0.2.48"
+hibitset = "=0.5.0"
+lazy_static = "=1.0.0"
 
 [dev-dependencies]
 rustyline = "1.0"

@@ -972,14 +972,13 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///
     #[cfg(not(feature = "stc"))]
     primitive!{fn _qdo(&mut self) {
-        let (n1, n2) = self.s_stack().pop2();
-        if n1 == n2 {
+        let (n, t) = self.s_stack().pop2();
+        if n == t {
             self.branch();
         } else {
             let ip = self.state().instruction_pointer as isize;
             self.r_stack().push(ip);
             self.state().instruction_pointer += mem::size_of::<isize>();
-            let (n, t) = self.s_stack().pop2();
             let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
             let rn = t.wrapping_sub(rt);
             self.r_stack().push2(rn, rt);

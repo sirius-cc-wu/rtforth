@@ -45,6 +45,6 @@ use exception::Exception;
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;
-pub const NUM_TASKS: usize = 5;
+pub const NUM_TASKS: usize = 8;
 
 pub type Result = result::Result<(), Exception>;

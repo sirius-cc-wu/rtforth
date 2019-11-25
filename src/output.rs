@@ -93,7 +93,8 @@ pub trait Output: Core {
             let cnt = s.len();
             let idx = self.references().idx_s_quote;
             let compilation_semantics = self.wordlist()[idx].compilation_semantics;
-            compilation_semantics(self, idx);
+            self.s_stack().push(idx as isize);
+            compilation_semantics(self);
             self.data_space().compile_str(s);
             self.data_space().align();
             // ignore the space following S"

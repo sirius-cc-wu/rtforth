@@ -1,4 +1,3 @@
-#![feature(duration_as_u128)]
 #[macro_use(primitive)]
 extern crate rtforth;
 mod vm;

@@ -28,7 +28,7 @@ pub struct Word<Target> {
     dfa: usize,
     cfa: usize,
     action: primitive!{ fn (&mut Target) },
-    pub(crate) compilation_semantics: fn(&mut Target, usize),
+    pub(crate) compilation_semantics: primitive!{ fn(&mut Target) },
     // Minimum execution time in [ns]
     pub(crate) min_execution_time: usize,
     // Maximum execution time in [ns]
@@ -38,7 +38,7 @@ pub struct Word<Target> {
 impl<Target> Word<Target> {
     pub fn new(
         action: primitive!{fn(&mut Target)},
-        compilation_semantics: fn(&mut Target, usize),
+        compilation_semantics: primitive!{ fn(&mut Target) },
         nfa: usize,
         dfa: usize,
         cfa: usize
@@ -711,7 +711,7 @@ fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
         self.code_space().align();
         let word = Word::new(
             action,
-            Core::compile_word,
+            Core::compile_comma,
             nfa,
             self.data_space().here(),
             self.code_space().here(),
@@ -808,9 +808,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(not(feature = "stc"))]
-    fn compile_nest(&mut self, word_index: usize) {
-        self.compile_word(word_index);
-    }
+    primitive!{fn compile_nest(&mut self) {
+        let word_index = self.s_stack().pop();
+        self.compile_word(word_index as usize);
+    }}
 
     #[cfg(not(feature = "stc"))]
     fn compile_nest_code(&mut self, _: usize) {
@@ -818,24 +819,28 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(not(feature = "stc"))]
-    fn compile_var(&mut self, word_index: usize) {
-        self.compile_word(word_index);
-    }
+    primitive!{fn compile_var(&mut self) {
+        let word_index = self.s_stack().pop();
+        self.compile_word(word_index as usize);
+    }}
 
     #[cfg(not(feature = "stc"))]
-    fn compile_const(&mut self, word_index: usize) {
-        self.compile_word(word_index);
-    }
+    primitive!{fn compile_const(&mut self) {
+        let word_index = self.s_stack().pop();
+        self.compile_word(word_index as usize);
+    }}
 
     #[cfg(not(feature = "stc"))]
-    fn compile_unmark(&mut self, word_index: usize) {
-        self.compile_word(word_index);
-    }
+    primitive!{fn compile_unmark(&mut self) {
+        let word_index = self.s_stack().pop();
+        self.compile_word(word_index as usize);
+    }}
 
     #[cfg(not(feature = "stc"))]
-    fn compile_fconst(&mut self, word_index: usize) {
-        self.compile_word(word_index);
-    }
+    primitive!{fn compile_fconst(&mut self) {
+        let word_index = self.s_stack().pop();
+        self.compile_word(word_index as usize);
+    }}
 
     #[cfg(not(feature = "stc"))]
     primitive!{fn lit(&mut self) {
@@ -1061,17 +1066,18 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(not(feature = "stc"))]
-    fn compile_leave(&mut self, word_idx: usize) {
+    primitive!{fn compile_leave(&mut self) {
         match self.leave_part() {
             Some(leave_part) => {
-                self.compile_word(word_idx);
+                let word_idx = self.s_stack().pop();
+                self.compile_word(word_idx as usize);
             }
             _ => {
                 self.abort_with(ControlStructureMismatch);
                 return;
             }
         };
-    }
+    }}
 
     #[cfg(not(feature = "stc"))]
     primitive!{fn p_j(&mut self) {
@@ -1512,7 +1518,8 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     primitive!{fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;
-        self.compile_nest(last);
+        self.s_stack().push(last as isize);
+        self.compile_nest();
     }}
 
     /// Execution: ( -- a-ddr )
@@ -2691,9 +2698,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         //   | _lit | xt of A | _postpone |
         // --+------+---------+-----------+--
         // Because B comes after A, the xt of A is valid during execution of B.
-        let xt = self.s_stack().pop() as usize;
+        let xt = self.s_stack().last() as usize;
         let compilation_semantics = self.wordlist()[xt].compilation_semantics;
-        compilation_semantics(self, xt);
+        compilation_semantics(self);
     }}
 
     primitive!{fn compile_token(&mut self) {
@@ -2703,7 +2710,8 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
                 self.set_last_token(last_token);
                 let compilation_semantics = self.wordlist()[found_index].compilation_semantics;
                 if !self.wordlist()[found_index].is_immediate() {
-                    compilation_semantics(self, found_index);
+                    self.s_stack().push(found_index as isize);
+                    compilation_semantics(self);
                 } else {
                     self.execute_word(found_index);
                 }
@@ -3067,7 +3075,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
 fn define(&mut self, action: primitive!{fn(&mut Self)},
-compilation_semantics: fn(&mut Self, usize)){
+compilation_semantics: primitive!{ fn(&mut Self) }){
         self.parse_word();
         let mut last_token = self.last_token().take().expect("last token");
         last_token.make_ascii_lowercase();
@@ -3116,7 +3124,8 @@ compilation_semantics: fn(&mut Self, usize)){
         } else {
             let idx = self.references().idx_exit;
             let compile = self.wordlist()[idx].compilation_semantics;
-            compile(self, idx);
+            self.s_stack().push(idx as isize);
+            compile(self);
             let def = self.wordlist().last;
             self.wordlist_mut()[def].set_hidden(false);
         }

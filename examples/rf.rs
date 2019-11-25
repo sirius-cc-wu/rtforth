@@ -314,8 +314,6 @@ impl FileAccess for VM {}
 fn main() {
     let vm = &mut VM::new(1024, 1024);
 
-    let mut bye = false;
-
     let args: Vec<_> = env::args().collect();
     let program = args[0].clone();
     let mut opts = Options::new();
@@ -352,7 +350,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.6.1, Copyright (C) 2019 Mapacode Inc.");
+    println!("rtForth v0.7.0, Copyright (C) 2019 Mapacode Inc.");
 }
 
 primitive!{fn receive(vm: &mut VM) {

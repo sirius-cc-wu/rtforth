@@ -1,7 +1,7 @@
 [package]
 
 name = "rtforth"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 keywords = ["forth", "real-time"]
 description = "Forth implemented in Rust for realtime application"
@@ -34,7 +34,7 @@ hibitset = "=0.5.0"
 
 [dev-dependencies]
 rustyline = "1.0"
-getopts = "0.2"
+getopts = "0.2.15"
 time = "0.1"
 criterion = "0.2"
 

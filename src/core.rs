@@ -95,8 +95,12 @@ impl<Target> Word<Target> {
         self.cfa
     }
 
-pub fn action(&self) -> primitive!{fn(&mut Target)}{
+    pub fn action(&self) -> primitive!{fn(&mut Target)}{
         self.action
+    }
+
+    pub fn set_action(&mut self, action: primitive!{fn(&mut Target)}) {
+        self.action = action;
     }
 }
 

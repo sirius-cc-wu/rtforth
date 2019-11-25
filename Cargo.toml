@@ -34,7 +34,7 @@ hibitset = "=0.5.0"
 
 [dev-dependencies]
 rustyline = "1.0"
-getopts = "0.2"
+getopts = "0.2.15"
 time = "0.1"
 criterion = "0.2"
 

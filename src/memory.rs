@@ -4,7 +4,7 @@ extern crate region;
 use std::marker;
 use std::mem;
 use std::slice;
-use std::alloc::{Layout, Global, Alloc};
+use std::alloc::{System, Layout, GlobalAlloc};
 use exception::Exception;
 
 #[allow(dead_code)]
@@ -22,9 +22,9 @@ impl CodeSpace {
         let size = num_pages * page_size;
         unsafe {
             let layout = Layout::from_size_align_unchecked(size, page_size);
-            ptr = match Global.alloc(layout) {
-                Ok(p) => { p.as_ptr() }
-                Err(e) => { panic!("Cannot allocate code space: {}", e) }
+            ptr = System.alloc(layout);
+            if ptr.is_null() {
+                panic!("Cannot allocate code space");
             };
             match region::protect(ptr, size, region::Protection::ReadWriteExecute) {
                 Ok(_) => {
@@ -96,10 +96,10 @@ impl DataSpace {
         let size = num_pages * page_size;
         unsafe {
             let layout = Layout::from_size_align_unchecked(size, page_size);
-            ptr = match Global.alloc(layout) {
-                Ok(p) => { p.as_ptr() }
-                Err(e) => { panic!("Cannot allocate data space: {}", e) }
-            };
+            ptr = System.alloc(layout);
+            if ptr.is_null() {
+                panic!("Cannot allocate data space");
+            }
             match region::protect(ptr, size, region::Protection::ReadWrite) {
                 Ok(_) => {
                     // Do nothing.

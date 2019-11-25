@@ -73,11 +73,16 @@ impl Memory for CodeSpace {
 pub struct SystemVariables {
     null: isize,
     base: isize,
+    compile_comma: isize,
 }
 
 impl SystemVariables {
     pub fn base_addr(&self) -> usize {
         &self.base as *const _ as usize
+    }
+
+    pub fn compile_comma_vector(&self) -> usize {
+        &self.compile_comma as *const _ as usize
     }
 }
 

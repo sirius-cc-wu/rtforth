@@ -900,6 +900,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     fn patch_compilation_semanticses(&mut self) {
         let idx_leave = self.find("leave").expect("leave");
         self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
+        let compile_comma_vector = self.data_space().system_variables().compile_comma_vector();
+        unsafe {
+            self.data_space().put_isize(Self::comma as isize, compile_comma_vector);
+        }
     }
 
     #[cfg(not(feature = "stc"))]
@@ -3749,8 +3753,11 @@ compilation_semantics: primitive!{ fn(&mut Self) }){
     /// Forth 2012 6.2.0945
     /// Append the execution semantics of the definition represented by xt to the execution semantics of the current definition.
     primitive!{fn compile_comma(&mut self) {
-        let v = self.s_stack().pop();
-        self.data_space().compile_isize(v as isize);
+        let compile_comma_vector = self.data_space().system_variables().compile_comma_vector();
+        unsafe {
+            let compile_comma_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_comma_vector);
+            (*compile_comma_vector)(self);
+        }
     }}
 
     /// Run-time: ( -- addr )

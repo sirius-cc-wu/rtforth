@@ -253,12 +253,12 @@ impl<T: Default + Copy + PartialEq + Display> Stack<T> {
         result
     }
 
-    pub fn last(&self) -> Option<T> {
-        Some(self.inner[self.len.wrapping_sub(1) as usize])
+    pub fn last(&self) -> T {
+        self.inner[self.len.wrapping_sub(1) as usize]
     }
 
-    pub fn get(&self, pos: u8) -> Option<T> {
-        Some(self.inner[pos as usize])
+    pub fn get(&self, pos: u8) -> T {
+        self.inner[pos as usize]
     }
 
     pub fn len(&self) -> u8 {
@@ -1076,17 +1076,9 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     #[cfg(not(feature = "stc"))]
     primitive!{fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
-        match self.r_stack().get(pos) {
-            Some(jt) => {
-                match self.r_stack().get(pos-1) {
-                    Some(jn) => {
-                        self.s_stack().push(jt.wrapping_add(jn));
-                    }
-                    None => self.abort_with(ReturnStackUnderflow),
-                }
-            },
-            None => self.abort_with(ReturnStackUnderflow),
-        }
+        let jt = self.r_stack().get(pos);
+        let jn = self.r_stack().get(pos-1);
+        self.s_stack().push(jt.wrapping_add(jn));
     }}
 
     fn leave_part(&mut self) -> Option<usize> {
@@ -2071,18 +2063,10 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     primitive!{fn p_i(&mut self) {
-        match self.r_stack().last() {
-            Some(it) => {
-                let next = self.r_stack().len - 2;
-                match self.r_stack().get(next) {
-                    Some(inext) => {
-                        self.s_stack().push(it.wrapping_add(inext));
-                    }
-                    None => self.abort_with(ReturnStackUnderflow),
-                }
-            }
-            None => self.abort_with(ReturnStackUnderflow),
-        }
+        let it = self.r_stack().last();
+        let next = self.r_stack().len - 2;
+        let inext = self.r_stack().get(next);
+        self.s_stack().push(it.wrapping_add(inext));
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
@@ -4144,7 +4128,7 @@ mod tests {
         vm.check_stacks();
         assert!(vm.last_error().is_none());
         assert!(vm.s_stack().len() == 1);
-        assert!(vm.s_stack().last() == Some(2));
+        assert!(vm.s_stack().last() == 2);
     }
 
     #[test]

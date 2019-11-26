@@ -810,12 +810,6 @@ pub trait Core: Sized {
     }
 
     #[cfg(not(feature = "stc"))]
-    primitive! {fn compile_nest(&mut self) {
-        let word_index = self.s_stack().pop();
-        self.compile_word(word_index as usize);
-    }}
-
-    #[cfg(not(feature = "stc"))]
     fn compile_nest_code(&mut self, _: usize) {
         // Do nothing.
     }
@@ -1533,7 +1527,7 @@ pub trait Core: Sized {
     primitive! {fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;
         self.s_stack().push(last as isize);
-        self.compile_nest();
+        self.compile_comma();
     }}
 
     /// Execution: ( -- a-ddr )
@@ -1746,11 +1740,6 @@ pub trait Core: Sized {
         self.code_space().compile_u8(0xe8);
         let w = self.wordlist()[word_index].action as usize;
         self.code_space().compile_relative(w);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_nest(&mut self, word_index: usize) {
-        self.compile_word(word_index);
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
@@ -3125,7 +3114,7 @@ pub trait Core: Sized {
     }
 
     primitive! {fn colon(&mut self) {
-        self.define(Core::nest, Core::compile_nest);
+        self.define(Core::nest, Core::compile_comma);
         if self.last_error().is_none() {
             let def = self.wordlist().last;
             self.compile_nest_code(def);

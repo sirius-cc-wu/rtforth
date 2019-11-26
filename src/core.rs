@@ -3597,10 +3597,15 @@ pub trait Core: Sized {
     /// `x` is the value stored at `a-addr`.
     primitive! {fn fetch(&mut self) {
         let t = self.s_stack().pop() as usize;
-        if self.data_space().start() < t &&
-            t + mem::size_of::<isize>() <= self.data_space().limit()
+        if self.data_space().start() <= t &&
+            t + mem::size_of::<isize>() <=self.data_space().limit()
         {
             let value = unsafe{ self.data_space().get_isize(t as usize) as isize };
+            self.s_stack().push(value);
+        } else if self.code_space().start() <= t &&
+            t + mem::size_of::<isize>() <= self.code_space().limit()
+        {
+            let value = unsafe{ self.code_space().get_isize(t as usize) as isize };
             self.s_stack().push(value);
         } else {
             self.abort_with(InvalidMemoryAddress);
@@ -3632,6 +3637,11 @@ pub trait Core: Sized {
             t < self.data_space().limit()
         {
             let value = unsafe{ self.data_space().get_u8(t as usize) as isize };
+            self.s_stack().push(value);
+        } else if self.code_space().start() <= t &&
+            t < self.code_space().limit()
+        {
+            let value = unsafe{ self.code_space().get_u8(t as usize) as isize };
             self.s_stack().push(value);
         } else {
             self.abort_with(InvalidMemoryAddress);

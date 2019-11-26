@@ -675,6 +675,7 @@ pub trait Core: Sized {
         self.add_primitive("source-id!", Core::p_set_source_id);
         self.add_primitive("source-idx", Core::p_source_idx);
         self.add_primitive("source-idx!", Core::p_set_source_idx);
+        self.add_primitive("token-threading", Core::patch_compilation_semanticses);
 
         self.references().idx_lit = self.find("lit").expect("lit undefined");
         self.references().idx_flit = self.find("flit").expect("flit undefined");
@@ -898,7 +899,7 @@ pub trait Core: Sized {
     }}
 
     #[cfg(not(feature = "stc"))]
-    fn patch_compilation_semanticses(&mut self) {
+    primitive!{fn patch_compilation_semanticses(&mut self) {
         let idx_exit = self.find("exit").expect("exit");
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_comma;
         let idx_s_quote = self.find("_s\"").expect("_s\"");
@@ -913,7 +914,7 @@ pub trait Core: Sized {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
         }
-    }
+    }}
 
     #[cfg(not(feature = "stc"))]
     primitive! {fn branch(&mut self) {

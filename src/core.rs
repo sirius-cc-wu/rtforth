@@ -130,6 +130,11 @@ impl<Target> Wordlist<Target> {
         self.words.len()
     }
 
+    /// Last word
+    pub fn last(&self) -> usize {
+        self.last
+    }
+
     // Hash function
     //
     // Alogrithm djb2 at http://www.cse.yorku.ca/~oz/hash.html .

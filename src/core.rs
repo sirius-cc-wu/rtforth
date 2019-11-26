@@ -28,7 +28,7 @@ pub struct Word<Target> {
     dfa: usize,
     cfa: usize,
     action: primitive! { fn (&mut Target) },
-    pub(crate) compilation_semantics: primitive! { fn(&mut Target) },
+    pub compilation_semantics: primitive! { fn(&mut Target) },
     // Minimum execution time in [ns]
     pub(crate) min_execution_time: usize,
     // Maximum execution time in [ns]

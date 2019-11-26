@@ -809,9 +809,12 @@ pub trait Core: Sized {
         self.data_space().compile_usize(word_index as usize);
     }
 
-    #[cfg(not(feature = "stc"))]
-    fn compile_nest_code(&mut self, _: usize) {
-        // Do nothing.
+    fn compile_nest(&mut self) {
+        let compile_nest_vector = self.data_space().system_variables().compile_nest_vector();
+        unsafe {
+            let compile_nest_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_nest_vector);
+            (*compile_nest_vector)(self);
+        }
     }
 
     #[cfg(not(feature = "stc"))]
@@ -904,9 +907,12 @@ pub trait Core: Sized {
         self.wordlist_mut()[idx_reset].compilation_semantics = Self::compile_comma;
 
         let compile_comma_vector = self.data_space().system_variables().compile_comma_vector();
+        let compile_nest_vector = self.data_space().system_variables().compile_nest_vector();
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
+            self.data_space()
+                .put_isize(Self::p_drop as isize, compile_nest_vector);
         }
     }}
 
@@ -1743,7 +1749,7 @@ pub trait Core: Sized {
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_nest_code(&mut self, word_index: usize) {
+    fn compile_nest(&mut self, word_index: usize) {
         self.code_space().align_16bytes();
         self.wordlist_mut()[word_index].action =
             unsafe { mem::transmute(self.code_space().here()) };
@@ -3117,7 +3123,8 @@ pub trait Core: Sized {
         self.define(Core::nest, Core::compile_comma);
         if self.last_error().is_none() {
             let def = self.wordlist().last;
-            self.compile_nest_code(def);
+            self.s_stack().push(def as isize);
+            self.compile_nest();
             self.wordlist_mut()[def].set_hidden(true);
             self.right_bracket();
         }

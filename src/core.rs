@@ -898,8 +898,15 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     #[cfg(not(feature = "stc"))]
     fn patch_compilation_semanticses(&mut self) {
+        let idx_exit = self.find("exit").expect("exit");
+        self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_comma;
+        let idx_s_quote = self.find("_s\"").expect("_s\"");
+        self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_comma;
         let idx_leave = self.find("leave").expect("leave");
         self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
+        let idx_reset = self.find("reset").expect("reset");
+        self.wordlist_mut()[idx_reset].compilation_semantics = Self::compile_comma;
+
         let compile_comma_vector = self.data_space().system_variables().compile_comma_vector();
         unsafe {
             self.data_space().put_isize(Self::comma as isize, compile_comma_vector);

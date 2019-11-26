@@ -1,5 +1,5 @@
-use output::Output;
 use memory::Memory;
+use output::Output;
 use std::fmt::Write;
 
 pub trait Tools: Output {
@@ -18,7 +18,7 @@ pub trait Tools: Output {
     /// Run-time: ( -- )
     ///
     /// Display values on the data stack.
-    primitive!{fn dot_s(&mut self) {
+    primitive! {fn dot_s(&mut self) {
         match self.output_buffer().take() {
             Some(mut buf) => {
                 if self.s_stack().len() > 0 {
@@ -39,7 +39,7 @@ pub trait Tools: Output {
     /// Run-time: ( -- )
     ///
     /// List definition names in word list.
-    primitive!{fn words(&mut self) {
+    primitive! {fn words(&mut self) {
         if let Some(mut buf) = self.output_buffer().take() {
             for w in (1..self.wordlist().len()).rev() {
                 if !self.wordlist()[w].is_hidden() {
@@ -55,7 +55,7 @@ pub trait Tools: Output {
     /// `.MEMROY ( -- )`
     ///
     /// Print the memory usage information.
-    primitive!{fn dot_memory(&mut self) {
+    primitive! {fn dot_memory(&mut self) {
         let cs_start = self.code_space().start();
         let cs_limit = self.code_space().limit();
         let cs_here = self.code_space().here();
@@ -88,7 +88,7 @@ pub trait Tools: Output {
     /// : xtime ( xt -- )   utime >r >r r@  execute  r> r> (xtime) ;
     /// utime ' words xtime .xtime
     /// ```
-    primitive!{fn set_execution_times(&mut self) {
+    primitive! {fn set_execution_times(&mut self) {
         let (xt, t0) = self.s_stack().pop2();
         let t = (self.system_time_ns()/1_000) as usize - t0 as usize;
         let word = &mut self.wordlist_mut()[xt as usize];
@@ -101,7 +101,7 @@ pub trait Tools: Output {
     }}
 
     /// Display measured execution time. `.xtime ( -- )`
-    primitive!{fn dot_xtime(&mut self) {
+    primitive! {fn dot_xtime(&mut self) {
         if let Some(mut buf) = self.output_buffer().take() {
             let mut counter = 0;
             for w in (1..self.wordlist().len()).rev() {
@@ -122,7 +122,7 @@ pub trait Tools: Output {
     }}
 
     /// Clear measured execution times. `0xtime( -- )`
-    primitive!{fn clear_xtime(&mut self) {
+    primitive! {fn clear_xtime(&mut self) {
         for w in (1..self.wordlist().len()).rev() {
             if self.wordlist()[w].min_execution_time > 0 {
                 self.wordlist_mut()[w].min_execution_time = 0;
@@ -131,8 +131,8 @@ pub trait Tools: Output {
         }
     }}
 
-	/// Print content of the input buffer.
-    primitive!{fn dot_input(&mut self) {
+    /// Print content of the input buffer.
+    primitive! {fn dot_input(&mut self) {
         match self.input_buffer().take() {
             Some(input) => {
                 match self.output_buffer().as_mut() {
@@ -147,8 +147,8 @@ pub trait Tools: Output {
         }
     }}
 
-	/// Flush output buffer to standard error output. `flush-to-err ( -- )`
-    primitive!{fn flush_to_err(&mut self) {
+    /// Flush output buffer to standard error output. `flush-to-err ( -- )`
+    primitive! {fn flush_to_err(&mut self) {
         match self.output_buffer().as_mut() {
             Some(out) => {
                 eprintln!("{}", out);
@@ -157,5 +157,4 @@ pub trait Tools: Output {
             None => {}
         }
     }}
-
 }

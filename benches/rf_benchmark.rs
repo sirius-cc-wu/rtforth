@@ -3,10 +3,10 @@ extern crate criterion;
 extern crate rtforth;
 
 use criterion::Criterion;
-use rtforth::mock_vm::VM;
 use rtforth::core::Core;
-use rtforth::memory::Memory;
 use rtforth::loader::HasLoader;
+use rtforth::memory::Memory;
+use rtforth::mock_vm::VM;
 
 fn bench_noop(c: &mut Criterion) {
     c.bench_function("noop", |b| {
@@ -249,7 +249,7 @@ fn bench_slash_mod(c: &mut Criterion) {
     });
 }
 
-    /*
+/*
     #[bench]
     fn bench_compile_words_at_beginning_of_wordlist(b: &mut Bencher) {
         let vm = &mut VM::new(16, 16);
@@ -405,7 +405,8 @@ fn bench_sieve(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches,
+criterion_group!(
+    benches,
     bench_noop,
     bench_find_word_not_exist,
     bench_find_word_at_beginning_of_wordlist,

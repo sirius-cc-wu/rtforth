@@ -1,18 +1,18 @@
-use std::fs::File;
-use hibitset::BitSet;
-use loader::Source;
-use memory::{CodeSpace, DataSpace};
-use NUM_TASKS;
 use core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use env::Environment;
 use exception::Exception;
 use facility::Facility;
-use float::Float;
 use file_access::FileAccess;
+use float::Float;
+use hibitset::BitSet;
 use loader::HasLoader;
+use loader::Source;
+use memory::{CodeSpace, DataSpace};
 use output::Output;
+use std::fs::File;
 use tools::Tools;
 use units::Units;
+use NUM_TASKS;
 
 const BUFFER_SIZE: usize = 0x400;
 const LABEL_COUNT: u32 = 1000;
@@ -169,14 +169,16 @@ impl Core for VM {
         self.outbuf = Some(buffer);
     }
     fn source_id(&self) -> isize {
-        self.tasks[self.current_task & (NUM_TASKS-1)].state.source_id
+        self.tasks[self.current_task & (NUM_TASKS - 1)]
+            .state
+            .source_id
     }
     fn input_buffer(&mut self) -> &mut Option<String> {
         let source_id = self.source_id();
         if source_id > 0 {
             &mut self.lines_mut()[source_id as usize - 1]
         } else {
-            &mut self.tasks[self.current_task & (NUM_TASKS-1)].inbuf
+            &mut self.tasks[self.current_task & (NUM_TASKS - 1)].inbuf
         }
     }
     fn set_input_buffer(&mut self, buffer: String) {
@@ -184,22 +186,22 @@ impl Core for VM {
         *self.input_buffer() = Some(buffer);
     }
     fn files(&self) -> &Vec<Option<File>> {
-        &self.tasks[self.current_task & (NUM_TASKS-1)].files
+        &self.tasks[self.current_task & (NUM_TASKS - 1)].files
     }
     fn files_mut(&mut self) -> &mut Vec<Option<File>> {
-        &mut self.tasks[self.current_task & (NUM_TASKS-1)].files
+        &mut self.tasks[self.current_task & (NUM_TASKS - 1)].files
     }
     fn sources(&self) -> &Vec<Option<Source>> {
-        &self.tasks[self.current_task & (NUM_TASKS-1)].sources
+        &self.tasks[self.current_task & (NUM_TASKS - 1)].sources
     }
     fn sources_mut(&mut self) -> &mut Vec<Option<Source>> {
-        &mut self.tasks[self.current_task & (NUM_TASKS-1)].sources
+        &mut self.tasks[self.current_task & (NUM_TASKS - 1)].sources
     }
     fn lines(&self) -> &Vec<Option<String>> {
-        &self.tasks[self.current_task & (NUM_TASKS-1)].lines
+        &self.tasks[self.current_task & (NUM_TASKS - 1)].lines
     }
     fn lines_mut(&mut self) -> &mut Vec<Option<String>> {
-        &mut self.tasks[self.current_task & (NUM_TASKS-1)].lines
+        &mut self.tasks[self.current_task & (NUM_TASKS - 1)].lines
     }
     fn last_token(&mut self) -> &mut Option<String> {
         &mut self.tkn
@@ -208,19 +210,19 @@ impl Core for VM {
         self.tkn = Some(buffer);
     }
     fn regs(&mut self) -> &mut [usize; 2] {
-        &mut self.tasks[self.current_task & (NUM_TASKS-1)].regs
+        &mut self.tasks[self.current_task & (NUM_TASKS - 1)].regs
     }
     fn s_stack(&mut self) -> &mut Stack<isize> {
-        &mut self.tasks[self.current_task & (NUM_TASKS-1)].s_stk
+        &mut self.tasks[self.current_task & (NUM_TASKS - 1)].s_stk
     }
     fn r_stack(&mut self) -> &mut Stack<isize> {
-        &mut self.tasks[self.current_task & (NUM_TASKS-1)].r_stk
+        &mut self.tasks[self.current_task & (NUM_TASKS - 1)].r_stk
     }
     fn c_stack(&mut self) -> &mut Stack<Control> {
-        &mut self.tasks[self.current_task & (NUM_TASKS-1)].c_stk
+        &mut self.tasks[self.current_task & (NUM_TASKS - 1)].c_stk
     }
     fn f_stack(&mut self) -> &mut Stack<f64> {
-        &mut self.tasks[self.current_task & (NUM_TASKS-1)].f_stk
+        &mut self.tasks[self.current_task & (NUM_TASKS - 1)].f_stk
     }
     fn wordlist_mut(&mut self) -> &mut Wordlist<Self> {
         &mut self.wordlist
@@ -229,7 +231,7 @@ impl Core for VM {
         &self.wordlist
     }
     fn state(&mut self) -> &mut State {
-        &mut self.tasks[self.current_task & (NUM_TASKS-1)].state
+        &mut self.tasks[self.current_task & (NUM_TASKS - 1)].state
     }
     fn references(&mut self) -> &mut ForwardReferences {
         &mut self.references

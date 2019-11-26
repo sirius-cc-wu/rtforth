@@ -1,7 +1,7 @@
 use core::Core;
-use output::Output;
 use exception::Exception;
 use memory::Memory;
+use output::Output;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -31,10 +31,10 @@ pub trait HasLoader: Core + Output {
     /// is owned by the input source, the file-id associated with the file is
     /// also gone, so it can no more be used with file access words like
     /// CLOSE-FILE, READ-FILE, WRITE-FILE, RESIZE-FILE...
-    /// 
+    ///
     /// Also note that it is not checked if the file corresponding to file-id is opened read
     /// or opened read-write.
-    primitive!{fn open_source(&mut self) {
+    primitive! {fn open_source(&mut self) {
         let (caddr, u, id )= self.s_stack().pop3();
         if id > 0 && id - 1 < self.files().len() as isize {
             match self.files_mut()[id as usize - 1].take() {
@@ -73,7 +73,7 @@ pub trait HasLoader: Core + Output {
     /// The file owned by the resource is also closed.
     ///
     /// Failed if the source-id is the current source id or if the source-id doesn't exist.
-    primitive!{fn close_source(&mut self) {
+    primitive! {fn close_source(&mut self) {
         let id = self.s_stack().pop();
         if self.source_id() == id {
             self.abort_with(Exception::InvalidNumericArgument);
@@ -87,7 +87,7 @@ pub trait HasLoader: Core + Output {
     }}
 
     /// ( source-id -- )
-    primitive!{fn dot_source_path(&mut self) {
+    primitive! {fn dot_source_path(&mut self) {
         let id = self.s_stack().pop();
         if id > 0 && id - 1 < self.sources().len() as isize {
             let source = self.sources_mut()[id as usize - 1].take();
@@ -106,7 +106,7 @@ pub trait HasLoader: Core + Output {
     }}
 
     /// ( source-id -- )
-    primitive!{fn dot_source_line(&mut self) {
+    primitive! {fn dot_source_line(&mut self) {
         let id = self.s_stack().pop();
         if id > 0 && id - 1 < self.lines().len() as isize {
             let line = self.lines_mut()[id as usize - 1].take();
@@ -127,7 +127,7 @@ pub trait HasLoader: Core + Output {
     /// ( source-id -- count not-eof? )
     ///
     /// Load one line from source to input buffer.
-    primitive!{fn p_load_line(&mut self) {
+    primitive! {fn p_load_line(&mut self) {
         let id = self.s_stack().pop() as usize;
         match self.load_line(id) {
             Err(e) => self.abort_with(e),
@@ -145,16 +145,16 @@ pub trait HasLoader: Core + Output {
         if !(source_id > 0 && source_id - 1 < self.sources().len()) {
             return Err(Exception::InvalidNumericArgument);
         }
-        let mut source = match self.sources_mut()[source_id-1].take() {
+        let mut source = match self.sources_mut()[source_id - 1].take() {
             Some(s) => s,
             None => {
                 return Err(Exception::InvalidNumericArgument);
             }
         };
-        let mut line = match self.lines_mut()[source_id-1].take() {
+        let mut line = match self.lines_mut()[source_id - 1].take() {
             Some(line) => line,
             None => {
-                self.sources_mut()[source_id-1] = Some(source);
+                self.sources_mut()[source_id - 1] = Some(source);
                 return Err(Exception::InvalidNumericArgument);
             }
         };
@@ -163,21 +163,21 @@ pub trait HasLoader: Core + Output {
             Ok(len) => {
                 let not_eof = !(len == 0);
                 if line.ends_with('\n') {
-                    line.truncate(len-1);
+                    line.truncate(len - 1);
                     if line.ends_with('\r') {
-                        line.truncate(len-2);
-                        Ok((len-2, not_eof))
+                        line.truncate(len - 2);
+                        Ok((len - 2, not_eof))
                     } else {
-                        Ok((len-1, not_eof))
+                        Ok((len - 1, not_eof))
                     }
                 } else {
                     Ok((len, not_eof))
                 }
-            },
-            Err(_) => Err(Exception::FileIOException)
+            }
+            Err(_) => Err(Exception::FileIOException),
         };
-        self.lines_mut()[source_id-1] = Some(line);
-        self.sources_mut()[source_id-1] = Some(source);
+        self.lines_mut()[source_id - 1] = Some(line);
+        self.sources_mut()[source_id - 1] = Some(source);
         result
     }
 

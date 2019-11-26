@@ -1,11 +1,11 @@
 extern crate libc;
 extern crate region;
 
+use exception::Exception;
+use std::alloc::{GlobalAlloc, Layout, System};
 use std::marker;
 use std::mem;
 use std::slice;
-use std::alloc::{System, Layout, GlobalAlloc};
-use exception::Exception;
 
 #[allow(dead_code)]
 pub struct CodeSpace {
@@ -30,7 +30,7 @@ impl CodeSpace {
                 Ok(_) => {
                     // Do nothing.
                 }
-                Err(e) => { panic!("Cannot allocate code space: {}", e) }
+                Err(e) => panic!("Cannot allocate code space: {}", e),
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             libc::memset(ptr as *mut libc::c_void, 0xc3, size); // prepopulate with 'RET'
@@ -109,7 +109,7 @@ impl DataSpace {
                 Ok(_) => {
                     // Do nothing.
                 }
-                Err(e) => { panic!("Cannot allocate data space: {}", e) }
+                Err(e) => panic!("Cannot allocate data space: {}", e),
             }
             libc::memset(ptr as *mut libc::c_void, 0x00, size);
         }
@@ -292,15 +292,18 @@ pub trait Memory {
         let len = bytes.len().min(255);
         if pos + len + mem::size_of::<usize>() <= self.limit() {
             let mut p = pos;
-            unsafe{ *(p as *mut u8) = len as u8; }
+            unsafe {
+                *(p as *mut u8) = len as u8;
+            }
             for byte in &bytes[0..len] {
                 p += 1;
-                unsafe{ *(p as *mut u8) = *byte; }
+                unsafe {
+                    *(p as *mut u8) = *byte;
+                }
             }
         } else {
             panic!("Error: put_cstr while space is full.");
         }
-
     }
 
     fn compile_str(&mut self, s: &str) -> usize {

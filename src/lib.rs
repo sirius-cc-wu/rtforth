@@ -19,27 +19,27 @@ macro_rules! primitive {
 
 #[macro_use]
 extern crate approx;
-extern crate uom;
 extern crate hibitset;
+extern crate uom;
 
-pub mod memory;
 pub mod core;
 pub mod env;
 pub mod exception;
 pub mod facility;
-pub mod float;
 pub mod file_access;
+pub mod float;
 pub mod loader;
+pub mod memory;
+pub mod mock_vm;
 pub mod output;
 pub(crate) mod parser;
 pub mod tools;
 pub mod units;
-pub mod mock_vm;
 
-use std::result;
 use core::Core;
-use memory::Memory;
 use exception::Exception;
+use memory::Memory;
+use std::result;
 
 pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;

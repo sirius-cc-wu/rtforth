@@ -1749,36 +1749,6 @@ pub trait Core: Sized {
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_nest(&mut self, word_index: usize) {
-        self.code_space().align_16bytes();
-        self.wordlist_mut()[word_index].action =
-            unsafe { mem::transmute(self.code_space().here()) };
-        // ; make a copy of vm in %esi because %ecx may be destropyed by
-        // subroutine call.
-        // 56               push   %esi
-        // 89 ce            mov    %ecx,%esi
-        // 83 ec 08         sub    $8,%esp
-        self.code_space().compile_u8(0x56);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xce);
-        self.code_space().compile_u8(0x83);
-        self.code_space().compile_u8(0xec);
-        self.code_space().compile_u8(0x08);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_exit(&mut self, _: usize) {
-        // 83 c4 08         add    $8,%esp
-        // 5e               pop    %esi
-        // c3               ret
-        self.code_space().compile_u8(0x83);
-        self.code_space().compile_u8(0xc4);
-        self.code_space().compile_u8(0x08);
-        self.code_space().compile_u8(0x5e);
-        self.code_space().compile_u8(0xc3);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_var(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
         self.compile_integer(dfa as isize);
@@ -1909,18 +1879,6 @@ pub trait Core: Sized {
         self.code_space().compile_u8(0xe8);
         self.code_space()
             .compile_relative(Self::lit_counted_string as usize);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn patch_compilation_semanticses(&mut self) {
-        let idx_exit = self.find("exit").expect("exit");
-        self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_exit;
-        let idx_s_quote = self.find("_s\"").expect("_s\"");
-        self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_s_quote;
-        let idx_leave = self.find("leave").expect("leave");
-        self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
-        let idx_reset = self.find("reset").expect("reset");
-        self.wordlist_mut()[idx_reset].compilation_semantics = Self::compile_reset;
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]

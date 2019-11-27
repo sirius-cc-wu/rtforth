@@ -848,13 +848,16 @@ pub trait Core: Sized {
     }}
 
     /// Compile integer `i`.
+    ///
+    /// Run-time: ( n -- )
     #[cfg(not(feature = "stc"))]
-    fn compile_integer(&mut self, i: isize) {
+    primitive!{fn compile_integer(&mut self) {
+        let n = self.s_stack().pop();
         let idx = self.references().idx_lit;
         self.s_stack().push(idx as isize);
         self.compile_comma();
-        self.data_space().compile_isize(i as isize);
-    }
+        self.data_space().compile_isize(n as isize);
+    }}
 
     #[cfg(not(feature = "stc"))]
     primitive! {fn flit(&mut self) {
@@ -1504,7 +1507,8 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     primitive! {fn imm_call(&mut self) {
          let return_addr = self.data_space().here() + 5 * mem::size_of::<isize>();
-         self.compile_integer(return_addr as _);
+         self.s_stack().push(return_addr as _);
+         self.compile_integer();
          let idx_to_r = self.references().idx_to_r;
          self.s_stack().push(idx_to_r as isize);
          self.compile_comma();
@@ -1748,14 +1752,16 @@ pub trait Core: Sized {
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_var(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
-        self.compile_integer(dfa as isize);
+        self.s_stack().push(dfa as _);
+        self.compile_integer();
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_const(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
         let value = unsafe { self.data_space().get_isize(dfa) as isize };
-        self.compile_integer(value);
+        self.s_stack().push(value);
+        self.compile_integer();
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
@@ -1781,19 +1787,22 @@ pub trait Core: Sized {
     }}
 
     /// Compile integer `i`.
+    ///
+    /// Run-time: ( n - )
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_integer(&mut self, i: isize) {
+    primitive!{fn compile_integer(&mut self) {
         // ba nn nn nn nn   mov    $0xnnnn,%edx
         // 89 f1            mov    %esi,%ecx
         // e8 xx xx xx xx   call   lit_integer
+        let n = self.s_stack().pop();
         self.code_space().compile_u8(0xba);
-        self.code_space().compile_isize(i as isize);
+        self.code_space().compile_isize(n as isize);
         self.code_space().compile_u8(0x89);
         self.code_space().compile_u8(0xf1);
         self.code_space().compile_u8(0xe8);
         self.code_space()
             .compile_relative(Self::lit_integer as usize);
-    }
+    }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive! {fn flit(&mut self) {
@@ -2536,8 +2545,7 @@ pub trait Core: Sized {
         if self.last_error().is_some() {
             return;
         }
-        let ch = self.s_stack().pop();
-        self.compile_integer(ch);
+        self.compile_integer();
     }}
 
     /// Run-time: ( char "ccc&lt;char&gt;" -- )
@@ -2641,7 +2649,8 @@ pub trait Core: Sized {
             match self.find(&last_token) {
                 Some(xt) => {
                     self.set_last_token(last_token);
-                    self.compile_integer(xt as isize);
+                    self.s_stack().push(xt as _);
+                    self.compile_integer();
                     let idx = self.references().idx__postpone;
                     self.s_stack().push(idx as isize);
                     self.compile_comma();
@@ -2847,7 +2856,8 @@ pub trait Core: Sized {
         match parser::quoted_char(&token.as_bytes()) {
             parser::IResult::Done(_bytes, c) => {
                 if self.state().is_compiling {
-                    self.compile_integer(c);
+                    self.s_stack().push(c as _);
+                    self.compile_integer();
                 } else {
                     self.s_stack().push(c);
                 }
@@ -2865,7 +2875,8 @@ pub trait Core: Sized {
                             self.set_error(Some(UnsupportedOperation));
                         } else {
                             if self.state().is_compiling {
-                                self.compile_integer(sign.wrapping_mul(value));
+                                self.s_stack().push(sign.wrapping_mul(value));
+                                self.compile_integer();
                             } else {
                                 self.s_stack().push(sign.wrapping_mul(value));
                             }
@@ -3717,7 +3728,8 @@ pub trait Core: Sized {
         } else {
             match self.find(&last_token) {
                 Some(found_index) => {
-                    self.compile_integer(found_index as isize);
+                    self.s_stack().push(found_index as _);
+                    self.compile_integer();
                     self.set_last_token(last_token);
                 }
                 None => {

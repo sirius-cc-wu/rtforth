@@ -888,14 +888,29 @@ pub trait Core: Sized {
     }}
 
     /// Compile float 'f'.
-    #[cfg(not(feature = "stc"))]
-    fn compile_float(&mut self, f: f64) {
+    ///
+    /// The token-threading version.
+    ///
+    /// Run-time: ( f -- )
+    primitive!{fn tt_compile_float(&mut self) {
+        let f = self.f_stack().pop();
         let idx_flit = self.references().idx_flit;
         self.s_stack().push(idx_flit as isize);
         self.compile_comma();
         self.data_space().align_f64();
         self.data_space().compile_f64(f);
-    }
+    }}
+
+    /// Compile float 'f'.
+    ///
+    /// Run-time: ( f -- )
+    primitive!{fn compile_float(&mut self) {
+        let compile_float_vector = self.data_space().system_variables().compile_float_vector();
+        unsafe {
+            let compile_float_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_float_vector);
+            (*compile_float_vector)(self);
+        }
+    }}
 
     /// Runtime of S"
     #[cfg(not(feature = "stc"))]
@@ -930,6 +945,7 @@ pub trait Core: Sized {
         let compile_integer_vector = self.data_space().system_variables().compile_integer_vector();
         let compile_var_vector = self.data_space().system_variables().compile_var_vector();
         let compile_const_vector = self.data_space().system_variables().compile_const_vector();
+        let compile_float_vector = self.data_space().system_variables().compile_float_vector();
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
@@ -941,6 +957,8 @@ pub trait Core: Sized {
                 .put_isize(Self::comma as isize, compile_var_vector);
             self.data_space()
                 .put_isize(Self::comma as isize, compile_const_vector);
+            self.data_space()
+                .put_isize(Self::tt_compile_float as isize, compile_float_vector);
         }
     }}
 
@@ -1776,44 +1794,6 @@ pub trait Core: Sized {
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_fconst(&mut self, word_index: usize) {
         // self.compile_word(word_index);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn lit_float(&mut self, f: f64) {
-        let flen = self.f_stack().len.wrapping_add(1);
-        self.f_stack().len = flen;
-        self.f_stack()[flen.wrapping_sub(1)] = f;
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_float(&mut self, f: f64) {
-        // ba nn nn nn nn   mov    <addr of f>, %edx
-        // 83 ec 08         sub    $0x08,%esp
-        // f2 0f 10 02      movsd  (%edx), %xmm0
-        // 89 f1            mov    %esi, %ecx
-        // f2 0f 11 04 24   movsd  %xmm0,(%esp)
-        // e8 xx xx xx xx   call   lit_float
-        self.data_space().align_f64();
-        let data_addr = self.data_space().here();
-        self.data_space().compile_f64(f);
-        self.code_space().compile_u8(0xba);
-        self.code_space().compile_usize(data_addr as usize);
-        self.code_space().compile_u8(0x83);
-        self.code_space().compile_u8(0xec);
-        self.code_space().compile_u8(0x08);
-        self.code_space().compile_u8(0xf2);
-        self.code_space().compile_u8(0x0f);
-        self.code_space().compile_u8(0x10);
-        self.code_space().compile_u8(0x02);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xf2);
-        self.code_space().compile_u8(0x0f);
-        self.code_space().compile_u8(0x11);
-        self.code_space().compile_u8(0x04);
-        self.code_space().compile_u8(0x24);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::lit_float as usize);
     }
 
     /// Runtime of S"
@@ -2991,7 +2971,8 @@ pub trait Core: Sized {
                     * (integer_part as f64 + fraction_part)
                     * ((10.0f64).powi((exponent_sign.wrapping_mul(exponent_part)) as i32) as f64);
                 if self.state().is_compiling {
-                    self.compile_float(value);
+                    self.f_stack().push(value);
+                    self.compile_float();
                 } else {
                     self.f_stack().push(value);
                 }

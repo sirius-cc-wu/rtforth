@@ -817,14 +817,20 @@ pub trait Core: Sized {
         }
     }
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn compile_var(&mut self) {
-        self.compile_comma();
+        let compile_var_vector = self.data_space().system_variables().compile_var_vector();
+        unsafe {
+            let compile_var_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_var_vector);
+            (*compile_var_vector)(self);
+        }
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn compile_const(&mut self) {
-        self.compile_comma();
+        let compile_const_vector = self.data_space().system_variables().compile_const_vector();
+        unsafe {
+            let compile_const_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_const_vector);
+            (*compile_const_vector)(self);
+        }
     }}
 
     #[cfg(not(feature = "stc"))]
@@ -852,7 +858,6 @@ pub trait Core: Sized {
     /// For token-threading.
     ///
     /// Run-time: ( n -- )
-    #[cfg(not(feature = "stc"))]
     primitive!{fn tt_compile_integer(&mut self) {
         let n = self.s_stack().pop();
         let idx = self.references().idx_lit;
@@ -864,7 +869,6 @@ pub trait Core: Sized {
     /// Compile integer `i`.
     ///
     /// Run-time: ( n -- )
-    #[cfg(not(feature = "stc"))]
     primitive!{fn compile_integer(&mut self) {
         let compile_integer_vector = self.data_space().system_variables().compile_integer_vector();
         unsafe {
@@ -924,6 +928,8 @@ pub trait Core: Sized {
         let compile_comma_vector = self.data_space().system_variables().compile_comma_vector();
         let compile_nest_vector = self.data_space().system_variables().compile_nest_vector();
         let compile_integer_vector = self.data_space().system_variables().compile_integer_vector();
+        let compile_var_vector = self.data_space().system_variables().compile_var_vector();
+        let compile_const_vector = self.data_space().system_variables().compile_const_vector();
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
@@ -931,6 +937,10 @@ pub trait Core: Sized {
                 .put_isize(Self::p_drop as isize, compile_nest_vector);
             self.data_space()
                 .put_isize(Self::tt_compile_integer as isize, compile_integer_vector);
+            self.data_space()
+                .put_isize(Self::comma as isize, compile_var_vector);
+            self.data_space()
+                .put_isize(Self::comma as isize, compile_const_vector);
         }
     }}
 
@@ -1764,21 +1774,6 @@ pub trait Core: Sized {
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn run(&mut self) {
         // Do nothing.
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_var(&mut self, word_index: usize) {
-        let dfa = self.wordlist()[word_index].dfa();
-        self.s_stack().push(dfa as _);
-        self.compile_integer();
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_const(&mut self, word_index: usize) {
-        let dfa = self.wordlist()[word_index].dfa();
-        let value = unsafe { self.data_space().get_isize(dfa) as isize };
-        self.s_stack().push(value);
-        self.compile_integer();
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]

@@ -1743,17 +1743,6 @@ pub trait Core: Sized {
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_word(&mut self, word_index: usize) {
-        // 89 f1            mov    %esi,%ecx
-        // e8 xx xx xx xx   call   self.wordlist()[word_index].action
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        let w = self.wordlist()[word_index].action as usize;
-        self.code_space().compile_relative(w);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_var(&mut self, word_index: usize) {
         let dfa = self.wordlist()[word_index].dfa();
         self.compile_integer(dfa as isize);

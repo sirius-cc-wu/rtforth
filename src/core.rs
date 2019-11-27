@@ -809,11 +809,6 @@ pub trait Core: Sized {
         }
     }
 
-    #[cfg(not(feature = "stc"))]
-    fn compile_word(&mut self, word_index: usize) {
-        self.data_space().compile_usize(word_index as usize);
-    }
-
     fn compile_nest(&mut self) {
         let compile_nest_vector = self.data_space().system_variables().compile_nest_vector();
         unsafe {
@@ -824,26 +819,22 @@ pub trait Core: Sized {
 
     #[cfg(not(feature = "stc"))]
     primitive! {fn compile_var(&mut self) {
-        let word_index = self.s_stack().pop();
-        self.compile_word(word_index as usize);
+        self.compile_comma();
     }}
 
     #[cfg(not(feature = "stc"))]
     primitive! {fn compile_const(&mut self) {
-        let word_index = self.s_stack().pop();
-        self.compile_word(word_index as usize);
+        self.compile_comma();
     }}
 
     #[cfg(not(feature = "stc"))]
     primitive! {fn compile_unmark(&mut self) {
-        let word_index = self.s_stack().pop();
-        self.compile_word(word_index as usize);
+        self.compile_comma();
     }}
 
     #[cfg(not(feature = "stc"))]
     primitive! {fn compile_fconst(&mut self) {
-        let word_index = self.s_stack().pop();
-        self.compile_word(word_index as usize);
+        self.compile_comma();
     }}
 
     #[cfg(not(feature = "stc"))]
@@ -860,7 +851,8 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     fn compile_integer(&mut self, i: isize) {
         let idx = self.references().idx_lit;
-        self.compile_word(idx);
+        self.s_stack().push(idx);
+        self.compile_comma();
         self.data_space().compile_isize(i as isize);
     }
 
@@ -878,7 +870,8 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     fn compile_float(&mut self, f: f64) {
         let idx_flit = self.references().idx_flit;
-        self.compile_word(idx_flit);
+        self.s_stack().push(idx_flit);
+        self.compile_comma();
         self.data_space().align_f64();
         self.data_space().compile_f64(f);
     }
@@ -930,7 +923,8 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_branch;
-        self.compile_word(idx);
+        self.s_stack().push(idx);
+        self.compile_comma();
         self.data_space().compile_isize(destination as isize);
         self.data_space().here()
     }
@@ -948,7 +942,8 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     fn compile_zero_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_zero_branch;
-        self.compile_word(idx);
+        self.s_stack().push(idx);
+        self.compile_comma();
         self.data_space().compile_isize(destination as isize);
         self.data_space().here()
     }
@@ -1088,8 +1083,7 @@ pub trait Core: Sized {
     primitive! {fn compile_leave(&mut self) {
         match self.leave_part() {
             Some(leave_part) => {
-                let word_idx = self.s_stack().pop();
-                self.compile_word(word_idx as usize);
+                self.compile_comma();
             }
             _ => {
                 self.abort_with(ControlStructureMismatch);
@@ -1236,13 +1230,16 @@ pub trait Core: Sized {
             self.abort_with(ControlStructureMismatch);
         } else {
             let idx = self.references().idx_over;
-            self.compile_word(idx);
+            self.s_stack().push(idx);
+            self.compile_comma();
             let idx = self.references().idx_equal;
-            self.compile_word(idx);
+            self.s_stack().push(idx);
+            self.compile_comma();
             let here = self.compile_zero_branch(0);
             self.c_stack().push(Control::Of(here));
             let idx = self.references().idx_drop;
-            self.compile_word(idx);
+            self.s_stack().push(idx);
+            self.compile_comma();
         }
     }}
 
@@ -1272,7 +1269,8 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     primitive! {fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
-        self.compile_word(idx);
+        self.s_stack().push(idx);
+        self.compile_comma();
         loop {
             let endof_part = match self.c_stack().pop() {
                 Control::Case => { break; }
@@ -1508,7 +1506,8 @@ pub trait Core: Sized {
          let return_addr = self.data_space().here() + 5 * mem::size_of::<isize>();
          self.compile_integer(return_addr as _);
          let idx_to_r = self.references().idx_to_r;
-         self.compile_word(idx_to_r);
+         self.s_stack().push(idx_to_r);
+         self.compile_comma();
          self.imm_goto();
     }}
 
@@ -1529,7 +1528,8 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     primitive! {fn imm_do(&mut self) {
         let idx = self.references().idx_do;
-        self.compile_word(idx);
+        self.s_stack().push(idx);
+        self.compile_comma();
         self.data_space().compile_isize(0);
         let here = self.data_space().here();
         self.c_stack().push(Control::Do(here,here));
@@ -1558,7 +1558,8 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     primitive! {fn imm_qdo(&mut self) {
         let idx = self.references().idx_qdo;
-        self.compile_word(idx);
+        self.s_stack().push(idx);
+        self.compile_comma();
         self.data_space().compile_isize(0);
         let here = self.data_space().here();
         self.c_stack().push(Control::Do(here,here));
@@ -1612,7 +1613,8 @@ pub trait Core: Sized {
             self.abort_with(ControlStructureMismatch);
         } else {
             let idx = self.references().idx_loop;
-            self.compile_word(idx);
+            self.s_stack().push(idx);
+            self.compile_comma();
             self.data_space().compile_isize(do_part as isize);
             let here = self.data_space().here();
             unsafe{
@@ -1641,7 +1643,8 @@ pub trait Core: Sized {
             self.abort_with(ControlStructureMismatch);
         } else {
             let idx = self.references().idx_plus_loop;
-            self.compile_word(idx);
+            self.s_stack().push(idx);
+            self.compile_comma();
             self.data_space().compile_isize(do_part as isize);
             let here = self.data_space().here();
             unsafe{
@@ -2133,13 +2136,16 @@ pub trait Core: Sized {
             self.abort_with(ControlStructureMismatch);
         } else {
             let idx = self.references().idx_over;
-            self.compile_word(idx);
+            self.s_stack().push(idx);
+            self.compile_comma();
             let idx = self.references().idx_equal;
-            self.compile_word(idx);
+            self.s_stack().push(idx);
+            self.compile_comma();
             let here = self.compile_zero_branch(0);
             self.c_stack().push(Control::Of(here));
             let idx = self.references().idx_drop;
-            self.compile_word(idx);
+            self.s_stack().push(idx);
+            self.compile_comma();
         }
     }}
 
@@ -2171,7 +2177,8 @@ pub trait Core: Sized {
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive! {fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
-        self.compile_word(idx);
+        self.s_stack().push(idx);
+        self.compile_comma();
         loop {
             let endof_part = match self.c_stack().pop() {
                 Control::Case => { break; }
@@ -2636,7 +2643,8 @@ pub trait Core: Sized {
                     self.set_last_token(last_token);
                     self.compile_integer(xt as isize);
                     let idx = self.references().idx__postpone;
-                    self.compile_word(idx);
+                    self.s_stack().push(idx);
+                    self.compile_comma();
                 }
                 None => {
                     self.set_last_token(last_token);

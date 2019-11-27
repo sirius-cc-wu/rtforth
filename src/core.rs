@@ -1768,14 +1768,6 @@ pub trait Core: Sized {
     // SHALLOW -
     // SHALLOW @
 
-    /// Evaluate a compiled program following self.state().instruction_pointer.
-    /// Any exception causes termination of inner loop.
-    #[inline(never)]
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn run(&mut self) {
-        // Do nothing.
-    }
-
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_unmark(&mut self, _: usize) {
         // Do nothing.
@@ -1785,16 +1777,6 @@ pub trait Core: Sized {
     fn compile_fconst(&mut self, word_index: usize) {
         // self.compile_word(word_index);
     }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn lit(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn flit(&mut self) {
-        // Do nothing.
-    }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive! {fn lit_float(&mut self, f: f64) {

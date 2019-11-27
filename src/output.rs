@@ -114,7 +114,8 @@ pub trait Output: Core {
     primitive! {fn dot_quote(&mut self) {
         self.s_quote();
         let idx_type = self.references().idx_type;
-        self.compile_word(idx_type);
+        self.s_stack().push(idx_type as isize);
+        self.compile_comma();
     }}
 
     /// Execution: ( "ccc&lt;paren&gt;" -- )

@@ -851,7 +851,7 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     fn compile_integer(&mut self, i: isize) {
         let idx = self.references().idx_lit;
-        self.s_stack().push(idx);
+        self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(i as isize);
     }
@@ -870,7 +870,7 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     fn compile_float(&mut self, f: f64) {
         let idx_flit = self.references().idx_flit;
-        self.s_stack().push(idx_flit);
+        self.s_stack().push(idx_flit as isize);
         self.compile_comma();
         self.data_space().align_f64();
         self.data_space().compile_f64(f);
@@ -923,7 +923,7 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_branch;
-        self.s_stack().push(idx);
+        self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(destination as isize);
         self.data_space().here()
@@ -942,7 +942,7 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     fn compile_zero_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_zero_branch;
-        self.s_stack().push(idx);
+        self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(destination as isize);
         self.data_space().here()
@@ -1230,15 +1230,15 @@ pub trait Core: Sized {
             self.abort_with(ControlStructureMismatch);
         } else {
             let idx = self.references().idx_over;
-            self.s_stack().push(idx);
+            self.s_stack().push(idx as isize);
             self.compile_comma();
             let idx = self.references().idx_equal;
-            self.s_stack().push(idx);
+            self.s_stack().push(idx as isize);
             self.compile_comma();
             let here = self.compile_zero_branch(0);
             self.c_stack().push(Control::Of(here));
             let idx = self.references().idx_drop;
-            self.s_stack().push(idx);
+            self.s_stack().push(idx as isize);
             self.compile_comma();
         }
     }}
@@ -1269,7 +1269,7 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     primitive! {fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
-        self.s_stack().push(idx);
+        self.s_stack().push(idx as isize);
         self.compile_comma();
         loop {
             let endof_part = match self.c_stack().pop() {
@@ -1506,7 +1506,7 @@ pub trait Core: Sized {
          let return_addr = self.data_space().here() + 5 * mem::size_of::<isize>();
          self.compile_integer(return_addr as _);
          let idx_to_r = self.references().idx_to_r;
-         self.s_stack().push(idx_to_r);
+         self.s_stack().push(idx_to_r as isize);
          self.compile_comma();
          self.imm_goto();
     }}
@@ -1528,7 +1528,7 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     primitive! {fn imm_do(&mut self) {
         let idx = self.references().idx_do;
-        self.s_stack().push(idx);
+        self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(0);
         let here = self.data_space().here();
@@ -1558,7 +1558,7 @@ pub trait Core: Sized {
     #[cfg(not(feature = "stc"))]
     primitive! {fn imm_qdo(&mut self) {
         let idx = self.references().idx_qdo;
-        self.s_stack().push(idx);
+        self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(0);
         let here = self.data_space().here();
@@ -1613,7 +1613,7 @@ pub trait Core: Sized {
             self.abort_with(ControlStructureMismatch);
         } else {
             let idx = self.references().idx_loop;
-            self.s_stack().push(idx);
+            self.s_stack().push(idx as isize);
             self.compile_comma();
             self.data_space().compile_isize(do_part as isize);
             let here = self.data_space().here();
@@ -1643,7 +1643,7 @@ pub trait Core: Sized {
             self.abort_with(ControlStructureMismatch);
         } else {
             let idx = self.references().idx_plus_loop;
-            self.s_stack().push(idx);
+            self.s_stack().push(idx as isize);
             self.compile_comma();
             self.data_space().compile_isize(do_part as isize);
             let here = self.data_space().here();
@@ -2136,15 +2136,15 @@ pub trait Core: Sized {
             self.abort_with(ControlStructureMismatch);
         } else {
             let idx = self.references().idx_over;
-            self.s_stack().push(idx);
+            self.s_stack().push(idx as isize);
             self.compile_comma();
             let idx = self.references().idx_equal;
-            self.s_stack().push(idx);
+            self.s_stack().push(idx as isize);
             self.compile_comma();
             let here = self.compile_zero_branch(0);
             self.c_stack().push(Control::Of(here));
             let idx = self.references().idx_drop;
-            self.s_stack().push(idx);
+            self.s_stack().push(idx as isize);
             self.compile_comma();
         }
     }}
@@ -2177,7 +2177,7 @@ pub trait Core: Sized {
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive! {fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
-        self.s_stack().push(idx);
+        self.s_stack().push(idx as isize);
         self.compile_comma();
         loop {
             let endof_part = match self.c_stack().pop() {
@@ -2643,7 +2643,7 @@ pub trait Core: Sized {
                     self.set_last_token(last_token);
                     self.compile_integer(xt as isize);
                     let idx = self.references().idx__postpone;
-                    self.s_stack().push(idx);
+                    self.s_stack().push(idx as isize);
                     self.compile_comma();
                 }
                 None => {

@@ -5678,39 +5678,6 @@ mod tests {
         }
     }
 
-    #[test]
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn test_subroutine_threaded_colon_and_semi_colon() {
-        let vm = &mut VM::new(16, 16);
-        // : nop ;
-        // 56               push   %esi
-        // 89 ce            mov    %ecx,%esi
-        // 83 ec 08         sub    $8,%esp
-        //
-        // 83 c4 08         add    $8,%esp
-        // 5e               pop    %esi
-        // c3               ret
-        let action = vm.code_space().here();
-        vm.set_source(": nop ; nop");
-        vm.evaluate_input();
-        let w = vm.wordlist().last();
-        assert_eq!(vm.wordlist()[w].action as usize, action);
-        unsafe {
-            assert_eq!(vm.code_space().get_u8(action + 0), 0x56);
-            assert_eq!(vm.code_space().get_u8(action + 1), 0x89);
-            assert_eq!(vm.code_space().get_u8(action + 2), 0xce);
-            assert_eq!(vm.code_space().get_u8(action + 3), 0x83);
-            assert_eq!(vm.code_space().get_u8(action + 4), 0xec);
-            assert_eq!(vm.code_space().get_u8(action + 5), 0x08);
-
-            assert_eq!(vm.code_space().get_u8(action + 6), 0x83);
-            assert_eq!(vm.code_space().get_u8(action + 7), 0xc4);
-            assert_eq!(vm.code_space().get_u8(action + 8), 0x08);
-            assert_eq!(vm.code_space().get_u8(action + 9), 0x5e);
-            assert_eq!(vm.code_space().get_u8(action + 10), 0xc3);
-        }
-    }
-
     fn dump(vm: &mut VM, addr: usize) {
         if vm.code_space().has(addr) {
             for i in 0..8 {

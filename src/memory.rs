@@ -109,7 +109,6 @@ impl SystemVariables {
     pub fn compile_float_vector(&self) -> usize {
         &self.compile_float as *const _ as usize
     }
-
 }
 
 #[allow(dead_code)]

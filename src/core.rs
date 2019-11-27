@@ -812,7 +812,8 @@ pub trait Core: Sized {
     fn compile_nest(&mut self) {
         let compile_nest_vector = self.data_space().system_variables().compile_nest_vector();
         unsafe {
-            let compile_nest_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_nest_vector);
+            let compile_nest_vector: *const primitive! {fn (&mut Self)} =
+                mem::transmute(compile_nest_vector);
             (*compile_nest_vector)(self);
         }
     }
@@ -858,7 +859,7 @@ pub trait Core: Sized {
     /// For token-threading.
     ///
     /// Run-time: ( n -- )
-    primitive!{fn tt_compile_integer(&mut self) {
+    primitive! {fn tt_compile_integer(&mut self) {
         let n = self.s_stack().pop();
         let idx = self.references().idx_lit;
         self.s_stack().push(idx as isize);
@@ -869,7 +870,7 @@ pub trait Core: Sized {
     /// Compile integer `i`.
     ///
     /// Run-time: ( n -- )
-    primitive!{fn compile_integer(&mut self) {
+    primitive! {fn compile_integer(&mut self) {
         let compile_integer_vector = self.data_space().system_variables().compile_integer_vector();
         unsafe {
             let compile_integer_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_integer_vector);
@@ -892,7 +893,7 @@ pub trait Core: Sized {
     /// The token-threading version.
     ///
     /// Run-time: ( f -- )
-    primitive!{fn tt_compile_float(&mut self) {
+    primitive! {fn tt_compile_float(&mut self) {
         let f = self.f_stack().pop();
         let idx_flit = self.references().idx_flit;
         self.s_stack().push(idx_flit as isize);
@@ -904,7 +905,7 @@ pub trait Core: Sized {
     /// Compile float 'f'.
     ///
     /// Run-time: ( f -- )
-    primitive!{fn compile_float(&mut self) {
+    primitive! {fn compile_float(&mut self) {
         let compile_float_vector = self.data_space().system_variables().compile_float_vector();
         unsafe {
             let compile_float_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_float_vector);
@@ -930,7 +931,7 @@ pub trait Core: Sized {
     }}
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn patch_compilation_semanticses(&mut self) {
+    primitive! {fn patch_compilation_semanticses(&mut self) {
         let idx_exit = self.find("exit").expect("exit");
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_comma;
         let idx_s_quote = self.find("_s\"").expect("_s\"");
@@ -1789,11 +1790,6 @@ pub trait Core: Sized {
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_unmark(&mut self, _: usize) {
         // Do nothing.
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_fconst(&mut self, word_index: usize) {
-        // self.compile_word(word_index);
     }
 
     /// Runtime of S"

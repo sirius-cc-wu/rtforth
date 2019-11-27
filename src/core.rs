@@ -1797,31 +1797,6 @@ pub trait Core: Sized {
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn lit_integer(&mut self, i: isize) {
-        let slen = self.s_stack().len.wrapping_add(1);
-        self.s_stack().len = slen;
-        self.s_stack()[slen.wrapping_sub(1)] = i;
-    }}
-
-    /// Compile integer `i`.
-    ///
-    /// Run-time: ( n - )
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn compile_integer(&mut self) {
-        // ba nn nn nn nn   mov    $0xnnnn,%edx
-        // 89 f1            mov    %esi,%ecx
-        // e8 xx xx xx xx   call   lit_integer
-        let n = self.s_stack().pop();
-        self.code_space().compile_u8(0xba);
-        self.code_space().compile_isize(n as isize);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space()
-            .compile_relative(Self::lit_integer as usize);
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive! {fn flit(&mut self) {
         // Do nothing.
     }}

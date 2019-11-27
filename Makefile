@@ -7,3 +7,6 @@ arm:
 
 x86:
 	cargo build --example rf --release --target=i686-unknown-linux-gnu
+
+test-x86:
+	cargo test --target=i686-unknown-linux-gnu

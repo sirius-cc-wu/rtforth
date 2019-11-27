@@ -75,6 +75,7 @@ pub struct SystemVariables {
     base: isize,
     compile_comma: isize,
     compile_nest: isize,
+    compile_integer: isize,
 }
 
 impl SystemVariables {
@@ -88,6 +89,10 @@ impl SystemVariables {
 
     pub fn compile_nest_vector(&self) -> usize {
         &self.compile_nest as *const _ as usize
+    }
+
+    pub fn compile_integer_vector(&self) -> usize {
+        &self.compile_integer as *const _ as usize
     }
 }
 

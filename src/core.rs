@@ -847,16 +847,30 @@ pub trait Core: Sized {
         self.state().instruction_pointer += mem::size_of::<isize>();
     }}
 
-    /// Compile integer `i`.
+    /// Compile integer `n`.
+    ///
+    /// For token-threading.
     ///
     /// Run-time: ( n -- )
     #[cfg(not(feature = "stc"))]
-    primitive!{fn compile_integer(&mut self) {
+    primitive!{fn tt_compile_integer(&mut self) {
         let n = self.s_stack().pop();
         let idx = self.references().idx_lit;
         self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(n as isize);
+    }}
+
+    /// Compile integer `i`.
+    ///
+    /// Run-time: ( n -- )
+    #[cfg(not(feature = "stc"))]
+    primitive!{fn compile_integer(&mut self) {
+        let compile_integer_vector = self.data_space().system_variables().compile_integer_vector();
+        unsafe {
+            let compile_integer_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_integer_vector);
+            (*compile_integer_vector)(self);
+        }
     }}
 
     #[cfg(not(feature = "stc"))]
@@ -909,11 +923,14 @@ pub trait Core: Sized {
 
         let compile_comma_vector = self.data_space().system_variables().compile_comma_vector();
         let compile_nest_vector = self.data_space().system_variables().compile_nest_vector();
+        let compile_integer_vector = self.data_space().system_variables().compile_integer_vector();
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
             self.data_space()
                 .put_isize(Self::p_drop as isize, compile_nest_vector);
+            self.data_space()
+                .put_isize(Self::tt_compile_integer as isize, compile_integer_vector);
         }
     }}
 

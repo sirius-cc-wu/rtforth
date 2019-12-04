@@ -670,6 +670,13 @@ pub trait Core: Sized {
         self.add_primitive("0stacks", Core::clear_stacks);
         self.add_primitive("reset", Core::reset);
         self.add_primitive("abort", Core::abort);
+        self.add_primitive(">action", Core::to_action);
+        self.add_primitive("action>", Core::from_action);
+        self.add_primitive(">nfa", Core::to_nfa);
+        self.add_primitive(">cfa", Core::to_cfa);
+        self.add_primitive(">dfa", Core::to_dfa);
+        self.add_primitive("dfa>", Core::from_dfa);
+        self.add_primitive(".name", Core::dot_name);
         self.add_primitive("compiling?", Core::p_compiling);
         self.add_primitive("token-empty?", Core::token_empty);
         self.add_primitive(".token", Core::dot_token);
@@ -3923,6 +3930,82 @@ pub trait Core: Sized {
     /// Abort the inner loop with an exception, reset VM and clears stacks.
     primitive! {fn abort(&mut self) {
         self.abort_with(Abort);
+    }}
+
+    /// Data field address of `xt`. `>DFA ( xt -- dfa )`
+    primitive!{fn to_dfa(&mut self) {
+        let xt = self.s_stack().pop();
+        let dfa = self.wordlist()[xt as usize].dfa();
+        self.s_stack().push(dfa as isize);
+    }}
+
+    /// Code field address of `xt`. `>CFA ( xt -- cfa )`
+    primitive!{fn to_cfa(&mut self) {
+        let xt = self.s_stack().pop();
+        let cfa = self.wordlist()[xt as usize].cfa();
+        self.s_stack().push(cfa as isize);
+    }}
+
+    /// Name field address of `xt`. `>NFA ( xt -- nfa )`
+    primitive!{fn to_nfa(&mut self) {
+        let xt = self.s_stack().pop();
+        let nfa = self.wordlist()[xt as usize].nfa();
+        self.s_stack().push(nfa as isize);
+    }}
+
+    /// Interpretation semantics of `xt`. `>ACTION ( xt -- 'action )`
+    primitive!{fn to_action(&mut self) {
+        let xt = self.s_stack().pop();
+        let action = self.wordlist()[xt as usize].action() as *mut u8 as usize;
+        self.s_stack().push(action as isize);
+    }}
+
+    /// Execution token with interpretation semantics of `action`. `ACTION> ( action -- xt )`
+    ///
+    /// Return 0 if not found.
+    primitive!{fn from_action(&mut self) {
+        let action = self.s_stack().pop();
+        let mut xt = 0;
+        for w in (0..self.wordlist().len()).rev() {
+            if self.wordlist()[w].action() as *mut u8 as isize == action {
+                xt = w;
+                break;
+            }
+        }
+        self.s_stack().push(xt as isize);
+    }}
+
+    /// Execution token with data field address of `dfa`. `DFA> ( dfa -- xt )`
+    ///
+    /// Return 0 if not found.
+    primitive!{fn from_dfa(&mut self) {
+        let dfa = self.s_stack().pop();
+        let mut xt = 0;
+        for w in (0..self.wordlist().len()).rev() {
+            if self.wordlist()[w].dfa() as *mut u8 as isize == dfa {
+                xt = w;
+                break;
+            }
+        }
+        self.s_stack().push(xt as isize);
+    }}
+
+    /// Print name of execution token `xt`. `.name ( xt -- )`
+    primitive!{fn dot_name(&mut self) {
+        let xt = self.s_stack().pop() as usize;
+        if 0 < xt && xt < self.wordlist().len() {
+            match self.output_buffer().take() {
+                Some(mut buf) => {
+                    let nfa = self.wordlist()[xt].nfa();
+                    {
+                        let name = unsafe{ self.data_space().get_str(nfa) };
+                        write!(buf, "{}", name);
+                    }
+                    self.set_output_buffer(buf);
+                },
+                None => { /* Do nothing */ }
+            }
+        }
     }}
 
     /// Pause the current task and resume the next task which is awake.

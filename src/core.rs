@@ -3933,28 +3933,28 @@ pub trait Core: Sized {
     }}
 
     /// Data field address of `xt`. `>DFA ( xt -- dfa )`
-    primitive!{fn to_dfa(&mut self) {
+    primitive! {fn to_dfa(&mut self) {
         let xt = self.s_stack().pop();
         let dfa = self.wordlist()[xt as usize].dfa();
         self.s_stack().push(dfa as isize);
     }}
 
     /// Code field address of `xt`. `>CFA ( xt -- cfa )`
-    primitive!{fn to_cfa(&mut self) {
+    primitive! {fn to_cfa(&mut self) {
         let xt = self.s_stack().pop();
         let cfa = self.wordlist()[xt as usize].cfa();
         self.s_stack().push(cfa as isize);
     }}
 
     /// Name field address of `xt`. `>NFA ( xt -- nfa )`
-    primitive!{fn to_nfa(&mut self) {
+    primitive! {fn to_nfa(&mut self) {
         let xt = self.s_stack().pop();
         let nfa = self.wordlist()[xt as usize].nfa();
         self.s_stack().push(nfa as isize);
     }}
 
     /// Interpretation semantics of `xt`. `>ACTION ( xt -- 'action )`
-    primitive!{fn to_action(&mut self) {
+    primitive! {fn to_action(&mut self) {
         let xt = self.s_stack().pop();
         let action = self.wordlist()[xt as usize].action() as *mut u8 as usize;
         self.s_stack().push(action as isize);
@@ -3963,7 +3963,7 @@ pub trait Core: Sized {
     /// Execution token with interpretation semantics of `action`. `ACTION> ( action -- xt )`
     ///
     /// Return 0 if not found.
-    primitive!{fn from_action(&mut self) {
+    primitive! {fn from_action(&mut self) {
         let action = self.s_stack().pop();
         let mut xt = 0;
         for w in (0..self.wordlist().len()).rev() {
@@ -3978,7 +3978,7 @@ pub trait Core: Sized {
     /// Execution token with data field address of `dfa`. `DFA> ( dfa -- xt )`
     ///
     /// Return 0 if not found.
-    primitive!{fn from_dfa(&mut self) {
+    primitive! {fn from_dfa(&mut self) {
         let dfa = self.s_stack().pop();
         let mut xt = 0;
         for w in (0..self.wordlist().len()).rev() {
@@ -3991,7 +3991,7 @@ pub trait Core: Sized {
     }}
 
     /// Print name of execution token `xt`. `.name ( xt -- )`
-    primitive!{fn dot_name(&mut self) {
+    primitive! {fn dot_name(&mut self) {
         let xt = self.s_stack().pop() as usize;
         if 0 < xt && xt < self.wordlist().len() {
             match self.output_buffer().take() {

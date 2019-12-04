@@ -607,9 +607,9 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("[']", Core::bracket_tick);
         self.add_immediate_and_compile_only("[char]", Core::bracket_char);
         self.add_immediate_and_compile_only(";", Core::semicolon);
-        self.add_immediate_and_compile_only("if", Core::imm_if);
-        self.add_immediate_and_compile_only("else", Core::imm_else);
-        self.add_immediate_and_compile_only("then", Core::imm_then);
+        self.add_immediate_and_compile_only("if", Core::compile_if);
+        self.add_immediate_and_compile_only("else", Core::compile_else);
+        self.add_immediate_and_compile_only("then", Core::compile_then);
         self.add_immediate_and_compile_only("case", Core::imm_case);
         self.add_immediate_and_compile_only("of", Core::imm_of);
         self.add_immediate_and_compile_only("endof", Core::imm_endof);
@@ -947,6 +947,9 @@ pub trait Core: Sized {
         let compile_var_vector = self.data_space().system_variables().compile_var_vector();
         let compile_const_vector = self.data_space().system_variables().compile_const_vector();
         let compile_float_vector = self.data_space().system_variables().compile_float_vector();
+        let compile_if_vector = self.data_space().system_variables().compile_if_vector();
+        let compile_else_vector = self.data_space().system_variables().compile_else_vector();
+        let compile_then_vector = self.data_space().system_variables().compile_then_vector();
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
@@ -960,16 +963,20 @@ pub trait Core: Sized {
                 .put_isize(Self::comma as isize, compile_const_vector);
             self.data_space()
                 .put_isize(Self::tt_compile_float as isize, compile_float_vector);
+            self.data_space()
+                .put_isize(Self::tt_compile_if as isize, compile_if_vector);
+            self.data_space()
+                .put_isize(Self::tt_compile_else as isize, compile_else_vector);
+            self.data_space()
+                .put_isize(Self::tt_compile_then as isize, compile_then_vector);
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = unsafe{ self.data_space().get_isize(ip) as usize };
     }}
 
-    #[cfg(not(feature = "stc"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_branch;
         self.s_stack().push(idx as isize);
@@ -978,7 +985,6 @@ pub trait Core: Sized {
         self.data_space().here()
     }
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn zero_branch(&mut self) {
         let v = self.s_stack().pop();
         if v == 0 {
@@ -988,7 +994,6 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
     fn compile_zero_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_zero_branch;
         self.s_stack().push(idx as isize);
@@ -1175,10 +1180,17 @@ pub trait Core: Sized {
     ///         |
     ///         ip
     ///
-    #[cfg(not(feature = "stc"))]
-    primitive! {fn imm_if(&mut self) {
+    primitive! {fn tt_compile_if(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
+    }}
+
+    primitive! {fn compile_if(&mut self) {
+        let compile_if_vector = self.data_space().system_variables().compile_if_vector();
+        unsafe {
+            let compile_if_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_if_vector);
+            (*compile_if_vector)(self);
+        }
     }}
 
     /// IF A ELSE B THEN
@@ -1193,8 +1205,7 @@ pub trait Core: Sized {
     ///             |                |       |
     ///             ip               +-------+
     ///
-    #[cfg(not(feature = "stc"))]
-    primitive! {fn imm_else(&mut self) {
+    primitive! {fn tt_compile_else(&mut self) {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
             _ => {
@@ -1214,8 +1225,15 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
-    primitive! {fn imm_then(&mut self) {
+    primitive! {fn compile_else(&mut self) {
+        let compile_else_vector = self.data_space().system_variables().compile_else_vector();
+        unsafe {
+            let compile_else_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_else_vector);
+            (*compile_else_vector)(self);
+        }
+    }}
+
+    primitive! {fn tt_compile_then(&mut self) {
         let branch_part = match self.c_stack().pop() {
             Control::If(branch_part) => branch_part,
             Control::Else(branch_part) => branch_part,
@@ -1232,6 +1250,14 @@ pub trait Core: Sized {
                 self.data_space()
                     .put_isize(here as isize, branch_part - mem::size_of::<isize>());
             }
+        }
+    }}
+
+    primitive! {fn compile_then(&mut self) {
+        let compile_then_vector = self.data_space().system_variables().compile_then_vector();
+        unsafe {
+            let compile_then_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_then_vector);
+            (*compile_then_vector)(self);
         }
     }}
 
@@ -1833,43 +1859,6 @@ pub trait Core: Sized {
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn branch(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_branch(&mut self, destination: usize) -> usize {
-        // e9 xx xx xx xx      jmp xxxx
-        self.code_space().compile_u8(0xe9);
-        self.code_space().compile_relative(destination);
-        self.code_space().here()
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn zero_branch(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_zero_branch(&mut self, destination: usize) -> usize {
-        // 89 f1                mov    %esi,%ecx
-        // e8 xx xx xx xx       call   pop_stack ; pop value into %eax.
-        // 85 c0                test   %eax,%eax
-        // 0f 84 yy yy yy yy    je     yyyy
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space()
-            .compile_relative(Self::pop_s_stack as usize);
-        self.code_space().compile_u8(0x85);
-        self.code_space().compile_u8(0xc0);
-        self.code_space().compile_u8(0x0f);
-        self.code_space().compile_u8(0x84);
-        self.code_space().compile_relative(destination);
-        self.code_space().here()
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive! {fn _do(&mut self) {
         // Do nothing.
     }}
@@ -2007,63 +1996,6 @@ pub trait Core: Sized {
                 }
             }
             None => self.abort_with(ReturnStackUnderflow),
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_if(&mut self) {
-        let here = self.compile_zero_branch(0);
-        self.c_stack().push(Control::If(here));
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_else(&mut self) {
-        let if_part = match self.c_stack().pop() {
-            Control::If(if_part) => if_part,
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            let else_part = self.compile_branch(0);
-            self.c_stack().push(Control::Else(else_part));
-            // if_part: 0f 84 yy yy yy yy    je yyyy
-            let here = self.code_space().here();
-            unsafe{
-                self.code_space()
-                    .put_isize((here - if_part) as isize, if_part - mem::size_of::<isize>());
-            }
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_then(&mut self) {
-        let branch_part = match self.c_stack().pop() {
-            Control::If(branch_part) => branch_part,
-            Control::Else(branch_part) => branch_part,
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            // branch_part:
-            //      0f 84 yy yy yy yy   je yyyy
-            // or
-            //      e9 xx xx xx xx      jmp xxxx
-            let here = self.code_space().here();
-            unsafe{
-                self.code_space()
-                    .put_isize(
-                        (here - branch_part) as isize,
-                        branch_part - mem::size_of::<isize>()
-                    );
-            }
         }
     }}
 

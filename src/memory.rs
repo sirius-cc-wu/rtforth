@@ -79,6 +79,9 @@ pub struct SystemVariables {
     compile_var: isize,
     compile_const: isize,
     compile_float: isize,
+    compile_if: isize,
+    compile_else: isize,
+    compile_then: isize,
 }
 
 impl SystemVariables {
@@ -108,6 +111,18 @@ impl SystemVariables {
 
     pub fn compile_float_vector(&self) -> usize {
         &self.compile_float as *const _ as usize
+    }
+
+    pub fn compile_if_vector(&self) -> usize {
+        &self.compile_if as *const _ as usize
+    }
+
+    pub fn compile_else_vector(&self) -> usize {
+        &self.compile_else as *const _ as usize
+    }
+
+    pub fn compile_then_vector(&self) -> usize {
+        &self.compile_then as *const _ as usize
     }
 }
 

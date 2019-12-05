@@ -624,9 +624,9 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("goto", Core::imm_goto);
         self.add_immediate_and_compile_only("call", Core::imm_call);
         self.add_immediate_and_compile_only("recurse", Core::imm_recurse);
-        self.add_immediate_and_compile_only("do", Core::imm_do);
+        self.add_immediate_and_compile_only("do", Core::compile_do);
         self.add_immediate_and_compile_only("?do", Core::imm_qdo);
-        self.add_immediate_and_compile_only("loop", Core::imm_loop);
+        self.add_immediate_and_compile_only("loop", Core::compile_loop);
         self.add_immediate_and_compile_only("+loop", Core::imm_plus_loop);
         self.add_immediate_and_compile_only("postpone", Core::postpone);
 
@@ -966,6 +966,8 @@ pub trait Core: Sized {
         let compile_repeat_vector = self.data_space().system_variables().compile_repeat_vector();
         let compile_until_vector = self.data_space().system_variables().compile_until_vector();
         let compile_again_vector = self.data_space().system_variables().compile_again_vector();
+        let compile_do_vector = self.data_space().system_variables().compile_do_vector();
+        let compile_loop_vector = self.data_space().system_variables().compile_loop_vector();
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
@@ -1005,6 +1007,10 @@ pub trait Core: Sized {
                 .put_isize(Self::tt_compile_until as isize, compile_until_vector);
             self.data_space()
                 .put_isize(Self::tt_compile_again as isize, compile_again_vector);
+            self.data_space()
+                .put_isize(Self::tt_compile_do as isize, compile_do_vector);
+            self.data_space()
+                .put_isize(Self::tt_compile_loop as isize, compile_loop_vector);
         }
     }}
 
@@ -1055,7 +1061,6 @@ pub trait Core: Sized {
     ///         |
     ///         ip
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
@@ -1107,7 +1112,6 @@ pub trait Core: Sized {
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
-    #[cfg(not(feature = "stc"))]
     primitive! {fn _loop(&mut self) {
         let  rt = self.r_stack().pop();
         match rt .checked_add(1) {
@@ -1700,14 +1704,21 @@ pub trait Core: Sized {
     ///             |     |
     /// Control::Do(here, here)
     ///
-    #[cfg(not(feature = "stc"))]
-    primitive! {fn imm_do(&mut self) {
+    primitive! {fn tt_compile_do(&mut self) {
         let idx = self.references().idx_do;
         self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(0);
         let here = self.data_space().here();
         self.c_stack().push(Control::Do(here,here));
+    }}
+
+    primitive! {fn compile_do(&mut self) {
+        let compile_do_vector = self.data_space().system_variables().compile_do_vector();
+        unsafe {
+            let compile_do_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_do_vector);
+            (*compile_do_vector)(self);
+        }
     }}
 
     primitive! {fn imm_recurse(&mut self) {
@@ -1775,8 +1786,7 @@ pub trait Core: Sized {
     ///             |
     /// Control::Do(do_part, _)
     ///
-    #[cfg(not(feature = "stc"))]
-    primitive! {fn imm_loop(&mut self) {
+    primitive! {fn tt_compile_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
             _ => {
@@ -1796,6 +1806,14 @@ pub trait Core: Sized {
                 self.data_space()
                     .put_isize(here as isize, (do_part - mem::size_of::<isize>()) as usize);
             }
+        }
+    }}
+
+    primitive! {fn compile_loop(&mut self) {
+        let compile_loop_vector = self.data_space().system_variables().compile_loop_vector();
+        unsafe {
+            let compile_loop_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_loop_vector);
+            (*compile_loop_vector)(self);
         }
     }}
 
@@ -1958,19 +1976,6 @@ pub trait Core: Sized {
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _do(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _stc_do(&mut self) {
-        let (n, t) = self.s_stack().pop2();
-        let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
-        let rn = t.wrapping_sub(rt);
-        self.r_stack().push2(rn, rt);
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive! {fn _qdo(&mut self) {
         // Do nothing.
     }}
@@ -1991,21 +1996,6 @@ pub trait Core: Sized {
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive! {fn _loop(&mut self) {
         // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _stc_loop(&mut self) -> isize {
-        let rt = self.r_stack().pop();
-        match rt .wrapping_add(1) {
-            Some(sum) => {
-                self.r_stack().push(sum);
-                0
-            }
-            None => {
-                let _ = self.r_stack().pop();
-                -1
-            }
-        }
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
@@ -2099,37 +2089,6 @@ pub trait Core: Sized {
     }}
 
     /// Code space
-    /// +-----------------+--------------+--
-    /// | move %esi, %ecx | call _stc_do |
-    /// +-----------------+--------------+--
-    ///                                   ^
-    ///                                   |
-    ///             +---------------------+
-    ///             |
-    /// Control::Do(here, leave_part)
-    ///                   |
-    ///               +---+
-    ///               |
-    /// Data space    v
-    ///             +---+--
-    ///             | 0 |
-    ///             +---+--
-    ///
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_do(&mut self) {
-        // 89 f1                mov    %esi,%ecx
-        // e8 xx xx xx xx       call   _stc_do
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::_stc_do as usize);
-        let here = self.code_space().here();
-        let leave_part = self.data_space().here();
-        self.data_space().compile_usize(0);
-        self.c_stack().push(Control::Do(here, leave_part));
-    }}
-
-    /// Code space
     /// +-------+-----------+------+--
     /// | (?DO) | loop body | LOOP |
     /// +-------+-----------+------+--
@@ -2174,60 +2133,6 @@ pub trait Core: Sized {
         self.code_space().compile_u8(0x20);
         let here = self.code_space().here();
         self.c_stack().push(Control::Do(here, leave_part));
-    }}
-
-    /// Code space
-    /// +-----------+-----------+--
-    /// | loop body | loop code |
-    /// +-----------+-----------+--
-    ///  ^                       ^
-    ///  |                       |
-    ///  |                       +----------+
-    ///  +----------+                       |
-    ///             |                       |
-    /// Control::Do(do_part, leave_part)    |
-    ///                      |              |
-    ///               +------+              |
-    ///               |                     |
-    /// Data space    v                     |
-    ///             +---+--                 |
-    ///             | x |                   |
-    ///             +---+--                 |
-    ///               |                     |
-    ///               +---------------------+
-    ///
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_loop(&mut self) {
-        let (do_part, leave_part) = match self.c_stack().pop() {
-            Control::Do(do_part, leave_part) => (do_part, leave_part),
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            //      89 f1                mov    %esi,%ecx
-            //      e8 xx xx xx xx       call    _stc_loop
-            //      85 c0                test   %eax,%eax
-            //      0f 84 yy yy yy yy    je     do_part
-            // leave_part:
-            self.code_space().compile_u8(0x89);
-            self.code_space().compile_u8(0xf1);
-            self.code_space().compile_u8(0xe8);
-            self.code_space().compile_relative(Self::_stc_loop as usize);
-            self.code_space().compile_u8(0x85);
-            self.code_space().compile_u8(0xc0);
-            self.code_space().compile_u8(0x0f);
-            self.code_space().compile_u8(0x84);
-            self.code_space().compile_relative(do_part);
-            // TODO: 目前 data_space() 的 put_usize 和 code_space() 的作法不同。
-            // 未來 data_space() 要改為和 code_space() 作法一樣。雖然 leave_part 在
-            // data space，這兒先使用 code_space() 的作法。
-            let here = self.code_space().here();
-            unsafe{ self.code_space().put_usize(here as usize, leave_part); }
-        }
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]

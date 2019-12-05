@@ -92,6 +92,8 @@ pub struct SystemVariables {
     compile_repeat: isize,
     compile_until: isize,
     compile_again: isize,
+    compile_do: isize,
+    compile_loop: isize,
 }
 
 impl SystemVariables {
@@ -173,6 +175,14 @@ impl SystemVariables {
 
     pub fn compile_again_vector(&self) -> usize {
         &self.compile_again as *const _ as usize
+    }
+
+    pub fn compile_do_vector(&self) -> usize {
+        &self.compile_do as *const _ as usize
+    }
+
+    pub fn compile_loop_vector(&self) -> usize {
+        &self.compile_loop as *const _ as usize
     }
 }
 

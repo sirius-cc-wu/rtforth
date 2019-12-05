@@ -845,9 +845,12 @@ pub trait Core: Sized {
         self.compile_comma();
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn compile_fconst(&mut self) {
-        self.compile_comma();
+        let compile_fconst_vector = self.data_space().system_variables().compile_fconst_vector();
+        unsafe {
+            let compile_fconst_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_fconst_vector);
+            (*compile_fconst_vector)(self);
+        }
     }}
 
     primitive! {fn lit(&mut self) {
@@ -949,6 +952,7 @@ pub trait Core: Sized {
         let compile_integer_vector = self.data_space().system_variables().compile_integer_vector();
         let compile_var_vector = self.data_space().system_variables().compile_var_vector();
         let compile_const_vector = self.data_space().system_variables().compile_const_vector();
+        let compile_fconst_vector = self.data_space().system_variables().compile_fconst_vector();
         let compile_float_vector = self.data_space().system_variables().compile_float_vector();
         let compile_if_vector = self.data_space().system_variables().compile_if_vector();
         let compile_else_vector = self.data_space().system_variables().compile_else_vector();
@@ -973,6 +977,8 @@ pub trait Core: Sized {
                 .put_isize(Self::comma as isize, compile_var_vector);
             self.data_space()
                 .put_isize(Self::comma as isize, compile_const_vector);
+            self.data_space()
+                .put_isize(Self::comma as isize, compile_fconst_vector);
             self.data_space()
                 .put_isize(Self::tt_compile_float as isize, compile_float_vector);
             self.data_space()

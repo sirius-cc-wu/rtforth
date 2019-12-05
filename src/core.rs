@@ -803,7 +803,6 @@ pub trait Core: Sized {
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.
     #[inline(never)]
-    #[cfg(not(feature = "stc"))]
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while self.data_space().start() <= ip
@@ -851,7 +850,6 @@ pub trait Core: Sized {
         self.compile_comma();
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn lit(&mut self) {
         let ip = self.state().instruction_pointer;
         let v = unsafe{ self.data_space().get_isize(ip) as isize };
@@ -885,7 +883,6 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn flit(&mut self) {
         let ip = DataSpace::aligned_f64(self.state().instruction_pointer as usize);
         let v = unsafe{ self.data_space().get_f64(ip) };
@@ -937,7 +934,6 @@ pub trait Core: Sized {
         );
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn patch_compilation_semanticses(&mut self) {
         let idx_exit = self.find("exit").expect("exit");
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_comma;
@@ -5545,7 +5541,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "stc"))]
     fn test_here_comma_compile_interpret() {
         let vm = &mut VM::new(16, 16);
         vm.comma();

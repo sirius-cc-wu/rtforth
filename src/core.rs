@@ -625,7 +625,7 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("call", Core::imm_call);
         self.add_immediate_and_compile_only("recurse", Core::imm_recurse);
         self.add_immediate_and_compile_only("do", Core::compile_do);
-        self.add_immediate_and_compile_only("?do", Core::imm_qdo);
+        self.add_immediate_and_compile_only("?do", Core::compile_qdo);
         self.add_immediate_and_compile_only("loop", Core::compile_loop);
         self.add_immediate_and_compile_only("+loop", Core::imm_plus_loop);
         self.add_immediate_and_compile_only("postpone", Core::postpone);
@@ -968,6 +968,7 @@ pub trait Core: Sized {
         let compile_again_vector = self.data_space().system_variables().compile_again_vector();
         let compile_do_vector = self.data_space().system_variables().compile_do_vector();
         let compile_loop_vector = self.data_space().system_variables().compile_loop_vector();
+        let compile_qdo_vector = self.data_space().system_variables().compile_qdo_vector();
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
@@ -1011,6 +1012,8 @@ pub trait Core: Sized {
                 .put_isize(Self::tt_compile_do as isize, compile_do_vector);
             self.data_space()
                 .put_isize(Self::tt_compile_loop as isize, compile_loop_vector);
+            self.data_space()
+                .put_isize(Self::tt_compile_qdo as isize, compile_qdo_vector);
         }
     }}
 
@@ -1090,7 +1093,6 @@ pub trait Core: Sized {
     ///          |
     ///          ip
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn _qdo(&mut self) {
         let (n, t) = self.s_stack().pop2();
         if n == t {
@@ -1741,14 +1743,21 @@ pub trait Core: Sized {
     ///              |     |
     /// Control::Do(here, here)
     ///
-    #[cfg(not(feature = "stc"))]
-    primitive! {fn imm_qdo(&mut self) {
+    primitive! {fn tt_compile_qdo(&mut self) {
         let idx = self.references().idx_qdo;
         self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(0);
         let here = self.data_space().here();
         self.c_stack().push(Control::Do(here,here));
+    }}
+
+    primitive! {fn compile_qdo(&mut self) {
+        let compile_qdo_vector = self.data_space().system_variables().compile_qdo_vector();
+        unsafe {
+            let compile_qdo_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_qdo_vector);
+            (*compile_qdo_vector)(self);
+        }
     }}
 
     /// Run-time: ( a-addr -- )
@@ -1976,29 +1985,6 @@ pub trait Core: Sized {
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _qdo(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _stc_qdo(&mut self) -> isize {
-        let (n, t) = self.s_stack().pop2();
-        if n == t {
-            -1
-        } else {
-            let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
-            let rn = t.wrapping_sub(rt);
-            self.r_stack().push2(rn, rt);
-            0
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _loop(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive! {fn _plus_loop(&mut self) {
         // Do nothing.
     }}
@@ -2086,53 +2072,6 @@ pub trait Core: Sized {
             }
             None => self.abort_with(ReturnStackUnderflow),
         }
-    }}
-
-    /// Code space
-    /// +-------+-----------+------+--
-    /// | (?DO) | loop body | LOOP |
-    /// +-------+-----------+------+--
-    ///          ^                  ^
-    ///          |                  |
-    ///          +--+               +----+
-    ///             |                    |
-    /// Control::Do(here, leave_part)    |
-    ///                   |              |
-    ///               +---+              |
-    ///               |                  |
-    /// Data space    v                  |
-    ///             +---+--              |
-    ///             | 0 |                |
-    ///             +---+--              |
-    ///               |                  |
-    ///               +------------------+
-    ///
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_qdo(&mut self) {
-        //   89 f1                mov    %esi,%ecx
-        //   e8 xx xx xx xx       call   _stc_qdo
-        //   85 c0                test   %eax,%eax
-        //   0f 84 yy yy yy yy    je     do_part
-        //   b8 yy yy yy yy       mov    leave_part,%eax
-        //   ff 20                jmp    *(%eax)
-        // do_part:
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::_stc_qdo as usize);
-        self.code_space().compile_u8(0x85);
-        self.code_space().compile_u8(0xc0);
-        self.code_space().compile_u8(0x0f);
-        self.code_space().compile_u8(0x84);
-        self.code_space().compile_usize(7);
-        let leave_part = self.data_space().here();
-        self.data_space().compile_usize(0);
-        self.code_space().compile_u8(0xb8);
-        self.code_space().compile_usize(leave_part as usize);
-        self.code_space().compile_u8(0xff);
-        self.code_space().compile_u8(0x20);
-        let here = self.code_space().here();
-        self.c_stack().push(Control::Do(here, leave_part));
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]

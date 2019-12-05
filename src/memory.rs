@@ -94,6 +94,7 @@ pub struct SystemVariables {
     compile_again: isize,
     compile_do: isize,
     compile_loop: isize,
+    compile_qdo: isize,
 }
 
 impl SystemVariables {
@@ -184,6 +185,11 @@ impl SystemVariables {
     pub fn compile_loop_vector(&self) -> usize {
         &self.compile_loop as *const _ as usize
     }
+
+    pub fn compile_qdo_vector(&self) -> usize {
+        &self.compile_qdo as *const _ as usize
+    }
+
 }
 
 #[allow(dead_code)]

@@ -82,6 +82,15 @@ pub struct SystemVariables {
     compile_if: isize,
     compile_else: isize,
     compile_then: isize,
+    compile_case: isize,
+    compile_of: isize,
+    compile_endof: isize,
+    compile_endcase: isize,
+    compile_begin: isize,
+    compile_while: isize,
+    compile_repeat: isize,
+    compile_until: isize,
+    compile_again: isize,
 }
 
 impl SystemVariables {
@@ -123,6 +132,42 @@ impl SystemVariables {
 
     pub fn compile_then_vector(&self) -> usize {
         &self.compile_then as *const _ as usize
+    }
+
+    pub fn compile_case_vector(&self) -> usize {
+        &self.compile_case as *const _ as usize
+    }
+
+    pub fn compile_of_vector(&self) -> usize {
+        &self.compile_of as *const _ as usize
+    }
+
+    pub fn compile_endof_vector(&self) -> usize {
+        &self.compile_endof as *const _ as usize
+    }
+
+    pub fn compile_endcase_vector(&self) -> usize {
+        &self.compile_endcase as *const _ as usize
+    }
+
+    pub fn compile_begin_vector(&self) -> usize {
+        &self.compile_begin as *const _ as usize
+    }
+
+    pub fn compile_while_vector(&self) -> usize {
+        &self.compile_while as *const _ as usize
+    }
+
+    pub fn compile_repeat_vector(&self) -> usize {
+        &self.compile_repeat as *const _ as usize
+    }
+
+    pub fn compile_until_vector(&self) -> usize {
+        &self.compile_until as *const _ as usize
+    }
+
+    pub fn compile_again_vector(&self) -> usize {
+        &self.compile_again as *const _ as usize
     }
 }
 

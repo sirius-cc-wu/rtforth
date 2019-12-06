@@ -34,13 +34,20 @@ fn bench_inner_interpreter_without_nest(c: &mut Criterion) {
         let vm = &mut VM::new(16, 16);
         let ip = vm.data_space().here();
         let idx = vm.find("noop").expect("noop not exists");
-        vm.compile_word(idx);
-        vm.compile_word(idx);
-        vm.compile_word(idx);
-        vm.compile_word(idx);
-        vm.compile_word(idx);
-        vm.compile_word(idx);
-        vm.compile_word(idx);
+        vm.s_stack().push(idx as _);
+        vm.s_stack().push(idx as _);
+        vm.s_stack().push(idx as _);
+        vm.s_stack().push(idx as _);
+        vm.s_stack().push(idx as _);
+        vm.s_stack().push(idx as _);
+        vm.s_stack().push(idx as _);
+        vm.compile_comma();
+        vm.compile_comma();
+        vm.compile_comma();
+        vm.compile_comma();
+        vm.compile_comma();
+        vm.compile_comma();
+        vm.compile_comma();
         b.iter(|| {
             vm.state().instruction_pointer = ip;
             vm.run();
@@ -357,15 +364,15 @@ fn bench_sieve(c: &mut Criterion) {
             );
         }
         assert_eq!(vm.last_error(), None);
-        vm.set_source("CREATE FLAGS 8190 ALLOT   CREATE EFLAG  1 CELLS ALLOT");
+        vm.set_source("CREATE FLAGS 8190 ALLOT   FLAGS 8190 + CONSTANT EFLAG");
         vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
         vm.set_source(
             "
-            : PRIMES  ( -- n )  FLAGS 8190 1 FILL  0 3  EFLAG @ FLAGS
+            : PRIMES  ( -- n )  FLAGS 8190 1 FILL  0 3  EFLAG FLAGS
                 DO   I C@
-                    IF  DUP I + DUP EFLAG @ <
-                        IF    EFLAG @ SWAP
+                    IF  DUP I + DUP EFLAG <
+                        IF    EFLAG SWAP
                             DO  0 I C! DUP  +LOOP
                         ELSE  DROP  THEN  SWAP 1+ SWAP
                     THEN  2 +
@@ -383,10 +390,7 @@ fn bench_sieve(c: &mut Criterion) {
         assert_eq!(vm.last_error(), None);
         vm.set_source(
             "
-            : MAIN
-                FLAGS 8190 + EFLAG !
-                BENCHMARK DROP
-            ;
+            : MAIN BENCHMARK DROP ;
         ",
         );
         vm.evaluate_input();

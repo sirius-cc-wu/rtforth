@@ -10,3 +10,6 @@ x86:
 
 test-x86:
 	cargo test --target=i686-unknown-linux-gnu
+
+bench-x86:
+	cargo bench --target=i686-unknown-linux-gnu

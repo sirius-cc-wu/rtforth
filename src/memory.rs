@@ -194,7 +194,6 @@ impl SystemVariables {
     pub fn compile_plus_loop_vector(&self) -> usize {
         &self.compile_plus_loop as *const _ as usize
     }
-
 }
 
 #[allow(dead_code)]

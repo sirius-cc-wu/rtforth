@@ -368,6 +368,8 @@ pub struct ForwardReferences {
     pub idx_loop: usize,
     pub idx_plus_loop: usize,
     pub idx_unloop: usize,
+    pub idx_leave: usize,
+    pub idx_j: usize,
     pub idx_s_quote: usize,
     pub idx_type: usize,
     pub idx_over: usize,
@@ -390,6 +392,8 @@ impl ForwardReferences {
             idx_loop: 0,
             idx_plus_loop: 0,
             idx_unloop: 0,
+            idx_leave: 0,
+            idx_j: 0,
             idx_s_quote: 0,
             idx_type: 0,
             idx_over: 0,
@@ -701,6 +705,8 @@ pub trait Core: Sized {
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
         self.references().idx_unloop = self.find("unloop").expect("unloop undefined");
+        self.references().idx_leave = self.find("leave").expect("leave undefined");
+        self.references().idx_j = self.find("j").expect("j undefined");
         self.references().idx_over = self.find("over").expect("over undefined");
         self.references().idx_equal = self.find("=").expect("= undefined");
         self.references().idx_drop = self.find("drop").expect("drop undefined");
@@ -941,16 +947,16 @@ pub trait Core: Sized {
     }}
 
     primitive! {fn patch_compilation_semanticses(&mut self) {
-        let idx_exit = self.find("exit").expect("exit");
+        let idx_exit = self.references().idx_exit;
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_comma;
-        let idx_s_quote = self.find("_s\"").expect("_s\"");
+        let idx_s_quote = self.references().idx_s_quote;
         self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_comma;
-        let idx_unloop = self.find("unloop").expect("unloop");
+        let idx_unloop = self.references().idx_unloop;
         self.wordlist_mut()[idx_unloop].compilation_semantics = Self::compile_comma;
-        let idx_leave = self.find("leave").expect("leave");
+        let idx_leave = self.references().idx_leave;
         self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
-        let idx_reset = self.find("reset").expect("reset");
-        self.wordlist_mut()[idx_reset].compilation_semantics = Self::compile_comma;
+        let idx_j = self.references().idx_j;
+        self.wordlist_mut()[idx_j].compilation_semantics = Self::compile_comma;
 
         let compile_comma_vector = self.data_space().system_variables().compile_comma_vector();
         let compile_nest_vector = self.data_space().system_variables().compile_nest_vector();
@@ -1192,7 +1198,6 @@ pub trait Core: Sized {
         };
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         let jt = self.r_stack().get(pos);
@@ -1940,22 +1945,6 @@ pub trait Core: Sized {
         let next = self.r_stack().len - 2;
         let inext = self.r_stack().get(next);
         self.s_stack().push(it.wrapping_add(inext));
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn p_j(&mut self) {
-        let pos = self.r_stack().len() - 3;
-        match self.r_stack().get(pos) {
-            Some(jt) => {
-                match self.r_stack().get(pos-1) {
-                    Some(jn) => {
-                        self.s_stack().push(jt.wrapping_add(jn)),
-                    }
-                    None => self.abort_with(ReturnStackUnderflow),
-                }
-            }
-            None => self.abort_with(ReturnStackUnderflow),
-        }
     }}
 
     // -----------

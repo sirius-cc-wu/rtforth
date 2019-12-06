@@ -367,6 +367,7 @@ pub struct ForwardReferences {
     pub idx_qdo: usize,
     pub idx_loop: usize,
     pub idx_plus_loop: usize,
+    pub idx_unloop: usize,
     pub idx_s_quote: usize,
     pub idx_type: usize,
     pub idx_over: usize,
@@ -388,6 +389,7 @@ impl ForwardReferences {
             idx_qdo: 0,
             idx_loop: 0,
             idx_plus_loop: 0,
+            idx_unloop: 0,
             idx_s_quote: 0,
             idx_type: 0,
             idx_over: 0,
@@ -698,6 +700,7 @@ pub trait Core: Sized {
         self.references().idx_qdo = self.find("_qdo").expect("_qdo undefined");
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
         self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
+        self.references().idx_unloop = self.find("unloop").expect("unloop undefined");
         self.references().idx_over = self.find("over").expect("over undefined");
         self.references().idx_equal = self.find("=").expect("= undefined");
         self.references().idx_drop = self.find("drop").expect("drop undefined");
@@ -942,6 +945,8 @@ pub trait Core: Sized {
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_comma;
         let idx_s_quote = self.find("_s\"").expect("_s\"");
         self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_comma;
+        let idx_unloop = self.find("unloop").expect("unloop");
+        self.wordlist_mut()[idx_unloop].compilation_semantics = Self::compile_comma;
         let idx_leave = self.find("leave").expect("leave");
         self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
         let idx_reset = self.find("reset").expect("reset");
@@ -970,7 +975,6 @@ pub trait Core: Sized {
         let compile_loop_vector = self.data_space().system_variables().compile_loop_vector();
         let compile_qdo_vector = self.data_space().system_variables().compile_qdo_vector();
         let compile_plus_loop_vector = self.data_space().system_variables().compile_plus_loop_vector();
-        let compile_unloop_vector = self.data_space().system_variables().compile_unloop_vector();
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
@@ -1018,8 +1022,6 @@ pub trait Core: Sized {
                 .put_isize(Self::tt_compile_qdo as isize, compile_qdo_vector);
             self.data_space()
                 .put_isize(Self::tt_compile_plus_loop as isize, compile_plus_loop_vector);
-            self.data_space()
-                .put_isize(Self::comma as isize, compile_unloop_vector);
         }
     }}
 

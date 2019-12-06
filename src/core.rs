@@ -1169,7 +1169,6 @@ pub trait Core: Sized {
         let _ = self.r_stack().pop3();
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn leave(&mut self) {
         let (third, _, _) = self.r_stack().pop3();
         if self.r_stack().underflow() {
@@ -1181,7 +1180,6 @@ pub trait Core: Sized {
         };
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn compile_leave(&mut self) {
         match self.leave_part() {
             Some(leave_part) => {
@@ -1995,48 +1993,6 @@ pub trait Core: Sized {
         self.code_space().compile_u8(0xe8);
         self.code_space()
             .compile_relative(Self::lit_counted_string as usize);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn leave(&mut self) {
-        // Do nothing.
-    }}
-
-    /// Code space
-    /// +-----------+------+--
-    /// | loop body | LOOP |
-    /// +-----------+------+--
-    ///                     ^
-    ///                     |
-    ///               +-----+
-    ///               |
-    /// Data space    |
-    ///             +---+--
-    ///             | x |
-    ///             +---+--
-    ///           leave_part
-    ///
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_leave(&mut self, _: usize) {
-        let leave_part = match self.leave_part() {
-            Some(leave_part) => leave_part,
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        // 89 f1                mov    %esi,%ecx
-        // e8 xx xx xx xx       call   unloop
-        // b8 yy yy yy yy       mov    leave_part,%eax
-        // ff 20                jmp    *(%eax)
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::unloop as usize);
-        self.code_space().compile_u8(0xb8);
-        self.code_space().compile_usize(leave_part as usize);
-        self.code_space().compile_u8(0xff);
-        self.code_space().compile_u8(0x20);
     }
 
     primitive! {fn p_i(&mut self) {

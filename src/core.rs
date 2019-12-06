@@ -363,6 +363,18 @@ pub struct ForwardReferences {
     pub idx_exit: usize,
     pub idx_zero_branch: usize,
     pub idx_branch: usize,
+    pub idx_if: usize,
+    pub idx_else: usize,
+    pub idx_then: usize,
+    pub idx_case: usize,
+    pub idx_of: usize,
+    pub idx_endof: usize,
+    pub idx_endcase: usize,
+    pub idx_begin: usize,
+    pub idx_while: usize,
+    pub idx_repeat: usize,
+    pub idx_until: usize,
+    pub idx_again: usize,
     pub idx_do: usize,
     pub idx_qdo: usize,
     pub idx_loop: usize,
@@ -387,6 +399,18 @@ impl ForwardReferences {
             idx_exit: 0,
             idx_zero_branch: 0,
             idx_branch: 0,
+            idx_if: 0,
+            idx_else: 0,
+            idx_then: 0,
+            idx_case: 0,
+            idx_of: 0,
+            idx_endof: 0,
+            idx_endcase: 0,
+            idx_begin: 0,
+            idx_while: 0,
+            idx_repeat: 0,
+            idx_until: 0,
+            idx_again: 0,
             idx_do: 0,
             idx_qdo: 0,
             idx_loop: 0,
@@ -700,6 +724,18 @@ pub trait Core: Sized {
         self.references().idx_exit = self.find("exit").expect("exit undefined");
         self.references().idx_zero_branch = self.find("0branch").expect("0branch undefined");
         self.references().idx_branch = self.find("branch").expect("branch undefined");
+        self.references().idx_if = self.find("if").expect("if undefined");
+        self.references().idx_else = self.find("else").expect("else undefined");
+        self.references().idx_then = self.find("then").expect("then undefined");
+        self.references().idx_case = self.find("case").expect("case undefined");
+        self.references().idx_of = self.find("of").expect("of undefined");
+        self.references().idx_endof = self.find("endof").expect("endof undefined");
+        self.references().idx_endcase = self.find("endcase").expect("endcase undefined");
+        self.references().idx_begin = self.find("begin").expect("begin undefined");
+        self.references().idx_while = self.find("while").expect("while undefined");
+        self.references().idx_repeat = self.find("repeat").expect("repeat undefined");
+        self.references().idx_until = self.find("until").expect("until undefined");
+        self.references().idx_again = self.find("again").expect("again undefined");
         self.references().idx_do = self.find("_do").expect("_do undefined");
         self.references().idx_qdo = self.find("_qdo").expect("_qdo undefined");
         self.references().idx_loop = self.find("_loop").expect("_loop undefined");
@@ -951,6 +987,38 @@ pub trait Core: Sized {
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_comma;
         let idx_s_quote = self.references().idx_s_quote;
         self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_comma;
+        let idx_if = self.references().idx_if;
+        self.wordlist_mut()[idx_if].compilation_semantics = Self::compile_if;
+        let idx_else = self.references().idx_else;
+        self.wordlist_mut()[idx_else].compilation_semantics = Self::compile_else;
+        let idx_then = self.references().idx_then;
+        self.wordlist_mut()[idx_then].compilation_semantics = Self::compile_then;
+        let idx_case = self.references().idx_case;
+        self.wordlist_mut()[idx_case].compilation_semantics = Self::compile_case;
+        let idx_of = self.references().idx_of;
+        self.wordlist_mut()[idx_of].compilation_semantics = Self::compile_of;
+        let idx_endof = self.references().idx_endof;
+        self.wordlist_mut()[idx_endof].compilation_semantics = Self::compile_endof;
+        let idx_endcase = self.references().idx_endcase;
+        self.wordlist_mut()[idx_endcase].compilation_semantics = Self::compile_endcase;
+        let idx_begin = self.references().idx_begin;
+        self.wordlist_mut()[idx_begin].compilation_semantics = Self::compile_begin;
+        let idx_while = self.references().idx_while;
+        self.wordlist_mut()[idx_while].compilation_semantics = Self::compile_while;
+        let idx_repeat = self.references().idx_repeat;
+        self.wordlist_mut()[idx_repeat].compilation_semantics = Self::compile_repeat;
+        let idx_until = self.references().idx_until;
+        self.wordlist_mut()[idx_until].compilation_semantics = Self::compile_until;
+        let idx_again = self.references().idx_again;
+        self.wordlist_mut()[idx_again].compilation_semantics = Self::compile_again;
+        let idx_do = self.references().idx_do;
+        self.wordlist_mut()[idx_do].compilation_semantics = Self::compile_do;
+        let idx_qdo = self.references().idx_qdo;
+        self.wordlist_mut()[idx_qdo].compilation_semantics = Self::compile_qdo;
+        let idx_loop = self.references().idx_loop;
+        self.wordlist_mut()[idx_loop].compilation_semantics = Self::compile_loop;
+        let idx_plus_loop = self.references().idx_plus_loop;
+        self.wordlist_mut()[idx_plus_loop].compilation_semantics = Self::compile_plus_loop;
         let idx_unloop = self.references().idx_unloop;
         self.wordlist_mut()[idx_unloop].compilation_semantics = Self::compile_comma;
         let idx_leave = self.references().idx_leave;
@@ -965,22 +1033,6 @@ pub trait Core: Sized {
         let compile_const_vector = self.data_space().system_variables().compile_const_vector();
         let compile_fconst_vector = self.data_space().system_variables().compile_fconst_vector();
         let compile_float_vector = self.data_space().system_variables().compile_float_vector();
-        let compile_if_vector = self.data_space().system_variables().compile_if_vector();
-        let compile_else_vector = self.data_space().system_variables().compile_else_vector();
-        let compile_then_vector = self.data_space().system_variables().compile_then_vector();
-        let compile_case_vector = self.data_space().system_variables().compile_case_vector();
-        let compile_of_vector = self.data_space().system_variables().compile_of_vector();
-        let compile_endof_vector = self.data_space().system_variables().compile_endof_vector();
-        let compile_endcase_vector = self.data_space().system_variables().compile_endcase_vector();
-        let compile_begin_vector = self.data_space().system_variables().compile_begin_vector();
-        let compile_while_vector = self.data_space().system_variables().compile_while_vector();
-        let compile_repeat_vector = self.data_space().system_variables().compile_repeat_vector();
-        let compile_until_vector = self.data_space().system_variables().compile_until_vector();
-        let compile_again_vector = self.data_space().system_variables().compile_again_vector();
-        let compile_do_vector = self.data_space().system_variables().compile_do_vector();
-        let compile_loop_vector = self.data_space().system_variables().compile_loop_vector();
-        let compile_qdo_vector = self.data_space().system_variables().compile_qdo_vector();
-        let compile_plus_loop_vector = self.data_space().system_variables().compile_plus_loop_vector();
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
@@ -996,38 +1048,6 @@ pub trait Core: Sized {
                 .put_isize(Self::comma as isize, compile_fconst_vector);
             self.data_space()
                 .put_isize(Self::tt_compile_float as isize, compile_float_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_if as isize, compile_if_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_else as isize, compile_else_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_then as isize, compile_then_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_case as isize, compile_case_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_of as isize, compile_of_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_endof as isize, compile_endof_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_endcase as isize, compile_endcase_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_begin as isize, compile_begin_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_while as isize, compile_while_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_repeat as isize, compile_repeat_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_until as isize, compile_until_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_again as isize, compile_again_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_do as isize, compile_do_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_loop as isize, compile_loop_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_qdo as isize, compile_qdo_vector);
-            self.data_space()
-                .put_isize(Self::tt_compile_plus_loop as isize, compile_plus_loop_vector);
         }
     }}
 
@@ -1231,17 +1251,9 @@ pub trait Core: Sized {
     ///         |
     ///         ip
     ///
-    primitive! {fn tt_compile_if(&mut self) {
+    primitive! {fn compile_if(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
-    }}
-
-    primitive! {fn compile_if(&mut self) {
-        let compile_if_vector = self.data_space().system_variables().compile_if_vector();
-        unsafe {
-            let compile_if_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_if_vector);
-            (*compile_if_vector)(self);
-        }
     }}
 
     /// IF A ELSE B THEN
@@ -1256,7 +1268,7 @@ pub trait Core: Sized {
     ///             |                |       |
     ///             ip               +-------+
     ///
-    primitive! {fn tt_compile_else(&mut self) {
+    primitive! {fn compile_else(&mut self) {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
             _ => {
@@ -1276,15 +1288,7 @@ pub trait Core: Sized {
         }
     }}
 
-    primitive! {fn compile_else(&mut self) {
-        let compile_else_vector = self.data_space().system_variables().compile_else_vector();
-        unsafe {
-            let compile_else_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_else_vector);
-            (*compile_else_vector)(self);
-        }
-    }}
-
-    primitive! {fn tt_compile_then(&mut self) {
+    primitive! {fn compile_then(&mut self) {
         let branch_part = match self.c_stack().pop() {
             Control::If(branch_part) => branch_part,
             Control::Else(branch_part) => branch_part,
@@ -1301,14 +1305,6 @@ pub trait Core: Sized {
                 self.data_space()
                     .put_isize(here as isize, branch_part - mem::size_of::<isize>());
             }
-        }
-    }}
-
-    primitive! {fn compile_then(&mut self) {
-        let compile_then_vector = self.data_space().system_variables().compile_then_vector();
-        unsafe {
-            let compile_then_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_then_vector);
-            (*compile_then_vector)(self);
         }
     }}
 
@@ -1333,19 +1329,11 @@ pub trait Core: Sized {
     ///                                   |                           |
     ///                                   +---------------------------+
     ///
-    primitive! {fn tt_compile_case(&mut self) {
+    primitive! {fn compile_case(&mut self) {
         self.c_stack().push(Control::Case);
     }}
 
-    primitive! {fn compile_case(&mut self) {
-        let compile_case_vector = self.data_space().system_variables().compile_case_vector();
-        unsafe {
-            let compile_case_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_case_vector);
-            (*compile_case_vector)(self);
-        }
-    }}
-
-    primitive! {fn tt_compile_of(&mut self) {
+    primitive! {fn compile_of(&mut self) {
         match self.c_stack().pop() {
             Control::Case => {
                 self.c_stack().push(Control::Case);
@@ -1375,15 +1363,7 @@ pub trait Core: Sized {
         }
     }}
 
-    primitive! {fn compile_of(&mut self) {
-        let compile_of_vector = self.data_space().system_variables().compile_of_vector();
-        unsafe {
-            let compile_of_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_of_vector);
-            (*compile_of_vector)(self);
-        }
-    }}
-
-    primitive! {fn tt_compile_endof(&mut self) {
+    primitive! {fn compile_endof(&mut self) {
         let of_part = match self.c_stack().pop() {
             Control::Of(of_part) => {
                 of_part
@@ -1405,15 +1385,7 @@ pub trait Core: Sized {
         }
     }}
 
-    primitive! {fn compile_endof(&mut self) {
-        let compile_endof_vector = self.data_space().system_variables().compile_endof_vector();
-        unsafe {
-            let compile_endof_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_endof_vector);
-            (*compile_endof_vector)(self);
-        }
-    }}
-
-    primitive! {fn tt_compile_endcase(&mut self) {
+    primitive! {fn compile_endcase(&mut self) {
         let idx = self.references().idx_drop;
         self.s_stack().push(idx as isize);
         self.compile_comma();
@@ -1443,26 +1415,10 @@ pub trait Core: Sized {
         }
     }}
 
-    primitive! {fn compile_endcase(&mut self) {
-        let compile_endcase_vector = self.data_space().system_variables().compile_endcase_vector();
-        unsafe {
-            let compile_endcase_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_endcase_vector);
-            (*compile_endcase_vector)(self);
-        }
-    }}
-
     /// Begin a structure that is terminated by `repeat`, `until`, or `again`. `begin ( -- )`.
-    primitive! {fn tt_compile_begin(&mut self) {
+    primitive! {fn compile_begin(&mut self) {
         let here = self.data_space().here();
         self.c_stack().push(Control::Begin(here));
-    }}
-
-    primitive! {fn compile_begin(&mut self) {
-        let compile_begin_vector = self.data_space().system_variables().compile_begin_vector();
-        unsafe {
-            let compile_begin_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_begin_vector);
-            (*compile_begin_vector)(self);
-        }
     }}
 
     /// Begin the conditional part of a `begin ... while ... repeat` structure. `while ( flag -- )`.
@@ -1481,23 +1437,15 @@ pub trait Core: Sized {
     ///   |                              |
     ///   +------------------------------+
     ///
-    primitive! {fn tt_compile_while(&mut self) {
+    primitive! {fn compile_while(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(here));
-    }}
-
-    primitive! {fn compile_while(&mut self) {
-        let compile_while_vector = self.data_space().system_variables().compile_while_vector();
-        unsafe {
-            let compile_while_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_while_vector);
-            (*compile_while_vector)(self);
-        }
     }}
 
     /// Terminate a `begin ... while ... repeat` structure. `repeat ( -- )`.
     ///
     /// Continue execution at the location following `begin`.
-    primitive! {fn tt_compile_repeat(&mut self) {
+    primitive! {fn compile_repeat(&mut self) {
         let (begin_part, while_part) = match self.c_stack().pop2() {
             (Control::Begin(begin_part), Control::While(while_part)) => {
                 (begin_part, while_part)
@@ -1518,14 +1466,6 @@ pub trait Core: Sized {
         }
     }}
 
-    primitive! {fn compile_repeat(&mut self) {
-        let compile_repeat_vector = self.data_space().system_variables().compile_repeat_vector();
-        unsafe {
-            let compile_repeat_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_repeat_vector);
-            (*compile_repeat_vector)(self);
-        }
-    }}
-
     /// Terminate a `begin ... until` structure. `until ( flag -- )`.
     ///
     /// If all bits of `flag` are zero, continue execution at the location following `begin`.
@@ -1539,7 +1479,7 @@ pub trait Core: Sized {
     ///   |             |
     ///   +-------------+
     ///
-    primitive! {fn tt_compile_until(&mut self) {
+    primitive! {fn compile_until(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
             _ => {
@@ -1551,14 +1491,6 @@ pub trait Core: Sized {
             self.abort_with(ControlStructureMismatch);
         } else {
             self.compile_zero_branch(begin_part);
-        }
-    }}
-
-    primitive! {fn compile_until(&mut self) {
-        let compile_until_vector = self.data_space().system_variables().compile_until_vector();
-        unsafe {
-            let compile_until_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_until_vector);
-            (*compile_until_vector)(self);
         }
     }}
 
@@ -1575,7 +1507,7 @@ pub trait Core: Sized {
     ///   |            |
     ///   +------------+
     ///
-    primitive! {fn tt_compile_again(&mut self) {
+    primitive! {fn compile_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
             _ => {
@@ -1587,14 +1519,6 @@ pub trait Core: Sized {
             self.abort_with(ControlStructureMismatch);
         } else {
             self.compile_branch(begin_part);
-        }
-    }}
-
-    primitive! {fn compile_again(&mut self) {
-        let compile_again_vector = self.data_space().system_variables().compile_again_vector();
-        unsafe {
-            let compile_again_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_again_vector);
-            (*compile_again_vector)(self);
         }
     }}
 
@@ -1715,21 +1639,13 @@ pub trait Core: Sized {
     ///             |     |
     /// Control::Do(here, here)
     ///
-    primitive! {fn tt_compile_do(&mut self) {
+    primitive! {fn compile_do(&mut self) {
         let idx = self.references().idx_do;
         self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(0);
         let here = self.data_space().here();
         self.c_stack().push(Control::Do(here,here));
-    }}
-
-    primitive! {fn compile_do(&mut self) {
-        let compile_do_vector = self.data_space().system_variables().compile_do_vector();
-        unsafe {
-            let compile_do_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_do_vector);
-            (*compile_do_vector)(self);
-        }
     }}
 
     primitive! {fn imm_recurse(&mut self) {
@@ -1752,21 +1668,13 @@ pub trait Core: Sized {
     ///              |     |
     /// Control::Do(here, here)
     ///
-    primitive! {fn tt_compile_qdo(&mut self) {
+    primitive! {fn compile_qdo(&mut self) {
         let idx = self.references().idx_qdo;
         self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(0);
         let here = self.data_space().here();
         self.c_stack().push(Control::Do(here,here));
-    }}
-
-    primitive! {fn compile_qdo(&mut self) {
-        let compile_qdo_vector = self.data_space().system_variables().compile_qdo_vector();
-        unsafe {
-            let compile_qdo_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_qdo_vector);
-            (*compile_qdo_vector)(self);
-        }
     }}
 
     /// Run-time: ( a-addr -- )
@@ -1804,7 +1712,7 @@ pub trait Core: Sized {
     ///             |
     /// Control::Do(do_part, _)
     ///
-    primitive! {fn tt_compile_loop(&mut self) {
+    primitive! {fn compile_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
             _ => {
@@ -1827,21 +1735,13 @@ pub trait Core: Sized {
         }
     }}
 
-    primitive! {fn compile_loop(&mut self) {
-        let compile_loop_vector = self.data_space().system_variables().compile_loop_vector();
-        unsafe {
-            let compile_loop_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_loop_vector);
-            (*compile_loop_vector)(self);
-        }
-    }}
-
     /// Run-time: ( a-addr -- )
     ///
     /// Append the run-time semantics of `_+LOOP` to the current definition.
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
-    primitive! {fn tt_compile_plus_loop(&mut self) {
+    primitive! {fn compile_plus_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
             _ => {
@@ -1861,14 +1761,6 @@ pub trait Core: Sized {
                 self.data_space()
                     .put_isize(here as isize, (do_part - mem::size_of::<isize>()) as usize);
             }
-        }
-    }}
-
-    primitive! {fn compile_plus_loop(&mut self) {
-        let compile_plus_loop_vector = self.data_space().system_variables().compile_plus_loop_vector();
-        unsafe {
-            let compile_plus_loop_vector: *const primitive!{fn (&mut Self)} = mem::transmute (compile_plus_loop_vector);
-            (*compile_plus_loop_vector)(self);
         }
     }}
 

@@ -80,22 +80,6 @@ pub struct SystemVariables {
     compile_const: isize,
     compile_fconst: isize,
     compile_float: isize,
-    compile_if: isize,
-    compile_else: isize,
-    compile_then: isize,
-    compile_case: isize,
-    compile_of: isize,
-    compile_endof: isize,
-    compile_endcase: isize,
-    compile_begin: isize,
-    compile_while: isize,
-    compile_repeat: isize,
-    compile_until: isize,
-    compile_again: isize,
-    compile_do: isize,
-    compile_loop: isize,
-    compile_qdo: isize,
-    compile_plus_loop: isize,
 }
 
 impl SystemVariables {
@@ -131,69 +115,6 @@ impl SystemVariables {
         &self.compile_float as *const _ as usize
     }
 
-    pub fn compile_if_vector(&self) -> usize {
-        &self.compile_if as *const _ as usize
-    }
-
-    pub fn compile_else_vector(&self) -> usize {
-        &self.compile_else as *const _ as usize
-    }
-
-    pub fn compile_then_vector(&self) -> usize {
-        &self.compile_then as *const _ as usize
-    }
-
-    pub fn compile_case_vector(&self) -> usize {
-        &self.compile_case as *const _ as usize
-    }
-
-    pub fn compile_of_vector(&self) -> usize {
-        &self.compile_of as *const _ as usize
-    }
-
-    pub fn compile_endof_vector(&self) -> usize {
-        &self.compile_endof as *const _ as usize
-    }
-
-    pub fn compile_endcase_vector(&self) -> usize {
-        &self.compile_endcase as *const _ as usize
-    }
-
-    pub fn compile_begin_vector(&self) -> usize {
-        &self.compile_begin as *const _ as usize
-    }
-
-    pub fn compile_while_vector(&self) -> usize {
-        &self.compile_while as *const _ as usize
-    }
-
-    pub fn compile_repeat_vector(&self) -> usize {
-        &self.compile_repeat as *const _ as usize
-    }
-
-    pub fn compile_until_vector(&self) -> usize {
-        &self.compile_until as *const _ as usize
-    }
-
-    pub fn compile_again_vector(&self) -> usize {
-        &self.compile_again as *const _ as usize
-    }
-
-    pub fn compile_do_vector(&self) -> usize {
-        &self.compile_do as *const _ as usize
-    }
-
-    pub fn compile_loop_vector(&self) -> usize {
-        &self.compile_loop as *const _ as usize
-    }
-
-    pub fn compile_qdo_vector(&self) -> usize {
-        &self.compile_qdo as *const _ as usize
-    }
-
-    pub fn compile_plus_loop_vector(&self) -> usize {
-        &self.compile_plus_loop as *const _ as usize
-    }
 }
 
 #[allow(dead_code)]

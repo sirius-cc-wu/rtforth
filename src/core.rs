@@ -1890,66 +1890,6 @@ pub trait Core: Sized {
         }
     }}
 
-    // -------------------------------
-    // Subroutine threaded code, x86
-    // -------------------------------
-    //
-    // Calling convension: fastcall
-    //
-    // Register usage:
-    //
-    // Caller save registers:
-    //   %eax: result of function
-    //   %ecx: first argument of function, often a pointer to vm
-    //   %edx: second argument of function
-    // Callee save registers:
-    //   %ebx: not used
-    //   %esi: pointer to vm
-    //   %edi: not used
-    //   %ebp: frame pointer
-    //   %esp: stack pointer
-    //
-    // For multitasking:
-    //   %edi: data stack pointer
-    //   %ebp: return stack pointer for primitives implemented in rust
-    //   %esp: return stack pointer for colon definitions
-    //
-    // For optimization:
-    //   %ebx, %ecx, %eax, %edx: cache registers
-    //
-    // The top few items of the data stack will be cached in the CPU registers
-    // using optimization strategy developed by FLK.
-    //
-    // RtForth seperates stack for primitives implemented in rust from that for
-    // colon definitions for two reasons:
-    //
-    // * Different depth requirement. The stack for colon definitions is
-    //   shallow if no RECURSE is used.。
-    // * Task-switch. Task-switch only occurs in colon definitions.
-    //
-    // Frame pointer in %ebp should be saved in memory upon RESET.
-    // Before call to primitives implemented in rust,
-    // %ebp and %esp need to be exchanged.
-    //
-    //    xchg %eax,%ebp
-    //    xchg %eax,%esp
-    //    xchg %eax,%ebp
-    //    mov  %esi,%ecx
-    //    call primitive_which_needs_deep_stack
-    //    xchg %eax,%ebp
-    //    xchg %eax,%esp
-    //    xchg %eax,%ebp
-    //
-    // Primitives which need only shallow stack space can be marked so that
-    // they use return stack for colon definitions to reduce frequency of stack
-    // exchange.
-    //
-    // A command SHALLOW is proposed to mark those primitives which need only shallow stack.
-    //
-    // SHALLOW +
-    // SHALLOW -
-    // SHALLOW @
-
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     fn compile_unmark(&mut self, _: usize) {
         // Do nothing.

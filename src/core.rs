@@ -970,6 +970,7 @@ pub trait Core: Sized {
         let compile_loop_vector = self.data_space().system_variables().compile_loop_vector();
         let compile_qdo_vector = self.data_space().system_variables().compile_qdo_vector();
         let compile_plus_loop_vector = self.data_space().system_variables().compile_plus_loop_vector();
+        let compile_unloop_vector = self.data_space().system_variables().compile_unloop_vector();
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
@@ -1017,6 +1018,8 @@ pub trait Core: Sized {
                 .put_isize(Self::tt_compile_qdo as isize, compile_qdo_vector);
             self.data_space()
                 .put_isize(Self::tt_compile_plus_loop as isize, compile_plus_loop_vector);
+            self.data_space()
+                .put_isize(Self::comma as isize, compile_unloop_vector);
         }
     }}
 
@@ -1160,7 +1163,6 @@ pub trait Core: Sized {
     /// `UNLOOP` is required for each nesting level before the definition may be
     /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
-    #[cfg(not(feature = "stc"))]
     primitive! {fn unloop(&mut self) {
         let _ = self.r_stack().pop3();
     }}
@@ -1992,11 +1994,6 @@ pub trait Core: Sized {
         self.code_space()
             .compile_relative(Self::lit_counted_string as usize);
     }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn unloop(&mut self) {
-        let _ = self.r_stack().pop2();
-    }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
     primitive! {fn leave(&mut self) {

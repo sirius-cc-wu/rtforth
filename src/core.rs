@@ -27,7 +27,7 @@ pub struct Word<Target> {
     nfa: usize,
     dfa: usize,
     cfa: usize,
-    action: primitive! { fn (&mut Target) },
+    pub action: primitive! { fn (&mut Target) },
     pub compilation_semantics: primitive! { fn(&mut Target) },
     // Minimum execution time in [ns]
     pub(crate) min_execution_time: usize,
@@ -376,9 +376,13 @@ pub struct ForwardReferences {
     pub idx_until: usize,
     pub idx_again: usize,
     pub idx_do: usize,
+    pub idx__do: usize,
     pub idx_qdo: usize,
+    pub idx__qdo: usize,
     pub idx_loop: usize,
+    pub idx__loop: usize,
     pub idx_plus_loop: usize,
+    pub idx__plus_loop: usize,
     pub idx_unloop: usize,
     pub idx_leave: usize,
     pub idx_j: usize,
@@ -412,9 +416,13 @@ impl ForwardReferences {
             idx_until: 0,
             idx_again: 0,
             idx_do: 0,
+            idx__do: 0,
             idx_qdo: 0,
+            idx__qdo: 0,
             idx_loop: 0,
+            idx__loop: 0,
             idx_plus_loop: 0,
+            idx__plus_loop: 0,
             idx_unloop: 0,
             idx_leave: 0,
             idx_j: 0,
@@ -736,10 +744,14 @@ pub trait Core: Sized {
         self.references().idx_repeat = self.find("repeat").expect("repeat undefined");
         self.references().idx_until = self.find("until").expect("until undefined");
         self.references().idx_again = self.find("again").expect("again undefined");
-        self.references().idx_do = self.find("_do").expect("_do undefined");
-        self.references().idx_qdo = self.find("_qdo").expect("_qdo undefined");
-        self.references().idx_loop = self.find("_loop").expect("_loop undefined");
-        self.references().idx_plus_loop = self.find("_+loop").expect("_+loop undefined");
+        self.references().idx_do = self.find("do").expect("do undefined");
+        self.references().idx__do = self.find("_do").expect("_do undefined");
+        self.references().idx_qdo = self.find("?do").expect("?do undefined");
+        self.references().idx__qdo = self.find("_qdo").expect("_qdo undefined");
+        self.references().idx_loop = self.find("loop").expect("loop undefined");
+        self.references().idx__loop = self.find("_loop").expect("_loop undefined");
+        self.references().idx_plus_loop = self.find("+loop").expect("+loop undefined");
+        self.references().idx__plus_loop = self.find("_+loop").expect("_+loop undefined");
         self.references().idx_unloop = self.find("unloop").expect("unloop undefined");
         self.references().idx_leave = self.find("leave").expect("leave undefined");
         self.references().idx_j = self.find("j").expect("j undefined");
@@ -983,42 +995,45 @@ pub trait Core: Sized {
     }}
 
     primitive! {fn patch_compilation_semanticses(&mut self) {
+        // Immediate words
+        let idx_if = self.references().idx_if;
+        self.wordlist_mut()[idx_if].action = Self::compile_if;
+        let idx_else = self.references().idx_else;
+        self.wordlist_mut()[idx_else].action = Self::compile_else;
+        let idx_then = self.references().idx_then;
+        self.wordlist_mut()[idx_then].action = Self::compile_then;
+        let idx_case = self.references().idx_case;
+        self.wordlist_mut()[idx_case].action = Self::compile_case;
+        let idx_of = self.references().idx_of;
+        self.wordlist_mut()[idx_of].action = Self::compile_of;
+        let idx_endof = self.references().idx_endof;
+        self.wordlist_mut()[idx_endof].action = Self::compile_endof;
+        let idx_endcase = self.references().idx_endcase;
+        self.wordlist_mut()[idx_endcase].action = Self::compile_endcase;
+        let idx_begin = self.references().idx_begin;
+        self.wordlist_mut()[idx_begin].action = Self::compile_begin;
+        let idx_while = self.references().idx_while;
+        self.wordlist_mut()[idx_while].action = Self::compile_while;
+        let idx_repeat = self.references().idx_repeat;
+        self.wordlist_mut()[idx_repeat].action = Self::compile_repeat;
+        let idx_until = self.references().idx_until;
+        self.wordlist_mut()[idx_until].action = Self::compile_until;
+        let idx_again = self.references().idx_again;
+        self.wordlist_mut()[idx_again].action = Self::compile_again;
+        let idx_do = self.references().idx_do;
+        self.wordlist_mut()[idx_do].action = Self::compile_do;
+        let idx_qdo = self.references().idx_qdo;
+        self.wordlist_mut()[idx_qdo].action = Self::compile_qdo;
+        let idx_loop = self.references().idx_loop;
+        self.wordlist_mut()[idx_loop].action = Self::compile_loop;
+        let idx_plus_loop = self.references().idx_plus_loop;
+        self.wordlist_mut()[idx_plus_loop].action = Self::compile_plus_loop;
+
+        // Words with non default compilation semantics
         let idx_exit = self.references().idx_exit;
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_comma;
         let idx_s_quote = self.references().idx_s_quote;
         self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_comma;
-        let idx_if = self.references().idx_if;
-        self.wordlist_mut()[idx_if].compilation_semantics = Self::compile_if;
-        let idx_else = self.references().idx_else;
-        self.wordlist_mut()[idx_else].compilation_semantics = Self::compile_else;
-        let idx_then = self.references().idx_then;
-        self.wordlist_mut()[idx_then].compilation_semantics = Self::compile_then;
-        let idx_case = self.references().idx_case;
-        self.wordlist_mut()[idx_case].compilation_semantics = Self::compile_case;
-        let idx_of = self.references().idx_of;
-        self.wordlist_mut()[idx_of].compilation_semantics = Self::compile_of;
-        let idx_endof = self.references().idx_endof;
-        self.wordlist_mut()[idx_endof].compilation_semantics = Self::compile_endof;
-        let idx_endcase = self.references().idx_endcase;
-        self.wordlist_mut()[idx_endcase].compilation_semantics = Self::compile_endcase;
-        let idx_begin = self.references().idx_begin;
-        self.wordlist_mut()[idx_begin].compilation_semantics = Self::compile_begin;
-        let idx_while = self.references().idx_while;
-        self.wordlist_mut()[idx_while].compilation_semantics = Self::compile_while;
-        let idx_repeat = self.references().idx_repeat;
-        self.wordlist_mut()[idx_repeat].compilation_semantics = Self::compile_repeat;
-        let idx_until = self.references().idx_until;
-        self.wordlist_mut()[idx_until].compilation_semantics = Self::compile_until;
-        let idx_again = self.references().idx_again;
-        self.wordlist_mut()[idx_again].compilation_semantics = Self::compile_again;
-        let idx_do = self.references().idx_do;
-        self.wordlist_mut()[idx_do].compilation_semantics = Self::compile_do;
-        let idx_qdo = self.references().idx_qdo;
-        self.wordlist_mut()[idx_qdo].compilation_semantics = Self::compile_qdo;
-        let idx_loop = self.references().idx_loop;
-        self.wordlist_mut()[idx_loop].compilation_semantics = Self::compile_loop;
-        let idx_plus_loop = self.references().idx_plus_loop;
-        self.wordlist_mut()[idx_plus_loop].compilation_semantics = Self::compile_plus_loop;
         let idx_unloop = self.references().idx_unloop;
         self.wordlist_mut()[idx_unloop].compilation_semantics = Self::compile_comma;
         let idx_leave = self.references().idx_leave;
@@ -1026,6 +1041,7 @@ pub trait Core: Sized {
         let idx_j = self.references().idx_j;
         self.wordlist_mut()[idx_j].compilation_semantics = Self::compile_comma;
 
+        //
         let compile_comma_vector = self.data_space().system_variables().compile_comma_vector();
         let compile_nest_vector = self.data_space().system_variables().compile_nest_vector();
         let compile_integer_vector = self.data_space().system_variables().compile_integer_vector();
@@ -1640,7 +1656,7 @@ pub trait Core: Sized {
     /// Control::Do(here, here)
     ///
     primitive! {fn compile_do(&mut self) {
-        let idx = self.references().idx_do;
+        let idx = self.references().idx__do;
         self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(0);
@@ -1669,7 +1685,7 @@ pub trait Core: Sized {
     /// Control::Do(here, here)
     ///
     primitive! {fn compile_qdo(&mut self) {
-        let idx = self.references().idx_qdo;
+        let idx = self.references().idx__qdo;
         self.s_stack().push(idx as isize);
         self.compile_comma();
         self.data_space().compile_isize(0);
@@ -1723,7 +1739,7 @@ pub trait Core: Sized {
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_loop;
+            let idx = self.references().idx__loop;
             self.s_stack().push(idx as isize);
             self.compile_comma();
             self.data_space().compile_isize(do_part as isize);
@@ -1752,7 +1768,7 @@ pub trait Core: Sized {
         if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else {
-            let idx = self.references().idx_plus_loop;
+            let idx = self.references().idx__plus_loop;
             self.s_stack().push(idx as isize);
             self.compile_comma();
             self.data_space().compile_isize(do_part as isize);

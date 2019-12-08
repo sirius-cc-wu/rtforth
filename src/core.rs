@@ -17,6 +17,21 @@ use Exception::{
 };
 use {FALSE, NUM_TASKS, TRUE};
 
+pub enum WordType {
+    // Words implemented with a rust function or with subroutine-threaded code
+    NativeWord,
+    // Words implemented with token-threaded code
+    TokenThreadedWord,
+    // Words defined with CREATE, VARIABLE or  FVARIABLE
+    Variable,
+    // Words defined with CONSTANT
+    Constant,
+    // Words defined with FCONSTANT
+    Fconstant,
+    // Words defined with CREATE DOES>
+    Does
+}
+
 // Word
 pub struct Word<Target> {
     is_immediate: bool,

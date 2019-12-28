@@ -1,4 +1,4 @@
-use core::Core;
+use core::{Core, WordType};
 use exception::Exception::InvalidMemoryAddress;
 use memory::{DataSpace, Memory};
 use std::f64::consts::PI;
@@ -62,7 +62,7 @@ pub trait Float: Core {
 
     primitive! {fn fconstant(&mut self) {
         let v = self.f_stack().pop();
-        self.define(Float::p_fconst, Core::compile_fconst);
+        self.define(WordType::Fconst, Float::p_fconst, Core::compile_fconst);
         self.data_space().align_f64();
         self.data_space().compile_f64(v);
     }}

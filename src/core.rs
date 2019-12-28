@@ -17,8 +17,27 @@ use Exception::{
 };
 use {FALSE, NUM_TASKS, TRUE};
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum WordType {
+    // Words implemented with a rust function or with subroutine-threaded code
+    Native,
+    // Words implemented with token-threaded code
+    Nest,
+    // Words defined with CREATE, VARIABLE or  FVARIABLE
+    Var,
+    // Words defined with CONSTANT
+    Const,
+    // Words defined with FCONSTANT
+    Fconst,
+    // Words defined with CREATE DOES>
+    Does,
+    // Words defined with Marker
+    Marker,
+}
+
 // Word
 pub struct Word<Target> {
+    word_type: WordType,
     is_immediate: bool,
     is_compile_only: bool,
     hidden: bool,
@@ -37,6 +56,7 @@ pub struct Word<Target> {
 
 impl<Target> Word<Target> {
     pub fn new(
+        word_type: WordType,
         action: primitive! {fn(&mut Target)},
         compilation_semantics: primitive! { fn(&mut Target) },
         nfa: usize,
@@ -44,6 +64,7 @@ impl<Target> Word<Target> {
         cfa: usize,
     ) -> Word<Target> {
         Word {
+            word_type,
             is_immediate: false,
             is_compile_only: false,
             hidden: false,
@@ -57,6 +78,10 @@ impl<Target> Word<Target> {
             min_execution_time: 0,
             max_execution_time: 0,
         }
+    }
+
+    pub fn word_type(&self) -> WordType {
+        self.word_type
     }
 
     pub fn is_immediate(&self) -> bool {
@@ -781,6 +806,7 @@ pub trait Core: Sized {
         self.data_space().align();
         self.code_space().align();
         let word = Word::new(
+            WordType::Native,
             action,
             Core::compile_comma,
             nfa,
@@ -2424,6 +2450,7 @@ pub trait Core: Sized {
 
     fn define(
         &mut self,
+        word_type: WordType,
         action: primitive! {fn(&mut Self)},
         compilation_semantics: primitive! { fn(&mut Self) },
     ) {
@@ -2446,6 +2473,7 @@ pub trait Core: Sized {
             self.data_space().align();
             self.code_space().align();
             let word = Word::new(
+                word_type,
                 action,
                 compilation_semantics,
                 nfa,
@@ -2458,7 +2486,7 @@ pub trait Core: Sized {
     }
 
     primitive! {fn colon(&mut self) {
-        self.define(Core::nest, Core::compile_comma);
+        self.define(WordType::Nest, Core::nest, Core::compile_comma);
         if self.last_error().is_none() {
             let def = self.wordlist().last;
             self.s_stack().push(def as isize);
@@ -2485,12 +2513,12 @@ pub trait Core: Sized {
     }}
 
     primitive! {fn create(&mut self) {
-        self.define(Core::p_var, Core::compile_var);
+        self.define(WordType::Var, Core::p_var, Core::compile_var);
     }}
 
     primitive! {fn constant(&mut self) {
         let v = self.s_stack().pop();
-        self.define(Core::p_const, Core::compile_const);
+        self.define(WordType::Const, Core::p_const, Core::compile_const);
         if self.last_error().is_none() {
             self.data_space().compile_isize(v as isize);
         }
@@ -2526,7 +2554,7 @@ pub trait Core: Sized {
     primitive! {fn marker(&mut self) {
         let x = self.wordlist().last;
         self.wordlist_mut().temp_buckets = self.wordlist().buckets;
-        self.define(Core::unmark, Core::compile_unmark);
+        self.define(WordType::Marker, Core::unmark, Core::compile_unmark);
         self.data_space().compile_usize(x);
         for i in 0..BUCKET_SIZE {
             let x = self.wordlist().temp_buckets[i];

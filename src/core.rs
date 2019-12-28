@@ -1808,46 +1808,6 @@ pub trait Core: Sized {
         // Do nothing.
     }
 
-    /// Runtime of S"
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn p_s_quote(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn lit_str(&mut self, idx: usize) {
-        let (addr, cnt) = {
-            let s = unsafe{ self.code_space().get_str(idx) };
-            (s.as_ptr() as isize, s.len() as isize)
-        };
-        // FIXME
-        // 加下一行會造成 cargo test test_s_quote_and_type --features="stc"
-        // 時 invalid memory reference 。但如果列印的方式改為 {} 就 ok。
-        // 懷疑是 compile_s_quote 設計有問題。或是 println 改變了 calling convension。
-        // 但奇怪的是，無法用 objdump -d 找到 compile_s_quote 以及 lit_counted_string，以致於無法
-        // 理解。
-        // println!("lit_counted_string: addr: {:x}!", addr);
-        let slen = self.s_stack().len.wrapping_add(2);
-        self.s_stack().len = slen;
-        self.s_stack()[slen.wrapping_sub(1)] = cnt;
-        self.s_stack()[slen.wrapping_sub(2)] = addr;
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_s_quote(&mut self, _: usize) {
-        // ba nn nn nn nn   mov    <index of counted string>, %edx
-        // 89 f1            mov    %esi, %ecx
-        // e8 xx xx xx xx   call   lit_str
-        let data_idx = self.data_space().here();
-        self.code_space().compile_u8(0xba);
-        self.code_space().compile_usize(data_idx as usize);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space()
-            .compile_relative(Self::lit_counted_string as usize);
-    }
-
     primitive! {fn p_i(&mut self) {
         let it = self.r_stack().last();
         let next = self.r_stack().len - 2;

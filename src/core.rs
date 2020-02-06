@@ -917,11 +917,6 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
-    primitive! {fn compile_unmark(&mut self) {
-        self.compile_comma();
-    }}
-
     primitive! {fn compile_fconst(&mut self) {
         let compile_fconst_vector = self.data_space().system_variables().compile_fconst_vector();
         unsafe {
@@ -1822,11 +1817,6 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_unmark(&mut self, _: usize) {
-        // Do nothing.
-    }
-
     primitive! {fn p_i(&mut self) {
         let it = self.r_stack().last();
         let next = self.r_stack().len - 2;
@@ -2545,7 +2535,7 @@ pub trait Core: Sized {
     primitive! {fn marker(&mut self) {
         let x = self.wordlist().last;
         self.wordlist_mut().temp_buckets = self.wordlist().buckets;
-        self.define(WordType::Marker, Core::unmark, Core::compile_unmark);
+        self.define(WordType::Marker, Core::unmark, Core::compile_comma);
         self.data_space().compile_usize(x);
         for i in 0..BUCKET_SIZE {
             let x = self.wordlist().temp_buckets[i];

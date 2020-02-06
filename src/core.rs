@@ -752,7 +752,7 @@ pub trait Core: Sized {
         self.add_primitive("source-id!", Core::p_set_source_id);
         self.add_primitive("source-idx", Core::p_source_idx);
         self.add_primitive("source-idx!", Core::p_set_source_idx);
-        self.add_primitive("slow", Core::patch_compilation_semanticses);
+        self.add_primitive("-optimization", Core::patch_compilation_semanticses);
 
         self.references().idx_lit = self.find("lit").expect("lit undefined");
         self.references().idx_flit = self.find("flit").expect("flit undefined");

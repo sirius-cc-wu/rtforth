@@ -1,5 +1,5 @@
 use core::Core;
-use exception::Exception;
+use exception::{FILE_IO_EXCEPTION, INVALID_NUMERIC_ARGUMENT};
 use memory::Memory;
 use output::Output;
 use std::fs::File;
@@ -58,11 +58,11 @@ pub trait HasLoader: Core + Output {
                     }
                 }
                 None => {
-                    self.abort_with(Exception::InvalidNumericArgument);
+                    self.abort_with(INVALID_NUMERIC_ARGUMENT);
                 }
             }
         } else {
-            self.abort_with(Exception::InvalidNumericArgument);
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
     }}
 
@@ -76,12 +76,12 @@ pub trait HasLoader: Core + Output {
     primitive! {fn close_source(&mut self) {
         let id = self.s_stack().pop();
         if self.source_id() == id {
-            self.abort_with(Exception::InvalidNumericArgument);
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         } else {
             if id > 0 && id - 1 < self.sources().len() as isize && self.sources()[id as usize - 1].is_some() {
                 let _ = self.sources_mut()[id as usize - 1].take();
             } else {
-                self.abort_with(Exception::InvalidNumericArgument);
+                self.abort_with(INVALID_NUMERIC_ARGUMENT);
             }
         }
     }}
@@ -97,11 +97,11 @@ pub trait HasLoader: Core + Output {
                     self.sources_mut()[id as usize - 1] = Some(s);
                 }
                 None => {
-                    self.abort_with(Exception::InvalidNumericArgument)
+                    self.abort_with(INVALID_NUMERIC_ARGUMENT)
                 }
             }
         } else {
-            self.abort_with(Exception::InvalidNumericArgument)
+            self.abort_with(INVALID_NUMERIC_ARGUMENT)
         }
     }}
 
@@ -116,11 +116,11 @@ pub trait HasLoader: Core + Output {
                     self.lines_mut()[id as usize - 1] = Some(s);
                 }
                 None => {
-                    self.abort_with(Exception::InvalidNumericArgument)
+                    self.abort_with(INVALID_NUMERIC_ARGUMENT)
                 }
             }
         } else {
-            self.abort_with(Exception::InvalidNumericArgument)
+            self.abort_with(INVALID_NUMERIC_ARGUMENT)
         }
     }}
 
@@ -140,22 +140,22 @@ pub trait HasLoader: Core + Output {
     /// Load a line from file into input buffer.
     ///
     /// Returns Ok((length, not-eof)) if successful.
-    fn load_line(&mut self, source_id: usize) -> Result<(usize, bool), Exception> {
+    fn load_line(&mut self, source_id: usize) -> Result<(usize, bool), isize> {
         // Read line
         if !(source_id > 0 && source_id - 1 < self.sources().len()) {
-            return Err(Exception::InvalidNumericArgument);
+            return Err(INVALID_NUMERIC_ARGUMENT);
         }
         let mut source = match self.sources_mut()[source_id - 1].take() {
             Some(s) => s,
             None => {
-                return Err(Exception::InvalidNumericArgument);
+                return Err(INVALID_NUMERIC_ARGUMENT);
             }
         };
         let mut line = match self.lines_mut()[source_id - 1].take() {
             Some(line) => line,
             None => {
                 self.sources_mut()[source_id - 1] = Some(source);
-                return Err(Exception::InvalidNumericArgument);
+                return Err(INVALID_NUMERIC_ARGUMENT);
             }
         };
         line.clear();
@@ -174,7 +174,7 @@ pub trait HasLoader: Core + Output {
                     Ok((len, not_eof))
                 }
             }
-            Err(_) => Err(Exception::FileIOException),
+            Err(_) => Err(FILE_IO_EXCEPTION),
         };
         self.lines_mut()[source_id - 1] = Some(line);
         self.sources_mut()[source_id - 1] = Some(source);
@@ -190,10 +190,10 @@ pub trait HasLoader: Core + Output {
         self.evaluate_input();
     }
 
-    fn load(&mut self, path_name: &str) -> Result<(), Exception> {
+    fn load(&mut self, path_name: &str) -> Result<(), isize> {
         let mut reader = match File::open(&path_name) {
             Err(_) => {
-                return Err(Exception::FileIOException);
+                return Err(FILE_IO_EXCEPTION);
             }
             Ok(file) => BufReader::new(file),
         };
@@ -217,7 +217,7 @@ pub trait HasLoader: Core + Output {
                 }
                 Err(_) => {
                     self.set_input_buffer(input_buffer);
-                    return Err(Exception::FileIOException);
+                    return Err(FILE_IO_EXCEPTION);
                 }
             };
         }

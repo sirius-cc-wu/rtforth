@@ -1,9 +1,9 @@
-use exception::Exception;
+use exception::RESULT_OUT_OF_RANGE;
 
 #[derive(PartialEq, Debug)]
 pub enum IResult<'l, T> {
     Done(&'l [u8], T),
-    Err(Exception),
+    Err(isize),
 }
 
 pub fn sign(input: &[u8]) -> IResult<isize> {
@@ -64,10 +64,10 @@ pub fn uint_in_base(input: &[u8], base: isize) -> IResult<isize> {
         } else if b'A' <= *c && *c <= b'F' {
             d = (*c - b'A') as isize + 10;
         } else {
-            return IResult::Err(Exception::ResultOutOfRange);
+            return IResult::Err(RESULT_OUT_OF_RANGE);
         }
         if d >= base {
-            return IResult::Err(Exception::ResultOutOfRange);
+            return IResult::Err(RESULT_OUT_OF_RANGE);
         }
         // Allow wrapping for integer.
         value = value.wrapping_mul(base).wrapping_add(d);
@@ -91,7 +91,7 @@ pub fn uint(input: &[u8]) -> IResult<isize> {
                 Some(v) => {
                     value = v;
                 }
-                None => return IResult::Err(Exception::ResultOutOfRange),
+                None => return IResult::Err(RESULT_OUT_OF_RANGE),
             }
             len = len + 1;
         } else {
@@ -107,7 +107,7 @@ pub fn quoted_char(input: &[u8]) -> IResult<isize> {
     if input.len() == 3 && input[0] == 39u8 && input[2] == 39u8 {
         IResult::Done(&input[3..], input[1] as isize)
     } else {
-        IResult::Err(Exception::ResultOutOfRange)
+        IResult::Err(RESULT_OUT_OF_RANGE)
     }
 }
 
@@ -133,7 +133,7 @@ pub fn fraction(input: &[u8]) -> IResult<f64> {
                     .and_then(|x| x.checked_add((*c - b'0') as isize))
                 {
                     Some(v) => value = v,
-                    None => return IResult::Err(Exception::ResultOutOfRange),
+                    None => return IResult::Err(RESULT_OUT_OF_RANGE),
                 }
                 len = len + 1;
             } else {
@@ -182,11 +182,8 @@ mod tests {
     fn test_quoted_char() {
         assert_eq!(quoted_char(b"'''"), IResult::Done(b"", 39));
         assert_eq!(quoted_char(b"'*'"), IResult::Done(b"", 42));
-        assert_eq!(
-            quoted_char(b"''"),
-            IResult::Err(Exception::ResultOutOfRange)
-        );
-        assert_eq!(quoted_char(b""), IResult::Err(Exception::ResultOutOfRange));
+        assert_eq!(quoted_char(b"''"), IResult::Err(RESULT_OUT_OF_RANGE));
+        assert_eq!(quoted_char(b""), IResult::Err(RESULT_OUT_OF_RANGE));
     }
 
     #[test]

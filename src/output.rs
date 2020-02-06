@@ -1,5 +1,5 @@
 use core::Core;
-use exception::Exception::{StackUnderflow, UnsupportedOperation};
+use exception::{STACK_UNDERFLOW, UNSUPPORTED_OPERATION};
 use memory::Memory;
 use std::fmt::Write;
 
@@ -49,7 +49,7 @@ pub trait Output: Core {
     primitive! {fn p_type(&mut self) {
         let (addr, len) = self.s_stack().pop2();
         if self.s_stack().underflow() {
-            self.abort_with(StackUnderflow);
+            self.abort_with(STACK_UNDERFLOW);
             return;
         }
         match self.output_buffer().take() {
@@ -167,7 +167,7 @@ pub trait Output: Core {
             self.set_output_buffer(buf);
         }
         if !valid_base {
-            self.abort_with(UnsupportedOperation);
+            self.abort_with(UNSUPPORTED_OPERATION);
         }
     }}
 

@@ -1,5 +1,5 @@
 use core::{Core, WordType};
-use exception::Exception::InvalidMemoryAddress;
+use exception::INVALID_MEMORY_ADDRESS;
 use memory::{DataSpace, Memory};
 use std::f64::consts::PI;
 use std::mem;
@@ -115,7 +115,7 @@ pub trait Float: Core {
             let value = unsafe{ self.data_space().get_f64(t) };
             self.f_stack().push(value);
         } else {
-            self.abort_with(InvalidMemoryAddress);
+            self.abort_with(INVALID_MEMORY_ADDRESS);
         }
     }}
 
@@ -129,7 +129,7 @@ pub trait Float: Core {
         {
             unsafe{ self.data_space().put_f64(n, t) };
         } else {
-            self.abort_with(InvalidMemoryAddress);
+            self.abort_with(INVALID_MEMORY_ADDRESS);
         }
     }}
 
@@ -337,7 +337,7 @@ pub trait Float: Core {
 mod tests {
     use super::Float;
     use core::Core;
-    use exception::Exception::UndefinedWord;
+    use exception::UNDEFINED_WORD;
     use mock_vm::VM;
 
     #[test]
@@ -385,7 +385,7 @@ mod tests {
         assert_ulps_eq!(vm.f_stack().pop(), -1230.0);
         vm.set_source(".3E");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(UndefinedWord));
+        assert_eq!(vm.last_error(), Some(UNDEFINED_WORD));
         assert_eq!(vm.f_stack().len(), 0);
     }
 
@@ -719,7 +719,7 @@ mod tests {
         let vm = &mut VM::new(16, 16);
         vm.set_source("0.10000000000000001e");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(UndefinedWord));
+        assert_eq!(vm.last_error(), Some(UNDEFINED_WORD));
     }
 
     #[test]

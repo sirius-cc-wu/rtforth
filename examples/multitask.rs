@@ -3,6 +3,7 @@ extern crate rtforth;
 mod vm;
 
 use rtforth::core::Core;
+use rtforth::exception;
 use rtforth::output::Output;
 use std::process;
 use vm::VM;
@@ -21,7 +22,7 @@ fn main() {
     vm.evaluate_input();
     match vm.last_error() {
         Some(e) => {
-            println!("{}", e.description());
+            println!("{}", exception::description(e));
             vm.reset();
         }
         None => {}

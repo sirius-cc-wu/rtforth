@@ -37,7 +37,6 @@ pub mod tools;
 pub mod units;
 
 use core::Core;
-use exception::Exception;
 use memory::Memory;
 use std::result;
 
@@ -45,4 +44,4 @@ pub const TRUE: isize = -1;
 pub const FALSE: isize = 0;
 pub const NUM_TASKS: usize = 8;
 
-pub type Result = result::Result<(), Exception>;
+pub type Result = result::Result<(), isize>;

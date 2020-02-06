@@ -9,7 +9,7 @@ use getopts::Options;
 use hibitset::BitSet;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use rtforth::env::Environment;
-use rtforth::exception::Exception;
+use rtforth::exception;
 use rtforth::facility::Facility;
 use rtforth::file_access::FileAccess;
 use rtforth::float::Float;
@@ -76,7 +76,7 @@ pub struct VM {
     current_task: usize,
     tasks: [Task; NUM_TASKS],
     editor: rustyline::Editor<()>,
-    last_error: Option<Exception>,
+    last_error: Option<isize>,
     handler: usize,
     wordlist: Wordlist<VM>,
     data_space: DataSpace,
@@ -153,10 +153,10 @@ impl VM {
 }
 
 impl Core for VM {
-    fn last_error(&self) -> Option<Exception> {
+    fn last_error(&self) -> Option<isize> {
         self.last_error
     }
-    fn set_error(&mut self, e: Option<Exception>) {
+    fn set_error(&mut self, e: Option<isize>) {
         self.last_error = e;
     }
     fn handler(&self) -> usize {

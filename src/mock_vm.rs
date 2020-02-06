@@ -1,6 +1,5 @@
 use core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use env::Environment;
-use exception::Exception;
 use facility::Facility;
 use file_access::FileAccess;
 use float::Float;
@@ -65,7 +64,7 @@ impl Task {
 pub struct VM {
     current_task: usize,
     tasks: [Task; NUM_TASKS],
-    last_error: Option<Exception>,
+    last_error: Option<isize>,
     handler: usize,
     wordlist: Wordlist<VM>,
     data_space: DataSpace,
@@ -135,10 +134,10 @@ impl VM {
 }
 
 impl Core for VM {
-    fn last_error(&self) -> Option<Exception> {
+    fn last_error(&self) -> Option<isize> {
         self.last_error
     }
-    fn set_error(&mut self, e: Option<Exception>) {
+    fn set_error(&mut self, e: Option<isize>) {
         self.last_error = e;
     }
     fn handler(&self) -> usize {

@@ -272,5 +272,4 @@ mod tests {
         let t = vm.f_stack().pop();
         assert!(double_value_check(t, 2.0));
     }
-
 }

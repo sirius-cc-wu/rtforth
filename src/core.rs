@@ -418,6 +418,7 @@ pub struct ForwardReferences {
     pub idx_drop: usize,
     pub idx__postpone: usize,
     pub idx_to_r: usize,
+    pub idx_colon: usize,
 }
 
 impl ForwardReferences {
@@ -458,6 +459,7 @@ impl ForwardReferences {
             idx_drop: 0,
             idx__postpone: 0,
             idx_to_r: 0,
+            idx_colon: 0,
         }
     }
 }
@@ -785,6 +787,7 @@ pub trait Core: Sized {
         self.references().idx_drop = self.find("drop").expect("drop undefined");
         self.references().idx__postpone = self.find("_postpone").expect("_postpone undefined");
         self.references().idx_to_r = self.find(">r").expect(">r");
+        self.references().idx_colon = self.find(":").expect(":");
 
         self.patch_compilation_semanticses();
 
@@ -895,15 +898,6 @@ pub trait Core: Sized {
             self.state().instruction_pointer += mem::size_of::<isize>();
             self.execute_word(w);
             ip = self.state().instruction_pointer;
-        }
-    }
-
-    fn compile_nest(&mut self) {
-        let compile_nest_vector = self.data_space().system_variables().compile_nest_vector();
-        unsafe {
-            let compile_nest_vector: *const primitive! {fn (&mut Self)} =
-                mem::transmute(compile_nest_vector);
-            (*compile_nest_vector)(self);
         }
     }
 
@@ -1021,7 +1015,7 @@ pub trait Core: Sized {
     }}
 
     primitive! {fn patch_compilation_semanticses(&mut self) {
-        // Immediate words
+        //  Words with different action
         let idx_if = self.references().idx_if;
         self.wordlist_mut()[idx_if].action = Self::compile_if;
         let idx_else = self.references().idx_else;
@@ -1054,6 +1048,8 @@ pub trait Core: Sized {
         self.wordlist_mut()[idx_loop].action = Self::compile_loop;
         let idx_plus_loop = self.references().idx_plus_loop;
         self.wordlist_mut()[idx_plus_loop].action = Self::compile_plus_loop;
+        let idx_colon = self.references().idx_colon;
+        self.wordlist_mut()[idx_colon].action = Self::colon;
 
         // Words with non default compilation semantics
         let idx_exit = self.references().idx_exit;
@@ -1067,9 +1063,8 @@ pub trait Core: Sized {
         let idx_j = self.references().idx_j;
         self.wordlist_mut()[idx_j].compilation_semantics = Self::compile_comma;
 
-        //
+        // Others
         let compile_comma_vector = self.data_space().system_variables().compile_comma_vector();
-        let compile_nest_vector = self.data_space().system_variables().compile_nest_vector();
         let compile_integer_vector = self.data_space().system_variables().compile_integer_vector();
         let compile_var_vector = self.data_space().system_variables().compile_var_vector();
         let compile_const_vector = self.data_space().system_variables().compile_const_vector();
@@ -1078,8 +1073,6 @@ pub trait Core: Sized {
         unsafe {
             self.data_space()
                 .put_isize(Self::comma as isize, compile_comma_vector);
-            self.data_space()
-                .put_isize(Self::p_drop as isize, compile_nest_vector);
             self.data_space()
                 .put_isize(Self::tt_compile_integer as isize, compile_integer_vector);
             self.data_space()
@@ -2489,8 +2482,6 @@ pub trait Core: Sized {
         self.define(WordType::Nest, Core::nest, Core::compile_comma);
         if self.last_error().is_none() {
             let def = self.wordlist().last;
-            self.s_stack().push(def as isize);
-            self.compile_nest();
             self.wordlist_mut()[def].set_hidden(true);
             self.right_bracket();
         }
@@ -5182,5 +5173,4 @@ mod tests {
             panic!("Error: invaild dump address.");
         }
     }
-
 }

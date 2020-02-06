@@ -1,5 +1,5 @@
 use core::Core;
-use exception::{STACK_UNDERFLOW, UNSUPPORTED_OPERATION};
+use exception::{STACK_UNDERFLOW, UNSUPPORTED_BASE_FOR_INTEGER_CONVERSION};
 use memory::Memory;
 use std::fmt::Write;
 
@@ -167,7 +167,7 @@ pub trait Output: Core {
             self.set_output_buffer(buf);
         }
         if !valid_base {
-            self.abort_with(UNSUPPORTED_OPERATION);
+            self.abort_with(UNSUPPORTED_BASE_FOR_INTEGER_CONVERSION);
         }
     }}
 

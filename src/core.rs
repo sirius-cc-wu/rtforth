@@ -3,7 +3,8 @@ use exception::{
     self, ABORT, CONTROL_STRUCTURE_MISMATCH, DIVISION_BY_ZERO, FLOATING_POINT_STACK_OVERFLOW,
     FLOATING_POINT_STACK_UNDERFLOW, INTERPRETING_A_COMPILE_ONLY_WORD, INVALID_MEMORY_ADDRESS,
     INVALID_NUMERIC_ARGUMENT, RETURN_STACK_OVERFLOW, RETURN_STACK_UNDERFLOW, STACK_OVERFLOW,
-    STACK_UNDERFLOW, UNDEFINED_WORD, UNEXPECTED_END_OF_FILE, UNSUPPORTED_OPERATION,
+    STACK_UNDERFLOW, UNDEFINED_WORD, UNEXPECTED_END_OF_FILE, FLOATING_POINT_UNIDENTIFIED_FAULT,
+    INTEGER_UNIDENTIFIED_FAULT, INVALID_EXECUTION_TOKEN,
 };
 use hibitset::{BitSet, BitSetLike};
 use loader::Source;
@@ -856,7 +857,7 @@ pub trait Core: Sized {
         if i < self.wordlist().len() {
             (self.wordlist()[i].action())(self);
         } else {
-            self.abort_with(UNSUPPORTED_OPERATION);
+            self.abort_with(INVALID_EXECUTION_TOKEN);
         }
     }
 
@@ -2247,7 +2248,7 @@ pub trait Core: Sized {
                 parser::IResult::Done(bytes, sign) => match parser::uint_in_base(&bytes, base) {
                     parser::IResult::Done(bytes, value) => {
                         if bytes.len() != 0 {
-                            self.set_error(Some(UNSUPPORTED_OPERATION));
+                            self.set_error(Some(INTEGER_UNIDENTIFIED_FAULT));
                         } else {
                             if self.state().is_compiling {
                                 self.s_stack().push(sign.wrapping_mul(value));
@@ -2257,14 +2258,14 @@ pub trait Core: Sized {
                             }
                         }
                     }
-                    parser::IResult::Err(e) => self.set_error(Some(e)),
+                    parser::IResult::Err(e) => self.set_error(Some(INTEGER_UNIDENTIFIED_FAULT)),
                 },
                 parser::IResult::Err(e) => {
-                    self.set_error(Some(e));
+                    self.set_error(Some(INTEGER_UNIDENTIFIED_FAULT));
                 }
             },
             parser::IResult::Err(e) => {
-                self.set_error(Some(e));
+                self.set_error(Some(INTEGER_UNIDENTIFIED_FAULT));
             }
         }
     }
@@ -2285,7 +2286,7 @@ pub trait Core: Sized {
                 bytes = input;
             }
             parser::IResult::Err(e) => {
-                self.set_error(Some(e));
+                self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                 return;
             }
         }
@@ -2297,7 +2298,7 @@ pub trait Core: Sized {
                 bytes = input;
             }
             parser::IResult::Err(e) => {
-                self.set_error(Some(e));
+                self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                 return;
             }
         }
@@ -2308,7 +2309,7 @@ pub trait Core: Sized {
                     bytes = input;
                 }
                 parser::IResult::Err(e) => {
-                    self.set_error(Some(e));
+                    self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                     return;
                 }
             }
@@ -2323,7 +2324,7 @@ pub trait Core: Sized {
                                 bytes = input;
                             }
                             parser::IResult::Err(e) => {
-                                self.set_error(Some(e));
+                                self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                                 return;
                             }
                         }
@@ -2333,7 +2334,7 @@ pub trait Core: Sized {
                                 bytes = input;
                             }
                             parser::IResult::Err(e) => {
-                                self.set_error(Some(e));
+                                self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                                 return;
                             }
                         }
@@ -2347,7 +2348,7 @@ pub trait Core: Sized {
                                             bytes = input;
                                         }
                                         parser::IResult::Err(e) => {
-                                            self.set_error(Some(e));
+                                            self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                                             return;
                                         }
                                     }
@@ -2357,21 +2358,21 @@ pub trait Core: Sized {
                                             bytes = input;
                                         }
                                         parser::IResult::Err(e) => {
-                                            self.set_error(Some(e));
+                                            self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                                             return;
                                         }
                                     }
                                 }
                             }
                             parser::IResult::Err(e) => {
-                                self.set_error(Some(e));
+                                self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                                 return;
                             }
                         }
                     }
                 }
                 parser::IResult::Err(e) => {
-                    self.set_error(Some(e));
+                    self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                     return;
                 }
             }
@@ -2388,10 +2389,10 @@ pub trait Core: Sized {
         }
 
         if failed {
-            self.set_error(Some(UNSUPPORTED_OPERATION))
+            self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT))
         } else {
             if self.references().idx_flit == 0 {
-                self.set_error(Some(UNSUPPORTED_OPERATION));
+                self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
             } else {
                 let value = (significand_sign as f64)
                     * (integer_part as f64 + fraction_part)
@@ -3544,7 +3545,7 @@ mod tests {
     use exception::{
         ABORT, CONTROL_STRUCTURE_MISMATCH, INTERPRETING_A_COMPILE_ONLY_WORD,
         INVALID_MEMORY_ADDRESS, RETURN_STACK_UNDERFLOW, STACK_UNDERFLOW, UNDEFINED_WORD,
-        UNEXPECTED_END_OF_FILE, UNSUPPORTED_OPERATION,
+        UNEXPECTED_END_OF_FILE, INVALID_EXECUTION_TOKEN,
     };
     use mock_vm::VM;
     use std::mem;
@@ -4720,7 +4721,7 @@ mod tests {
         // execute
         vm.execute();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(UNSUPPORTED_OPERATION));
+        assert_eq!(vm.last_error(), Some(INVALID_EXECUTION_TOKEN));
         vm.reset();
         vm.clear_stacks();
         // ' drop execute

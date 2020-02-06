@@ -9,7 +9,6 @@ use getopts::Options;
 use hibitset::BitSet;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use rtforth::env::Environment;
-use rtforth::exception;
 use rtforth::facility::Facility;
 use rtforth::file_access::FileAccess;
 use rtforth::float::Float;

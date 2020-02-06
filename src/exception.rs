@@ -1,3 +1,6 @@
+
+/// Exceptions assigned by Forth standard
+
 pub const ABORT: isize = -1;
 pub const ABORT_QUOTE: isize = -2;
 pub const STACK_OVERFLOW: isize = -3;
@@ -56,6 +59,13 @@ pub const FLOATING_POINT_UNIDENTIFIED_FAULT: isize = -55;
 pub const QUIT: isize = -56;
 pub const EXCEPTION_IN_SENDING_OR_RECEIVING_A_CHARACTER: isize = -57;
 pub const BRACKET_IF_ELSE_OR_THEN_EXCEPTION: isize = -58;
+
+/// rtForth system exceptions (-511..-256)
+
+pub const UNSUPPORTED_BASE_FOR_INTEGER_CONVERSION: isize = -256;
+pub const INVALID_EXECUTION_TOKEN: isize = -257;
+pub const INTEGER_UNIDENTIFIED_FAULT: isize = -258;
+pub const INCOMPATIBLE_THREADED_WORD: isize = -259;
 
 /// Description of the exception
 pub fn description(e: isize) -> &'static str {
@@ -120,6 +130,10 @@ pub fn description(e: isize) -> &'static str {
             "Exception in sending or receiving a character"
         }
         BRACKET_IF_ELSE_OR_THEN_EXCEPTION => "[IF],[ELSE],[THEN] exception",
+        UNSUPPORTED_BASE_FOR_INTEGER_CONVERSION => "Unsupported base for integer conversion",
+        INVALID_EXECUTION_TOKEN => "Invalid execution token",
+        INTEGER_UNIDENTIFIED_FAULT => "Integer unidentified fault",
+        INCOMPATIBLE_THREADED_WORD => "Incompatible threaded word",
         _ => "Unknown exception",
     }
 }

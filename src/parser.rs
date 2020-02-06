@@ -1,4 +1,4 @@
-use exception::RESULT_OUT_OF_RANGE;
+use exception::{RESULT_OUT_OF_RANGE, ARGUMENT_TYPE_MISMATCH};
 
 #[derive(PartialEq, Debug)]
 pub enum IResult<'l, T> {
@@ -107,7 +107,7 @@ pub fn quoted_char(input: &[u8]) -> IResult<isize> {
     if input.len() == 3 && input[0] == 39u8 && input[2] == 39u8 {
         IResult::Done(&input[3..], input[1] as isize)
     } else {
-        IResult::Err(RESULT_OUT_OF_RANGE)
+        IResult::Err(ARGUMENT_TYPE_MISMATCH)
     }
 }
 
@@ -182,8 +182,8 @@ mod tests {
     fn test_quoted_char() {
         assert_eq!(quoted_char(b"'''"), IResult::Done(b"", 39));
         assert_eq!(quoted_char(b"'*'"), IResult::Done(b"", 42));
-        assert_eq!(quoted_char(b"''"), IResult::Err(RESULT_OUT_OF_RANGE));
-        assert_eq!(quoted_char(b""), IResult::Err(RESULT_OUT_OF_RANGE));
+        assert_eq!(quoted_char(b"''"), IResult::Err(ARGUMENT_TYPE_MISMATCH));
+        assert_eq!(quoted_char(b""), IResult::Err(ARGUMENT_TYPE_MISMATCH));
     }
 
     #[test]

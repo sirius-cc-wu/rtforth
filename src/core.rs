@@ -420,6 +420,7 @@ pub struct ForwardReferences {
     pub idx__postpone: usize,
     pub idx_to_r: usize,
     pub idx_colon: usize,
+    pub idx_does: usize,
     pub idx__does: usize,
 }
 
@@ -462,6 +463,7 @@ impl ForwardReferences {
             idx__postpone: 0,
             idx_to_r: 0,
             idx_colon: 0,
+            idx_does: 0,
             idx__does: 0,
         }
     }
@@ -697,6 +699,7 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("loop", Core::compile_loop);
         self.add_immediate_and_compile_only("+loop", Core::compile_plus_loop);
         self.add_immediate_and_compile_only("postpone", Core::postpone);
+        self.add_immediate_and_compile_only("does>", Core::does);
 
         // More Primitives
         self.add_primitive("true", Core::p_true);
@@ -791,6 +794,7 @@ pub trait Core: Sized {
         self.references().idx__postpone = self.find("_postpone").expect("_postpone undefined");
         self.references().idx_to_r = self.find(">r").expect(">r");
         self.references().idx_colon = self.find(":").expect(":");
+        self.references().idx_does = self.find("does>").expect("does>");
         self.references().idx__does = self.find("_does").expect("_does");
 
         self.patch_compilation_semanticses();
@@ -1049,8 +1053,8 @@ pub trait Core: Sized {
         self.wordlist_mut()[idx_plus_loop].action = Self::compile_plus_loop;
         let idx_colon = self.references().idx_colon;
         self.wordlist_mut()[idx_colon].action = Self::colon;
-        let idx__does = self.references().idx__does;
-        self.wordlist_mut()[idx__does].action = Self::_does;
+        let idx_does = self.references().idx_does;
+        self.wordlist_mut()[idx_does].action = Self::does;
 
         // Words with non default compilation semantics
         let idx_exit = self.references().idx_exit;
@@ -2490,9 +2494,8 @@ pub trait Core: Sized {
             self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let idx = self.references().idx_exit;
-            let compile = self.wordlist()[idx].compilation_semantics;
             self.s_stack().push(idx as isize);
-            compile(self);
+            self.compile_comma();
             let def = self.wordlist().last;
             self.wordlist_mut()[def].set_hidden(false);
         }
@@ -2567,9 +2570,9 @@ pub trait Core: Sized {
     /// range                             |
     ///                                   |
     ///   action                          |
-    ///   +------+                        |
-    ///   | does |                        |
-    ///   +------+                        |
+    ///   +-------+                       |
+    ///   | xdoes |                       |
+    ///   +-------+                       |
     ///                                   |
     ///   cfa                             |
     ///   +------+                        |
@@ -2581,7 +2584,16 @@ pub trait Core: Sized {
     ///   | 4 | 40 |
     ///   +---+----+
     ///
-    primitive! {fn does(&mut self) {
+    primitive!{fn does(&mut self) {
+        let idx = self.references().idx__does;
+        self.s_stack().push(idx as isize);
+        self.compile_comma();
+        let idx = self.references().idx_exit;
+        self.s_stack().push(idx as isize);
+        self.compile_comma();
+    }}
+
+    primitive! {fn xdoes(&mut self) {
         // Push DFA.
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
@@ -2600,7 +2612,7 @@ pub trait Core: Sized {
         self.code_space().compile_usize(doer);
         let def = self.wordlist().last;
         let word = &mut self.wordlist_mut()[def];
-        word.action = Core::does;
+        word.action = Core::xdoes;
     }}
 
     // -----------

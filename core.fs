@@ -34,7 +34,6 @@
 : variable   create  0 , ;
 : on ( a -- )   true swap ! ;
 : off ( a -- )   false swap ! ;
-: does> ( -- )   postpone _does  postpone exit ; immediate compile-only
 : literal ( n -- )   postpone lit  , ; immediate compile-only
 : 2literal ( n1 n2 -- )
     swap postpone lit  ,  postpone lit  , ; immediate compile-only

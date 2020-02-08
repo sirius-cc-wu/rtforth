@@ -420,6 +420,7 @@ pub struct ForwardReferences {
     pub idx__postpone: usize,
     pub idx_to_r: usize,
     pub idx_colon: usize,
+    pub idx__does: usize,
 }
 
 impl ForwardReferences {
@@ -461,6 +462,7 @@ impl ForwardReferences {
             idx__postpone: 0,
             idx_to_r: 0,
             idx_colon: 0,
+            idx__does: 0,
         }
     }
 }
@@ -789,6 +791,7 @@ pub trait Core: Sized {
         self.references().idx__postpone = self.find("_postpone").expect("_postpone undefined");
         self.references().idx_to_r = self.find(">r").expect(">r");
         self.references().idx_colon = self.find(":").expect(":");
+        self.references().idx__does = self.find("_does").expect("_does");
 
         self.patch_compilation_semanticses();
 
@@ -1046,6 +1049,8 @@ pub trait Core: Sized {
         self.wordlist_mut()[idx_plus_loop].action = Self::compile_plus_loop;
         let idx_colon = self.references().idx_colon;
         self.wordlist_mut()[idx_colon].action = Self::colon;
+        let idx__does = self.references().idx__does;
+        self.wordlist_mut()[idx__does].action = Self::_does;
 
         // Words with non default compilation semantics
         let idx_exit = self.references().idx_exit;

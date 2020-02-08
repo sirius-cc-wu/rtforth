@@ -1,4 +1,3 @@
-
 /// Exceptions assigned by Forth standard
 
 pub const ABORT: isize = -1;

@@ -280,6 +280,12 @@ pub trait Memory {
         self.compile_usize(diff);
     }
 
+    unsafe fn put_relative(&mut self, f: usize, pos: usize) {
+        let there = pos + mem::size_of::<usize>();
+        let diff = f.wrapping_sub(there) as usize;
+        self.put_usize(diff, pos);
+    }
+
     unsafe fn put_isize(&mut self, v: isize, pos: usize) {
         *(pos as *mut isize) = v;
     }

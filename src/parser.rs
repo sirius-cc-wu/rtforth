@@ -1,4 +1,4 @@
-use exception::{RESULT_OUT_OF_RANGE, ARGUMENT_TYPE_MISMATCH};
+use exception::{ARGUMENT_TYPE_MISMATCH, RESULT_OUT_OF_RANGE};
 
 #[derive(PartialEq, Debug)]
 pub enum IResult<'l, T> {

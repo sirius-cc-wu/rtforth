@@ -1,10 +1,10 @@
 extern crate libc;
 use exception::{
     self, ABORT, CONTROL_STRUCTURE_MISMATCH, DIVISION_BY_ZERO, FLOATING_POINT_STACK_OVERFLOW,
-    FLOATING_POINT_STACK_UNDERFLOW, INTERPRETING_A_COMPILE_ONLY_WORD, INVALID_MEMORY_ADDRESS,
+    FLOATING_POINT_STACK_UNDERFLOW, FLOATING_POINT_UNIDENTIFIED_FAULT, INTEGER_UNIDENTIFIED_FAULT,
+    INTERPRETING_A_COMPILE_ONLY_WORD, INVALID_EXECUTION_TOKEN, INVALID_MEMORY_ADDRESS,
     INVALID_NUMERIC_ARGUMENT, RETURN_STACK_OVERFLOW, RETURN_STACK_UNDERFLOW, STACK_OVERFLOW,
-    STACK_UNDERFLOW, UNDEFINED_WORD, UNEXPECTED_END_OF_FILE, FLOATING_POINT_UNIDENTIFIED_FAULT,
-    INTEGER_UNIDENTIFIED_FAULT, INVALID_EXECUTION_TOKEN,
+    STACK_UNDERFLOW, UNDEFINED_WORD, UNEXPECTED_END_OF_FILE,
 };
 use hibitset::{BitSet, BitSetLike};
 use loader::Source;
@@ -424,6 +424,9 @@ pub struct ForwardReferences {
     pub idx_colon: usize,
     pub idx_does: usize,
     pub idx__does: usize,
+    pub idx_label: usize,
+    pub idx_goto: usize,
+    pub idx_call: usize,
 }
 
 impl ForwardReferences {
@@ -467,6 +470,9 @@ impl ForwardReferences {
             idx_colon: 0,
             idx_does: 0,
             idx__does: 0,
+            idx_label: 0,
+            idx_goto: 0,
+            idx_call: 0,
         }
     }
 }
@@ -798,6 +804,9 @@ pub trait Core: Sized {
         self.references().idx_colon = self.find(":").expect(":");
         self.references().idx_does = self.find("does>").expect("does>");
         self.references().idx__does = self.find("_does").expect("_does");
+        self.references().idx_label = self.find("label").expect("label");
+        self.references().idx_goto = self.find("goto").expect("goto");
+        self.references().idx_call = self.find("call").expect("call");
 
         self.patch_compilation_semanticses();
 
@@ -1003,7 +1012,6 @@ pub trait Core: Sized {
     }}
 
     /// Runtime of S"
-    #[cfg(not(feature = "stc"))]
     primitive! {fn p_s_quote(&mut self) {
         let ip = self.state().instruction_pointer;
         let (addr, cnt) = {
@@ -1057,6 +1065,12 @@ pub trait Core: Sized {
         self.wordlist_mut()[idx_colon].action = Self::colon;
         let idx_does = self.references().idx_does;
         self.wordlist_mut()[idx_does].action = Self::does;
+        let idx_label = self.references().idx_label;
+        self.wordlist_mut()[idx_label].action = Self::imm_label;
+        let idx_goto = self.references().idx_goto;
+        self.wordlist_mut()[idx_goto].action = Self::imm_goto;
+        let idx_call = self.references().idx_call;
+        self.wordlist_mut()[idx_call].action = Self::imm_call;
 
         // Words with non default compilation semantics
         let idx_exit = self.references().idx_exit;
@@ -1565,7 +1579,6 @@ pub trait Core: Sized {
     }}
 
     /// Clear labels, `0labels ( -- )`
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_clear_labels(&mut self) {
         self.forward_bitset_mut().clear();
         self.resolved_bitset_mut().clear();
@@ -1574,7 +1587,6 @@ pub trait Core: Sized {
     /// Create a label `n`, `label ( n -- )`
     ///
     /// Valid `n`: `0 < n < labels.capacity()`.
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_label(&mut self) {
         let n = self.s_stack().pop() as usize;
         if 0 < n && n < self.labels().capacity() {
@@ -1619,7 +1631,6 @@ pub trait Core: Sized {
     /// [ n ] goto ... [ n ] label ...
     /// [ n ] label ... [ n ]  goto
     /// ```
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_goto(&mut self) {
         let n = self.s_stack().pop() as usize;
         if 0 < n && n < self.labels().capacity() {
@@ -1656,7 +1667,6 @@ pub trait Core: Sized {
     /// [ n ] call ... [ n ] label ... exit ...
     /// [ n ] label .. exit ... [ n ] call ...
     /// ```
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_call(&mut self) {
          let return_addr = self.data_space().here() + 5 * mem::size_of::<isize>();
          self.s_stack().push(return_addr as _);
@@ -2587,7 +2597,7 @@ pub trait Core: Sized {
     ///   | 4 | 40 |
     ///   +---+----+
     ///
-    primitive!{fn does(&mut self) {
+    primitive! {fn does(&mut self) {
         let idx = self.references().idx__does;
         self.s_stack().push(idx as isize);
         self.compile_comma();
@@ -3564,8 +3574,8 @@ mod tests {
     use super::{Core, Memory};
     use exception::{
         ABORT, CONTROL_STRUCTURE_MISMATCH, INTERPRETING_A_COMPILE_ONLY_WORD,
-        INVALID_MEMORY_ADDRESS, RETURN_STACK_UNDERFLOW, STACK_UNDERFLOW, UNDEFINED_WORD,
-        UNEXPECTED_END_OF_FILE, INVALID_EXECUTION_TOKEN,
+        INVALID_EXECUTION_TOKEN, INVALID_MEMORY_ADDRESS, RETURN_STACK_UNDERFLOW, STACK_UNDERFLOW,
+        UNDEFINED_WORD, UNEXPECTED_END_OF_FILE,
     };
     use mock_vm::VM;
     use std::mem;

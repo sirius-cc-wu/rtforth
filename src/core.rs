@@ -2494,8 +2494,9 @@ pub trait Core: Sized {
             self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let idx = self.references().idx_exit;
+            let compile_exit = self.wordlist()[idx].compilation_semantics;
             self.s_stack().push(idx as isize);
-            self.compile_comma();
+            compile_exit(self);
             let def = self.wordlist().last;
             self.wordlist_mut()[def].set_hidden(false);
         }

@@ -20,8 +20,10 @@ use {FALSE, NUM_TASKS, TRUE};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum WordType {
-    // Words implemented with a rust function or with subroutine-threaded code
+    // Words implemented with a rust function
     Native,
+    /// Words implemented with subroutine-threaded code
+    Code,
     // Words implemented with token-threaded code
     Nest,
     // Words defined with CREATE, VARIABLE or  FVARIABLE

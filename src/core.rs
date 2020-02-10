@@ -427,6 +427,7 @@ pub struct ForwardReferences {
     pub idx_label: usize,
     pub idx_goto: usize,
     pub idx_call: usize,
+    pub idx_return: usize,
 }
 
 impl ForwardReferences {
@@ -473,6 +474,7 @@ impl ForwardReferences {
             idx_label: 0,
             idx_goto: 0,
             idx_call: 0,
+            idx_return: 0,
         }
     }
 }
@@ -701,6 +703,7 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("label", Core::imm_label);
         self.add_immediate_and_compile_only("goto", Core::imm_goto);
         self.add_immediate_and_compile_only("call", Core::imm_call);
+        self.add_immediate_and_compile_only("return", Core::imm_return);
         self.add_immediate_and_compile_only("recurse", Core::imm_recurse);
         self.add_immediate_and_compile_only("do", Core::compile_do);
         self.add_immediate_and_compile_only("?do", Core::compile_qdo);
@@ -807,6 +810,7 @@ pub trait Core: Sized {
         self.references().idx_label = self.find("label").expect("label");
         self.references().idx_goto = self.find("goto").expect("goto");
         self.references().idx_call = self.find("call").expect("call");
+        self.references().idx_return = self.find("return").expect("return");
 
         self.patch_compilation_semanticses();
 
@@ -1071,6 +1075,8 @@ pub trait Core: Sized {
         self.wordlist_mut()[idx_goto].action = Self::imm_goto;
         let idx_call = self.references().idx_call;
         self.wordlist_mut()[idx_call].action = Self::imm_call;
+        let idx_return = self.references().idx_return;
+        self.wordlist_mut()[idx_return].action = Self::imm_return;
 
         // Words with non default compilation semantics
         let idx_exit = self.references().idx_exit;
@@ -1677,7 +1683,13 @@ pub trait Core: Sized {
          self.imm_goto();
     }}
 
-    /// Execution: ( -- a-ddr )
+    primitive! {fn imm_return(&mut self) {
+        let idx_exit = self.references().idx_exit;
+        self.s_stack().push(idx_exit as isize);
+        self.compile_comma();
+   }}
+
+   /// Execution: ( -- a-ddr )
     ///
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
@@ -4937,7 +4949,7 @@ mod tests {
     }
 
     #[test]
-    fn test_label_goto_call() {
+    fn test_label_goto_call_return() {
         let vm = &mut VM::new(16, 16);
         // Go backwards.
         vm.set_source(
@@ -4952,12 +4964,12 @@ mod tests {
         assert_eq!(vm.s_stack().len(), 2);
         // Call backwards
         vm.clear_stacks();
-        vm.set_source(": test3   0labels  [ 10 ] goto [ 20 ] label 2 3  exit  [ 10 ] label  [ 20 ] call 4 5 ; test3");
+        vm.set_source(": test3   0labels  [ 10 ] goto [ 20 ] label 2 3  return  [ 10 ] label  [ 20 ] call 4 5 ; test3");
         vm.evaluate_input();
         assert_eq!(vm.s_stack().len(), 4);
         // Call forwards
         vm.clear_stacks();
-        vm.set_source(": test4   0labels  [ 10 ] call 1 exit [ 10 ] label 2 3 ; test4");
+        vm.set_source(": test4   0labels  [ 10 ] call 1 exit [ 10 ] label 2 3 return ; test4");
         vm.evaluate_input();
         assert_eq!(vm.s_stack().len(), 3);
         assert_eq!(vm.s_stack().pop(), 1);

@@ -65,6 +65,7 @@ pub const UNSUPPORTED_BASE_FOR_INTEGER_CONVERSION: isize = -256;
 pub const INVALID_EXECUTION_TOKEN: isize = -257;
 pub const INTEGER_UNIDENTIFIED_FAULT: isize = -258;
 pub const INCOMPATIBLE_THREADED_WORD: isize = -259;
+pub const INTERPRET_ONLY: isize = -260;
 
 /// Description of the exception
 pub fn description(e: isize) -> &'static str {
@@ -133,6 +134,7 @@ pub fn description(e: isize) -> &'static str {
         INVALID_EXECUTION_TOKEN => "Invalid execution token",
         INTEGER_UNIDENTIFIED_FAULT => "Integer unidentified fault",
         INCOMPATIBLE_THREADED_WORD => "Incompatible threaded word",
+        INTERPRET_ONLY => "Interpret only",
         _ => "Unknown exception",
     }
 }

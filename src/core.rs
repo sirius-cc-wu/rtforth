@@ -1684,12 +1684,12 @@ pub trait Core: Sized {
     }}
 
     primitive! {fn imm_return(&mut self) {
-        let idx_exit = self.references().idx_exit;
-        self.s_stack().push(idx_exit as isize);
-        self.compile_comma();
-   }}
+         let idx_exit = self.references().idx_exit;
+         self.s_stack().push(idx_exit as isize);
+         self.compile_comma();
+    }}
 
-   /// Execution: ( -- a-ddr )
+    /// Execution: ( -- a-ddr )
     ///
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.

@@ -5,18 +5,17 @@ extern crate time;
 use self::hibitset::BitSet;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use rtforth::env::Environment;
-use rtforth::exception;
 use rtforth::facility::Facility;
 use rtforth::file_access::FileAccess;
 use rtforth::float::Float;
 use rtforth::loader::{HasLoader, Source};
 use rtforth::memory::{CodeSpace, DataSpace};
 use rtforth::output::Output;
+use rtforth::search_order::SearchOrder;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
 use rtforth::NUM_TASKS;
 use std::fs::File;
-use std::time::SystemTime;
 
 const BUFFER_SIZE: usize = 0x400;
 const LABEL_COUNT: u32 = 1000;
@@ -126,6 +125,7 @@ impl VM {
         vm.add_units();
         vm.add_file_access();
         vm.add_loader();
+        vm.add_search_order();
 
         vm.load_core_fs();
 
@@ -293,3 +293,4 @@ impl FileAccess for VM {}
 impl HasLoader for VM {}
 impl Output for VM {}
 impl Tools for VM {}
+impl SearchOrder for VM {}

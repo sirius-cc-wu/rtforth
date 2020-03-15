@@ -332,3 +332,18 @@ Section number | Definition name | Compatibility
 15.6.1.1280 | DUMP | Y
 15.6.1.2194 | SEE |
 15.6.1.2465 | WORDS | Y
+
+## 16.6.1 Search-Order words
+
+Section number | Definition name | Compatibility
+---------------|-----------------|--------------
+16.6.1.1180 | DEFINITIONS | Y
+16.6.1.1550 | FIND | TODO
+16.6.1.1595 | FORTH-WORDLIST | Y
+16.6.1.1643 | GET-CURRENT | Y
+16.6.1.1647 | GET-ORDER | Y
+16.6.1.2192 | SEARCH-WORDLIST | TODO
+16.6.1.2195 | SET-CURRENT | Y
+16.6.1.2197 | SET-ORDER | Y
+16.6.1.2460 | WORDLIST | Y
+

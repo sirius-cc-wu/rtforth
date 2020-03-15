@@ -41,6 +41,7 @@ pub enum WordType {
 // Word
 pub struct Word<Target> {
     word_type: WordType,
+    wordlist: usize,
     is_immediate: bool,
     is_compile_only: bool,
     hidden: bool,
@@ -60,6 +61,7 @@ pub struct Word<Target> {
 impl<Target> Word<Target> {
     pub fn new(
         word_type: WordType,
+        wordlist: usize,
         action: primitive! {fn(&mut Target)},
         compilation_semantics: primitive! { fn(&mut Target) },
         nfa: usize,
@@ -68,6 +70,7 @@ impl<Target> Word<Target> {
     ) -> Word<Target> {
         Word {
             word_type,
+            wordlist,
             is_immediate: false,
             is_compile_only: false,
             hidden: false,
@@ -85,6 +88,10 @@ impl<Target> Word<Target> {
 
     pub fn word_type(&self) -> WordType {
         self.word_type
+    }
+
+    pub fn wordlist(&self) -> usize {
+        self.wordlist
     }
 
     pub fn is_immediate(&self) -> bool {
@@ -132,13 +139,18 @@ impl<Target> Word<Target> {
     }
 }
 
+pub(crate) const WORDLISTS: usize = 10;
 const BUCKET_SIZE: usize = 64;
 
 /// Wordlist
 pub struct Wordlist<Target> {
     words: Vec<Word<Target>>,
-    buckets: [usize; BUCKET_SIZE],
-    temp_buckets: [usize; BUCKET_SIZE],
+    buckets: [usize; BUCKET_SIZE * WORDLISTS],
+    temp_buckets: [usize; BUCKET_SIZE * WORDLISTS],
+    pub(crate) search_order: [usize; WORDLISTS],
+    pub(crate) search_order_len: usize,
+    pub(crate) current: usize,
+    pub(crate) last_wordlist: usize,
     last: usize,
 }
 
@@ -147,8 +159,12 @@ impl<Target> Wordlist<Target> {
     pub fn with_capacity(cap: usize) -> Wordlist<Target> {
         Wordlist {
             words: Vec::with_capacity(cap),
-            buckets: [0; BUCKET_SIZE],
-            temp_buckets: [0; BUCKET_SIZE],
+            buckets: [0; BUCKET_SIZE * WORDLISTS],
+            temp_buckets: [0; BUCKET_SIZE * WORDLISTS],
+            search_order: [0; WORDLISTS],
+            search_order_len: 1,
+            current: 0,
+            last_wordlist: 0,
             last: 0,
         }
     }
@@ -180,7 +196,7 @@ impl<Target> Wordlist<Target> {
     /// Push word `w` into list.
     fn push(&mut self, name: &str, mut w: Word<Target>) {
         w.hash = Self::hash(name);
-        let b = w.hash as usize % BUCKET_SIZE;
+        let b = w.hash as usize % BUCKET_SIZE + w.wordlist() * BUCKET_SIZE;
         w.link = self.buckets[b];
         self.last = self.words.len();
         self.buckets[b] = self.last;
@@ -833,6 +849,7 @@ pub trait Core: Sized {
         self.code_space().align();
         let word = Word::new(
             WordType::Native,
+            self.wordlist().current,
             action,
             Core::compile_comma,
             nfa,
@@ -887,20 +904,25 @@ pub trait Core: Sized {
     /// If not found returns zero.
     fn find(&mut self, name: &str) -> Option<usize> {
         let hash = Wordlist::<Self>::hash(name);
-        let mut w = self.wordlist().buckets[hash as usize % BUCKET_SIZE];
-        while w != 0 {
-            if !self.wordlist()[w].is_hidden() {
-                {
-                    if self.wordlist()[w].hash == hash {
-                        let nfa = self.wordlist()[w].nfa();
-                        let w_name = unsafe { self.data_space().get_str(nfa) };
-                        if w_name.eq_ignore_ascii_case(name) {
-                            return Some(w);
+        let search_order_len = self.wordlist().search_order_len;
+        let search_order: [usize; WORDLISTS] = self.wordlist().search_order;
+        for i in (0..search_order_len).rev() {
+            let mut w = self.wordlist().buckets
+                [hash as usize % BUCKET_SIZE + search_order[i] * BUCKET_SIZE];
+            while w != 0 {
+                if !self.wordlist()[w].is_hidden() {
+                    {
+                        if self.wordlist()[w].hash == hash {
+                            let nfa = self.wordlist()[w].nfa();
+                            let w_name = unsafe { self.data_space().get_str(nfa) };
+                            if w_name.eq_ignore_ascii_case(name) {
+                                return Some(w);
+                            }
                         }
                     }
                 }
+                w = self.wordlist()[w].link;
             }
-            w = self.wordlist()[w].link;
         }
         None
     }
@@ -2491,6 +2513,7 @@ pub trait Core: Sized {
             self.code_space().align();
             let word = Word::new(
                 word_type,
+                self.wordlist().current,
                 action,
                 compilation_semantics,
                 nfa,
@@ -2547,11 +2570,25 @@ pub trait Core: Sized {
         };
         let x = unsafe{ self.data_space().get_usize(dfa) };
         self.wordlist_mut().last = x;
-        for i in 0..BUCKET_SIZE {
+        for i in 0..BUCKET_SIZE * WORDLISTS {
             dfa += mem::size_of::<usize>();
             let x = unsafe{ self.data_space().get_usize(dfa) };
             self.wordlist_mut().buckets[i] = x;
         }
+        dfa += mem::size_of::<usize>();
+        let search_order_len = unsafe{ self.data_space().get_usize(dfa) };
+        self.wordlist_mut().search_order_len = search_order_len;
+        for i in 0..search_order_len {
+            dfa += mem::size_of::<usize>();
+            let x = unsafe{ self.data_space().get_usize(dfa) };
+            self.wordlist_mut().search_order[i] = x;
+        }
+        dfa += mem::size_of::<usize>();
+        let x = unsafe{ self.data_space().get_usize(dfa) };
+        self.wordlist_mut().last_wordlist =  x;
+        dfa += mem::size_of::<usize>();
+        let x = unsafe{ self.data_space().get_usize(dfa) };
+        self.wordlist_mut().current =  x;
         self.data_space().truncate(nfa);
         self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
@@ -2571,10 +2608,20 @@ pub trait Core: Sized {
         self.wordlist_mut().temp_buckets = self.wordlist().buckets;
         self.define(WordType::Marker, Core::unmark, Core::compile_comma);
         self.data_space().compile_usize(x);
-        for i in 0..BUCKET_SIZE {
+        for i in 0..BUCKET_SIZE * WORDLISTS {
             let x = self.wordlist().temp_buckets[i];
             self.data_space().compile_usize(x);
         }
+        let search_order_len = self.wordlist().search_order_len;
+        self.data_space().compile_usize(search_order_len);
+        for i in 0..search_order_len {
+            let x = self.wordlist().search_order[i];
+            self.data_space().compile_usize(x);
+        }
+        let x = self.wordlist().last_wordlist;
+        self.data_space().compile_usize(x);
+        let x = self.wordlist().current;
+        self.data_space().compile_usize(x);
     }}
 
     /// Run time behavior of words created by `create` ... `does>`.

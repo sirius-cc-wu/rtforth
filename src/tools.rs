@@ -40,15 +40,18 @@ pub trait Tools: Output {
     ///
     /// List definition names in word list.
     primitive! {fn words(&mut self) {
-        if let Some(mut buf) = self.output_buffer().take() {
-            for w in (1..self.wordlist().len()).rev() {
-                if !self.wordlist()[w].is_hidden() {
-                    let nfa = self.wordlist()[w].nfa();
-                    let name = unsafe{ self.data_space().get_str(nfa) };
-                    write!(buf, "{} ", name).unwrap();
+        if self.wordlist().search_order_len > 0 {
+            let first_to_search = self.wordlist().search_order[self.wordlist().search_order_len - 1];
+            if let Some(mut buf) = self.output_buffer().take() {
+                for w in (1..self.wordlist().len()).rev() {
+                    if !self.wordlist()[w].is_hidden() && self.wordlist()[w].wordlist() == first_to_search {
+                        let nfa = self.wordlist()[w].nfa();
+                        let name = unsafe{ self.data_space().get_str(nfa) };
+                        write!(buf, "{} ", name).unwrap();
+                    }
                 }
+                self.set_output_buffer(buf);
             }
-            self.set_output_buffer(buf);
         }
     }}
 

@@ -75,6 +75,9 @@ variable >in  0 >in !
 \ Execution time
 : xtime ( xt -- )   utime >r >r r@ execute r> r> (xtime) ;
 
+\ Search-order word set
+0 constant forth-wordlist
+
 \ Multitasker
 0 constant operator
 : nod   begin pause again ;

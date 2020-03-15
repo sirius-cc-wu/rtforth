@@ -15,6 +15,7 @@ use rtforth::float::Float;
 use rtforth::loader::{HasLoader, Source};
 use rtforth::memory::{CodeSpace, DataSpace};
 use rtforth::output::Output;
+use rtforth::search_order::SearchOrder;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
 use rtforth::NUM_TASKS;
@@ -134,6 +135,7 @@ impl VM {
         vm.add_units();
         vm.add_file_access();
         vm.add_loader();
+        vm.add_search_order();
         vm.add_primitive("receive", receive);
         vm.add_primitive("bye", bye);
 
@@ -311,6 +313,7 @@ impl HasLoader for VM {}
 impl Output for VM {}
 impl Tools for VM {}
 impl FileAccess for VM {}
+impl SearchOrder for VM {}
 
 fn main() {
     let vm = &mut VM::new(1024, 1024);

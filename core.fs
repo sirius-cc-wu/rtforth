@@ -77,6 +77,7 @@ variable >in  0 >in !
 
 \ Search-order word set
 0 constant forth-wordlist
+1 constant optimizer-wordlist
 
 \ Multitasker
 0 constant operator

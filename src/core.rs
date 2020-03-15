@@ -139,7 +139,9 @@ impl<Target> Word<Target> {
     }
 }
 
-pub(crate) const WORDLISTS: usize = 10;
+pub const WORDLISTS: usize = 10;
+pub const FORTH_WORDLIST: usize = 0;
+pub const OPTIMIZER_WORDLIST: usize = 1;
 const BUCKET_SIZE: usize = 64;
 
 /// Wordlist
@@ -163,8 +165,8 @@ impl<Target> Wordlist<Target> {
             temp_buckets: [0; BUCKET_SIZE * WORDLISTS],
             search_order: [0; WORDLISTS],
             search_order_len: 1,
-            current: 0,
-            last_wordlist: 0,
+            current: FORTH_WORDLIST,
+            last_wordlist: OPTIMIZER_WORDLIST,
             last: 0,
         }
     }

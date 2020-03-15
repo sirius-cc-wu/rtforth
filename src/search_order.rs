@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn test_wordlist() {
         let vm = &mut VM::new(16, 16);
-        for i in 1..WORDLISTS {
+        for i in 2..WORDLISTS {
             vm.set_source("WORDLIST");
             vm.evaluate_input();
             assert_eq!(vm.last_error(), None);

@@ -21,6 +21,8 @@ macro_rules! primitive {
 extern crate approx;
 extern crate hibitset;
 extern crate uom;
+#[macro_use]
+extern crate contracts;
 
 pub mod core;
 pub mod env;

@@ -181,6 +181,17 @@ impl<Target> Wordlist<Target> {
         self.last
     }
 
+    /// Compilation wordlist
+    pub fn current(&self) -> usize {
+        self.current
+    }
+
+    /// Set compilation wordlist
+    #[pre(wid <= self.last_wordlist)]
+    pub fn set_current(&mut self, wid: usize) {
+        self.current = wid
+    }
+
     // Hash function
     //
     // Alogrithm djb2 at http://www.cse.yorku.ca/~oz/hash.html .

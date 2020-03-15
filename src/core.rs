@@ -420,25 +420,9 @@ pub struct ForwardReferences {
     pub idx_exit: usize,
     pub idx_zero_branch: usize,
     pub idx_branch: usize,
-    pub idx_if: usize,
-    pub idx_else: usize,
-    pub idx_then: usize,
-    pub idx_case: usize,
-    pub idx_of: usize,
-    pub idx_endof: usize,
-    pub idx_endcase: usize,
-    pub idx_begin: usize,
-    pub idx_while: usize,
-    pub idx_repeat: usize,
-    pub idx_until: usize,
-    pub idx_again: usize,
-    pub idx_do: usize,
     pub idx__do: usize,
-    pub idx_qdo: usize,
     pub idx__qdo: usize,
-    pub idx_loop: usize,
     pub idx__loop: usize,
-    pub idx_plus_loop: usize,
     pub idx__plus_loop: usize,
     pub idx_unloop: usize,
     pub idx_leave: usize,
@@ -450,13 +434,8 @@ pub struct ForwardReferences {
     pub idx_drop: usize,
     pub idx__postpone: usize,
     pub idx_to_r: usize,
-    pub idx_colon: usize,
     pub idx_does: usize,
     pub idx__does: usize,
-    pub idx_label: usize,
-    pub idx_goto: usize,
-    pub idx_call: usize,
-    pub idx_return: usize,
 }
 
 impl ForwardReferences {
@@ -467,25 +446,9 @@ impl ForwardReferences {
             idx_exit: 0,
             idx_zero_branch: 0,
             idx_branch: 0,
-            idx_if: 0,
-            idx_else: 0,
-            idx_then: 0,
-            idx_case: 0,
-            idx_of: 0,
-            idx_endof: 0,
-            idx_endcase: 0,
-            idx_begin: 0,
-            idx_while: 0,
-            idx_repeat: 0,
-            idx_until: 0,
-            idx_again: 0,
-            idx_do: 0,
             idx__do: 0,
-            idx_qdo: 0,
             idx__qdo: 0,
-            idx_loop: 0,
             idx__loop: 0,
-            idx_plus_loop: 0,
             idx__plus_loop: 0,
             idx_unloop: 0,
             idx_leave: 0,
@@ -497,13 +460,8 @@ impl ForwardReferences {
             idx_drop: 0,
             idx__postpone: 0,
             idx_to_r: 0,
-            idx_colon: 0,
             idx_does: 0,
             idx__does: 0,
-            idx_label: 0,
-            idx_goto: 0,
-            idx_call: 0,
-            idx_return: 0,
         }
     }
 }
@@ -805,25 +763,9 @@ pub trait Core: Sized {
         self.references().idx_exit = self.find("exit").expect("exit undefined");
         self.references().idx_zero_branch = self.find("0branch").expect("0branch undefined");
         self.references().idx_branch = self.find("branch").expect("branch undefined");
-        self.references().idx_if = self.find("if").expect("if undefined");
-        self.references().idx_else = self.find("else").expect("else undefined");
-        self.references().idx_then = self.find("then").expect("then undefined");
-        self.references().idx_case = self.find("case").expect("case undefined");
-        self.references().idx_of = self.find("of").expect("of undefined");
-        self.references().idx_endof = self.find("endof").expect("endof undefined");
-        self.references().idx_endcase = self.find("endcase").expect("endcase undefined");
-        self.references().idx_begin = self.find("begin").expect("begin undefined");
-        self.references().idx_while = self.find("while").expect("while undefined");
-        self.references().idx_repeat = self.find("repeat").expect("repeat undefined");
-        self.references().idx_until = self.find("until").expect("until undefined");
-        self.references().idx_again = self.find("again").expect("again undefined");
-        self.references().idx_do = self.find("do").expect("do undefined");
         self.references().idx__do = self.find("_do").expect("_do undefined");
-        self.references().idx_qdo = self.find("?do").expect("?do undefined");
         self.references().idx__qdo = self.find("_qdo").expect("_qdo undefined");
-        self.references().idx_loop = self.find("loop").expect("loop undefined");
         self.references().idx__loop = self.find("_loop").expect("_loop undefined");
-        self.references().idx_plus_loop = self.find("+loop").expect("+loop undefined");
         self.references().idx__plus_loop = self.find("_+loop").expect("_+loop undefined");
         self.references().idx_unloop = self.find("unloop").expect("unloop undefined");
         self.references().idx_leave = self.find("leave").expect("leave undefined");
@@ -833,13 +775,8 @@ pub trait Core: Sized {
         self.references().idx_drop = self.find("drop").expect("drop undefined");
         self.references().idx__postpone = self.find("_postpone").expect("_postpone undefined");
         self.references().idx_to_r = self.find(">r").expect(">r");
-        self.references().idx_colon = self.find(":").expect(":");
         self.references().idx_does = self.find("does>").expect("does>");
         self.references().idx__does = self.find("_does").expect("_does");
-        self.references().idx_label = self.find("label").expect("label");
-        self.references().idx_goto = self.find("goto").expect("goto");
-        self.references().idx_call = self.find("call").expect("call");
-        self.references().idx_return = self.find("return").expect("return");
 
         self.patch_compilation_semanticses();
 
@@ -1068,50 +1005,8 @@ pub trait Core: Sized {
 
     primitive! {fn patch_compilation_semanticses(&mut self) {
         //  Words with different action
-        let idx_if = self.references().idx_if;
-        self.wordlist_mut()[idx_if].action = Self::compile_if;
-        let idx_else = self.references().idx_else;
-        self.wordlist_mut()[idx_else].action = Self::compile_else;
-        let idx_then = self.references().idx_then;
-        self.wordlist_mut()[idx_then].action = Self::compile_then;
-        let idx_case = self.references().idx_case;
-        self.wordlist_mut()[idx_case].action = Self::compile_case;
-        let idx_of = self.references().idx_of;
-        self.wordlist_mut()[idx_of].action = Self::compile_of;
-        let idx_endof = self.references().idx_endof;
-        self.wordlist_mut()[idx_endof].action = Self::compile_endof;
-        let idx_endcase = self.references().idx_endcase;
-        self.wordlist_mut()[idx_endcase].action = Self::compile_endcase;
-        let idx_begin = self.references().idx_begin;
-        self.wordlist_mut()[idx_begin].action = Self::compile_begin;
-        let idx_while = self.references().idx_while;
-        self.wordlist_mut()[idx_while].action = Self::compile_while;
-        let idx_repeat = self.references().idx_repeat;
-        self.wordlist_mut()[idx_repeat].action = Self::compile_repeat;
-        let idx_until = self.references().idx_until;
-        self.wordlist_mut()[idx_until].action = Self::compile_until;
-        let idx_again = self.references().idx_again;
-        self.wordlist_mut()[idx_again].action = Self::compile_again;
-        let idx_do = self.references().idx_do;
-        self.wordlist_mut()[idx_do].action = Self::compile_do;
-        let idx_qdo = self.references().idx_qdo;
-        self.wordlist_mut()[idx_qdo].action = Self::compile_qdo;
-        let idx_loop = self.references().idx_loop;
-        self.wordlist_mut()[idx_loop].action = Self::compile_loop;
-        let idx_plus_loop = self.references().idx_plus_loop;
-        self.wordlist_mut()[idx_plus_loop].action = Self::compile_plus_loop;
-        let idx_colon = self.references().idx_colon;
-        self.wordlist_mut()[idx_colon].action = Self::colon;
         let idx_does = self.references().idx_does;
         self.wordlist_mut()[idx_does].action = Self::does;
-        let idx_label = self.references().idx_label;
-        self.wordlist_mut()[idx_label].action = Self::imm_label;
-        let idx_goto = self.references().idx_goto;
-        self.wordlist_mut()[idx_goto].action = Self::imm_goto;
-        let idx_call = self.references().idx_call;
-        self.wordlist_mut()[idx_call].action = Self::imm_call;
-        let idx_return = self.references().idx_return;
-        self.wordlist_mut()[idx_return].action = Self::imm_return;
 
         // Words with non default compilation semantics
         let idx_exit = self.references().idx_exit;

@@ -424,9 +424,7 @@ pub struct ForwardReferences {
     pub idx__qdo: usize,
     pub idx__loop: usize,
     pub idx__plus_loop: usize,
-    pub idx_unloop: usize,
     pub idx_leave: usize,
-    pub idx_j: usize,
     pub idx_s_quote: usize,
     pub idx_type: usize,
     pub idx_over: usize,
@@ -434,7 +432,6 @@ pub struct ForwardReferences {
     pub idx_drop: usize,
     pub idx__postpone: usize,
     pub idx_to_r: usize,
-    pub idx_does: usize,
     pub idx__does: usize,
 }
 
@@ -450,9 +447,7 @@ impl ForwardReferences {
             idx__qdo: 0,
             idx__loop: 0,
             idx__plus_loop: 0,
-            idx_unloop: 0,
             idx_leave: 0,
-            idx_j: 0,
             idx_s_quote: 0,
             idx_type: 0,
             idx_over: 0,
@@ -460,7 +455,6 @@ impl ForwardReferences {
             idx_drop: 0,
             idx__postpone: 0,
             idx_to_r: 0,
-            idx_does: 0,
             idx__does: 0,
         }
     }
@@ -767,15 +761,12 @@ pub trait Core: Sized {
         self.references().idx__qdo = self.find("_qdo").expect("_qdo undefined");
         self.references().idx__loop = self.find("_loop").expect("_loop undefined");
         self.references().idx__plus_loop = self.find("_+loop").expect("_+loop undefined");
-        self.references().idx_unloop = self.find("unloop").expect("unloop undefined");
         self.references().idx_leave = self.find("leave").expect("leave undefined");
-        self.references().idx_j = self.find("j").expect("j undefined");
         self.references().idx_over = self.find("over").expect("over undefined");
         self.references().idx_equal = self.find("=").expect("= undefined");
         self.references().idx_drop = self.find("drop").expect("drop undefined");
         self.references().idx__postpone = self.find("_postpone").expect("_postpone undefined");
         self.references().idx_to_r = self.find(">r").expect(">r");
-        self.references().idx_does = self.find("does>").expect("does>");
         self.references().idx__does = self.find("_does").expect("_does");
 
         self.patch_compilation_semanticses();
@@ -1004,21 +995,13 @@ pub trait Core: Sized {
     }}
 
     primitive! {fn patch_compilation_semanticses(&mut self) {
-        //  Words with different action
-        let idx_does = self.references().idx_does;
-        self.wordlist_mut()[idx_does].action = Self::does;
-
         // Words with non default compilation semantics
         let idx_exit = self.references().idx_exit;
         self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_comma;
         let idx_s_quote = self.references().idx_s_quote;
         self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_comma;
-        let idx_unloop = self.references().idx_unloop;
-        self.wordlist_mut()[idx_unloop].compilation_semantics = Self::compile_comma;
         let idx_leave = self.references().idx_leave;
         self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
-        let idx_j = self.references().idx_j;
-        self.wordlist_mut()[idx_j].compilation_semantics = Self::compile_comma;
 
         // Others
         let compile_comma_vector = self.data_space().system_variables().compile_comma_vector();

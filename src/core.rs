@@ -750,7 +750,7 @@ pub trait Core: Sized {
         self.add_primitive("source-id!", Core::p_set_source_id);
         self.add_primitive("source-idx", Core::p_source_idx);
         self.add_primitive("source-idx!", Core::p_set_source_idx);
-        self.add_primitive("-optimization", Core::patch_compilation_semanticses);
+        self.add_primitive("-optimizer", Core::patch_compilation_semanticses);
         // Search order wordlist
         self.add_primitive("get-current", Core::get_current);
         self.add_primitive("set-current", Core::set_current);

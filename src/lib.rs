@@ -35,7 +35,6 @@ pub mod memory;
 pub mod mock_vm;
 pub mod output;
 pub(crate) mod parser;
-pub mod search_order;
 pub mod tools;
 pub mod units;
 

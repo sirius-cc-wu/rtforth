@@ -11,7 +11,6 @@ use rtforth::float::Float;
 use rtforth::loader::{HasLoader, Source};
 use rtforth::memory::{CodeSpace, DataSpace};
 use rtforth::output::Output;
-use rtforth::search_order::SearchOrder;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
 use rtforth::NUM_TASKS;
@@ -125,7 +124,6 @@ impl VM {
         vm.add_units();
         vm.add_file_access();
         vm.add_loader();
-        vm.add_search_order();
 
         vm.load_core_fs();
 
@@ -293,4 +291,3 @@ impl FileAccess for VM {}
 impl HasLoader for VM {}
 impl Output for VM {}
 impl Tools for VM {}
-impl SearchOrder for VM {}

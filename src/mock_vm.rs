@@ -8,7 +8,6 @@ use loader::HasLoader;
 use loader::Source;
 use memory::{CodeSpace, DataSpace};
 use output::Output;
-use search_order::SearchOrder;
 use std::fs::File;
 use tools::Tools;
 use units::Units;
@@ -122,7 +121,6 @@ impl VM {
         vm.add_units();
         vm.add_file_access();
         vm.add_loader();
-        vm.add_search_order();
 
         vm.load_core_fs();
 
@@ -292,4 +290,3 @@ impl FileAccess for VM {}
 impl HasLoader for VM {}
 impl Output for VM {}
 impl Tools for VM {}
-impl SearchOrder for VM {}

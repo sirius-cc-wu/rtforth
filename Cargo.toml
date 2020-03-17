@@ -42,10 +42,6 @@ criterion = "0.2"
 [profile.release]
 debug = true
 
-[features]
-default = []
-stc = []
-
 [[bench]]
 name = "rf_benchmark"
 harness = false

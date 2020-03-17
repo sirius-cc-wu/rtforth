@@ -778,15 +778,12 @@ pub trait Core: Sized {
 
         self.patch_compilation_semanticses();
 
-        #[cfg(not(feature = "stc"))]
-        {
-            // Multitasker
-            self.add_compile_only("pause", Core::pause);
-            self.add_compile_only("activate", Core::activate);
-            self.add_primitive("me", Core::me);
-            self.add_primitive("suspend", Core::suspend);
-            self.add_primitive("resume", Core::resume);
-        }
+        // Multitasker
+        self.add_compile_only("pause", Core::pause);
+        self.add_compile_only("activate", Core::activate);
+        self.add_primitive("me", Core::me);
+        self.add_primitive("suspend", Core::suspend);
+        self.add_primitive("resume", Core::resume);
         self.set_awake(0, true);
     }
 
@@ -1752,7 +1749,6 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn activate(&mut self) {
         let i = (self.s_stack().pop() - 1) as usize;
         if i < NUM_TASKS {
@@ -3350,57 +3346,6 @@ pub trait Core: Sized {
     primitive! {fn _regs(&mut self) -> &mut [usize; 2] {
         self.regs()
     }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_reset(&mut self, _: usize) {
-        //      ; Make a copy of vm in %esi because %ecx may be destroyed by
-        //      ; subroutine call.
-        //      ; Note that RESET is the first Forth instruction in QUIT.
-        //      ; Also note that %esi is not saved here because QUIT doesn't
-        //      ; return to caller.
-        //      89 ce            mov    %ecx,%esi
-        //      ; 判斷之前是否執行過 set_regs。
-        //      e8 xx xx xx xx  call   _regs()
-        //      8b 10           mov    (%eax),%edx
-        //      85 d2           test   %edx,%edx
-        //      74 04           je     set_regs
-        //      ; 若則執行過，重設 %esp 。
-        //      89 d4           mov    %edx,%esp
-        //      eb 02           jmp    call_reset
-        // set_regs:
-        //     ; 記住 quit 的 %esp 。
-        //      89 20           mov %esp, (%eax)
-        // call_reset:
-        //      89 f1           mov %esi,%ecx
-        //      e8 xx xx xx xx  call reset
-        //      89 f1           mov %esi,%ecx
-        //      e8 xx xx xx xx  call clear_stacks
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xce);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::_regs as usize);
-        self.code_space().compile_u8(0x8b);
-        self.code_space().compile_u8(0x10);
-        self.code_space().compile_u8(0x85);
-        self.code_space().compile_u8(0xd2);
-        self.code_space().compile_u8(0x74);
-        self.code_space().compile_u8(0x04);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xd4);
-        self.code_space().compile_u8(0xeb);
-        self.code_space().compile_u8(0x02);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0x20);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::reset as usize);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space()
-            .compile_relative(Self::clear_stacks as usize);
-    }
 
     /// ABORT the inner loop with an exception`e`, reset VM and clears stacks.
     fn abort_with(&mut self, e: isize) {

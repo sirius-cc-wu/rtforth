@@ -377,15 +377,15 @@ pub trait Memory {
     }
 
     /// First address aligned to 16-byte boundary greater than or equal to `pos`.
-    fn aligned_16bytes(pos: usize) -> usize {
+    fn aligned_16(pos: usize) -> usize {
         let align = 16;
         (pos + align - 1) & align.wrapping_neg()
     }
 
     /// If the space pointer is not aligned to 16-byte boundary, reserve enough space to align it.
-    fn align_16bytes(&mut self) {
+    fn align_16(&mut self) {
         let here = self.here();
-        self.set_here(Self::aligned_16bytes(here));
+        self.set_here(Self::aligned_16(here));
     }
 
     fn allot(&mut self, v: isize) {

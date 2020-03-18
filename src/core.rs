@@ -654,8 +654,13 @@ pub trait Core: Sized {
         self.add_primitive("allot", Core::allot);
         self.add_primitive("aligned", Core::aligned);
         self.add_primitive("align", Core::align);
+        self.add_primitive("align16", Core::align16);
         self.add_primitive("c@", Core::c_fetch);
         self.add_primitive("c!", Core::c_store);
+        self.add_primitive("there", Core::there);
+        self.add_primitive("t-allot", Core::t_allot);
+        self.add_primitive("t-align", Core::t_align);
+        self.add_primitive("t-align16", Core::t_align16);
         self.add_primitive("move", Core::p_move);
         self.add_primitive("base", Core::base);
         self.add_primitive("immediate", Core::immediate);
@@ -3148,6 +3153,45 @@ pub trait Core: Sized {
     /// If the data-space pointer is not aligned, reserve enough space to align it.
     primitive! {fn align(&mut self) {
         self.data_space().align();
+    }}
+
+    /// Run-time: ( -- )
+    ///
+    /// If the data-space pointer is not aligned to 16-byte boundary, reserve enough space to align it.
+    primitive! {fn align16(&mut self) {
+        self.data_space().align_16();
+    }}
+
+    /// Run-time: ( -- addr )
+    ///
+    /// `addr` is the code-space pointer.
+    primitive! {fn there(&mut self) {
+        let here = self.code_space().here() as isize;
+        self.s_stack().push(here);
+    }}
+
+    /// Run-time: ( n -- )
+    ///
+    /// If `n` is greater than zero, reserve n address units of code space. If `n`
+    /// is less than zero, release `|n|` address units of code space. If `n` is
+    /// zero, leave the code-space pointer unchanged.
+    primitive! {fn t_allot(&mut self) {
+        let v = self.s_stack().pop();
+        self.code_space().allot(v);
+    }}
+
+    /// Run-time: ( -- )
+    ///
+    /// If the code-space pointer is not aligned, reserve enough space to align it.
+    primitive! {fn t_align(&mut self) {
+        self.code_space().align();
+    }}
+
+    /// Run-time: ( -- )
+    ///
+    /// If the code-space pointer is not aligned to 16-byte boundary, reserve enough space to align it.
+    primitive! {fn t_align16(&mut self) {
+        self.code_space().align_16();
     }}
 
     /// Run-time: ( x -- )

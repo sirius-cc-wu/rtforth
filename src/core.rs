@@ -657,10 +657,6 @@ pub trait Core: Sized {
         self.add_primitive("align16", Core::align16);
         self.add_primitive("c@", Core::c_fetch);
         self.add_primitive("c!", Core::c_store);
-        self.add_primitive("there", Core::there);
-        self.add_primitive("t-allot", Core::t_allot);
-        self.add_primitive("t-align", Core::t_align);
-        self.add_primitive("t-align16", Core::t_align16);
         self.add_primitive("move", Core::p_move);
         self.add_primitive("base", Core::base);
         self.add_primitive("immediate", Core::immediate);
@@ -764,6 +760,24 @@ pub trait Core: Sized {
         self.add_primitive("set-order", Core::set_order);
         self.add_primitive("wordlist", Core::p_wordlist);
 
+        // Optimizer wordlist
+        self.wordlist_mut().set_current(OPTIMIZER_WORDLIST);
+        self.add_primitive("there", Core::there);
+        self.add_primitive("tallot", Core::tallot);
+        self.add_primitive("talign", Core::talign);
+        self.add_primitive("talign16", Core::talign16);
+        self.wordlist_mut().set_current(FORTH_WORDLIST);
+
+        // Multitasker
+        self.add_primitive("#tasks", Core::num_tasks);
+        self.add_compile_only("pause", Core::pause);
+        self.add_compile_only("activate", Core::activate);
+        self.add_primitive("me", Core::me);
+        self.add_primitive("suspend", Core::suspend);
+        self.add_primitive("resume", Core::resume);
+        self.set_awake(0, true);
+
+        // Forward references
         self.references().idx_lit = self.find("lit").expect("lit undefined");
         self.references().idx_flit = self.find("flit").expect("flit undefined");
         self.references().idx_exit = self.find("exit").expect("exit undefined");
@@ -783,13 +797,6 @@ pub trait Core: Sized {
 
         self.patch_compilation_semanticses();
 
-        // Multitasker
-        self.add_compile_only("pause", Core::pause);
-        self.add_compile_only("activate", Core::activate);
-        self.add_primitive("me", Core::me);
-        self.add_primitive("suspend", Core::suspend);
-        self.add_primitive("resume", Core::resume);
-        self.set_awake(0, true);
     }
 
     /// Add a primitive word to word list.
@@ -3175,7 +3182,7 @@ pub trait Core: Sized {
     /// If `n` is greater than zero, reserve n address units of code space. If `n`
     /// is less than zero, release `|n|` address units of code space. If `n` is
     /// zero, leave the code-space pointer unchanged.
-    primitive! {fn t_allot(&mut self) {
+    primitive! {fn tallot(&mut self) {
         let v = self.s_stack().pop();
         self.code_space().allot(v);
     }}
@@ -3183,14 +3190,14 @@ pub trait Core: Sized {
     /// Run-time: ( -- )
     ///
     /// If the code-space pointer is not aligned, reserve enough space to align it.
-    primitive! {fn t_align(&mut self) {
+    primitive! {fn talign(&mut self) {
         self.code_space().align();
     }}
 
     /// Run-time: ( -- )
     ///
     /// If the code-space pointer is not aligned to 16-byte boundary, reserve enough space to align it.
-    primitive! {fn t_align16(&mut self) {
+    primitive! {fn talign16(&mut self) {
         self.code_space().align_16();
     }}
 
@@ -3478,6 +3485,11 @@ pub trait Core: Sized {
                 None => { /* Do nothing */ }
             }
         }
+    }}
+
+    /// Number of tasks
+    primitive! {fn num_tasks(&mut self) {
+        self.s_stack().push(NUM_TASKS as _);
     }}
 
     /// Pause the current task and resume the next task which is awake.

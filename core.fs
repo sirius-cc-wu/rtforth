@@ -75,9 +75,15 @@ variable >in  0 >in !
 \ Execution time
 : xtime ( xt -- )   utime >r >r r@ execute r> r> (xtime) ;
 
-\ Search-order word set
+\ Search-order word list
 0 constant forth-wordlist
 1 constant optimizer-wordlist
+
+\ Optimizer word list
+forth-wordlist optimizer-wordlist 2 set-order definitions
+: t, ( n -- )   there 1 cells allot ! ;
+: tc, ( char -- )   there 1 chars allot c! ;
+forth-wordlist 1 set-order definitions
 
 \ Multitasker
 0 constant operator

@@ -1,3 +1,6 @@
 [target.i686-unknown-linux-gnu]
-linker = "i686-linux-gnu-gcc"
 ar = "i686-linux-gnu-ar"
+linker = "i686-linux-gnu-gcc"
+[target.armv7-unknown-linux-gnueabihf]
+ar = "arm-linux-gnueabihf-ar"
+linker = "arm-linux-gnueabihf-gcc"

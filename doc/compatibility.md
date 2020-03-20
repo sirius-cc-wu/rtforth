@@ -87,7 +87,7 @@ Section number | Definition name | Compatibility
 6.1.1370 | EXECUTE | Y
 6.1.1380 | EXIT | Y
 6.1.1540 | FILL | Y
-6.1.1550 | FIND |
+6.1.1550 | FIND | TODO
 6.1.1561 | FM/MOD | N, do not support mixed-precision
 6.1.1650 | HERE | Y
 6.1.1670 | HOLD |
@@ -113,7 +113,7 @@ Section number | Definition name | Compatibility
 6.1.2050 | QUIT |
 6.1.2060 | R> | Y
 6.1.2070 | R@ | Y
-6.1.2120 | RECURSE |
+6.1.2120 | RECURSE | Y
 6.1.2140 | REPEAT | Y
 6.1.2160 | ROT | Y
 6.1.2162 | RSHIFT | Y
@@ -330,8 +330,35 @@ Section number | Definition name | Compatibility
 15.6.1.0220 | .S | Y
 15.6.1.0600 | ? | Y
 15.6.1.1280 | DUMP | Y
-15.6.1.2194 | SEE |
+15.6.1.2194 | SEE | TODO
 15.6.1.2465 | WORDS | Y
+
+## 15.6.2 Programming-Tools extension words
+
+Section number | Definition name | Compatibility
+---------------|-----------------|--------------
+15.6.2.0470 | ;CODE | X86
+15.6.2.0702 | AHEAD |
+15.6.2.0740 | ASSEMBLER |
+15.6.2.0830 | BYE |
+15.6.2.0930 | CODE | X86
+15.6.2.1015 | CS-PICK
+15.6.2.1020 | CS-ROLL
+15.6.2.1300 | EDITOR
+15.6.2.1580 | FORGET | N
+15.6.2.1908 | N>R |
+15.6.2.1909.10 | NAME>COMPILE |
+15.6.2.1909.20 | NAME>INTERPRET |
+15.6.2.1909.40 | NAME>STRING |
+15.6.2.1940 | NR> |
+15.6.2.2250 | STATE |
+15.6.2.2264 | SYNONYM |
+15.6.2.2297 | TRAVERSE-WORDLIST |
+15.6.2.2530.30 | [DEFINED] | TODO
+15.6.2.2531 | [ELSE] | TODO
+15.6.2.2532 | [IF] | TODO
+15.6.2.2533 | [THEN] | TODO
+15.6.2.2534 | [UNDEFINED] | TODO
 
 ## 16.6.1 Search-Order words
 

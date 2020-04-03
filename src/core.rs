@@ -796,7 +796,6 @@ pub trait Core: Sized {
         self.references().idx__does = self.find("_does").expect("_does");
 
         self.patch_compilation_semanticses();
-
     }
 
     /// Add a primitive word to word list.
@@ -2965,6 +2964,10 @@ pub trait Core: Sized {
             t + mem::size_of::<isize>() <= self.data_space().limit()
         {
             unsafe{ self.data_space().put_isize(n as isize, t as usize) };
+        } else if self.code_space().start() < t &&
+                t + mem::size_of::<isize>() <= self.code_space().limit()
+        {
+            unsafe{ self.code_space().put_isize(n as isize, t as usize) };
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
         }
@@ -3001,6 +3004,8 @@ pub trait Core: Sized {
         let t = t as usize;
         if self.data_space().start() < t && t  < self.data_space().limit() {
             unsafe{ self.data_space().put_u8(n as u8, t as usize) };
+        } if self.code_space().start() < t && t  < self.code_space().limit() {
+            unsafe{ self.code_space().put_u8(n as u8, t as usize) };
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
         }

@@ -13,3 +13,12 @@ test-x86:
 
 bench-x86:
 	cargo bench --target=i686-unknown-linux-gnu
+
+x86-64:
+	cargo build --example rf --release --target=x86_64-unknown-linux-gnu
+
+test-x86-64:
+	cargo test --target=x86_64-unknown-linux-gnu
+
+bench-x86-64:
+	cargo bench --target=x86_64-unknown-linux-gnu

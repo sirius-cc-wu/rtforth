@@ -556,7 +556,6 @@ pub trait Core: Sized {
     fn lines_mut(&mut self) -> &mut Vec<Option<String>>;
     fn last_token(&mut self) -> &mut Option<String>;
     fn set_last_token(&mut self, buffer: String);
-    fn regs(&mut self) -> &mut [usize; 2];
     fn s_stack(&mut self) -> &mut Stack<isize>;
     fn r_stack(&mut self) -> &mut Stack<isize>;
     fn c_stack(&mut self) -> &mut Stack<Control>;
@@ -3397,10 +3396,6 @@ pub trait Core: Sized {
         self.state().source_index = 0;
         self.left_bracket();
         self.set_error(None);
-    }}
-
-    primitive! {fn _regs(&mut self) -> &mut [usize; 2] {
-        self.regs()
     }}
 
     /// ABORT the inner loop with an exception`e`, reset VM and clears stacks.

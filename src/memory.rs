@@ -10,38 +10,56 @@ use std::slice;
 #[allow(dead_code)]
 pub struct CodeSpace {
     pub(crate) inner: *mut u8,
+    layout: Layout,
     cap: usize,
     len: usize,
 }
 
 impl CodeSpace {
-    /// Allocate memory.
-    pub fn new(num_pages: usize) -> CodeSpace {
+    #[deprecated(
+        since = "0.8.0",
+        note = "Please use the with_capacity function instead"
+    )]
+    /// Allocate memory with `num_pages` pages.
+    pub fn new(num_pages: usize) -> Self {
+        let page_size = region::page::size();
+        let cap = num_pages * page_size;
+        Self::with_capacity(cap)
+    }
+
+    /// Allocate memory with `cap` bytes.
+    pub fn with_capacity(cap: usize) -> CodeSpace {
         let ptr: *mut u8;
         let page_size = region::page::size();
-        let size = num_pages * page_size;
+        let layout = Layout::from_size_align(cap, page_size).unwrap();
         unsafe {
-            let layout = Layout::from_size_align_unchecked(size, page_size);
             ptr = System.alloc(layout);
             if ptr.is_null() {
                 panic!("Cannot allocate code space");
             };
-            match region::protect(ptr, size, region::Protection::ReadWriteExecute) {
+            match region::protect(ptr, cap, region::Protection::ReadWriteExecute) {
                 Ok(_) => {
                     // Do nothing.
                 }
                 Err(e) => panic!("Cannot allocate code space: {}", e),
             }
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            libc::memset(ptr as *mut libc::c_void, 0xc3, size); // prepopulate with 'RET'
+            libc::memset(ptr as *mut libc::c_void, 0xc3, cap); // prepopulate with 'RET'
             #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
             libc::memset(ptr as *mut libc::c_void, 0x00, size);
         }
         CodeSpace {
             inner: ptr,
-            cap: size,
+            layout,
+            cap,
             len: 0,
         }
+    }
+}
+
+impl Drop for CodeSpace {
+    fn drop(&mut self) {
+        unsafe {System.dealloc(self.inner, self.layout);}
     }
 }
 
@@ -114,33 +132,44 @@ impl SystemVariables {
 #[allow(dead_code)]
 pub struct DataSpace {
     pub inner: *mut u8,
+    layout: Layout,
     cap: usize,
     len: usize,
     marker: marker::PhantomData<SystemVariables>,
 }
 
 impl DataSpace {
-    pub fn new(num_pages: usize) -> DataSpace {
+    #[deprecated(
+        since = "0.8.0",
+        note = "Please use the with_capacity function instead"
+    )]
+    pub fn new(num_pages: usize) -> Self {
+        let page_size = region::page::size();
+        let cap = num_pages * page_size;
+        Self::with_capacity(cap)
+    }
+
+    pub fn with_capacity(cap: usize) -> Self {
         let ptr: *mut u8;
         let page_size = region::page::size();
-        let size = num_pages * page_size;
+        let layout = Layout::from_size_align(cap, page_size).unwrap();
         unsafe {
-            let layout = Layout::from_size_align_unchecked(size, page_size);
             ptr = System.alloc(layout);
             if ptr.is_null() {
                 panic!("Cannot allocate data space");
             }
-            match region::protect(ptr, size, region::Protection::ReadWrite) {
+            match region::protect(ptr, cap, region::Protection::ReadWrite) {
                 Ok(_) => {
                     // Do nothing.
                 }
                 Err(e) => panic!("Cannot allocate data space: {}", e),
             }
-            libc::memset(ptr as *mut libc::c_void, 0x00, size);
+            libc::memset(ptr as *mut libc::c_void, 0x00, cap);
         }
         let mut result = DataSpace {
             inner: ptr,
-            cap: size,
+            layout,
+            cap,
             len: mem::size_of::<SystemVariables>(),
             marker: marker::PhantomData,
         };
@@ -157,6 +186,12 @@ impl DataSpace {
 
     pub fn system_variables_mut(&mut self) -> &mut SystemVariables {
         unsafe { &mut *(self.inner.offset(0) as *mut SystemVariables) }
+    }
+}
+
+impl Drop for DataSpace {
+    fn drop(&mut self) {
+        unsafe {System.dealloc(self.inner, self.layout);}
     }
 }
 
@@ -395,5 +430,50 @@ pub trait Memory {
 
     fn truncate(&mut self, pos: usize) {
         self.set_here(pos);
+    }
+}
+
+#[allow(dead_code)]
+pub struct StackSpace {
+    pub inner: *mut u8,
+    layout: Layout,
+    cap: usize,
+    len: usize,
+}
+
+impl StackSpace {
+    pub fn with_capacity(cap: usize) -> Self {
+        let ptr: *mut u8;
+        let page_size = region::page::size();
+        let layout = Layout::from_size_align(cap, page_size).unwrap();
+        unsafe {
+            ptr = System.alloc(layout);
+            if ptr.is_null() {
+                panic!("Cannot allocate stack space");
+            }
+            match region::protect(ptr, cap, region::Protection::ReadWrite) {
+                Ok(_) => {
+                    // Do nothing.
+                }
+                Err(e) => { panic!("Cannot allocate stack space: {}", e) }
+            }
+            libc::memset(ptr as *mut libc::c_void, 0x00, cap);
+        }
+        StackSpace {
+            inner: ptr,
+            layout,
+            cap,
+            len: 0,
+        }
+    }
+
+    pub fn last(&self) -> *const u8 {
+        unsafe{ self.inner.offset(self.cap as isize) }
+    }
+}
+
+impl Drop for StackSpace {
+    fn drop(&mut self) {
+        unsafe {System.dealloc(self.inner, self.layout);}
     }
 }

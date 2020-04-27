@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_s_quote_and_type() {
-        let vm = &mut VM::new(16, 16);
+        let vm = &mut VM::new();
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
         vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_emit() {
-        let vm = &mut VM::new(16, 16);
+        let vm = &mut VM::new();
         vm.set_source("42 emit 43 emit");
         vm.evaluate_input();
         assert_eq!(vm.last_error(), None);

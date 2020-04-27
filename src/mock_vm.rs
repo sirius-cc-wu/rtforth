@@ -80,9 +80,10 @@ pub struct VM {
 }
 
 impl VM {
-    /// Create a VM with data and code space size specified
-    /// by `data_pages` and `code_pages`.
-    pub fn new(data_pages: usize, code_pages: usize) -> VM {
+    /// Create VM.
+    pub fn new() -> VM {
+        let data_capacity = 64*1024;
+        let code_capacity = 64*1024;
         let mut labels = Vec::with_capacity(LABEL_COUNT as _);
         labels.resize(LABEL_COUNT as _, 0);
         let mut vm = VM {
@@ -101,8 +102,8 @@ impl VM {
             last_error: None,
             handler: 0,
             wordlist: Wordlist::with_capacity(1000),
-            data_space: DataSpace::new(data_pages),
-            code_space: CodeSpace::new(code_pages),
+            data_space: DataSpace::with_capacity(data_capacity),
+            code_space: CodeSpace::with_capacity(code_capacity),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),

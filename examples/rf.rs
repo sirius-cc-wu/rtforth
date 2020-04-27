@@ -92,8 +92,8 @@ pub struct VM {
 
 impl VM {
     /// Create a VM with data and code space size specified
-    /// by `data_pages` and `code_pages`.
-    pub fn new(data_pages: usize, code_pages: usize) -> VM {
+    /// by `data_capacity` and `code_capacity` bytes.
+    pub fn new(data_capacity: usize, code_capacity: usize) -> VM {
         let mut labels = Vec::with_capacity(LABEL_COUNT as _);
         labels.resize(LABEL_COUNT as _, 0);
         let mut vm = VM {
@@ -114,8 +114,8 @@ impl VM {
             last_error: None,
             handler: 0,
             wordlist: Wordlist::with_capacity(1000),
-            data_space: DataSpace::new(data_pages),
-            code_space: CodeSpace::new(code_pages),
+            data_space: DataSpace::with_capacity(data_capacity),
+            code_space: CodeSpace::with_capacity(code_capacity),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
@@ -313,7 +313,7 @@ impl Tools for VM {}
 impl FileAccess for VM {}
 
 fn main() {
-    let vm = &mut VM::new(1024, 1024);
+    let vm = &mut VM::new(1024*1024, 1024*1024);
 
     let args: Vec<_> = env::args().collect();
     let program = args[0].clone();
@@ -374,7 +374,7 @@ primitive! {fn receive(vm: &mut VM) {
     }
 }}
 
-/// Terminate process.
+// Terminate process.
 primitive! {fn bye(vm: &mut VM) {
     vm.flush_output();
     process::exit(0);

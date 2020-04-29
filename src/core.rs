@@ -76,11 +76,11 @@ impl<Target> Word<Target> {
             hidden: false,
             link: 0,
             hash: 0,
-            nfa: nfa,
-            dfa: dfa,
-            cfa: cfa,
-            action: action,
-            compilation_semantics: compilation_semantics,
+            nfa,
+            dfa,
+            cfa,
+            action,
+            compilation_semantics,
             min_execution_time: 0,
             max_execution_time: 0,
         }
@@ -187,7 +187,6 @@ impl<Target> Wordlist<Target> {
     }
 
     /// Set compilation wordlist
-    #[pre(wid <= self.last_wordlist)]
     pub fn set_current(&mut self, wid: usize) {
         self.current = wid
     }
@@ -249,7 +248,7 @@ impl<T: Default + Copy + PartialEq + Display> Stack<T> {
         let mut result = Stack {
             inner: [T::default(); 256],
             len: 0,
-            canary: canary,
+            canary,
         };
         result.reset();
         result
@@ -1201,7 +1200,7 @@ pub trait Core: Sized {
 
     primitive! {fn compile_leave(&mut self) {
         match self.leave_part() {
-            Some(leave_part) => {
+            Some(_leave_part) => {
                 self.compile_comma();
             }
             _ => {
@@ -1902,7 +1901,7 @@ pub trait Core: Sized {
             let mut char_indices = source.char_indices();
             loop {
                 match char_indices.next() {
-                    Some((idx, ch)) => {
+                    Some((_idx, ch)) => {
                         if ch as isize == v {
                             match char_indices.next() {
                                 Some((idx, _)) => {
@@ -1938,7 +1937,7 @@ pub trait Core: Sized {
             let mut char_indices = source.char_indices();
             loop {
                 match char_indices.next() {
-                    Some((idx, ch)) => {
+                    Some((_idx, ch)) => {
                         if ch as isize == v {
                             cnt += 1;
                         } else {
@@ -2221,13 +2220,13 @@ pub trait Core: Sized {
                             }
                         }
                     }
-                    parser::IResult::Err(e) => self.set_error(Some(INTEGER_UNIDENTIFIED_FAULT)),
+                    parser::IResult::Err(_e) => self.set_error(Some(INTEGER_UNIDENTIFIED_FAULT)),
                 },
-                parser::IResult::Err(e) => {
+                parser::IResult::Err(_e) => {
                     self.set_error(Some(INTEGER_UNIDENTIFIED_FAULT));
                 }
             },
-            parser::IResult::Err(e) => {
+            parser::IResult::Err(_e) => {
                 self.set_error(Some(INTEGER_UNIDENTIFIED_FAULT));
             }
         }
@@ -2248,7 +2247,7 @@ pub trait Core: Sized {
                 significand_sign = value;
                 bytes = input;
             }
-            parser::IResult::Err(e) => {
+            parser::IResult::Err(_e) => {
                 self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                 return;
             }
@@ -2260,7 +2259,7 @@ pub trait Core: Sized {
                 integer_part = value;
                 bytes = input;
             }
-            parser::IResult::Err(e) => {
+            parser::IResult::Err(_e) => {
                 self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                 return;
             }
@@ -2271,7 +2270,7 @@ pub trait Core: Sized {
                     fraction_part = value;
                     bytes = input;
                 }
-                parser::IResult::Err(e) => {
+                parser::IResult::Err(_e) => {
                     self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                     return;
                 }
@@ -2286,7 +2285,7 @@ pub trait Core: Sized {
                                 exponent_sign = value;
                                 bytes = input;
                             }
-                            parser::IResult::Err(e) => {
+                            parser::IResult::Err(_e) => {
                                 self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                                 return;
                             }
@@ -2296,7 +2295,7 @@ pub trait Core: Sized {
                                 exponent_part = value;
                                 bytes = input;
                             }
-                            parser::IResult::Err(e) => {
+                            parser::IResult::Err(_e) => {
                                 self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                                 return;
                             }
@@ -2310,7 +2309,7 @@ pub trait Core: Sized {
                                             exponent_sign = value;
                                             bytes = input;
                                         }
-                                        parser::IResult::Err(e) => {
+                                        parser::IResult::Err(_e) => {
                                             self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                                             return;
                                         }
@@ -2320,21 +2319,21 @@ pub trait Core: Sized {
                                             exponent_part = value;
                                             bytes = input;
                                         }
-                                        parser::IResult::Err(e) => {
+                                        parser::IResult::Err(_e) => {
                                             self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                                             return;
                                         }
                                     }
                                 }
                             }
-                            parser::IResult::Err(e) => {
+                            parser::IResult::Err(_e) => {
                                 self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                                 return;
                             }
                         }
                     }
                 }
-                parser::IResult::Err(e) => {
+                parser::IResult::Err(_e) => {
                     self.set_error(Some(FLOATING_POINT_UNIDENTIFIED_FAULT));
                     return;
                 }
@@ -3478,7 +3477,7 @@ pub trait Core: Sized {
                     let nfa = self.wordlist()[xt].nfa();
                     {
                         let name = unsafe{ self.data_space().get_str(nfa) };
-                        write!(buf, "{}", name);
+                        write!(buf, "{}", name).unwrap();
                     }
                     self.set_output_buffer(buf);
                 },
@@ -3620,7 +3619,7 @@ mod tests {
     use exception::{
         ABORT, CONTROL_STRUCTURE_MISMATCH, INTERPRETING_A_COMPILE_ONLY_WORD,
         INVALID_EXECUTION_TOKEN, INVALID_MEMORY_ADDRESS, RESULT_OUT_OF_RANGE,
-        RETURN_STACK_UNDERFLOW, SEARCH_ORDER_OVERFLOW, STACK_UNDERFLOW, UNDEFINED_WORD,
+        RETURN_STACK_UNDERFLOW, STACK_UNDERFLOW, UNDEFINED_WORD,
         UNEXPECTED_END_OF_FILE,
     };
     use mock_vm::VM;

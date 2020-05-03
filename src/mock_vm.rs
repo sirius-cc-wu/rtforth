@@ -80,8 +80,8 @@ pub struct VM {
 impl VM {
     /// Create VM.
     pub fn new() -> VM {
-        let data_capacity = 64*1024;
-        let code_capacity = 64*1024;
+        let data_capacity = 64 * 1024;
+        let code_capacity = 64 * 1024;
         let mut labels = Vec::with_capacity(LABEL_COUNT as _);
         labels.resize(LABEL_COUNT as _, 0);
         let mut vm = VM {

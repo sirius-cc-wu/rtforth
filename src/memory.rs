@@ -58,7 +58,9 @@ impl CodeSpace {
 
 impl Drop for CodeSpace {
     fn drop(&mut self) {
-        unsafe {System.dealloc(self.inner, self.layout);}
+        unsafe {
+            System.dealloc(self.inner, self.layout);
+        }
     }
 }
 
@@ -187,7 +189,9 @@ impl DataSpace {
 
 impl Drop for DataSpace {
     fn drop(&mut self) {
-        unsafe {System.dealloc(self.inner, self.layout);}
+        unsafe {
+            System.dealloc(self.inner, self.layout);
+        }
     }
 }
 
@@ -448,7 +452,7 @@ impl StackSpace {
                 Ok(_) => {
                     // Do nothing.
                 }
-                Err(e) => { panic!("Cannot allocate stack space: {}", e) }
+                Err(e) => panic!("Cannot allocate stack space: {}", e),
             }
             libc::memset(ptr as *mut libc::c_void, 0x00, cap);
         }
@@ -461,12 +465,14 @@ impl StackSpace {
     }
 
     pub fn last(&self) -> *const u8 {
-        unsafe{ self.inner.offset(self.cap as isize) }
+        unsafe { self.inner.offset(self.cap as isize) }
     }
 }
 
 impl Drop for StackSpace {
     fn drop(&mut self) {
-        unsafe {System.dealloc(self.inner, self.layout);}
+        unsafe {
+            System.dealloc(self.inner, self.layout);
+        }
     }
 }

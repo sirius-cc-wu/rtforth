@@ -803,10 +803,12 @@ pub trait Core: Sized {
             self.abort_with(STACK_UNDERFLOW);
             return None;
         }
-        unsafe{
-            Some(&self.data_space().str_from_raw_parts(
-                addr as usize, len as usize
-            ))
+        unsafe {
+            Some(
+                &self
+                    .data_space()
+                    .str_from_raw_parts(addr as usize, len as usize),
+            )
         }
     }
 
@@ -3633,8 +3635,7 @@ mod tests {
     use exception::{
         ABORT, CONTROL_STRUCTURE_MISMATCH, INTERPRETING_A_COMPILE_ONLY_WORD,
         INVALID_EXECUTION_TOKEN, INVALID_MEMORY_ADDRESS, RESULT_OUT_OF_RANGE,
-        RETURN_STACK_UNDERFLOW, STACK_UNDERFLOW, UNDEFINED_WORD,
-        UNEXPECTED_END_OF_FILE,
+        RETURN_STACK_UNDERFLOW, STACK_UNDERFLOW, UNDEFINED_WORD, UNEXPECTED_END_OF_FILE,
     };
     use mock_vm::VM;
     use std::mem;

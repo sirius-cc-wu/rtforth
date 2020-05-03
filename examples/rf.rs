@@ -308,7 +308,7 @@ impl Tools for VM {}
 impl FileAccess for VM {}
 
 fn main() {
-    let vm = &mut VM::new(1024*1024, 1024*1024);
+    let vm = &mut VM::new(1024 * 1024, 1024 * 1024);
 
     let args: Vec<_> = env::args().collect();
     let program = args[0].clone();

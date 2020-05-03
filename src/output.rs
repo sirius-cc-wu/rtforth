@@ -47,20 +47,13 @@ pub trait Output: Core {
     ///
     /// Put the character string specified by c-addr and u into output buffer.
     primitive! {fn p_type(&mut self) {
-        let (addr, len) = self.s_stack().pop2();
-        if self.s_stack().underflow() {
-            self.abort_with(STACK_UNDERFLOW);
-            return;
-        }
         match self.output_buffer().take() {
             Some(mut buffer) => {
                 {
-                    let s = unsafe{
-                        &self.data_space().str_from_raw_parts(
-                            addr as usize, len as usize
-                        )
-                    };
-                    buffer.push_str(s);
+                    match self.pop_str() {
+                        Some(s) => buffer.push_str(s),
+                        None => {}
+                    }
                 }
                 self.set_output_buffer(buffer);
             }

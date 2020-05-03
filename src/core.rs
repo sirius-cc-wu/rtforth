@@ -798,6 +798,20 @@ pub trait Core: Sized {
         self.patch_compilation_semanticses();
     }
 
+    /// Pop str from stack.
+    fn pop_str(&mut self) -> Option<&str> {
+        let (addr, len) = self.s_stack().pop2();
+        if self.s_stack().underflow() {
+            self.abort_with(STACK_UNDERFLOW);
+            return None;
+        }
+        unsafe{
+            Some(&self.data_space().str_from_raw_parts(
+                addr as usize, len as usize
+            ))
+        }
+    }
+
     /// Add a primitive word to word list.
     fn add_primitive(&mut self, name: &str, action: primitive! {fn(&mut Self)}) {
         let nfa = self.data_space().compile_str(name);

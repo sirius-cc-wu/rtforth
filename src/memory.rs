@@ -1,7 +1,6 @@
 extern crate libc;
 extern crate region;
 
-use exception::INVALID_MEMORY_ADDRESS;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::marker;
 use std::mem;
@@ -76,14 +75,11 @@ impl Memory for CodeSpace {
         unsafe { self.inner.offset(self.len as isize) as usize }
     }
 
-    fn set_here(&mut self, pos: usize) -> Result<(), isize> {
+    fn set_here(&mut self, pos: usize) {
         // here is allowed to be 1 place after the last memory address.
         if self.start() <= pos && pos <= self.limit() {
             let len = pos as isize - self.start() as isize;
             self.len = len as usize;
-            Ok(())
-        } else {
-            Err(INVALID_MEMORY_ADDRESS)
         }
     }
 }
@@ -208,14 +204,11 @@ impl Memory for DataSpace {
         unsafe { self.inner.offset(self.len as isize) as usize }
     }
 
-    fn set_here(&mut self, pos: usize) -> Result<(), isize> {
+    fn set_here(&mut self, pos: usize) {
         // here is allowed to be 1 place after the last memory address.
         if self.start() <= pos && pos <= self.limit() {
             let len = pos as isize - self.start() as isize;
             self.len = len as usize;
-            Ok(())
-        } else {
-            Err(INVALID_MEMORY_ADDRESS)
         }
     }
 }
@@ -238,7 +231,7 @@ pub trait Memory {
     fn here(&mut self) -> usize;
 
     /// Set next free space.
-    fn set_here(&mut self, pos: usize) -> Result<(), isize>;
+    fn set_here(&mut self, pos: usize);
 
     unsafe fn get_u8(&self, addr: usize) -> u8 {
         *(addr as *mut u8)

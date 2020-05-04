@@ -464,8 +464,12 @@ impl StackSpace {
         }
     }
 
-    pub fn last(&self) -> *const u8 {
-        unsafe { self.inner.offset(self.cap as isize) }
+    pub fn start(&self) -> usize {
+        unsafe { self.inner.offset(0) as usize }
+    }
+
+    pub fn limit(&self) -> usize {
+        unsafe { self.inner.offset(self.cap as isize) as usize }
     }
 }
 

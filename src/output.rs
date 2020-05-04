@@ -1,5 +1,5 @@
 use core::Core;
-use exception::{STACK_UNDERFLOW, UNSUPPORTED_BASE_FOR_INTEGER_CONVERSION};
+use exception::UNSUPPORTED_BASE_FOR_INTEGER_CONVERSION;
 use memory::Memory;
 use std::fmt::Write;
 

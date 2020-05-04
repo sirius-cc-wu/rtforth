@@ -3326,16 +3326,12 @@ pub trait Core: Sized {
         self.set_error(None);
     }}
 
-    /// Print error description. `.error ( -- )`
+    /// Print error description. `.error ( n -- )`
     primitive! {fn dot_error(&mut self) {
-        match self.last_error() {
-            Some(e) => {
-                match self.output_buffer().as_mut() {
-                    Some(buf) => {
-                        write!(buf, "{}", exception::description(e)).expect("write");
-                    }
-                    None => {}
-                }
+        let e = self.s_stack().pop();
+        match self.output_buffer().as_mut() {
+            Some(buf) => {
+                write!(buf, "{}", exception::description(e)).expect("write");
             }
             None => {}
         }

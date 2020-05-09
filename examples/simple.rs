@@ -6,7 +6,7 @@ use vm::VM;
 
 // Evaluate "1 ."
 fn main() {
-    let vm = &mut VM::new(400 * 1024, 400 * 1024);
+    let vm = &mut VM::new(400 * 1024);
     vm.set_source("1 . flush-output");
     vm.evaluate_input();
     match vm.last_error() {

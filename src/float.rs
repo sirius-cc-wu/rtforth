@@ -12,7 +12,6 @@ pub trait Float: Core {
         self.add_primitive("floats", Float::floats);
         self.add_primitive("faligned", Float::faligned);
         self.add_primitive("falign", Float::falign);
-        self.add_primitive("t-falign", Float::t_falign);
         self.add_primitive("pi", Float::pi);
         self.add_primitive("f!", Float::fstore);
         self.add_primitive("f@", Float::ffetch);
@@ -98,13 +97,6 @@ pub trait Float: Core {
     /// If the data-space pointer is not float-aligned, reserve enough space to align it.
     primitive! {fn falign(&mut self) {
         self.data_space().align_f64();
-    }}
-
-    /// Run-time: ( -- )
-    ///
-    /// If the code-space pointer is not float-aligned, reserve enough space to align it.
-    primitive! {fn t_falign(&mut self) {
-        self.code_space().align_f64();
     }}
 
     primitive! {fn pi(&mut self) {

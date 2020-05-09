@@ -6,86 +6,6 @@ use std::marker;
 use std::mem;
 use std::slice;
 
-#[allow(dead_code)]
-pub struct CodeSpace {
-    pub(crate) inner: *mut u8,
-    layout: Layout,
-    cap: usize,
-    len: usize,
-}
-
-impl CodeSpace {
-    #[deprecated(
-        since = "0.8.0",
-        note = "Please use the with_capacity function instead"
-    )]
-    /// Allocate memory with `num_pages` pages.
-    pub fn new(num_pages: usize) -> Self {
-        let page_size = region::page::size();
-        let cap = num_pages * page_size;
-        Self::with_capacity(cap)
-    }
-
-    /// Allocate memory with `cap` bytes.
-    pub fn with_capacity(cap: usize) -> CodeSpace {
-        let ptr: *mut u8;
-        let page_size = region::page::size();
-        let layout = Layout::from_size_align(cap, page_size).unwrap();
-        unsafe {
-            ptr = System.alloc(layout);
-            if ptr.is_null() {
-                panic!("Cannot allocate code space");
-            };
-            match region::protect(ptr, cap, region::Protection::ReadWriteExecute) {
-                Ok(_) => {
-                    // Do nothing.
-                }
-                Err(e) => panic!("Cannot allocate code space: {}", e),
-            }
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            libc::memset(ptr as *mut libc::c_void, 0xc3, cap); // prepopulate with 'RET'
-            #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-            libc::memset(ptr as *mut libc::c_void, 0x00, size);
-        }
-        CodeSpace {
-            inner: ptr,
-            layout,
-            cap,
-            len: 0,
-        }
-    }
-}
-
-impl Drop for CodeSpace {
-    fn drop(&mut self) {
-        unsafe {
-            System.dealloc(self.inner, self.layout);
-        }
-    }
-}
-
-impl Memory for CodeSpace {
-    fn start(&self) -> usize {
-        unsafe { self.inner.offset(0) as usize }
-    }
-
-    fn limit(&self) -> usize {
-        unsafe { self.inner.offset(self.cap as isize) as usize }
-    }
-
-    fn here(&mut self) -> usize {
-        unsafe { self.inner.offset(self.len as isize) as usize }
-    }
-
-    fn set_here(&mut self, pos: usize) {
-        // here is allowed to be 1 place after the last memory address.
-        if self.start() <= pos && pos <= self.limit() {
-            let len = pos as isize - self.start() as isize;
-            self.len = len as usize;
-        }
-    }
-}
-
 pub struct SystemVariables {
     null: isize,
     base: isize,
@@ -429,4 +349,3 @@ pub trait Memory {
         self.set_here(pos);
     }
 }
-

@@ -8,7 +8,7 @@ use exception::{
 };
 use hibitset::{BitSet, BitSetLike};
 use loader::Source;
-use memory::{CodeSpace, DataSpace, Memory};
+use memory::{DataSpace, Memory};
 use parser;
 use std::fmt::Write;
 use std::fmt::{self, Display};
@@ -49,7 +49,7 @@ pub struct Word<Target> {
     hash: u32,
     nfa: usize,
     dfa: usize,
-    cfa: usize,
+    doer: usize,
     pub action: primitive! { fn (&mut Target) },
     pub compilation_semantics: primitive! { fn(&mut Target) },
     // Minimum execution time in [ns]
@@ -66,7 +66,6 @@ impl<Target> Word<Target> {
         compilation_semantics: primitive! { fn(&mut Target) },
         nfa: usize,
         dfa: usize,
-        cfa: usize,
     ) -> Word<Target> {
         Word {
             word_type,
@@ -78,7 +77,7 @@ impl<Target> Word<Target> {
             hash: 0,
             nfa,
             dfa,
-            cfa,
+            doer: 0,
             action,
             compilation_semantics,
             min_execution_time: 0,
@@ -124,10 +123,6 @@ impl<Target> Word<Target> {
 
     pub fn dfa(&self) -> usize {
         self.dfa
-    }
-
-    pub fn cfa(&self) -> usize {
-        self.cfa
     }
 
     pub fn action(&self) -> primitive! {fn(&mut Target)} {
@@ -529,8 +524,6 @@ pub trait Core: Sized {
     fn set_handler(&mut self, h: usize);
     fn data_space(&mut self) -> &mut DataSpace;
     fn data_space_const(&self) -> &DataSpace;
-    fn code_space(&mut self) -> &mut CodeSpace;
-    fn code_space_const(&self) -> &CodeSpace;
     /// Numeric output buffer
     fn hold_buffer(&mut self) -> &mut String;
     /// Get `output_buffer`.
@@ -651,6 +644,7 @@ pub trait Core: Sized {
         self.add_primitive("here", Core::here);
         self.add_primitive("allot", Core::allot);
         self.add_primitive("aligned", Core::aligned);
+        self.add_primitive("aligned16", Core::aligned16);
         self.add_primitive("align", Core::align);
         self.add_primitive("align16", Core::align16);
         self.add_primitive("c@", Core::c_fetch);
@@ -735,7 +729,6 @@ pub trait Core: Sized {
         self.add_primitive(">action", Core::to_action);
         self.add_primitive("action>", Core::from_action);
         self.add_primitive(">nfa", Core::to_nfa);
-        self.add_primitive(">cfa", Core::to_cfa);
         self.add_primitive(">dfa", Core::to_dfa);
         self.add_primitive("dfa>", Core::from_dfa);
         self.add_primitive(".name", Core::dot_name);
@@ -760,10 +753,6 @@ pub trait Core: Sized {
 
         // Optimizer wordlist
         self.wordlist_mut().set_current(OPTIMIZER_WORDLIST);
-        self.add_primitive("there", Core::there);
-        self.add_primitive("tallot", Core::tallot);
-        self.add_primitive("talign", Core::talign);
-        self.add_primitive("talign16", Core::talign16);
         self.wordlist_mut().set_current(FORTH_WORDLIST);
 
         // Multitasker
@@ -816,7 +805,6 @@ pub trait Core: Sized {
     fn add_primitive(&mut self, name: &str, action: primitive! {fn(&mut Self)}) {
         let nfa = self.data_space().compile_str(name);
         self.data_space().align();
-        self.code_space().align();
         let word = Word::new(
             WordType::Native,
             self.wordlist().current,
@@ -824,7 +812,6 @@ pub trait Core: Sized {
             Core::compile_comma,
             nfa,
             self.data_space().here(),
-            self.code_space().here(),
         );
         self.wordlist_mut().push(name, word);
     }
@@ -2433,7 +2420,6 @@ pub trait Core: Sized {
         } else {
             let nfa = self.data_space().compile_str(&last_token);
             self.data_space().align();
-            self.code_space().align();
             let word = Word::new(
                 word_type,
                 self.wordlist().current,
@@ -2441,7 +2427,6 @@ pub trait Core: Sized {
                 compilation_semantics,
                 nfa,
                 self.data_space().here(),
-                self.code_space().here(),
             );
             self.wordlist_mut().push(&last_token, word);
             self.set_last_token(last_token);
@@ -2487,9 +2472,9 @@ pub trait Core: Sized {
 
     primitive! {fn unmark(&mut self) {
         let wp = self.state().word_pointer;
-        let (nfa, cfa, mut dfa) = {
+        let (nfa, mut dfa) = {
             let w = &self.wordlist()[wp];
-            (w.nfa(), w.cfa(), w.dfa())
+            (w.nfa(), w.dfa())
         };
         let x = unsafe{ self.data_space().get_usize(dfa) };
         self.wordlist_mut().last = x;
@@ -2513,7 +2498,6 @@ pub trait Core: Sized {
         let x = unsafe{ self.data_space().get_usize(dfa) };
         self.wordlist_mut().current =  x;
         self.data_space().truncate(nfa);
-        self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
     }}
 
@@ -2569,10 +2553,10 @@ pub trait Core: Sized {
     ///   | xdoes |                       |
     ///   +-------+                       |
     ///                                   |
-    ///   cfa                             |
-    ///   +------+                        |
-    ///   | x    |------------------------+
-    ///   +------+
+    ///   doer                            |
+    ///   +---+                           |
+    ///   | x |---------------------------+
+    ///   +---+
     ///
     ///   dfa
     ///   +---+----+
@@ -2591,11 +2575,11 @@ pub trait Core: Sized {
     primitive! {fn xdoes(&mut self) {
         // Push DFA.
         let wp = self.state().word_pointer;
-        let dfa = self.wordlist()[wp].dfa();
-        let cfa = self.wordlist()[wp].cfa();
+        let word = &self.wordlist()[wp];
+        let dfa = word.dfa();
+        let doer = word.doer;
         self.s_stack().push(dfa as isize);
         // Execute words behind DOES>.
-        let doer = unsafe{ self.code_space().get_usize(cfa) };
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
         self.state().instruction_pointer = doer;
@@ -2604,10 +2588,11 @@ pub trait Core: Sized {
     /// Run time behavior of does>.
     primitive! {fn _does(&mut self) {
         let doer = self.state().instruction_pointer + mem::size_of::<isize>();
-        self.code_space().compile_usize(doer);
+        self.data_space().compile_usize(doer);
         let def = self.wordlist().last;
         let word = &mut self.wordlist_mut()[def];
         word.action = Core::xdoes;
+        word.doer = doer;
     }}
 
     // -----------
@@ -2958,11 +2943,6 @@ pub trait Core: Sized {
         {
             let value = unsafe{ self.data_space().get_isize(t as usize) as isize };
             self.s_stack().push(value);
-        } else if self.code_space().start() <= t &&
-            t + mem::size_of::<isize>() <= self.code_space().limit()
-        {
-            let value = unsafe{ self.code_space().get_isize(t as usize) as isize };
-            self.s_stack().push(value);
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
         }
@@ -2978,10 +2958,6 @@ pub trait Core: Sized {
             t + mem::size_of::<isize>() <= self.data_space().limit()
         {
             unsafe{ self.data_space().put_isize(n as isize, t as usize) };
-        } else if self.code_space().start() < t &&
-                t + mem::size_of::<isize>() <= self.code_space().limit()
-        {
-            unsafe{ self.code_space().put_isize(n as isize, t as usize) };
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
         }
@@ -2998,11 +2974,6 @@ pub trait Core: Sized {
         {
             let value = unsafe{ self.data_space().get_u8(t as usize) as isize };
             self.s_stack().push(value);
-        } else if self.code_space().start() <= t &&
-            t < self.code_space().limit()
-        {
-            let value = unsafe{ self.code_space().get_u8(t as usize) as isize };
-            self.s_stack().push(value);
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
         }
@@ -3018,8 +2989,6 @@ pub trait Core: Sized {
         let t = t as usize;
         if self.data_space().start() < t && t  < self.data_space().limit() {
             unsafe{ self.data_space().put_u8(n as u8, t as usize) };
-        } if self.code_space().start() < t && t  < self.code_space().limit() {
-            unsafe{ self.code_space().put_u8(n as u8, t as usize) };
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
         }
@@ -3174,6 +3143,15 @@ pub trait Core: Sized {
         self.s_stack().push(pos as isize);
     }}
 
+    /// Run-time: ( addr -- a-addr )
+    ///
+    /// Return `a-addr`, the first address greater than or equal to `addr` and aligned to 16-byte boundary.
+    primitive! {fn aligned16(&mut self) {
+        let pos = self.s_stack().pop();
+        let pos = DataSpace::aligned_16(pos as usize);
+        self.s_stack().push(pos as isize);
+    }}
+
     /// Run-time: ( -- )
     ///
     /// If the data-space pointer is not aligned, reserve enough space to align it.
@@ -3186,38 +3164,6 @@ pub trait Core: Sized {
     /// If the data-space pointer is not aligned to 16-byte boundary, reserve enough space to align it.
     primitive! {fn align16(&mut self) {
         self.data_space().align_16();
-    }}
-
-    /// Run-time: ( -- addr )
-    ///
-    /// `addr` is the code-space pointer.
-    primitive! {fn there(&mut self) {
-        let here = self.code_space().here() as isize;
-        self.s_stack().push(here);
-    }}
-
-    /// Run-time: ( n -- )
-    ///
-    /// If `n` is greater than zero, reserve n address units of code space. If `n`
-    /// is less than zero, release `|n|` address units of code space. If `n` is
-    /// zero, leave the code-space pointer unchanged.
-    primitive! {fn tallot(&mut self) {
-        let v = self.s_stack().pop();
-        self.code_space().allot(v);
-    }}
-
-    /// Run-time: ( -- )
-    ///
-    /// If the code-space pointer is not aligned, reserve enough space to align it.
-    primitive! {fn talign(&mut self) {
-        self.code_space().align();
-    }}
-
-    /// Run-time: ( -- )
-    ///
-    /// If the code-space pointer is not aligned to 16-byte boundary, reserve enough space to align it.
-    primitive! {fn talign16(&mut self) {
-        self.code_space().align_16();
     }}
 
     /// Run-time: ( x -- )
@@ -3427,13 +3373,6 @@ pub trait Core: Sized {
         let xt = self.s_stack().pop();
         let dfa = self.wordlist()[xt as usize].dfa();
         self.s_stack().push(dfa as isize);
-    }}
-
-    /// Code field address of `xt`. `>CFA ( xt -- cfa )`
-    primitive! {fn to_cfa(&mut self) {
-        let xt = self.s_stack().pop();
-        let cfa = self.wordlist()[xt as usize].cfa();
-        self.s_stack().push(cfa as isize);
     }}
 
     /// Name field address of `xt`. `>NFA ( xt -- nfa )`
@@ -4906,11 +4845,8 @@ mod tests {
         assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
-        // : t1 0 if true else false then ; t1
-        // let action = vm.code_space().here();
         vm.set_source(": t1 0 if true else false then ; t1");
         vm.evaluate_input();
-        // dump(vm, action);
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 0);
@@ -5222,32 +5158,6 @@ mod tests {
                     .get_isize(here + 3 * mem::size_of::<isize>()),
                 vm.references().idx_exit as isize
             );
-        }
-    }
-
-    fn dump(vm: &mut VM, addr: usize) {
-        if vm.code_space().has(addr) {
-            for i in 0..8 {
-                if vm.code_space().has(addr + 7 + i * 8) {
-                    unsafe {
-                        println!(
-                            "{:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x}",
-                            vm.code_space().get_u8(addr + 0 + i * 8),
-                            vm.code_space().get_u8(addr + 1 + i * 8),
-                            vm.code_space().get_u8(addr + 2 + i * 8),
-                            vm.code_space().get_u8(addr + 3 + i * 8),
-                            vm.code_space().get_u8(addr + 4 + i * 8),
-                            vm.code_space().get_u8(addr + 5 + i * 8),
-                            vm.code_space().get_u8(addr + 6 + i * 8),
-                            vm.code_space().get_u8(addr + 7 + i * 8),
-                        );
-                    }
-                } else {
-                    panic!("Error: invaild dump address.");
-                }
-            }
-        } else {
-            panic!("Error: invaild dump address.");
         }
     }
 

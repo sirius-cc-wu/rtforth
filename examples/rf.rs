@@ -13,7 +13,7 @@ use rtforth::facility::Facility;
 use rtforth::file_access::FileAccess;
 use rtforth::float::Float;
 use rtforth::loader::{HasLoader, Source};
-use rtforth::memory::{CodeSpace, DataSpace};
+use rtforth::memory::DataSpace;
 use rtforth::output::Output;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
@@ -77,7 +77,6 @@ pub struct VM {
     handler: usize,
     wordlist: Wordlist<VM>,
     data_space: DataSpace,
-    code_space: CodeSpace,
     tkn: Option<String>,
     outbuf: Option<String>,
     hldbuf: String,
@@ -89,9 +88,9 @@ pub struct VM {
 }
 
 impl VM {
-    /// Create a VM with data and code space size specified
-    /// by `data_capacity` and `code_capacity` bytes.
-    pub fn new(data_capacity: usize, code_capacity: usize) -> VM {
+    /// Create a VM with data space size specified
+    /// by `data_capacity` bytes.
+    pub fn new(data_capacity: usize) -> VM {
         let mut labels = Vec::with_capacity(LABEL_COUNT as _);
         labels.resize(LABEL_COUNT as _, 0);
         let mut vm = VM {
@@ -113,7 +112,6 @@ impl VM {
             handler: 0,
             wordlist: Wordlist::with_capacity(1000),
             data_space: DataSpace::with_capacity(data_capacity),
-            code_space: CodeSpace::with_capacity(code_capacity),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
@@ -167,12 +165,6 @@ impl Core for VM {
     }
     fn data_space_const(&self) -> &DataSpace {
         &self.data_space
-    }
-    fn code_space(&mut self) -> &mut CodeSpace {
-        &mut self.code_space
-    }
-    fn code_space_const(&self) -> &CodeSpace {
-        &self.code_space
     }
     fn hold_buffer(&mut self) -> &mut String {
         &mut self.hldbuf
@@ -308,7 +300,7 @@ impl Tools for VM {}
 impl FileAccess for VM {}
 
 fn main() {
-    let vm = &mut VM::new(1024 * 1024, 1024 * 1024);
+    let vm = &mut VM::new(1024 * 1024);
 
     let args: Vec<_> = env::args().collect();
     let program = args[0].clone();

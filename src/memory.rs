@@ -124,6 +124,10 @@ impl Memory for DataSpace {
         unsafe { self.inner.offset(self.cap as isize) as usize }
     }
 
+    fn capacity(&self) -> usize {
+        self.limit() - self.start()
+    }
+
     fn here(&mut self) -> usize {
         unsafe { self.inner.offset(self.len as isize) as usize }
     }
@@ -143,6 +147,9 @@ pub trait Memory {
 
     /// Upper limit of address
     fn limit(&self) -> usize;
+
+    /// Capacity
+    fn capacity(&self) -> usize;
 
     /// Does memory contains addresss `pos`?
     ///

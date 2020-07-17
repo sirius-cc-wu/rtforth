@@ -29,7 +29,10 @@ path = "examples/simple.rs"
 uom = "=0.18.0"
 approx = "=0.2.1"
 libc = "=0.2.48"
-hibitset = "=0.5.0"
+
+[dependencies.hibitset]
+version = "0.5.0"
+default-features = false    # do not use rayon
 
 [dev-dependencies]
 rustyline = "1.0"

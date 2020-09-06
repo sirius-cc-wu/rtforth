@@ -9,7 +9,7 @@ Documentation at [rtForth Primer](https://mapacode.github.io/rtforth/).
 * Safe first, performance later
 * Token Threaded + Subroutine-threaded (only for x86)
 
-## Usage
+## Build
 
 Install Rust:
 
@@ -18,12 +18,27 @@ Install Rust:
 After installation of Rust:
 
 ```
-$ cargo build --example rf
+$ cargo build --example rf                  # Build debug version of rtforth
+$ cargo build --release --example rf        # Compile release version of rtForth.
+```
+
+Or using CMake on Linux:
+
+```
+$ mkdir build; cd build
+$ cmake ..
+$ make native               # Build native version of rtforth
+$ cmake x86                 # Build x86 version of rtforth
+$ cmake amd64               # Build amd64 version of rtforth
+$ cmake arm                 # Build arm version of rtforth
+```
+
+## Usage
+
+```
 $ ./target/debug/examples/rf --help         # Display help information.
 $ ./target/debug/examples/rf <file>         # Load forth commands in <file>.
 $ ./target/debug/examples/rf lib.fs <file>  # Load lib.fs before <file>.
-$ cargo build --release --example rf        # Compile optimized token-threaded rtForth.
-$ cargo build --example rf --release --features="subroutine-threaded"    # Compile optimized subroutine-threaded rtForth.
 ```
 
 ```

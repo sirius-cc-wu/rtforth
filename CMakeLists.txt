@@ -12,44 +12,45 @@ else ()
 endif ()
 set(CARGO_TEST_CMD cargo test)
 set(CARGO_BENCH_CMD cargo bench)
+set(ENV{CARGO_TARGET_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 add_custom_target(native
     COMMENT "Building native version of rtforth"
-    COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_CMD} --example rf
+    COMMAND ${CARGO_CMD} --example rf
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_target(x86
     COMMENT "Building x86 version of rtforth"
-    COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_CMD} --example rf --target=i686-unknown-linux-gnu
+    COMMAND ${CARGO_CMD} --example rf --target=i686-unknown-linux-gnu
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_target(amd64
     COMMENT "Building amd64 version of rtforth"
-    COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_CMD} --example rf --target=x86_64-unknown-linux-gnu
+    COMMAND ${CARGO_CMD} --example rf --target=x86_64-unknown-linux-gnu
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_target(arm
     COMMENT "Building arm version of rtforth"
-    COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_CMD} --example rf --target=armv7-unknown-linux-gnueabihf
+    COMMAND ${CARGO_CMD} --example rf --target=armv7-unknown-linux-gnueabihf
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_target(test-native
     COMMENT "Test native version of rtforth"
-    COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_TEST_CMD}
+    COMMAND ${CARGO_TEST_CMD}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_target(test-x86
     COMMENT "Test x86 version of rtforth"
-    COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_TEST_CMD} --target=i686-unknown-linux-gnu
+    COMMAND ${CARGO_TEST_CMD} --target=i686-unknown-linux-gnu
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_target(bench-native
     COMMENT "Benchmark native version of rtforth"
-    COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_BENCH_CMD}
+    COMMAND ${CARGO_BENCH_CMD}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_target(bench-x86
     COMMENT "Benchmark x86 version of rtforth"
-    COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_BENCH_CMD} --target=i686-unknown-linux-gnu
+    COMMAND ${CARGO_BENCH_CMD} --target=i686-unknown-linux-gnu
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 

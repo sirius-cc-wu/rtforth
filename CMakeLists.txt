@@ -23,8 +23,8 @@ add_custom_target(x86
     COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_CMD} --example rf --target=i686-unknown-linux-gnu
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_custom_target(amd64
-    COMMENT "Building amd64 version of rtforth"
+add_custom_target(x86-64
+    COMMENT "Building x86-64 version of rtforth"
     COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_CMD} --example rf --target=x86_64-unknown-linux-gnu
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -48,6 +48,11 @@ add_custom_target(test-x86
     COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_TEST_CMD} --target=i686-unknown-linux-gnu
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_custom_target(test-x86-64
+    COMMENT "Test x86-64 version of rtforth"
+    COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_TEST_CMD} --target=x86_64-unknown-linux-gnu
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_custom_target(bench-native
     COMMENT "Benchmark native version of rtforth"
     COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_BENCH_CMD}
@@ -56,5 +61,10 @@ add_custom_target(bench-native
 add_custom_target(bench-x86
     COMMENT "Benchmark x86 version of rtforth"
     COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_BENCH_CMD} --target=i686-unknown-linux-gnu
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+add_custom_target(bench-x86-64
+    COMMENT "Benchmark x86-64 version of rtforth"
+    COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_BENCH_CMD} --target=x86_64-unknown-linux-gnu
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 

@@ -8,6 +8,7 @@ description = "Forth implemented in Rust for realtime application"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/chengchangwu/rtforth.git"
 autoexamples = false
+exclude = ["docs"]
 
 [lib]
 name = "rtforth"

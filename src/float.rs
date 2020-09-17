@@ -24,6 +24,12 @@ pub trait Float: Core {
         self.add_primitive("facos", Float::facos);
         self.add_primitive("fatan", Float::fatan);
         self.add_primitive("fatan2", Float::fatan2);
+        self.add_primitive("flog", Float::flog);
+        self.add_primitive("fln", Float::fln);
+        self.add_primitive("flnp1", Float::flnp1);
+        self.add_primitive("falog", Float::falog);
+        self.add_primitive("fexp", Float::fexp);
+        self.add_primitive("fexpm1", Float::fexpm1);
         self.add_primitive("fsqrt", Float::fsqrt);
         self.add_primitive("fdrop", Float::fdrop);
         self.add_primitive("fdup", Float::fdup);
@@ -178,6 +184,48 @@ pub trait Float: Core {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n.atan2(t));
+    }}
+
+    // ( F: r1 -- r2 )
+    // r2 is the base-ten logarithm of r1. An ambiguous condition exists if r1 is less than or equal to zero.
+    primitive! {fn flog(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(t.log10());
+    }}
+
+    // ( F: r1 -- r2 )
+    // r2 is the natural logarithm of r1. An ambiguous condition exists if r1 is less than or equal to zero.
+    primitive! {fn fln(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(t.ln());
+    }}
+
+    // ( F: r1 -- r2 )
+    // r2 is the natural logarithm of the quantity r1 plus one. An ambiguous condition exists if r1 is less than or equal to negative one.
+    primitive! {fn flnp1(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(t.ln_1p());
+    }}
+
+    // ( F: r1 -- r2 )
+    // Raise ten to the power r1, giving r2.
+    primitive! {fn falog(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push((10.0f64).powf(t));
+    }}
+
+    // FEXP ( F: r1 -- r2 )
+    // Raise Euler's number e to the power r1, giving r2.
+    primitive! {fn fexp(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(t.exp());
+    }}
+
+    // FEXPM1 ( F: r1 -- r2 )
+    // Raise Euler's number e to the power r1 and subtract one, giving r2.
+    primitive! {fn fexpm1(&mut self) {
+        let t = self.f_stack().pop();
+        self.f_stack().push(t.exp_m1());
     }}
 
     primitive! {fn fsqrt(&mut self) {
@@ -513,6 +561,78 @@ mod tests {
         assert_eq!(vm.f_stack().len(), 1);
         assert!(match vm.f_stack().pop() {
             t => t > 0.643500 && t < 0.643502,
+        });
+    }
+
+    #[test]
+    fn test_flog() {
+        let vm = &mut VM::new();
+        vm.set_source("8.0E flog");
+        vm.evaluate_input();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
+            t => t > 0.9030899 && t < 0.9030901,
+        });
+    }
+
+    #[test]
+    fn test_fln() {
+        let vm = &mut VM::new();
+        vm.set_source("8.0E fln");
+        vm.evaluate_input();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
+            t => t > 2.0794414 && t < 2.0794416,
+        });
+    }
+
+    #[test]
+    fn test_flnp1() {
+        let vm = &mut VM::new();
+        vm.set_source("8E flnp1");
+        vm.evaluate_input();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
+            t => t > 2.1972245 && t < 2.1972247,
+        });
+    }
+
+    #[test]
+    fn test_falog() {
+        let vm = &mut VM::new();
+        vm.set_source("1.2E falog");
+        vm.evaluate_input();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
+            t => t > 15.8489318 && t < 15.8489320,
+        });
+    }
+
+    #[test]
+    fn test_fexp() {
+        let vm = &mut VM::new();
+        vm.set_source("8E fexp");
+        vm.evaluate_input();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
+            t => t > 2980.9579869 && t < 2980.9579871,
+        });
+    }
+
+    #[test]
+    fn test_fexpm1() {
+        let vm = &mut VM::new();
+        vm.set_source("8E fexpm1");
+        vm.evaluate_input();
+        assert_eq!(vm.last_error(), None);
+        assert_eq!(vm.f_stack().len(), 1);
+        assert!(match vm.f_stack().pop() {
+            t => t > 2979.9579869 && t < 2979.9579871,
         });
     }
 

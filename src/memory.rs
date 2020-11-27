@@ -1,7 +1,6 @@
 extern crate libc;
-extern crate region;
 
-use std::alloc::{GlobalAlloc, Layout, System};
+use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::marker;
 use std::mem;
 use std::slice;
@@ -62,27 +61,18 @@ impl DataSpace {
         note = "Please use the with_capacity function instead"
     )]
     pub fn new(num_pages: usize) -> Self {
-        let page_size = region::page::size();
-        let cap = num_pages * page_size;
+        let cap = num_pages * page_size::get();
         Self::with_capacity(cap)
     }
 
     pub fn with_capacity(cap: usize) -> Self {
         let ptr: *mut u8;
-        let page_size = region::page::size();
-        let layout = Layout::from_size_align(cap, page_size).unwrap();
+        let layout = Layout::from_size_align(cap, page_size::get()).unwrap();
         unsafe {
-            ptr = System.alloc(layout);
+            ptr = alloc_zeroed(layout);
             if ptr.is_null() {
                 panic!("Cannot allocate data space");
             }
-            match region::protect(ptr, cap, region::Protection::ReadWrite) {
-                Ok(_) => {
-                    // Do nothing.
-                }
-                Err(e) => panic!("Cannot allocate data space: {}", e),
-            }
-            libc::memset(ptr as *mut libc::c_void, 0x00, cap);
         }
         let mut result = DataSpace {
             inner: ptr,
@@ -110,7 +100,7 @@ impl DataSpace {
 impl Drop for DataSpace {
     fn drop(&mut self) {
         unsafe {
-            System.dealloc(self.inner, self.layout);
+            dealloc(self.inner, self.layout);
         }
     }
 }

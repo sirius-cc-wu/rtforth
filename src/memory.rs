@@ -346,3 +346,6 @@ pub trait Memory {
         self.set_here(pos);
     }
 }
+
+unsafe impl Send for DataSpace {}
+unsafe impl Sync for DataSpace {}

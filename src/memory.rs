@@ -118,7 +118,7 @@ impl Memory for DataSpace {
         self.limit() - self.start()
     }
 
-    fn here(&mut self) -> usize {
+    fn here(&self) -> usize {
         unsafe { self.inner.offset(self.len as isize) as usize }
     }
 
@@ -149,7 +149,7 @@ pub trait Memory {
     }
 
     /// Next free space
-    fn here(&mut self) -> usize;
+    fn here(&self) -> usize;
 
     /// Set next free space.
     fn set_here(&mut self, pos: usize);

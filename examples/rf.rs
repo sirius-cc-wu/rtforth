@@ -1,5 +1,3 @@
-#![feature(duration_as_u128)]
-
 extern crate getopts;
 #[macro_use(primitive)]
 extern crate rtforth;

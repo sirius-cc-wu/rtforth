@@ -1,5 +1,3 @@
-#![feature(test)]
-
 #[cfg(target_arch = "arm")]
 #[macro_export]
 macro_rules! primitive {

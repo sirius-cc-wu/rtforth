@@ -27,15 +27,18 @@ name = "simple"
 path = "examples/simple.rs"
 
 [dependencies]
-approx = "0.2"
-libc = "0.2.41"
-hibitset = "=0.5.0"
+approx = "~0.3"
+libc = "~0.2.54"
 page_size = "0.4.2"
 
+[dependencies.hibitset]
+version = "~0.5.0"
+default-features = false    # do not use rayon
+
 [dev-dependencies]
-rustyline = "1.0"
-getopts = "0.2.15"
-time = "0.1"
+rustyline = "^4"
+getopts = "~0.2.21"
+time = "~0.1"
 criterion = "0.2"
 
 [profile.release]

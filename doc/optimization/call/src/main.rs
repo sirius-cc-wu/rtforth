@@ -28,9 +28,10 @@ struct Xt(for<'d, 's, 'sp> fn(&'d [Xt], &'s mut [isize; 256], &'sp mut u8));
 
 #[inline(never)]
 fn run(data: &[Xt], stack: &mut [isize; 256], sp: &mut u8) {
-    for Xt(xt) in data {
-        xt(data, stack, sp);
-    }
+    one(data, stack, sp);
+    one_plus(data, stack, sp);
+    two_star(data, stack, sp);
+    dup(data, stack, sp);
 }
 
 fn main() {

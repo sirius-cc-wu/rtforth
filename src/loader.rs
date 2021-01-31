@@ -193,39 +193,6 @@ pub trait HasLoader: Core + Output {
         self.evaluate_input();
     }
 
-    fn load(&mut self, path_name: &str) -> Result<(), Exception> {
-        let mut reader = match File::open(&path_name) {
-            Err(_) => {
-                return Err(Exception::FileIOException);
-            }
-            Ok(file) => BufReader::new(file),
-        };
-        loop {
-            let mut input_buffer = self.input_buffer().take().unwrap();
-            input_buffer.clear();
-            self.state().source_index = 0;
-            let result = reader.read_line(&mut input_buffer);
-            match result {
-                Ok(_) => {
-                    if input_buffer.is_empty() {
-                        self.set_input_buffer(input_buffer);
-                        return Ok(());
-                    } else {
-                        self.set_input_buffer(input_buffer);
-                        self.evaluate_input();
-                        if let Some(e) = self.last_error() {
-                            return Err(e);
-                        }
-                    }
-                }
-                Err(_) => {
-                    self.set_input_buffer(input_buffer);
-                    return Err(Exception::FileIOException);
-                }
-            };
-        }
-    }
-
     fn load_core_fs(&mut self) {
         let libfs = include_str!("../core.fs");
         self.load_str(libfs);

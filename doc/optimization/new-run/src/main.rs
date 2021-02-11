@@ -1,47 +1,47 @@
-fn p_false(_data: &[Xt], stack: &mut [isize; 256], top: &mut u8) {
+fn p_false(stack: &mut [isize; 256], top: &mut u8, _data: &[Xt]) {
     let new_top = top.wrapping_sub(1);
     stack[new_top as usize] = 0;
     *top = new_top;
 }
 
-fn one(_data: &[Xt], stack: &mut [isize; 256], top: &mut u8) {
+fn one(stack: &mut [isize; 256], top: &mut u8, _data: &[Xt]) {
     let new_top = top.wrapping_sub(1);
     stack[new_top as usize] = 1;
     *top = new_top;
 }
 
-fn one_plus(_data: &[Xt], stack: &mut [isize; 256], top: &mut u8) {
+fn one_plus(stack: &mut [isize; 256], top: &mut u8, _data: &[Xt]) {
     stack[*top as usize] += 1;
 }
 
-fn two_star(_data: &[Xt], stack: &mut [isize; 256], top: &mut u8) {
+fn two_star(stack: &mut [isize; 256], top: &mut u8, _data: &[Xt]) {
     stack[*top as usize] *= 2;
 }
 
-fn dup(_data: &[Xt], stack: &mut [isize; 256], top: &mut u8) {
+fn dup(stack: &mut [isize; 256], top: &mut u8, _data: &[Xt]) {
     let new_top = top.wrapping_sub(1);
     stack[new_top as usize] = stack[*top as usize];
     *top = new_top;
 }
 
-fn drop(_data: &[Xt], stack: &mut [isize; 256], top: &mut u8) {
+fn drop(stack: &mut [isize; 256], top: &mut u8, _data: &[Xt]) {
     let new_top = top.wrapping_add(1);
     *top = new_top;
 }
 
-fn swap(_data: &[Xt], stack: &mut [isize; 256], top: &mut u8) {
+fn swap(stack: &mut [isize; 256], top: &mut u8, _data: &[Xt]) {
     let next = top.wrapping_add(1);
     let tmp = stack[next as usize];
     stack[next as usize] = stack[*top as usize];
     stack[*top as usize] = tmp;
 }
 
-struct Xt(for<'d, 's, 'top> fn(&'d [Xt], &'s mut [isize; 256], &'top mut u8));
+struct Xt(for<'d, 's, 'top> fn(&'s mut [isize; 256], &'top mut u8, &'d [Xt]));
 
 #[inline(never)]
-fn run(data: &[Xt], stack: &mut [isize; 256], top: &mut u8) {
+fn run(stack: &mut [isize; 256], top: &mut u8, data: &[Xt]) {
     for Xt(xt) in data {
-        xt(data, stack, top);
+        xt(stack, top, data);
     }
 }
 
@@ -55,6 +55,10 @@ fn main() {
     data.push(Xt(dup));
     data.push(Xt(drop));
     data.push(Xt(swap));
-    run(&data, &mut stack, &mut top);
-    println!("{} {} <-", stack[top.wrapping_add(1) as usize], stack[top as usize]);
+    run(&mut stack, &mut top, &data);
+    println!(
+        "{} {} <-",
+        stack[top.wrapping_add(1) as usize],
+        stack[top as usize]
+    );
 }

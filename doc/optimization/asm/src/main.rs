@@ -9,6 +9,7 @@ fn tinycore() {
     let mut rp: u32 = 0;
     let mut top: u32 = 0;
     // 由於無法得到以下各指令的位址，此一作法只適合用來分析，瞭解 rust 如何配 registers。
+    // 可以於完成後使用自建的 assembler 重建，或直接從編出來的 binary 檔分析出位置後作成 image。
     unsafe {
         asm!(
             // init sp and rp.

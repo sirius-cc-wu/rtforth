@@ -94,18 +94,18 @@ fn tinycore() {
                 mov [{rp}], {top}
                 mov {top}, [{sp}]
                 add {sp}, 4
-                ret"
+                ret",
             // r>
             "   sub {sp}, 4
                 mov [{sp}], {top}
                 mov {top}, [{rp}]
                 add {rp}, 4
-                ret"
+                ret",
             // r@
             "   sub {sp}, 4
                 mov [{sp}], {top}
                 mov {top}, [{rp}]
-                ret"
+                ret",
             // rdepth
             // TODO: 可能有差一的錯誤
             "   sub {sp}, 4

@@ -16,6 +16,7 @@ fn tinycore() {
             "   mov {sp}, {stack}
                 mov {rp}, {rstack}
                 ret",
+            // stackjugglers
             // sp@
             "   sub {sp}, 4
                 mov [{sp}], {top}
@@ -42,8 +43,7 @@ fn tinycore() {
             // dup
             "   sub {sp}, 4
                 mov [{sp}], {top}
-            1:
-                ret",
+            1:  ret",
             // drop
             "   mov {top}, [{sp}]",
             // nip
@@ -120,6 +120,33 @@ fn tinycore() {
             // rpick
             "   mov {top}, [{top}*4][{rp}]
                 ret",
+            // calculations
+            // +
+            "   add {top}, [{sp}]
+                add {sp}, 4
+                ret",
+            // -
+            "   sub {top}, [{sp}]
+                add {sp}, 4
+                ret",
+            // 1-
+            "   dec {top}
+                ret",
+            // 1+
+            "   inc {top}
+                ret",
+            // 2-
+            "   sub {top}, 2
+                ret",
+            // 2+
+            "   add {top}, 2
+                ret",
+            // abs
+            "   or {top}, {top}
+                jns 1f",
+            // negate
+            "   neg {top}
+            1:  ret",
             stack = in(reg) &stack,
             rstack = in(reg) &rstack,
             sp = inout(reg) sp,

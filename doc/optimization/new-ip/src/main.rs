@@ -29,11 +29,11 @@ use std::mem;
 const INVALID_EXECUTION_TOKEN: isize = -1;
 
 struct Word {
-    action: fn(&mut VM, ip: &mut usize),
+    action: extern "fastcall" fn(&mut VM, ip: &mut usize),
 }
 
 impl Word {
-    fn action(&self) -> fn(&mut VM, ip: &mut usize) {
+    fn action(&self) -> extern "fastcall" fn(&mut VM, ip: &mut usize) {
         self.action
     }
 }
@@ -101,7 +101,7 @@ impl VM {
     fn abort_with(&mut self, _code: isize) {}
 
     #[inline(never)]
-    fn run(&mut self, ip: &mut usize) {
+    extern "fastcall" fn run(&mut self, ip: &mut usize) {
         loop {
             let w = unsafe { self.data_space().get_isize(*ip) as usize };
             *ip += 4;
@@ -136,38 +136,38 @@ fn main() {
     println!("Hello, world!");
 }
 
-fn p_false(vm: &mut VM, ip: &mut usize) {
+extern "fastcall" fn p_false(vm: &mut VM, ip: &mut usize) {
     let new_top = vm.top.wrapping_sub(1);
     vm.stack[new_top as usize] = 0;
     vm.top = new_top;
 }
 
-fn one(vm: &mut VM, ip: &mut usize) {
+extern "fastcall" fn one(vm: &mut VM, ip: &mut usize) {
     let new_top = vm.top.wrapping_sub(1);
     vm.stack[new_top as usize] = 1;
     vm.top = new_top;
 }
 
-fn one_plus(vm: &mut VM, ip: &mut usize) {
+extern "fastcall" fn one_plus(vm: &mut VM, ip: &mut usize) {
     vm.stack[vm.top as usize] += 1;
 }
 
-fn two_star(vm: &mut VM, ip: &mut usize) {
+extern "fastcall" fn two_star(vm: &mut VM, ip: &mut usize) {
     vm.stack[vm.top as usize] *= 2;
 }
 
-fn dup(vm: &mut VM, ip: &mut usize) {
+extern "fastcall" fn dup(vm: &mut VM, ip: &mut usize) {
     let new_top = vm.top.wrapping_sub(1);
     vm.stack[new_top as usize] = vm.stack[vm.top as usize];
     vm.top = new_top;
 }
 
-fn drop(vm: &mut VM, ip: &mut usize) {
+extern "fastcall" fn drop(vm: &mut VM, ip: &mut usize) {
     let new_top = vm.top.wrapping_add(1);
     vm.top = new_top;
 }
 
-fn swap(vm: &mut VM, ip: &mut usize) {
+extern "fastcall" fn swap(vm: &mut VM, ip: &mut usize) {
     let next = vm.top.wrapping_add(1);
     let tmp = vm.stack[next as usize];
     vm.stack[next as usize] = vm.stack[vm.top as usize];

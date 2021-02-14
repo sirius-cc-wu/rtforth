@@ -2,13 +2,26 @@
 //
 // data space:
 //
-//  +---------+---------+---------+-----------------------------+-------------+
-//  | action1 | action2 | asm ... | add length of asm to ip ret | action3 ... |
-//  +---------+---------+---------+-----------------------------+-------------+
+// Switching between call threading and subroutine threading
+//
+//  |<- call threading  ->|<- subroutine threading ------------------>|<- call thr...
+//  +----------+----------+---+---------+-----------------------------+-------------+
+//  | action 1 | action 2 | . | asm ... | add length of asm to ip ret | action3 ... |
+//  +----------+----------+---+---------+-----------------------------+-------------+
+//                          |  ^
+//                          +--+
+//
+//
+// vm in ECX, ip in EDX
 //
 // fn run(vm: &mut VM, ip: usize);
 // fn drop(vm: &mut VM, ip: usize);
 // fn execute_word(vm: &mut VM, ip: usize);
+//
+// Two optimization:
+// * use assembler to acheive tail call to run the call threading.
+// * switch to subroutine threading for inline assembler (jit).
+//
 
 use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::mem;

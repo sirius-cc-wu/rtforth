@@ -1,7 +1,7 @@
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
-use Exception;
 use Core;
+use Exception;
 use Memory;
 
 const PATH_NAME_MAX_LEN: usize = 256;
@@ -32,7 +32,7 @@ pub trait FileAccess: Core {
     /// maximum value of ud allowed is isize::max_value(). So an exception
     /// ResultOutOfRange will be returned for a file size larger than
     /// isize::max_value().
-    primitive!{fn file_size(&mut self) {
+    primitive! {fn file_size(&mut self) {
         let fileid = self.s_stack().pop();
         if fileid <= 0 {
             self.s_stack().push3(-1, -1, Exception::InvalidNumericArgument as _);
@@ -84,7 +84,7 @@ pub trait FileAccess: Core {
     /// maximum value of ud allowed is isize::max_value(). So an exception
     /// ResultOutOfRange will be returned for a file position larger than
     /// isize::max_value().
-    primitive!{fn file_position(&mut self) {
+    primitive! {fn file_position(&mut self) {
         let fileid = self.s_stack().pop();
         if fileid <= 0 {
             self.s_stack().push3(-1, -1, Exception::InvalidNumericArgument as _);
@@ -128,7 +128,7 @@ pub trait FileAccess: Core {
     ///
     /// Close the file identified by fileid. ior is the implementation-defined
     /// I/O result code.
-    primitive!{fn close_file(&mut self) {
+    primitive! {fn close_file(&mut self) {
         let fileid = self.s_stack().pop();
         if fileid <= 0 {
             self.s_stack().push(Exception::InvalidNumericArgument as _);
@@ -156,7 +156,7 @@ pub trait FileAccess: Core {
     ///
     /// Otherwise, ior is the implementation-defined I/O result code and fileid
     /// is undefined.
-    primitive!{fn create_file(&mut self) {
+    primitive! {fn create_file(&mut self) {
         let (caddr, u, fam) = self.s_stack().pop3();
         let caddr = caddr as usize;
         let u = u as usize;
@@ -224,7 +224,7 @@ pub trait FileAccess: Core {
     ///
     /// Delete the file named in the character string specified by c-addr u.
     /// ior is the implementation-defined I/O result code.
-    primitive!{fn delete_file(&mut self) {
+    primitive! {fn delete_file(&mut self) {
         let (caddr, u) = self.s_stack().pop2();
         let caddr = caddr as usize;
         let u = u as usize;
@@ -256,7 +256,7 @@ pub trait FileAccess: Core {
     ///
     /// Otherwise, ior is the implementation-defined I/O result code and fileid
     /// is undefined.
-    primitive!{fn open_file(&mut self) {
+    primitive! {fn open_file(&mut self) {
         let (caddr, u, fam) = self.s_stack().pop3();
         let caddr = caddr as usize;
         let u = u as usize;
@@ -344,7 +344,7 @@ pub trait FileAccess: Core {
     ///
     /// At the conclusion of the operation, FILE-POSITION returns the next file
     /// position after the last character read.
-    primitive!{fn read_file(&mut self) {
+    primitive! {fn read_file(&mut self) {
         let (caddr, u1, fileid) = self.s_stack().pop3();
         let caddr = caddr as usize;
         let u1 = u1 as usize;
@@ -388,7 +388,7 @@ pub trait FileAccess: Core {
     /// position after the last character written to the file, and FILE-SIZE
     /// returns a value greater than or equal to the value returned by
     /// FILE-POSITION.
-    primitive!{fn write_file(&mut self) {
+    primitive! {fn write_file(&mut self) {
         let (caddr, u, fileid) = self.s_stack().pop3();
         let caddr = caddr as usize;
         let u = u as usize;
@@ -443,7 +443,7 @@ pub trait FileAccess: Core {
     /// maximum value of ud allowed is isize::max_value(). So an exception
     /// InvalidNumericArgument will be returned for a ud larger than
     /// isize::max_value().
-    primitive!{fn resize_file(&mut self) {
+    primitive! {fn resize_file(&mut self) {
         let (ud_lower, ud_upper, fileid) = self.s_stack().pop3();
         if fileid <= 0 {
             self.s_stack().push(Exception::InvalidNumericArgument as _);
@@ -490,7 +490,7 @@ pub trait FileAccess: Core {
     /// maximum value of ud allowed is isize::max_value(). So an exception
     /// InvalidNumericArgument will be returned for a ud larger than
     /// isize::max_value().
-    primitive!{fn reposition_file(&mut self) {
+    primitive! {fn reposition_file(&mut self) {
         let (ud_lower, ud_upper, fileid) = self.s_stack().pop3();
         if fileid <= 0 {
             self.s_stack().push(Exception::InvalidNumericArgument as _);

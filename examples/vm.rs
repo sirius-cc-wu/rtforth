@@ -1,22 +1,22 @@
+extern crate hibitset;
 extern crate rtforth;
 extern crate time;
-extern crate hibitset;
 
-use rtforth::memory::{CodeSpace, DataSpace};
-use rtforth::NUM_TASKS;
+use self::hibitset::BitSet;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use rtforth::env::Environment;
 use rtforth::exception::Exception;
 use rtforth::facility::Facility;
-use rtforth::float::Float;
 use rtforth::file_access::FileAccess;
+use rtforth::float::Float;
 use rtforth::loader::{HasLoader, Source};
+use rtforth::memory::{CodeSpace, DataSpace};
 use rtforth::output::Output;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
-use std::time::SystemTime;
+use rtforth::NUM_TASKS;
 use std::fs::File;
-use self::hibitset::BitSet;
+use std::time::SystemTime;
 
 const BUFFER_SIZE: usize = 0x400;
 const LABEL_COUNT: u32 = 1000;

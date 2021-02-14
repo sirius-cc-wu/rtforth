@@ -5,8 +5,8 @@ mod vm;
 
 use rtforth::core::Core;
 use rtforth::output::Output;
-use vm::VM;
 use std::process;
+use vm::VM;
 
 fn main() {
     let mut vm = VM::new(0x100, 0x100);
@@ -34,7 +34,7 @@ fn main() {
 }
 
 /// Terminate process.
-primitive!{fn bye(vm: &mut VM) {
+primitive! {fn bye(vm: &mut VM) {
     vm.flush_output();
     process::exit(0);
 }}

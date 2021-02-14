@@ -1,18 +1,20 @@
 extern crate libc;
-use memory::{CodeSpace, DataSpace, Memory};
+use hibitset::{BitSet, BitSetLike};
 use loader::Source;
-use Exception::{self, Abort, ControlStructureMismatch, DivisionByZero, FloatingPointStackOverflow,
-                FloatingPointStackUnderflow, InterpretingACompileOnlyWord, InvalidMemoryAddress,
-                InvalidNumericArgument, ReturnStackOverflow, ReturnStackUnderflow, StackOverflow,
-                StackUnderflow, UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation};
+use memory::{CodeSpace, DataSpace, Memory};
 use parser;
-use std::fs::File;
 use std::fmt::Write;
 use std::fmt::{self, Display};
+use std::fs::File;
 use std::mem;
 use std::ops::{Index, IndexMut};
 use std::str;
-use hibitset::{BitSet, BitSetLike};
+use Exception::{
+    self, Abort, ControlStructureMismatch, DivisionByZero, FloatingPointStackOverflow,
+    FloatingPointStackUnderflow, InterpretingACompileOnlyWord, InvalidMemoryAddress,
+    InvalidNumericArgument, ReturnStackOverflow, ReturnStackUnderflow, StackOverflow,
+    StackUnderflow, UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation,
+};
 use {FALSE, NUM_TASKS, TRUE};
 
 // Word
@@ -25,7 +27,7 @@ pub struct Word<Target> {
     nfa: usize,
     dfa: usize,
     cfa: usize,
-    action: primitive!{ fn (&mut Target) },
+    action: primitive! { fn (&mut Target) },
     pub(crate) compilation_semantics: fn(&mut Target, usize),
     // Minimum execution time in [ns]
     pub(crate) min_execution_time: usize,
@@ -35,12 +37,12 @@ pub struct Word<Target> {
 
 impl<Target> Word<Target> {
     pub fn new(
-        action: primitive!{fn(&mut Target)},
+        action: primitive! {fn(&mut Target)},
         compilation_semantics: fn(&mut Target, usize),
         nfa: usize,
         dfa: usize,
-        cfa: usize
-) -> Word<Target>{
+        cfa: usize,
+    ) -> Word<Target> {
         Word {
             is_immediate: false,
             is_compile_only: false,
@@ -93,7 +95,7 @@ impl<Target> Word<Target> {
         self.cfa
     }
 
-    pub fn action(&self) -> primitive!{fn(&mut Target)}{
+    pub fn action(&self) -> primitive! {fn(&mut Target)} {
         self.action
     }
 }
@@ -130,7 +132,8 @@ impl<Target> Wordlist<Target> {
     fn hash(name: &str) -> u32 {
         let mut hash: u32 = 5381;
         for c in name.bytes() {
-            hash = hash.wrapping_shl(5)
+            hash = hash
+                .wrapping_shl(5)
                 .wrapping_add(hash)
                 .wrapping_add(c.to_ascii_lowercase() as u32); /* hash * 33 + c */
         }
@@ -699,7 +702,7 @@ pub trait Core: Sized {
     }
 
     /// Add a primitive word to word list.
-fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
+    fn add_primitive(&mut self, name: &str, action: primitive! {fn(&mut Self)}) {
         let nfa = self.data_space().compile_str(name);
         self.data_space().align();
         self.code_space().align();
@@ -714,31 +717,31 @@ fn add_primitive(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
     }
 
     /// Set the last definition immediate.
-    primitive!{fn immediate(&mut self) {
+    primitive! {fn immediate(&mut self) {
         let def = self.wordlist().last;
         self.wordlist_mut()[def].set_immediate(true);
     }}
 
     /// Add an immediate word to word list.
-fn add_immediate(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
+    fn add_immediate(&mut self, name: &str, action: primitive! {fn(&mut Self)}) {
         self.add_primitive(name, action);
         self.immediate();
     }
 
     /// Set the last definition compile-only.
-    primitive!{fn compile_only(&mut self) {
+    primitive! {fn compile_only(&mut self) {
         let def = self.wordlist().last;
         self.wordlist_mut()[def].set_compile_only(true);
     }}
 
     /// Add a compile-only word to word list.
-fn add_compile_only(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
+    fn add_compile_only(&mut self, name: &str, action: primitive! {fn(&mut Self)}) {
         self.add_primitive(name, action);
         self.compile_only();
     }
 
     /// Add an immediate and compile-only word to word list.
-fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&mut Self)}){
+    fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive! {fn(&mut Self)}) {
         self.add_primitive(name, action);
         self.immediate();
         self.compile_only();
@@ -832,7 +835,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn lit(&mut self) {
+    primitive! {fn lit(&mut self) {
         let ip = self.state().instruction_pointer;
         let v = unsafe{ self.data_space().get_isize(ip) as isize };
         let slen = self.s_stack().len.wrapping_add(1);
@@ -850,7 +853,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn flit(&mut self) {
+    primitive! {fn flit(&mut self) {
         let ip = DataSpace::aligned_f64(self.state().instruction_pointer as usize);
         let v = unsafe{ self.data_space().get_f64(ip) };
         let flen = self.f_stack().len.wrapping_add(1);
@@ -870,7 +873,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     /// Runtime of S"
     #[cfg(not(feature = "stc"))]
-    primitive!{fn p_s_quote(&mut self) {
+    primitive! {fn p_s_quote(&mut self) {
         let ip = self.state().instruction_pointer;
         let (addr, cnt) = {
             let s = unsafe{ self.data_space().get_str(ip) };
@@ -892,7 +895,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn branch(&mut self) {
+    primitive! {fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = unsafe{ self.data_space().get_isize(ip) as usize };
     }}
@@ -906,7 +909,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn zero_branch(&mut self) {
+    primitive! {fn zero_branch(&mut self) {
         let v = self.s_stack().pop();
         if v == 0 {
             self.branch();
@@ -941,7 +944,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///         ip
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn _do(&mut self) {
+    primitive! {fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
         self.state().instruction_pointer += mem::size_of::<isize>();
@@ -971,7 +974,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///          ip
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn _qdo(&mut self) {
+    primitive! {fn _qdo(&mut self) {
         let (n, t) = self.s_stack().pop2();
         if n == t {
             self.branch();
@@ -993,7 +996,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
     #[cfg(not(feature = "stc"))]
-    primitive!{fn _loop(&mut self) {
+    primitive! {fn _loop(&mut self) {
         let  rt = self.r_stack().pop();
         match rt .checked_add(1) {
             Some(sum) => {
@@ -1016,7 +1019,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// current loop control parameters and continue execution immediately
     /// following the loop.
     #[cfg(not(feature = "stc"))]
-    primitive!{fn _plus_loop(&mut self) {
+    primitive! {fn _plus_loop(&mut self) {
         let rt = self.r_stack().pop();
         let t = self.s_stack().pop();
         match rt.checked_add(t)  {
@@ -1038,12 +1041,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
     #[cfg(not(feature = "stc"))]
-    primitive!{fn unloop(&mut self) {
+    primitive! {fn unloop(&mut self) {
         let _ = self.r_stack().pop3();
     }}
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn leave(&mut self) {
+    primitive! {fn leave(&mut self) {
         let (third, _, _) = self.r_stack().pop3();
         if self.r_stack().underflow() {
             self.abort_with(ReturnStackUnderflow);
@@ -1068,7 +1071,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn p_j(&mut self) {
+    primitive! {fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         match self.r_stack().get(pos) {
             Some(jt) => {
@@ -1110,7 +1113,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///         ip
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_if(&mut self) {
+    primitive! {fn imm_if(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
     }}
@@ -1128,7 +1131,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             ip               +-------+
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_else(&mut self) {
+    primitive! {fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
             _ => {
@@ -1149,7 +1152,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_then(&mut self) {
+    primitive! {fn imm_then(&mut self) {
         let branch_part = match self.c_stack().pop() {
             Control::If(branch_part) => branch_part,
             Control::Else(branch_part) => branch_part,
@@ -1191,12 +1194,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///                                   +---------------------------+
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_case(&mut self) {
+    primitive! {fn imm_case(&mut self) {
         self.c_stack().push(Control::Case);
     }}
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_of(&mut self) {
+    primitive! {fn imm_of(&mut self) {
         match self.c_stack().pop() {
             Control::Case => {
                 self.c_stack().push(Control::Case);
@@ -1224,7 +1227,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_endof(&mut self) {
+    primitive! {fn imm_endof(&mut self) {
         let of_part = match self.c_stack().pop() {
             Control::Of(of_part) => {
                 of_part
@@ -1247,7 +1250,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_endcase(&mut self) {
+    primitive! {fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
         self.compile_word(idx);
         loop {
@@ -1278,7 +1281,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     /// Begin a structure that is terminated by `repeat`, `until`, or `again`. `begin ( -- )`.
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_begin(&mut self) {
+    primitive! {fn imm_begin(&mut self) {
         let here = self.data_space().here();
         self.c_stack().push(Control::Begin(here));
     }}
@@ -1300,7 +1303,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///   +------------------------------+
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_while(&mut self) {
+    primitive! {fn imm_while(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(here));
     }}
@@ -1309,7 +1312,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///
     /// Continue execution at the location following `begin`.
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_repeat(&mut self) {
+    primitive! {fn imm_repeat(&mut self) {
         let (begin_part, while_part) = match self.c_stack().pop2() {
             (Control::Begin(begin_part), Control::While(while_part)) => {
                 (begin_part, while_part)
@@ -1344,7 +1347,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///   +-------------+
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_until(&mut self) {
+    primitive! {fn imm_until(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
             _ => {
@@ -1373,7 +1376,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///   +------------+
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_again(&mut self) {
+    primitive! {fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
             _ => {
@@ -1504,7 +1507,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Control::Do(here, here)
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_do(&mut self) {
+    primitive! {fn imm_do(&mut self) {
         let idx = self.references().idx_do;
         self.compile_word(idx);
         self.data_space().compile_isize(0);
@@ -1512,7 +1515,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.c_stack().push(Control::Do(here,here));
     }}
 
-    primitive!{fn imm_recurse(&mut self) {
+    primitive! {fn imm_recurse(&mut self) {
         let last = self.wordlist().len() - 1;
         self.compile_nest(last);
     }}
@@ -1532,7 +1535,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Control::Do(here, here)
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_qdo(&mut self) {
+    primitive! {fn imm_qdo(&mut self) {
         let idx = self.references().idx_qdo;
         self.compile_word(idx);
         self.data_space().compile_isize(0);
@@ -1576,7 +1579,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Control::Do(do_part, _)
     ///
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_loop(&mut self) {
+    primitive! {fn imm_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
             _ => {
@@ -1605,7 +1608,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
     #[cfg(not(feature = "stc"))]
-    primitive!{fn imm_plus_loop(&mut self) {
+    primitive! {fn imm_plus_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
             _ => {
@@ -1628,7 +1631,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(not(feature = "stc"))]
-    primitive!{fn activate(&mut self) {
+    primitive! {fn activate(&mut self) {
         let i = (self.s_stack().pop() - 1) as usize;
         if i < NUM_TASKS {
             // Wake task `i`.
@@ -1788,12 +1791,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn lit(&mut self) {
+    primitive! {fn lit(&mut self) {
         // Do nothing.
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn lit_integer(&mut self, i: isize) {
+    primitive! {fn lit_integer(&mut self, i: isize) {
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = i;
@@ -1815,12 +1818,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn flit(&mut self) {
+    primitive! {fn flit(&mut self) {
         // Do nothing.
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn lit_float(&mut self, f: f64) {
+    primitive! {fn lit_float(&mut self, f: f64) {
         let flen = self.f_stack().len.wrapping_add(1);
         self.f_stack().len = flen;
         self.f_stack()[flen.wrapping_sub(1)] = f;
@@ -1859,12 +1862,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
 
     /// Runtime of S"
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn p_s_quote(&mut self) {
+    primitive! {fn p_s_quote(&mut self) {
         // Do nothing.
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn lit_str(&mut self, idx: usize) {
+    primitive! {fn lit_str(&mut self, idx: usize) {
         let (addr, cnt) = {
             let s = unsafe{ self.code_space().get_str(idx) };
             (s.as_ptr() as isize, s.len() as isize)
@@ -1910,7 +1913,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn branch(&mut self) {
+    primitive! {fn branch(&mut self) {
         // Do nothing.
     }}
 
@@ -1923,7 +1926,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn zero_branch(&mut self) {
+    primitive! {fn zero_branch(&mut self) {
         // Do nothing.
     }}
 
@@ -1947,12 +1950,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn _do(&mut self) {
+    primitive! {fn _do(&mut self) {
         // Do nothing.
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn _stc_do(&mut self) {
+    primitive! {fn _stc_do(&mut self) {
         let (n, t) = self.s_stack().pop2();
         let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
         let rn = t.wrapping_sub(rt);
@@ -1960,12 +1963,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn _qdo(&mut self) {
+    primitive! {fn _qdo(&mut self) {
         // Do nothing.
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn _stc_qdo(&mut self) -> isize {
+    primitive! {fn _stc_qdo(&mut self) -> isize {
         let (n, t) = self.s_stack().pop2();
         if n == t {
             -1
@@ -1978,12 +1981,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn _loop(&mut self) {
+    primitive! {fn _loop(&mut self) {
         // Do nothing.
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn _stc_loop(&mut self) -> isize {
+    primitive! {fn _stc_loop(&mut self) -> isize {
         let rt = self.r_stack().pop();
         match rt .wrapping_add(1) {
             Some(sum) => {
@@ -1998,12 +2001,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn _plus_loop(&mut self) {
+    primitive! {fn _plus_loop(&mut self) {
         // Do nothing.
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn _stc_plus_loop(&mut self) -> isize {
+    primitive! {fn _stc_plus_loop(&mut self) -> isize {
         let rt = self.r_stack().pop();
         let t = self.s_stack().pop();
         match rt .checked_add(t)  {
@@ -2018,12 +2021,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn unloop(&mut self) {
+    primitive! {fn unloop(&mut self) {
         let _ = self.r_stack().pop2();
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn leave(&mut self) {
+    primitive! {fn leave(&mut self) {
         // Do nothing.
     }}
 
@@ -2064,7 +2067,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.code_space().compile_u8(0x20);
     }
 
-    primitive!{fn p_i(&mut self) {
+    primitive! {fn p_i(&mut self) {
         match self.r_stack().last() {
             Some(it) => {
                 let next = self.r_stack().len - 2;
@@ -2080,7 +2083,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn p_j(&mut self) {
+    primitive! {fn p_j(&mut self) {
         let pos = self.r_stack().len() - 3;
         match self.r_stack().get(pos) {
             Some(jt) => {
@@ -2096,13 +2099,13 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_if(&mut self) {
+    primitive! {fn imm_if(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_else(&mut self) {
+    primitive! {fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
             _ => {
@@ -2125,7 +2128,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_then(&mut self) {
+    primitive! {fn imm_then(&mut self) {
         let branch_part = match self.c_stack().pop() {
             Control::If(branch_part) => branch_part,
             Control::Else(branch_part) => branch_part,
@@ -2153,12 +2156,12 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_case(&mut self) {
+    primitive! {fn imm_case(&mut self) {
         self.c_stack().push(Control::Case);
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_of(&mut self) {
+    primitive! {fn imm_of(&mut self) {
         match self.c_stack().pop() {
             Control::Case => {
                 self.c_stack().push(Control::Case);
@@ -2186,7 +2189,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_endof(&mut self) {
+    primitive! {fn imm_endof(&mut self) {
         let of_part = match self.c_stack().pop() {
             Control::Of(of_part) => {
                 of_part
@@ -2211,7 +2214,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_endcase(&mut self) {
+    primitive! {fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
         self.compile_word(idx);
         loop {
@@ -2244,19 +2247,19 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_begin(&mut self) {
+    primitive! {fn imm_begin(&mut self) {
         let here = self.code_space().here();
         self.c_stack().push(Control::Begin(here));
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_while(&mut self) {
+    primitive! {fn imm_while(&mut self) {
         let while_part = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(while_part));
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_repeat(&mut self) {
+    primitive! {fn imm_repeat(&mut self) {
         let (begin_part, while_part) = match self.c_stack().pop2() {
             (Control::Begin(begin_part), Control::While(while_part)) => (begin_part, while_part),
             _ => {
@@ -2278,7 +2281,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_until(&mut self) {
+    primitive! {fn imm_until(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
             _ => {
@@ -2294,7 +2297,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_again(&mut self) {
+    primitive! {fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
             _ => {
@@ -2327,7 +2330,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///             +---+--
     ///
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_do(&mut self) {
+    primitive! {fn imm_do(&mut self) {
         // 89 f1                mov    %esi,%ecx
         // e8 xx xx xx xx       call   _stc_do
         self.code_space().compile_u8(0x89);
@@ -2360,7 +2363,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///               +------------------+
     ///
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_qdo(&mut self) {
+    primitive! {fn imm_qdo(&mut self) {
         //   89 f1                mov    %esi,%ecx
         //   e8 xx xx xx xx       call   _stc_qdo
         //   85 c0                test   %eax,%eax
@@ -2408,7 +2411,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///               +---------------------+
     ///
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_loop(&mut self) {
+    primitive! {fn imm_loop(&mut self) {
         let (do_part, leave_part) = match self.c_stack().pop() {
             Control::Do(do_part, leave_part) => (do_part, leave_part),
             _ => {
@@ -2442,7 +2445,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive!{fn imm_plus_loop(&mut self) {
+    primitive! {fn imm_plus_loop(&mut self) {
         let (do_part, leave_part) = match self.c_stack().pop() {
             Control::Do(do_part, leave_part) => (do_part, leave_part),
             _ => {
@@ -2479,11 +2482,11 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     // Evaluation
     // -----------
 
-    primitive!{fn left_bracket(&mut self) {
+    primitive! {fn left_bracket(&mut self) {
         self.state().is_compiling = false;
     }}
 
-    primitive!{fn right_bracket(&mut self) {
+    primitive! {fn right_bracket(&mut self) {
         self.state().is_compiling = true;
     }}
 
@@ -2506,7 +2509,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Run-time: ( "ccc" -- )
     ///
     /// Parse word delimited by white space, skipping leading white spaces.
-    primitive!{fn parse_word(&mut self) {
+    primitive! {fn parse_word(&mut self) {
         let mut last_token = self.last_token().take().expect("token");
         last_token.clear();
         if let Some(input_buffer) = self.input_buffer().take() {
@@ -2543,7 +2546,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     ///
     /// Skip leading space delimiters. Parse name delimited by a space.
     /// Put the value of its first character onto the stack.
-    primitive!{fn char(&mut self) {
+    primitive! {fn char(&mut self) {
         self.parse_word();
         let last_token = self.last_token().take().expect("token");
         match last_token.chars().nth(0) {
@@ -2566,7 +2569,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Run-time: ( -- char )
     ///
     /// Place `char`, the value of the first character of name, on the stack.
-    primitive!{fn bracket_char(&mut self) {
+    primitive! {fn bracket_char(&mut self) {
         self.char();
         if self.last_error().is_some() {
             return;
@@ -2578,7 +2581,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Run-time: ( char "ccc&lt;char&gt;" -- )
     ///
     /// Parse ccc delimited by the delimiter char.
-    primitive!{fn parse(&mut self) {
+    primitive! {fn parse(&mut self) {
         let input_buffer = self.input_buffer().take().expect("input buffer");
         let v = self.s_stack().pop();
         let mut last_token = self.last_token().take().expect("token");
@@ -2617,7 +2620,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Run-time: ( char "ccc" -- )
     ///
     /// Skip all of the delimiter char.
-    primitive!{fn _skip(&mut self) {
+    primitive! {fn _skip(&mut self) {
         let input_buffer = self.input_buffer().take().expect("input buffer");
         let v = self.s_stack().pop();
         {
@@ -2643,13 +2646,13 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.set_input_buffer(input_buffer);
     }}
 
-    primitive!{fn imm_paren(&mut self) {
+    primitive! {fn imm_paren(&mut self) {
         self.s_stack().push(')' as isize);
         self.parse();
     }}
 
     /// Begin a comment that includes the entire remainder of the current line.
-    primitive!{fn imm_backslash(&mut self) {
+    primitive! {fn imm_backslash(&mut self) {
         self.s_stack().push('\n' as isize);
         self.parse();
     }}
@@ -2666,7 +2669,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// +------+-------------+-----------+------+------------+-----------+
     /// | _lit | xt of _does | _postpone | _lit | xt of exit | _postpone |
     /// +--------------------+-----------+------+------------+-----------+
-    primitive!{fn postpone(&mut self) {
+    primitive! {fn postpone(&mut self) {
         self.parse_word();
         let last_token = self.last_token().take().expect("token");
         if last_token.is_empty() {
@@ -2693,7 +2696,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Execute the compilation semantics of an xt on stack.
     ///
     /// _POSTPONE is a hidden word which is only compiled by POSTPONE.
-    primitive!{fn _postpone(&mut self) {
+    primitive! {fn _postpone(&mut self) {
         // : A ;
         // : B   POSTPONE A ;
         // which generate
@@ -2706,7 +2709,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         compilation_semantics(self, xt);
     }}
 
-    primitive!{fn compile_token(&mut self) {
+    primitive! {fn compile_token(&mut self) {
         let last_token = self.last_token().take().expect("token");
         match self.find(&last_token) {
             Some(found_index) => {
@@ -2742,7 +2745,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    primitive!{fn interpret_token(&mut self) {
+    primitive! {fn interpret_token(&mut self) {
         let last_token = self.last_token().take().expect("last token");
         match self.find(&last_token) {
             Some(found_index) => {
@@ -2777,7 +2780,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }}
 
-    primitive!{fn p_compiling(&mut self) {
+    primitive! {fn p_compiling(&mut self) {
         let value = if self.state().is_compiling {
             TRUE
         } else {
@@ -2787,7 +2790,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     /// Is token empty? `token-empty? ( -- f )
-    primitive!{fn token_empty(&mut self) {
+    primitive! {fn token_empty(&mut self) {
         let value = match self.last_token().as_ref() {
             Some(ref t) => if t.is_empty() { TRUE } else { FALSE },
             None => TRUE,
@@ -2796,7 +2799,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     }}
 
     /// Print token. `.token ( -- )`
-    primitive!{fn dot_token(&mut self) {
+    primitive! {fn dot_token(&mut self) {
         match self.last_token().take() {
             Some(t) => {
                 match self.output_buffer().as_mut() {
@@ -2814,7 +2817,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     /// Store token. `!token ( c-addr -- )
     ///
     /// Store token in counted string at `c-addr`.`
-    primitive!{fn store_token(&mut self) {
+    primitive! {fn store_token(&mut self) {
         let c_addr = self.s_stack().pop() as usize;
         if self.data_space().start() <= c_addr {
             match self.last_token().take() {
@@ -2868,7 +2871,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         }
     }
 
-    primitive!{fn base(&mut self) {
+    primitive! {fn base(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
         self.s_stack().push(base_addr as isize);
     }}
@@ -3039,7 +3042,8 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
             if self.references().idx_flit == 0 {
                 self.set_error(Some(UnsupportedOperation));
             } else {
-                let value = (significand_sign as f64) * (integer_part as f64 + fraction_part)
+                let value = (significand_sign as f64)
+                    * (integer_part as f64 + fraction_part)
                     * ((10.0f64).powi((exponent_sign.wrapping_mul(exponent_part)) as i32) as f64);
                 if self.state().is_compiling {
                     self.compile_float(value);
@@ -3054,7 +3058,7 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
     // High level definitions
     // -----------------------
 
-    primitive!{fn nest(&mut self) {
+    primitive! {fn nest(&mut self) {
         let rlen = self.r_stack().len.wrapping_add(1);
         self.r_stack().len = rlen;
         self.r_stack()[rlen.wrapping_sub(1)] = self.state().instruction_pointer as isize;
@@ -3062,21 +3066,24 @@ fn add_immediate_and_compile_only(&mut self, name: &str, action: primitive!{fn(&
         self.state().instruction_pointer = self.wordlist()[wp].dfa();
     }}
 
-    primitive!{fn p_var(&mut self) {
+    primitive! {fn p_var(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa() as isize;
         self.s_stack().push(dfa);
     }}
 
-    primitive!{fn p_const(&mut self) {
+    primitive! {fn p_const(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
         let value = unsafe{ self.data_space().get_isize(dfa) as isize };
         self.s_stack().push(value);
     }}
 
-fn define(&mut self, action: primitive!{fn(&mut Self)},
-compilation_semantics: fn(&mut Self, usize)){
+    fn define(
+        &mut self,
+        action: primitive! {fn(&mut Self)},
+        compilation_semantics: fn(&mut Self, usize),
+    ) {
         self.parse_word();
         let mut last_token = self.last_token().take().expect("last token");
         last_token.make_ascii_lowercase();
@@ -3107,7 +3114,7 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }
 
-    primitive!{fn colon(&mut self) {
+    primitive! {fn colon(&mut self) {
         self.define(Core::nest, Core::compile_nest);
         if self.last_error().is_none() {
             let def = self.wordlist().last;
@@ -3117,7 +3124,7 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }}
 
-    primitive!{fn semicolon(&mut self) {
+    primitive! {fn semicolon(&mut self) {
         if self.c_stack().len != 0 {
             self.abort_with(ControlStructureMismatch);
         } else if self.forward_bitset().layer3() != 0 {
@@ -3132,11 +3139,11 @@ compilation_semantics: fn(&mut Self, usize)){
         self.left_bracket();
     }}
 
-    primitive!{fn create(&mut self) {
+    primitive! {fn create(&mut self) {
         self.define(Core::p_var, Core::compile_var);
     }}
 
-    primitive!{fn constant(&mut self) {
+    primitive! {fn constant(&mut self) {
         let v = self.s_stack().pop();
         self.define(Core::p_const, Core::compile_const);
         if self.last_error().is_none() {
@@ -3144,7 +3151,7 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }}
 
-    primitive!{fn unmark(&mut self) {
+    primitive! {fn unmark(&mut self) {
         let wp = self.state().word_pointer;
         let (nfa, cfa, mut dfa) = {
             let w = &self.wordlist()[wp];
@@ -3171,7 +3178,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// | last | b0-b63 |
     /// +------+--------+
     /// ```
-    primitive!{fn marker(&mut self) {
+    primitive! {fn marker(&mut self) {
         let x = self.wordlist().last;
         self.wordlist_mut().temp_buckets = self.wordlist().buckets;
         self.define(Core::unmark, Core::compile_unmark);
@@ -3214,7 +3221,7 @@ compilation_semantics: fn(&mut Self, usize)){
     ///   | 4 | 40 |
     ///   +---+----+
     ///
-    primitive!{fn does(&mut self) {
+    primitive! {fn does(&mut self) {
         // Push DFA.
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
@@ -3228,7 +3235,7 @@ compilation_semantics: fn(&mut Self, usize)){
     }}
 
     /// Run time behavior of does>.
-    primitive!{fn _does(&mut self) {
+    primitive! {fn _does(&mut self) {
         let doer = self.state().instruction_pointer + mem::size_of::<isize>();
         self.code_space().compile_usize(doer);
         let def = self.wordlist().last;
@@ -3243,28 +3250,28 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Run-time: ( -- )
     ///
     /// No operation
-    primitive!{fn noop(&mut self) {
+    primitive! {fn noop(&mut self) {
         // Do nothing
     }}
 
     /// Run-time: ( -- true )
     ///
     /// Return a true flag, a single-cell value with all bits set.
-    primitive!{fn p_true(&mut self) {
+    primitive! {fn p_true(&mut self) {
         self.s_stack().push(TRUE);
     }}
 
     /// Run-time: ( -- false )
     ///
     /// Return a false flag.
-    primitive!{fn p_false(&mut self) {
+    primitive! {fn p_false(&mut self) {
         self.s_stack().push(FALSE);
     }}
 
     /// Run-time: ( c-addr1 -- c-addr2 )
     ///
     ///Add the size in address units of a character to `c-addr1`, giving `c-addr2`.
-    primitive!{fn char_plus(&mut self) {
+    primitive! {fn char_plus(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v + mem::size_of::<u8>() as isize);
     }}
@@ -3272,7 +3279,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Run-time: ( a-addr1 -- a-addr2 )
     ///
     /// Add the size in address units of a cell to `a-addr1`, giving `a-addr2`.
-    primitive!{fn cell_plus(&mut self) {
+    primitive! {fn cell_plus(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v + mem::size_of::<isize>() as isize);
     }}
@@ -3280,12 +3287,12 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Run-time: ( n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` cells.
-    primitive!{fn cells(&mut self) {
+    primitive! {fn cells(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v * mem::size_of::<isize>() as isize);
     }}
 
-    primitive!{fn swap(&mut self) {
+    primitive! {fn swap(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -3293,38 +3300,38 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack()[slen.wrapping_sub(2)] = t;
     }}
 
-    primitive!{fn dup(&mut self) {
+    primitive! {fn dup(&mut self) {
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(2)];
     }}
 
-    primitive!{fn p_drop(&mut self) {
+    primitive! {fn p_drop(&mut self) {
         let slen = self.s_stack().len.wrapping_sub(1);
         self.s_stack().len = slen;
     }}
 
-    primitive!{fn pop_s_stack(&mut self) -> isize {
+    primitive! {fn pop_s_stack(&mut self) -> isize {
         let slen = self.s_stack().len.wrapping_sub(1);
         let t = self.s_stack()[slen];
         self.s_stack().len = slen;
         t
     }}
 
-    primitive!{fn nip(&mut self) {
+    primitive! {fn nip(&mut self) {
         let slen = self.s_stack().len.wrapping_sub(1);
         let t = self.s_stack()[slen];
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = t;
     }}
 
-    primitive!{fn over(&mut self) {
+    primitive! {fn over(&mut self) {
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
     }}
 
-    primitive!{fn rot(&mut self) {
+    primitive! {fn rot(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -3333,7 +3340,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack()[slen.wrapping_sub(3)] = n;
     }}
 
-    primitive!{fn minus_rot(&mut self) {
+    primitive! {fn minus_rot(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -3345,26 +3352,26 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Place a copy of the nth stack entry on top of the stack. `pick ( ... n -- x )`
     ///
     /// `0 pick` is equivalent to `dup`.
-    primitive!{fn pick(&mut self) {
+    primitive! {fn pick(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)] as u8;
         let x = self.s_stack()[slen.wrapping_sub(t.wrapping_add(2))];
         self.s_stack()[slen.wrapping_sub(1)] = x;
     }}
 
-    primitive!{fn two_drop(&mut self) {
+    primitive! {fn two_drop(&mut self) {
         let slen = self.s_stack().len.wrapping_sub(2);
         self.s_stack().len = slen;
     }}
 
-    primitive!{fn two_dup(&mut self) {
+    primitive! {fn two_dup(&mut self) {
         let slen = self.s_stack().len.wrapping_add(2);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(3)];
         self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(4)];
     }}
 
-    primitive!{fn two_swap(&mut self) {
+    primitive! {fn two_swap(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -3374,31 +3381,31 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack()[slen.wrapping_sub(4)] = n;
     }}
 
-    primitive!{fn two_over(&mut self) {
+    primitive! {fn two_over(&mut self) {
         let slen = self.s_stack().len.wrapping_add(2);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = self.s_stack()[slen.wrapping_sub(5)];
         self.s_stack()[slen.wrapping_sub(2)] = self.s_stack()[slen.wrapping_sub(6)];
     }}
 
-    primitive!{fn depth(&mut self) {
+    primitive! {fn depth(&mut self) {
         let len = self.s_stack().len;
         self.s_stack().push(len as isize);
     }}
 
-    primitive!{fn one_plus(&mut self) {
+    primitive! {fn one_plus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         self.s_stack()[slen.wrapping_sub(1)] = t.wrapping_add(1);
     }}
 
-    primitive!{fn one_minus(&mut self) {
+    primitive! {fn one_minus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         self.s_stack()[slen.wrapping_sub(1)] = t.wrapping_sub(1);
     }}
 
-    primitive!{fn plus(&mut self) {
+    primitive! {fn plus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -3406,7 +3413,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().len = slen.wrapping_sub(1);
     }}
 
-    primitive!{fn minus(&mut self) {
+    primitive! {fn minus(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -3414,7 +3421,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().len = slen.wrapping_sub(1);
     }}
 
-    primitive!{fn star(&mut self) {
+    primitive! {fn star(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -3422,7 +3429,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().len = slen.wrapping_sub(1);
     }}
 
-    primitive!{fn slash(&mut self) {
+    primitive! {fn slash(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -3434,7 +3441,7 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }}
 
-    primitive!{fn p_mod(&mut self) {
+    primitive! {fn p_mod(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -3446,7 +3453,7 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }}
 
-    primitive!{fn slash_mod(&mut self) {
+    primitive! {fn slash_mod(&mut self) {
         let slen = self.s_stack().len;
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
@@ -3458,52 +3465,52 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }}
 
-    primitive!{fn abs(&mut self) {
+    primitive! {fn abs(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(t.wrapping_abs());
     }}
 
-    primitive!{fn negate(&mut self) {
+    primitive! {fn negate(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(t.wrapping_neg());
     }}
 
-    primitive!{fn zero_less(&mut self) {
+    primitive! {fn zero_less(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(if t < 0 { TRUE } else { FALSE });
     }}
 
-    primitive!{fn zero_equals(&mut self) {
+    primitive! {fn zero_equals(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(if t == 0 { TRUE } else { FALSE });
     }}
 
-    primitive!{fn zero_greater(&mut self) {
+    primitive! {fn zero_greater(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(if t > 0 { TRUE } else { FALSE });
     }}
 
-    primitive!{fn zero_not_equals(&mut self) {
+    primitive! {fn zero_not_equals(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(if t == 0 { FALSE } else { TRUE });
     }}
 
-    primitive!{fn equals(&mut self) {
+    primitive! {fn equals(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(if t == n { TRUE } else { FALSE });
     }}
 
-    primitive!{fn less_than(&mut self) {
+    primitive! {fn less_than(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(if n < t { TRUE } else { FALSE });
     }}
 
-    primitive!{fn greater_than(&mut self) {
+    primitive! {fn greater_than(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(if n > t { TRUE } else { FALSE });
     }}
 
-    primitive!{fn not_equals(&mut self) {
+    primitive! {fn not_equals(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(if n == t { FALSE } else { TRUE });
     }}
@@ -3512,28 +3519,28 @@ compilation_semantics: fn(&mut Self, usize)){
     ///
     /// Note: implmenetation incompatible with Forth 2012 standards
     /// when n2 > n3.
-    primitive!{fn within(&mut self) {
+    primitive! {fn within(&mut self) {
         let (x1, x2, x3) = self.s_stack().pop3();
         self.s_stack()
             .push(if x2 <= x1 && x1 < x3 { TRUE } else { FALSE });
     }}
 
-    primitive!{fn invert(&mut self) {
+    primitive! {fn invert(&mut self) {
         let t = self.s_stack().pop();
         self.s_stack().push(!t);
     }}
 
-    primitive!{fn and(&mut self) {
+    primitive! {fn and(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(t & n);
     }}
 
-    primitive!{fn or(&mut self) {
+    primitive! {fn or(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(t | n);
     }}
 
-    primitive!{fn xor(&mut self) {
+    primitive! {fn xor(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(t ^ n);
     }}
@@ -3544,7 +3551,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// zeroes into the least significant bits vacated by the shift. An
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
-    primitive!{fn lshift(&mut self) {
+    primitive! {fn lshift(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack().push(n.wrapping_shl(t as u32));
     }}
@@ -3555,7 +3562,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// zeroes into the most significant bits vacated by the shift. An
     /// ambiguous condition exists if `u` is greater than or equal to the number
     /// of bits in a cell.
-    primitive!{fn rshift(&mut self) {
+    primitive! {fn rshift(&mut self) {
         let (n, t) = self.s_stack().pop2();
         self.s_stack()
             .push(((n as usize).wrapping_shr(t as u32)) as isize);
@@ -3568,7 +3575,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Before executing `EXIT` within a do-loop, a program shall discard the
     /// loop-control parameters by executing `UNLOOP`.
     ///
-    primitive!{fn exit(&mut self) {
+    primitive! {fn exit(&mut self) {
         let rlen = self.r_stack().len.wrapping_sub(1);
         self.state().instruction_pointer = self.r_stack()[rlen] as usize;
         self.r_stack().len = rlen;
@@ -3577,7 +3584,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Run-time: ( a-addr -- x )
     ///
     /// `x` is the value stored at `a-addr`.
-    primitive!{fn fetch(&mut self) {
+    primitive! {fn fetch(&mut self) {
         let t = self.s_stack().pop() as usize;
         if self.data_space().start() < t &&
             t + mem::size_of::<isize>() <= self.data_space().limit()
@@ -3592,7 +3599,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Run-time: ( x a-addr -- )
     ///
     /// Store `x` at `a-addr`.
-    primitive!{fn store(&mut self) {
+    primitive! {fn store(&mut self) {
         let (n, t) = self.s_stack().pop2();
         let t = t as usize;
         if self.data_space().start() < t &&
@@ -3608,7 +3615,7 @@ compilation_semantics: fn(&mut Self, usize)){
     ///
     /// Fetch the character stored at `c-addr`. When the cell size is greater than
     /// character size, the unused high-order bits are all zeroes.
-    primitive!{fn c_fetch(&mut self) {
+    primitive! {fn c_fetch(&mut self) {
         let t = self.s_stack().pop() as usize;
         if self.data_space().start() <= t &&
             t < self.data_space().limit()
@@ -3625,7 +3632,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Store `char` at `c-addr`. When character size is smaller than cell size,
     /// only the number of low-order bits corresponding to character size are
     /// transferred.
-    primitive!{fn c_store(&mut self) {
+    primitive! {fn c_store(&mut self) {
         let (n, t) = self.s_stack().pop2();
         let t = t as usize;
         if self.data_space().start() < t && t  < self.data_space().limit() {
@@ -3642,7 +3649,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// completes, the u consecutive address units at addr2 contain exactly
     /// what the u consecutive address units at addr1 contained before the
     /// move.
-    primitive!{fn p_move(&mut self) {
+    primitive! {fn p_move(&mut self) {
         let (addr1, addr2, u) = self.s_stack().pop3();
         if u > 0 {
             let u = u as usize;
@@ -3678,7 +3685,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Skip leading space delimiters. Parse name delimited by a space. Find
     /// `name` and return `xt`, the execution token for name. An ambiguous
     /// condition exists if name is not found.
-    primitive!{fn tick(&mut self) {
+    primitive! {fn tick(&mut self) {
         self.parse_word();
         let last_token = self.last_token().take().expect("last token");
         if last_token.is_empty() {
@@ -3701,7 +3708,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// ( xt -- a-addr )
     /// a-addr is the data-field address corresponding to xt. An ambiguous
     /// condition exists if xt is not for a word defined via CREATE.
-    primitive!{fn to_body(&mut self) {
+    primitive! {fn to_body(&mut self) {
         let t = self.s_stack().pop() as usize;
         if t < self.wordlist().len() {
             let dfa = self.wordlist()[t].dfa() as isize;
@@ -3715,7 +3722,7 @@ compilation_semantics: fn(&mut Self, usize)){
     ///
     /// Remove `xt` from the stack and perform the semantics identified by it.
     /// Other stack effects are due to the word `EXECUTE`d.
-    primitive!{fn execute(&mut self) {
+    primitive! {fn execute(&mut self) {
         let t = self.s_stack().pop();
         self.execute_word(t as usize);
     }}
@@ -3724,7 +3731,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Run-time: ( -- xt )
     ///
     /// Forth 2012 6.1.2510
-    primitive!{fn bracket_tick(&mut self) {
+    primitive! {fn bracket_tick(&mut self) {
         self.parse_word();
         let last_token = self.last_token().take().expect("last token");
         if last_token.is_empty() {
@@ -3748,7 +3755,7 @@ compilation_semantics: fn(&mut Self, usize)){
     ///
     /// Forth 2012 6.2.0945
     /// Append the execution semantics of the definition represented by xt to the execution semantics of the current definition.
-    primitive!{fn compile_comma(&mut self) {
+    primitive! {fn compile_comma(&mut self) {
         let v = self.s_stack().pop();
         self.data_space().compile_isize(v as isize);
     }}
@@ -3756,7 +3763,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Run-time: ( -- addr )
     ///
     /// `addr` is the data-space pointer.
-    primitive!{fn here(&mut self) {
+    primitive! {fn here(&mut self) {
         let here = self.data_space().here() as isize;
         self.s_stack().push(here);
     }}
@@ -3766,7 +3773,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// If `n` is greater than zero, reserve n address units of data space. If `n`
     /// is less than zero, release `|n|` address units of data space. If `n` is
     /// zero, leave the data-space pointer unchanged.
-    primitive!{fn allot(&mut self) {
+    primitive! {fn allot(&mut self) {
         let v = self.s_stack().pop();
         self.data_space().allot(v);
     }}
@@ -3774,7 +3781,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Run-time: ( addr -- a-addr )
     ///
     /// Return `a-addr`, the first aligned address greater than or equal to `addr`.
-    primitive!{fn aligned(&mut self) {
+    primitive! {fn aligned(&mut self) {
         let pos = self.s_stack().pop();
         let pos = DataSpace::aligned(pos as usize);
         self.s_stack().push(pos as isize);
@@ -3783,7 +3790,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// Run-time: ( -- )
     ///
     /// If the data-space pointer is not aligned, reserve enough space to align it.
-    primitive!{fn align(&mut self) {
+    primitive! {fn align(&mut self) {
         self.data_space().align();
     }}
 
@@ -3793,12 +3800,12 @@ compilation_semantics: fn(&mut Self, usize)){
     /// data-space pointer is aligned when `,` begins execution, it will remain
     /// aligned when `,` finishes execution. An ambiguous condition exists if the
     /// data-space pointer is not aligned prior to execution of `,`.
-    primitive!{fn comma(&mut self) {
+    primitive! {fn comma(&mut self) {
         let v = self.s_stack().pop();
         self.data_space().compile_isize(v as isize);
     }}
 
-    primitive!{fn p_to_r(&mut self) {
+    primitive! {fn p_to_r(&mut self) {
         let slen = self.s_stack().len;
         let rlen = self.r_stack().len.wrapping_add(1);
         self.r_stack().len = rlen;
@@ -3806,7 +3813,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().len = slen.wrapping_sub(1);
     }}
 
-    primitive!{fn r_from(&mut self) {
+    primitive! {fn r_from(&mut self) {
         let slen = self.s_stack().len.wrapping_add(1);
         let rlen = self.r_stack().len;
         self.s_stack().len = slen;
@@ -3814,14 +3821,14 @@ compilation_semantics: fn(&mut Self, usize)){
         self.r_stack().len = rlen.wrapping_sub(1);
     }}
 
-    primitive!{fn r_fetch(&mut self) {
+    primitive! {fn r_fetch(&mut self) {
         let slen = self.s_stack().len.wrapping_add(1);
         let rlen = self.r_stack().len;
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = self.r_stack()[rlen.wrapping_sub(1)];
     }}
 
-    primitive!{fn two_to_r(&mut self) {
+    primitive! {fn two_to_r(&mut self) {
         let slen = self.s_stack().len;
         let rlen = self.r_stack().len.wrapping_add(2);
         self.r_stack().len = rlen;
@@ -3830,7 +3837,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.s_stack().len = slen.wrapping_sub(2);
     }}
 
-    primitive!{fn two_r_from(&mut self) {
+    primitive! {fn two_r_from(&mut self) {
         let slen = self.s_stack().len.wrapping_add(2);
         let rlen = self.r_stack().len;
         self.s_stack().len = slen;
@@ -3839,7 +3846,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.r_stack().len = rlen.wrapping_sub(2);
     }}
 
-    primitive!{fn two_r_fetch(&mut self) {
+    primitive! {fn two_r_fetch(&mut self) {
         let slen = self.s_stack().len.wrapping_add(2);
         let rlen = self.r_stack().len;
         self.s_stack().len = slen;
@@ -3851,7 +3858,7 @@ compilation_semantics: fn(&mut Self, usize)){
     // Error handlling
     // ----------------
 
-    primitive!{fn check_stacks(&mut self) {
+    primitive! {fn check_stacks(&mut self) {
         if self.s_stack().overflow() {
             self.abort_with(StackOverflow);
         } else if self.s_stack().underflow() {
@@ -3871,13 +3878,13 @@ compilation_semantics: fn(&mut Self, usize)){
         }
     }}
 
-    primitive!{fn handler_store(&mut self) {
+    primitive! {fn handler_store(&mut self) {
         let t = self.s_stack().pop();
         self.set_handler(t as usize);
     }}
 
     /// Error code `error ( -- n )`
-    primitive!{fn error(&mut self) {
+    primitive! {fn error(&mut self) {
         match self.last_error() {
             Some(e) => {
                 self.s_stack().push(e as isize);
@@ -3889,12 +3896,12 @@ compilation_semantics: fn(&mut Self, usize)){
     }}
 
     /// Clear error. `0error ( -- )`
-    primitive!{fn clear_error(&mut self) {
+    primitive! {fn clear_error(&mut self) {
         self.set_error(None);
     }}
 
     /// Print error description. `.error ( -- )`
-    primitive!{fn dot_error(&mut self) {
+    primitive! {fn dot_error(&mut self) {
         match self.last_error() {
             Some(e) => {
                 match self.output_buffer().as_mut() {
@@ -3910,7 +3917,7 @@ compilation_semantics: fn(&mut Self, usize)){
 
     /// Clear data, floating point, and control stacks.
     /// Called by VM's client upon Abort.
-    primitive!{fn clear_stacks(&mut self) {
+    primitive! {fn clear_stacks(&mut self) {
         self.s_stack().reset();
         self.f_stack().reset();
         self.c_stack().reset();
@@ -3919,7 +3926,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// ( -- source-id )
     ///
     /// Current source id.
-    primitive!{fn p_source_id(&mut self) {
+    primitive! {fn p_source_id(&mut self) {
         let source_id = self.source_id();
         self.s_stack().push(source_id);
     }}
@@ -3927,7 +3934,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// ( source-id -- )
     ///
     /// Set source id.
-    primitive!{fn p_set_source_id(&mut self) {
+    primitive! {fn p_set_source_id(&mut self) {
         let id = self.s_stack().pop();
         self.set_source_id(id);
     }}
@@ -3936,7 +3943,8 @@ compilation_semantics: fn(&mut Self, usize)){
     fn set_source_id(&mut self, id: isize) {
         if id > 0 {
             // File source
-            if id - 1 < self.sources().len() as isize && self.sources()[id as usize - 1].is_some()
+            if id - 1 < self.sources().len() as isize
+                && self.sources()[id as usize - 1].is_some()
                 && self.lines()[id as usize - 1].is_some()
             {
                 self.state().source_id = id;
@@ -3953,7 +3961,7 @@ compilation_semantics: fn(&mut Self, usize)){
     /// ( -- source-idx )
     ///
     /// Current source index.
-    primitive!{fn p_source_idx(&mut self) {
+    primitive! {fn p_source_idx(&mut self) {
         let source_idx = self.state().source_index as isize;
         self.s_stack().push(source_idx);
     }}
@@ -3961,14 +3969,14 @@ compilation_semantics: fn(&mut Self, usize)){
     /// ( source-idx -- )
     ///
     /// Set source index.
-    primitive!{fn p_set_source_idx(&mut self) {
+    primitive! {fn p_set_source_idx(&mut self) {
         let idx = self.s_stack().pop() as usize;
         self.state().source_index = idx;
     }}
 
     /// Reset VM, do not clear data stack, floating point and control stack.
     /// Called by VM's client upon Quit.
-    primitive!{fn reset(&mut self) {
+    primitive! {fn reset(&mut self) {
         self.r_stack().reset();
         self.set_source_id(0);
         if let Some(ref mut buf) = *self.input_buffer() {
@@ -3979,7 +3987,7 @@ compilation_semantics: fn(&mut Self, usize)){
         self.set_error(None);
     }}
 
-    primitive!{fn _regs(&mut self) -> &mut [usize; 2] {
+    primitive! {fn _regs(&mut self) -> &mut [usize; 2] {
         self.regs()
     }}
 
@@ -4043,12 +4051,12 @@ compilation_semantics: fn(&mut Self, usize)){
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
-    primitive!{fn abort(&mut self) {
+    primitive! {fn abort(&mut self) {
         self.abort_with(Abort);
     }}
 
     /// Pause the current task and resume the next task which is awake.
-    primitive!{fn pause(&mut self) {
+    primitive! {fn pause(&mut self) {
         let mut i = self.current_task();
         loop {
             i = (i + 1) % NUM_TASKS;
@@ -4060,13 +4068,13 @@ compilation_semantics: fn(&mut Self, usize)){
     }}
 
     /// Current task ID
-    primitive!{fn me(&mut self) {
+    primitive! {fn me(&mut self) {
         let me = self.current_task() + 1;
         self.s_stack().push(me as isize);
     }}
 
     /// Suspend task `i`. `suspend ( i -- )`
-    primitive!{fn suspend(&mut self) {
+    primitive! {fn suspend(&mut self) {
         let i = (self.s_stack().pop() - 1) as usize;
         if i < NUM_TASKS {
             self.set_awake(i as usize, false);
@@ -4076,7 +4084,7 @@ compilation_semantics: fn(&mut Self, usize)){
     }}
 
     /// Resume task `i`. `resume ( i -- )`
-    primitive!{fn resume(&mut self) {
+    primitive! {fn resume(&mut self) {
         let i = (self.s_stack().pop() - 1) as usize;
         if i < NUM_TASKS {
             self.set_awake(i as usize, true);
@@ -4091,12 +4099,14 @@ mod tests {
     extern crate test;
     use self::test::Bencher;
     use super::{Core, Memory};
-    use exception::Exception::{Abort, ControlStructureMismatch, InterpretingACompileOnlyWord,
-                               InvalidMemoryAddress, ReturnStackUnderflow, StackUnderflow,
-                               UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation};
+    use exception::Exception::{
+        Abort, ControlStructureMismatch, InterpretingACompileOnlyWord, InvalidMemoryAddress,
+        ReturnStackUnderflow, StackUnderflow, UndefinedWord, UnexpectedEndOfFile,
+        UnsupportedOperation,
+    };
     use loader::HasLoader;
-    use std::mem;
     use mock_vm::VM;
+    use std::mem;
 
     #[bench]
     fn bench_noop(b: &mut Bencher) {
@@ -5312,27 +5322,27 @@ mod tests {
     }
 
     /*
-    #[bench]
-    fn bench_compile_words_at_beginning_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16, 16);
-        b.iter(|| {
-            vm.set_source("marker empty : main noop noop noop noop noop noop noop noop ; empty");
-            vm.evaluate_input();
-            vm.s_stack().reset();
-        });
-    }
+        #[bench]
+        fn bench_compile_words_at_beginning_of_wordlist(b: &mut Bencher) {
+            let vm = &mut VM::new(16, 16);
+            b.iter(|| {
+                vm.set_source("marker empty : main noop noop noop noop noop noop noop noop ; empty");
+                vm.evaluate_input();
+                vm.s_stack().reset();
+            });
+        }
 
-    #[bench]
-    fn bench_compile_words_at_end_of_wordlist(b: &mut Bencher) {
-        let vm = &mut VM::new(16, 16);
-        b.iter(|| {
-                   vm.set_source("marker empty : main bye bye bye bye bye bye bye bye ; empty");
-                   vm.evaluate_input();
-                   vm.s_stack().reset();
-               });
-    }
+        #[bench]
+        fn bench_compile_words_at_end_of_wordlist(b: &mut Bencher) {
+            let vm = &mut VM::new(16, 16);
+            b.iter(|| {
+                       vm.set_source("marker empty : main bye bye bye bye bye bye bye bye ; empty");
+                       vm.evaluate_input();
+                       vm.s_stack().reset();
+                   });
+        }
 
-*/
+    */
 
     #[test]
     fn test_push_source() {
@@ -5728,7 +5738,9 @@ mod tests {
     fn test_label_goto_call() {
         let vm = &mut VM::new(16, 16);
         // Go backwards.
-        vm.set_source(": test1   0labels  0  [ 10 ] label 1+ dup 3 > if exit then [ 10 ] goto ; test1");
+        vm.set_source(
+            ": test1   0labels  0  [ 10 ] label 1+ dup 3 > if exit then [ 10 ] goto ; test1",
+        );
         vm.evaluate_input();
         assert_eq!(vm.s_stack().pop(), 4);
         // Go forwards.
@@ -5771,7 +5783,7 @@ mod tests {
         vm.evaluate_input();
         assert!(vm.last_error() != None);
     }
-    
+
     #[test]
     fn test_backslash() {
         let vm = &mut VM::new(16, 16);
@@ -6171,5 +6183,4 @@ mod tests {
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), -1);
     }
-
 }

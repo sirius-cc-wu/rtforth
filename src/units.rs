@@ -30,77 +30,77 @@ pub trait Units: Core {
         self.add_primitive("1/sec", Units::hertz);
     }
 
-    primitive!{fn from_meter(&mut self) {
+    primitive! {fn from_meter(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Length::new::<meter>(t).value);
     }}
 
-    primitive!{fn from_mm(&mut self) {
+    primitive! {fn from_mm(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Length::new::<millimeter>(t).value);
     }}
 
-    primitive!{fn from_um(&mut self) {
+    primitive! {fn from_um(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Length::new::<micrometer>(t).value);
     }}
 
-    primitive!{fn from_deg(&mut self) {
+    primitive! {fn from_deg(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t*PI/180.0);
     }}
 
-    primitive!{fn from_rad(&mut self) {
+    primitive! {fn from_rad(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t);
     }}
 
-    primitive!{fn from_hour(&mut self) {
+    primitive! {fn from_hour(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Time::new::<hour>(t).value);
     }}
 
-    primitive!{fn from_minute(&mut self) {
+    primitive! {fn from_minute(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Time::new::<minute>(t).value);
     }}
 
-    primitive!{fn from_sec(&mut self) {
+    primitive! {fn from_sec(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Time::new::<second>(t).value);
     }}
 
-    primitive!{fn from_msec(&mut self) {
+    primitive! {fn from_msec(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Time::new::<millisecond>(t).value);
     }}
 
-    primitive!{fn from_usec(&mut self) {
+    primitive! {fn from_usec(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Time::new::<microsecond>(t).value);
     }}
 
-    primitive!{fn mm_per_min(&mut self) {
+    primitive! {fn mm_per_min(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Length::new::<millimeter>(t).value/Time::new::<minute>(1.0).value);
     }}
 
-    primitive!{fn mm_per_sec(&mut self) {
+    primitive! {fn mm_per_sec(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Length::new::<millimeter>(t).value/Time::new::<second>(1.0).value);
     }}
 
-    primitive!{fn um_per_msec(&mut self) {
+    primitive! {fn um_per_msec(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(Length::new::<micrometer>(t).value/Time::new::<millisecond>(1.0).value);
     }}
 
-    primitive!{fn rpm(&mut self) {
+    primitive! {fn rpm(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t*RPM);
     }}
 
-    primitive!{fn hertz(&mut self) {
+    primitive! {fn hertz(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t);
     }}
@@ -109,8 +109,8 @@ pub trait Units: Core {
 #[cfg(test)]
 mod tests {
     use core::Core;
-    use std::f64::consts::PI;
     use mock_vm::VM;
+    use std::f64::consts::PI;
 
     fn double_value_check(res: f64, exp: f64) -> bool {
         if (res > exp - 0.000_000_1) && (res < exp + 0.000_000_1) {
@@ -272,5 +272,4 @@ mod tests {
         let t = vm.f_stack().pop();
         assert!(double_value_check(t, 2.0));
     }
-
 }

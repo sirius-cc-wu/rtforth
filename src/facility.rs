@@ -10,13 +10,13 @@ pub trait Facility: Core {
     }
 
     /// System time in milli-seconds. `mtime ( -- milli-seconds )`
-    primitive!{fn mtime(&mut self) {
+    primitive! {fn mtime(&mut self) {
         let now = self.system_time_ns() / 1_000_000;
         self.s_stack().push(now as isize);
     }}
 
     /// System time in micro-seconds. `utime ( -- micro-seconds )`
-    primitive!{fn utime(&mut self) {
+    primitive! {fn utime(&mut self) {
         let now = self.system_time_ns() / 1_000;
         self.s_stack().push(now as isize);
 

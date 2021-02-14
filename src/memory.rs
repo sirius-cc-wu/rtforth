@@ -1,9 +1,9 @@
 extern crate libc;
 
+use exception::Exception;
 use std::marker;
 use std::mem;
 use std::slice;
-use exception::Exception;
 
 extern "C" {
     fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;

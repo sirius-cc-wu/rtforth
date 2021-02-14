@@ -1,18 +1,18 @@
-use std::fs::File;
-use hibitset::BitSet;
-use loader::Source;
-use memory::{CodeSpace, DataSpace};
-use NUM_TASKS;
 use core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use env::Environment;
 use exception::Exception;
 use facility::Facility;
-use float::Float;
 use file_access::FileAccess;
+use float::Float;
+use hibitset::BitSet;
 use loader::HasLoader;
+use loader::Source;
+use memory::{CodeSpace, DataSpace};
 use output::Output;
+use std::fs::File;
 use tools::Tools;
 use units::Units;
+use NUM_TASKS;
 
 const BUFFER_SIZE: usize = 0x400;
 const LABEL_COUNT: u32 = 1000;

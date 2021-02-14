@@ -1,28 +1,28 @@
 extern crate getopts;
 #[macro_use(primitive)]
 extern crate rtforth;
+extern crate hibitset;
 extern crate rustyline;
 extern crate time;
-extern crate hibitset;
 
 use getopts::Options;
-use rtforth::memory::{CodeSpace, DataSpace};
+use hibitset::BitSet;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use rtforth::env::Environment;
 use rtforth::exception::Exception;
 use rtforth::facility::Facility;
+use rtforth::file_access::FileAccess;
 use rtforth::float::Float;
 use rtforth::loader::{HasLoader, Source};
+use rtforth::memory::{CodeSpace, DataSpace};
 use rtforth::output::Output;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
-use rtforth::file_access::FileAccess;
 use rtforth::NUM_TASKS;
 use std::env;
 use std::fmt::Write;
-use std::process;
 use std::fs::File;
-use hibitset::BitSet;
+use std::process;
 
 const BUFFER_SIZE: usize = 0x400;
 const LABEL_COUNT: u32 = 1000;
@@ -350,7 +350,7 @@ fn print_version() {
     println!("rtForth v0.6.0, Copyright (C) 2018 Mapacode Inc.");
 }
 
-primitive!{fn receive(vm: &mut VM) {
+primitive! {fn receive(vm: &mut VM) {
     match vm.editor.readline("rf> ") {
         Ok(line) => {
             vm.editor.add_history_entry(&line);
@@ -371,7 +371,7 @@ primitive!{fn receive(vm: &mut VM) {
 }}
 
 /// Terminate process.
-primitive!{fn bye(vm: &mut VM) {
+primitive! {fn bye(vm: &mut VM) {
     vm.flush_output();
     process::exit(0);
 }}

@@ -1,3 +1,15 @@
+// Plan:
+//
+// data space:
+//
+//  +---------+---------+---------+-----------------------------+-------------+
+//  | action1 | action2 | asm ... | add length of asm to ip ret | action3 ... |
+//  +---------+---------+---------+-----------------------------+-------------+
+//
+// fn run(vm: &mut VM, ip: usize);
+// fn drop(vm: &mut VM, ip: usize);
+// fn execute_word(vm: &mut VM, ip: usize);
+
 use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::mem;
 

@@ -28,17 +28,12 @@ use std::mem;
 
 const INVALID_EXECUTION_TOKEN: isize = -1;
 
-struct State {
-    instruction_pointer: usize,
-    word_pointer: usize,
-}
-
 struct Word {
-    action: fn(&mut VM),
+    action: fn(&mut VM, ip: &mut usize),
 }
 
 impl Word {
-    fn action(&self) -> fn(&mut VM) {
+    fn action(&self) -> fn(&mut VM, ip: &mut usize) {
         self.action
     }
 }
@@ -87,19 +82,14 @@ impl DataSpace {
     }
 }
 
-fn drop(vm: &mut VM, ip: isize) {}
-
 struct VM {
-    state: State,
     data_space: DataSpace,
     wordlist: Vec<Word>,
+    stack: [isize; 256],
+    top: u8,
 }
 
 impl VM {
-    fn state(&mut self) -> &mut State {
-        &mut self.state
-    }
-
     fn wordlist(&self) -> &Vec<Word> {
         &self.wordlist
     }
@@ -111,40 +101,75 @@ impl VM {
     fn abort_with(&mut self, _code: isize) {}
 
     #[inline(never)]
-    fn run(&mut self) {
-        let mut ip = self.state().instruction_pointer;
-        while self.data_space().start() <= ip
-            && ip + mem::size_of::<isize>() <= self.data_space().limit()
-        {
-            let w = unsafe { self.data_space().get_isize(ip) as usize };
-            self.state().instruction_pointer += mem::size_of::<isize>();
-            self.execute_word(w);
-            ip = self.state().instruction_pointer;
-        }
-    }
-
-    #[inline(never)]
-    fn execute_word(&mut self, i: usize) {
-        self.state().word_pointer = i;
-        if i < self.wordlist().len() {
-            (self.wordlist()[i].action())(self);
-        } else {
-            self.abort_with(INVALID_EXECUTION_TOKEN);
+    fn run(&mut self, ip: &mut usize) {
+        loop {
+            let w = unsafe { self.data_space().get_isize(*ip) as usize };
+            *ip += 4;
+            if w < self.wordlist().len() {
+                (self.wordlist()[w].action())(self, ip);
+            } else {
+                self.abort_with(INVALID_EXECUTION_TOKEN);
+            }
         }
     }
 }
 
 fn main() {
     let mut vm = VM {
-        state: State {
-            instruction_pointer: 0,
-            word_pointer: 0,
-        },
         data_space: DataSpace::new(20),
         wordlist: Vec::new(),
+        stack: [0; 256],
+        top: 0,
     };
 
-    vm.run();
+    vm.wordlist.push(Word { action: p_false });
+    vm.wordlist.push(Word { action: one });
+    vm.wordlist.push(Word { action: one_plus });
+    vm.wordlist.push(Word { action: two_star });
+    vm.wordlist.push(Word { action: dup });
+    vm.wordlist.push(Word { action: swap });
+    vm.wordlist.push(Word { action: drop });
+
+    let mut ip = vm.data_space().start();
+    vm.run(&mut ip);
 
     println!("Hello, world!");
+}
+
+fn p_false(vm: &mut VM, ip: &mut usize) {
+    let new_top = vm.top.wrapping_sub(1);
+    vm.stack[new_top as usize] = 0;
+    vm.top = new_top;
+}
+
+fn one(vm: &mut VM, ip: &mut usize) {
+    let new_top = vm.top.wrapping_sub(1);
+    vm.stack[new_top as usize] = 1;
+    vm.top = new_top;
+}
+
+fn one_plus(vm: &mut VM, ip: &mut usize) {
+    vm.stack[vm.top as usize] += 1;
+}
+
+fn two_star(vm: &mut VM, ip: &mut usize) {
+    vm.stack[vm.top as usize] *= 2;
+}
+
+fn dup(vm: &mut VM, ip: &mut usize) {
+    let new_top = vm.top.wrapping_sub(1);
+    vm.stack[new_top as usize] = vm.stack[vm.top as usize];
+    vm.top = new_top;
+}
+
+fn drop(vm: &mut VM, ip: &mut usize) {
+    let new_top = vm.top.wrapping_add(1);
+    vm.top = new_top;
+}
+
+fn swap(vm: &mut VM, ip: &mut usize) {
+    let next = vm.top.wrapping_add(1);
+    let tmp = vm.stack[next as usize];
+    vm.stack[next as usize] = vm.stack[vm.top as usize];
+    vm.stack[vm.top as usize] = tmp;
 }

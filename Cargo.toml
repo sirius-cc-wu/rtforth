@@ -28,7 +28,7 @@ path = "examples/simple.rs"
 [dependencies]
 uom = "~0.31.0"
 approx = "~0.3"
-libc = "=0.2.54"
+libc = "=0.2.69"
 
 [dependencies.hibitset]
 version = "~0.5.0"

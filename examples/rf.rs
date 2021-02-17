@@ -89,9 +89,8 @@ pub struct VM {
 }
 
 impl VM {
-    /// Create a VM with data space size specified
-    /// by `data_capacity` bytes.
-    pub fn new(data_capacity: usize) -> VM {
+    /// Create a VM with data space capacity of `capacity` bytes.
+    pub fn with_capacity(capacity: usize) -> VM {
         let mut labels = Vec::with_capacity(LABEL_COUNT as _);
         labels.resize(LABEL_COUNT as _, 0);
         let mut vm = VM {
@@ -112,7 +111,7 @@ impl VM {
             last_error: None,
             handler: 0,
             wordlist: Wordlist::with_capacity(1000),
-            data_space: DataSpace::with_capacity(data_capacity),
+            data_space: DataSpace::with_capacity(capacity),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
@@ -305,7 +304,7 @@ impl Tools for VM {}
 impl FileAccess for VM {}
 
 fn main() {
-    let vm = &mut VM::new(1024 * 1024);
+    let vm = &mut VM::with_capacity(1024 * 1024);
 
     let args: Vec<_> = env::args().collect();
     let program = args[0].clone();

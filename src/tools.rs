@@ -82,7 +82,7 @@ pub trait Tools: Output {
     /// Meaure the execution time of `words`.
     /// ```forth
     /// : xtime ( xt -- )   utime >r >r r@  execute  r> r> (xtime) ;
-    /// utime ' words xtime .xtime
+    /// ' words xtime .xtime
     /// ```
     primitive! {fn set_execution_times(&mut self) {
         let (xt, t0) = self.s_stack().pop2();

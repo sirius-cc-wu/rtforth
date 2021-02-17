@@ -9,6 +9,7 @@ use getopts::Options;
 use hibitset::BitSet;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use rtforth::env::Environment;
+use rtforth::exception;
 use rtforth::facility::Facility;
 use rtforth::file_access::FileAccess;
 use rtforth::float::Float;
@@ -138,7 +139,11 @@ impl VM {
         let rffs = include_str!("./rf.fs");
         vm.load_str(rffs);
         if vm.last_error().is_some() {
-            panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
+            panic!(
+                "Error {:?} {:?}",
+                exception::description(vm.last_error().unwrap()),
+                vm.last_token()
+            );
         }
 
         vm.flush_output();

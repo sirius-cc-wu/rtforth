@@ -39,7 +39,7 @@ default-features = false    # do not use rayon
 rustyline = "^4"
 getopts = "~0.2.21"
 time = "~0.1"
-criterion = "0.2"
+criterion = "0.3.4"
 
 [profile.release]
 debug = true

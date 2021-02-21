@@ -82,7 +82,7 @@ pub trait Tools: Output {
     /// Meaure the execution time of `words`.
     /// ```forth
     /// : xtime ( xt -- )   utime >r >r r@  execute  r> r> (xtime) ;
-    /// utime ' words xtime .xtime
+    /// ' words xtime .xtime
     /// ```
     primitive! {fn set_execution_times(&mut self) {
         let (xt, t0) = self.s_stack().pop2();
@@ -117,7 +117,7 @@ pub trait Tools: Output {
         }
     }}
 
-    /// Clear measured execution times. `0xtime( -- )`
+    /// Clear measured execution times. `0xtime ( -- )`
     primitive! {fn clear_xtime(&mut self) {
         for w in (1..self.wordlist().len()).rev() {
             if self.wordlist()[w].min_execution_time > 0 {
@@ -127,7 +127,7 @@ pub trait Tools: Output {
         }
     }}
 
-    /// Print content of the input buffer.
+    /// Print content of the input buffer. `.input ( -- )`
     primitive! {fn dot_input(&mut self) {
         match self.input_buffer().take() {
             Some(input) => {

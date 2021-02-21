@@ -287,7 +287,7 @@ Section number | Definition name | Compatibility
 12.6.2.1474 | FABS | Y
 12.6.2.1476 | FACOS | Y
 12.6.2.1477 | FACOSH |
-12.6.2.1484 | FALOG |
+12.6.2.1484 | FALOG | Y
 12.6.2.1486 | FASIN | Y
 12.6.2.1487 | FASINH |
 12.6.2.1488 | FATAN | Y
@@ -296,12 +296,12 @@ Section number | Definition name | Compatibility
 12.6.2.1493 | FCOS | Y
 12.6.2.1494 | FCOSH |
 12.6.2.1513 | FE. |
-12.6.2.1515 | FEXP |
-12.6.2.1516 | FEXPM1 |
+12.6.2.1515 | FEXP | Y
+12.6.2.1516 | FEXPM1 | Y
 12.6.2.1517 | FFIELD: |
-12.6.2.1553 | FLN |
-12.6.2.1554 | FLNP1 |
-12.6.2.1557 | FLOG |
+12.6.2.1553 | FLN | Y
+12.6.2.1554 | FLNP1 | Y
+12.6.2.1557 | FLOG | Y
 12.6.2.1613 | FS. |
 12.6.2.1614 | FSIN | Y
 12.6.2.1616 | FSINCOS | Y
@@ -340,8 +340,8 @@ Section number | Definition name | Compatibility
 15.6.2.0470 | ;CODE | X86
 15.6.2.0702 | AHEAD |
 15.6.2.0740 | ASSEMBLER |
-15.6.2.0830 | BYE |
-15.6.2.0930 | CODE | X86
+15.6.2.0830 | BYE | Y
+15.6.2.0930 | CODE |
 15.6.2.1015 | CS-PICK
 15.6.2.1020 | CS-ROLL
 15.6.2.1300 | EDITOR

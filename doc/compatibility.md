@@ -337,7 +337,7 @@ Section number | Definition name | Compatibility
 
 Section number | Definition name | Compatibility
 ---------------|-----------------|--------------
-15.6.2.0470 | ;CODE | X86
+15.6.2.0470 | ;CODE |
 15.6.2.0702 | AHEAD |
 15.6.2.0740 | ASSEMBLER |
 15.6.2.0830 | BYE | Y

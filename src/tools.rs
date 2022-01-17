@@ -6,6 +6,8 @@ pub trait Tools: Output {
     /// Add programming-tools primitives.
     fn add_tools(&mut self) {
         self.add_primitive("words", Tools::words);
+        self.add_primitive(".word", Tools::dot_word);
+        self.add_primitive(".backtrace", Tools::dot_backtrace);
         self.add_primitive(".s", Tools::dot_s);
         self.add_primitive(".memory", Tools::dot_memory);
         self.add_primitive("(xtime)", Tools::set_execution_times);
@@ -48,6 +50,58 @@ pub trait Tools: Output {
                     write!(buf, "{} ", name).unwrap();
                 }
             }
+            self.set_output_buffer(buf);
+        }
+    }}
+
+    /// Run-time: ( xt -- )
+    ///
+    /// Print name of execution token xt.
+    primitive! {fn dot_word(&mut self) {
+        if let Some(mut buf) = self.output_buffer().take() {
+            let xt = self.s_stack().pop() as usize;
+            if xt < self.wordlist().len() {
+                let nfa = self.wordlist()[xt].nfa();
+                let name = unsafe{ self.data_space().get_str(nfa) };
+                write!(buf, "{} ", name).unwrap();
+            } else {
+                write!(buf, "unknown ").unwrap();
+            }
+            self.set_output_buffer(buf);
+        }
+    }}
+
+    /// Run-time: ( -- )
+    ///
+    /// Print backtrace.
+    primitive! {fn dot_backtrace(&mut self) {
+        if let Some(mut buf) = self.output_buffer().take() {
+            write!(buf, "backtrace: ").unwrap();
+            for i in 0..self.r_stack().len() {
+                let ip = self.r_stack()[i] as usize;
+                match self.wordlist().find_xt(ip) {
+                    Some(xt) => {
+                        let nfa = self.wordlist()[xt].nfa();
+                        let name = unsafe{ self.data_space().get_str(nfa) };
+                        write!(buf, "{} ", name).unwrap();
+                    }
+                    None => {
+                        write!(buf, "unknown({:0X}) ", ip).unwrap();
+                    }
+                }
+            }
+            let ip = self.state().instruction_pointer;
+            match self.wordlist().find_xt(ip) {
+                Some(xt) => {
+                    let nfa = self.wordlist()[xt].nfa();
+                    let name = unsafe{ self.data_space().get_str(nfa) };
+                    write!(buf, "{} ", name).unwrap();
+                }
+                None => {
+                    write!(buf, "unknown({:0X}) ", ip).unwrap();
+                }
+            }
+
             self.set_output_buffer(buf);
         }
     }}

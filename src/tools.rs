@@ -93,6 +93,14 @@ pub trait Tools: Output {
                     }
                 }
             }
+
+            let xt = self.state().aborted_word_pointer;
+            if xt != 0 {
+                let nfa = self.wordlist()[xt].nfa();
+                let name = unsafe{ self.data_space().get_str(nfa) };
+                write!(buf, "{} ", name).unwrap();
+            }
+
             let ip = self.state().instruction_pointer;
             match self.wordlist().find_xt(ip) {
                 Some(xt) => {

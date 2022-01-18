@@ -473,6 +473,7 @@ pub struct State {
     pub is_compiling: bool,
     pub instruction_pointer: usize,
     word_pointer: usize,
+    pub aborted_word_pointer: usize,
     pub source_index: usize,
     pub source_id: isize,
 }
@@ -483,6 +484,7 @@ impl State {
             is_compiling: false,
             instruction_pointer: 0,
             word_pointer: 0,
+            aborted_word_pointer: 0,
             source_index: 0,
             source_id: 0,
         }
@@ -3378,6 +3380,7 @@ pub trait Core: Sized {
         if let Some(ref mut buf) = *self.input_buffer() {
             buf.clear()
         }
+        self.state().aborted_word_pointer = 0;
         self.state().source_index = 0;
         self.left_bracket();
         self.set_error(None);
@@ -3388,6 +3391,7 @@ pub trait Core: Sized {
         self.clear_stacks();
         self.set_error(Some(e));
         let h = self.handler();
+        self.state().aborted_word_pointer = self.state().word_pointer;
         self.execute_word(h);
     }
 

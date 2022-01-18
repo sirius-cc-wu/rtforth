@@ -215,6 +215,21 @@ impl<Target> Wordlist<Target> {
         self.words.truncate(i);
         self.last = self.words.len() - 1;
     }
+
+    /// Find execution token of the word to whom the address may belong to.
+    pub fn find_xt(&self, addr: usize) -> Option<usize> {
+        let result = self.words.binary_search_by(|w| w.nfa().cmp(&addr));
+        match result {
+            Ok(xt) => Some(xt),
+            Err(xt) => {
+                if xt == 0 {
+                    None
+                } else {
+                    Some(xt - 1)
+                }
+            }
+        }
+    }
 }
 
 impl<Target> Index<usize> for Wordlist<Target> {
@@ -716,6 +731,7 @@ pub trait Core: Sized {
         self.add_primitive("create", Core::create);
         self.add_primitive("'", Core::tick);
         self.add_primitive(">body", Core::to_body);
+        self.add_primitive(">name", Core::to_name);
         self.add_primitive("]", Core::right_bracket);
         self.add_primitive(",", Core::comma);
         self.add_primitive("marker", Core::marker);
@@ -3065,6 +3081,18 @@ pub trait Core: Sized {
         if t < self.wordlist().len() {
             let dfa = self.wordlist()[t].dfa() as isize;
             self.s_stack().push(dfa);
+        } else {
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
+        }
+    }}
+
+    /// ( xt -- a-addr )
+    /// a-addr is the name-field address corresponding to xt.
+    primitive! {fn to_name(&mut self) {
+        let t = self.s_stack().pop() as usize;
+        if t < self.wordlist().len() {
+            let nfa = self.wordlist()[t].nfa() as isize;
+            self.s_stack().push(nfa);
         } else {
             self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }

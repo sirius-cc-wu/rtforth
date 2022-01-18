@@ -14,6 +14,7 @@
         ." :"  load-line# @  0 .r ." : " .source-line ." )"
       else drop
       then
+      ." , " .backtrace
     then flush-output 0error quit ;
 
 \ Cold start

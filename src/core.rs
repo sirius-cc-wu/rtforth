@@ -817,6 +817,25 @@ pub trait Core: Sized {
         }
     }
 
+    // Execute one step of vm loop.
+    //
+    // Return true if there are more steps to execute, false if otherwise.
+    #[cfg(not(feature = "stc"))]
+    fn forth(&mut self) -> bool {
+        let mut ip = self.state().instruction_pointer;
+        if self.data_space().start() <= ip
+            && ip + mem::size_of::<isize>() <= self.data_space().limit()
+        {
+            let w = unsafe { self.data_space().get_isize(ip) as usize };
+            self.state().instruction_pointer += mem::size_of::<isize>();
+            self.execute_word(w);
+            ip = self.state().instruction_pointer;
+            true
+        } else {
+            false
+        }
+    }
+
     #[cfg(not(feature = "stc"))]
     fn compile_word(&mut self, word_index: usize) {
         self.data_space().compile_usize(word_index as usize);

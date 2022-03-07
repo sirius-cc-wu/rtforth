@@ -1,7 +1,7 @@
 extern crate libc;
 use hibitset::{BitSet, BitSetLike};
 use loader::Source;
-use memory::{CodeSpace, DataSpace, Memory};
+use memory::{DataSpace, Memory};
 use parser;
 use std::fmt::Write;
 use std::fmt::{self, Display};
@@ -26,7 +26,7 @@ pub struct Word<Target> {
     hash: u32,
     nfa: usize,
     dfa: usize,
-    cfa: usize,
+    doer: usize,
     action: primitive! { fn (&mut Target) },
     pub(crate) compilation_semantics: fn(&mut Target, usize),
     // Minimum execution time in [ns]
@@ -41,7 +41,6 @@ impl<Target> Word<Target> {
         compilation_semantics: fn(&mut Target, usize),
         nfa: usize,
         dfa: usize,
-        cfa: usize,
     ) -> Word<Target> {
         Word {
             is_immediate: false,
@@ -51,7 +50,7 @@ impl<Target> Word<Target> {
             hash: 0,
             nfa: nfa,
             dfa: dfa,
-            cfa: cfa,
+            doer: 0,
             action: action,
             compilation_semantics: compilation_semantics,
             min_execution_time: 0,
@@ -89,10 +88,6 @@ impl<Target> Word<Target> {
 
     pub fn dfa(&self) -> usize {
         self.dfa
-    }
-
-    pub fn cfa(&self) -> usize {
-        self.cfa
     }
 
     pub fn action(&self) -> primitive! {fn(&mut Target)} {
@@ -380,6 +375,7 @@ pub struct ForwardReferences {
     pub idx_drop: usize,
     pub idx__postpone: usize,
     pub idx_to_r: usize,
+    pub idx__does: usize,
 }
 
 impl ForwardReferences {
@@ -401,6 +397,7 @@ impl ForwardReferences {
             idx_drop: 0,
             idx__postpone: 0,
             idx_to_r: 0,
+            idx__does: 0,
         }
     }
 }
@@ -477,8 +474,6 @@ pub trait Core: Sized {
     fn set_handler(&mut self, h: usize);
     fn data_space(&mut self) -> &mut DataSpace;
     fn data_space_const(&self) -> &DataSpace;
-    fn code_space(&mut self) -> &mut CodeSpace;
-    fn code_space_const(&self) -> &CodeSpace;
     /// Numeric output buffer
     fn hold_buffer(&mut self) -> &mut String;
     /// Get `output_buffer`.
@@ -503,7 +498,6 @@ pub trait Core: Sized {
     fn lines_mut(&mut self) -> &mut Vec<Option<String>>;
     fn last_token(&mut self) -> &mut Option<String>;
     fn set_last_token(&mut self, buffer: String);
-    fn regs(&mut self) -> &mut [usize; 2];
     fn s_stack(&mut self) -> &mut Stack<isize>;
     fn r_stack(&mut self) -> &mut Stack<isize>;
     fn c_stack(&mut self) -> &mut Stack<Control>;
@@ -637,6 +631,7 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("loop", Core::imm_loop);
         self.add_immediate_and_compile_only("+loop", Core::imm_plus_loop);
         self.add_immediate_and_compile_only("postpone", Core::postpone);
+        self.add_immediate_and_compile_only("does>", Core::does);
 
         // More Primitives
         self.add_primitive("true", Core::p_true);
@@ -704,10 +699,10 @@ pub trait Core: Sized {
         self.references().idx_drop = self.find("drop").expect("drop undefined");
         self.references().idx__postpone = self.find("_postpone").expect("_postpone undefined");
         self.references().idx_to_r = self.find(">r").expect(">r");
+        self.references().idx__does = self.find("_does").expect("_does");
 
         self.patch_compilation_semanticses();
 
-        #[cfg(not(feature = "stc"))]
         {
             // Multitasker
             self.add_compile_only("pause", Core::pause);
@@ -723,13 +718,11 @@ pub trait Core: Sized {
     fn add_primitive(&mut self, name: &str, action: primitive! {fn(&mut Self)}) {
         let nfa = self.data_space().compile_str(name);
         self.data_space().align();
-        self.code_space().align();
         let word = Word::new(
             action,
             Core::compile_word,
             nfa,
             self.data_space().here(),
-            self.code_space().here(),
         );
         self.wordlist_mut().push(name, word);
     }
@@ -804,7 +797,6 @@ pub trait Core: Sized {
     /// Evaluate a compiled program following self.state().instruction_pointer.
     /// Any exception causes termination of inner loop.
     #[inline(never)]
-    #[cfg(not(feature = "stc"))]
     fn run(&mut self) {
         let mut ip = self.state().instruction_pointer;
         while self.data_space().start() <= ip
@@ -820,7 +812,6 @@ pub trait Core: Sized {
     // Execute one step of vm loop.
     //
     // Return true if there are more steps to execute, false if otherwise.
-    #[cfg(not(feature = "stc"))]
     fn forth(&mut self) -> bool {
         let mut ip = self.state().instruction_pointer;
         if self.data_space().start() <= ip
@@ -836,42 +827,34 @@ pub trait Core: Sized {
         }
     }
 
-    #[cfg(not(feature = "stc"))]
     fn compile_word(&mut self, word_index: usize) {
         self.data_space().compile_usize(word_index as usize);
     }
 
-    #[cfg(not(feature = "stc"))]
     fn compile_nest(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "stc"))]
     fn compile_nest_code(&mut self, _: usize) {
         // Do nothing.
     }
 
-    #[cfg(not(feature = "stc"))]
     fn compile_var(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "stc"))]
     fn compile_const(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "stc"))]
     fn compile_unmark(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "stc"))]
     fn compile_fconst(&mut self, word_index: usize) {
         self.compile_word(word_index);
     }
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn lit(&mut self) {
         let ip = self.state().instruction_pointer;
         let v = unsafe{ self.data_space().get_isize(ip) as isize };
@@ -882,14 +865,12 @@ pub trait Core: Sized {
     }}
 
     /// Compile integer `i`.
-    #[cfg(not(feature = "stc"))]
     fn compile_integer(&mut self, i: isize) {
         let idx = self.references().idx_lit;
         self.compile_word(idx);
         self.data_space().compile_isize(i as isize);
     }
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn flit(&mut self) {
         let ip = DataSpace::aligned_f64(self.state().instruction_pointer as usize);
         let v = unsafe{ self.data_space().get_f64(ip) };
@@ -900,7 +881,6 @@ pub trait Core: Sized {
     }}
 
     /// Compile float 'f'.
-    #[cfg(not(feature = "stc"))]
     fn compile_float(&mut self, f: f64) {
         let idx_flit = self.references().idx_flit;
         self.compile_word(idx_flit);
@@ -909,7 +889,6 @@ pub trait Core: Sized {
     }
 
     /// Runtime of S"
-    #[cfg(not(feature = "stc"))]
     primitive! {fn p_s_quote(&mut self) {
         let ip = self.state().instruction_pointer;
         let (addr, cnt) = {
@@ -925,19 +904,16 @@ pub trait Core: Sized {
         );
     }}
 
-    #[cfg(not(feature = "stc"))]
     fn patch_compilation_semanticses(&mut self) {
         let idx_leave = self.find("leave").expect("leave");
         self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
     }
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
         self.state().instruction_pointer = unsafe{ self.data_space().get_isize(ip) as usize };
     }}
 
-    #[cfg(not(feature = "stc"))]
     fn compile_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_branch;
         self.compile_word(idx);
@@ -945,7 +921,6 @@ pub trait Core: Sized {
         self.data_space().here()
     }
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn zero_branch(&mut self) {
         let v = self.s_stack().pop();
         if v == 0 {
@@ -955,7 +930,6 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
     fn compile_zero_branch(&mut self, destination: usize) -> usize {
         let idx = self.references().idx_zero_branch;
         self.compile_word(idx);
@@ -980,7 +954,6 @@ pub trait Core: Sized {
     ///         |
     ///         ip
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
@@ -1010,7 +983,6 @@ pub trait Core: Sized {
     ///          |
     ///          ip
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn _qdo(&mut self) {
         let (n, t) = self.s_stack().pop2();
         if n == t {
@@ -1032,7 +1004,6 @@ pub trait Core: Sized {
     /// to the loop limit, discard the loop parameters and continue execution
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
-    #[cfg(not(feature = "stc"))]
     primitive! {fn _loop(&mut self) {
         let  rt = self.r_stack().pop();
         match rt .checked_add(1) {
@@ -1055,7 +1026,6 @@ pub trait Core: Sized {
     /// continue execution at the beginning of the loop. Otherwise, discard the
     /// current loop control parameters and continue execution immediately
     /// following the loop.
-    #[cfg(not(feature = "stc"))]
     primitive! {fn _plus_loop(&mut self) {
         let rt = self.r_stack().pop();
         let t = self.s_stack().pop();
@@ -1077,12 +1047,10 @@ pub trait Core: Sized {
     /// `UNLOOP` is required for each nesting level before the definition may be
     /// `EXIT`ed. An ambiguous condition exists if the loop-control parameters
     /// are unavailable.
-    #[cfg(not(feature = "stc"))]
     primitive! {fn unloop(&mut self) {
         let _ = self.r_stack().pop3();
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn leave(&mut self) {
         let (third, _, _) = self.r_stack().pop3();
         if self.r_stack().underflow() {
@@ -1094,7 +1062,6 @@ pub trait Core: Sized {
         };
     }}
 
-    #[cfg(not(feature = "stc"))]
     fn compile_leave(&mut self, word_idx: usize) {
         match self.leave_part() {
             Some(leave_part) => {
@@ -1107,7 +1074,6 @@ pub trait Core: Sized {
         };
     }
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         match self.r_stack().get(pos) {
@@ -1149,7 +1115,6 @@ pub trait Core: Sized {
     ///         |
     ///         ip
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_if(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
@@ -1167,7 +1132,6 @@ pub trait Core: Sized {
     ///             |                |       |
     ///             ip               +-------+
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
@@ -1188,7 +1152,6 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_then(&mut self) {
         let branch_part = match self.c_stack().pop() {
             Control::If(branch_part) => branch_part,
@@ -1230,12 +1193,10 @@ pub trait Core: Sized {
     ///                                   |                           |
     ///                                   +---------------------------+
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_case(&mut self) {
         self.c_stack().push(Control::Case);
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_of(&mut self) {
         match self.c_stack().pop() {
             Control::Case => {
@@ -1263,7 +1224,6 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_endof(&mut self) {
         let of_part = match self.c_stack().pop() {
             Control::Of(of_part) => {
@@ -1286,7 +1246,6 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_endcase(&mut self) {
         let idx = self.references().idx_drop;
         self.compile_word(idx);
@@ -1317,7 +1276,6 @@ pub trait Core: Sized {
     }}
 
     /// Begin a structure that is terminated by `repeat`, `until`, or `again`. `begin ( -- )`.
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_begin(&mut self) {
         let here = self.data_space().here();
         self.c_stack().push(Control::Begin(here));
@@ -1339,7 +1297,6 @@ pub trait Core: Sized {
     ///   |                              |
     ///   +------------------------------+
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_while(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(here));
@@ -1348,7 +1305,6 @@ pub trait Core: Sized {
     /// Terminate a `begin ... while ... repeat` structure. `repeat ( -- )`.
     ///
     /// Continue execution at the location following `begin`.
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_repeat(&mut self) {
         let (begin_part, while_part) = match self.c_stack().pop2() {
             (Control::Begin(begin_part), Control::While(while_part)) => {
@@ -1383,7 +1339,6 @@ pub trait Core: Sized {
     ///   |             |
     ///   +-------------+
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_until(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -1412,7 +1367,6 @@ pub trait Core: Sized {
     ///   |            |
     ///   +------------+
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -1429,7 +1383,6 @@ pub trait Core: Sized {
     }}
 
     /// Clear labels, `0labels ( -- )`
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_clear_labels(&mut self) {
         self.forward_bitset_mut().clear();
         self.resolved_bitset_mut().clear();
@@ -1438,7 +1391,6 @@ pub trait Core: Sized {
     /// Create a label `n`, `label ( n -- )`
     ///
     /// Valid `n`: `0 < n < labels.capacity()`.
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_label(&mut self) {
         let n = self.s_stack().pop() as usize;
         if 0 < n && n < self.labels().capacity() {
@@ -1483,7 +1435,6 @@ pub trait Core: Sized {
     /// [ n ] goto ... [ n ] label ...
     /// [ n ] label ... [ n ]  goto
     /// ```
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_goto(&mut self) {
         let n = self.s_stack().pop() as usize;
         if 0 < n && n < self.labels().capacity() {
@@ -1520,7 +1471,6 @@ pub trait Core: Sized {
     /// [ n ] call ... [ n ] label ... exit ...
     /// [ n ] label .. exit ... [ n ] call ...
     /// ```
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_call(&mut self) {
          let return_addr = self.data_space().here() + 5 * mem::size_of::<isize>();
          self.compile_integer(return_addr as _);
@@ -1543,7 +1493,6 @@ pub trait Core: Sized {
     ///             |     |
     /// Control::Do(here, here)
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_do(&mut self) {
         let idx = self.references().idx_do;
         self.compile_word(idx);
@@ -1571,7 +1520,6 @@ pub trait Core: Sized {
     ///              |     |
     /// Control::Do(here, here)
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_qdo(&mut self) {
         let idx = self.references().idx_qdo;
         self.compile_word(idx);
@@ -1615,7 +1563,6 @@ pub trait Core: Sized {
     ///             |
     /// Control::Do(do_part, _)
     ///
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
@@ -1644,7 +1591,6 @@ pub trait Core: Sized {
     /// Resolve the destination of all unresolved occurrences of `LEAVE` between
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following `+LOOP`.
-    #[cfg(not(feature = "stc"))]
     primitive! {fn imm_plus_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part,_) => do_part,
@@ -1667,7 +1613,6 @@ pub trait Core: Sized {
         }
     }}
 
-    #[cfg(not(feature = "stc"))]
     primitive! {fn activate(&mut self) {
         let i = (self.s_stack().pop() - 1) as usize;
         if i < NUM_TASKS {
@@ -1690,420 +1635,6 @@ pub trait Core: Sized {
         }
     }}
 
-    // -------------------------------
-    // Subroutine threaded code, x86
-    // -------------------------------
-    //
-    // Calling convension: fastcall
-    //
-    // Register usage:
-    //
-    // Caller save registers:
-    //   %eax: result of function
-    //   %ecx: first argument of function, often a pointer to vm
-    //   %edx: second argument of function
-    // Callee save registers:
-    //   %ebx: not used
-    //   %esi: pointer to vm
-    //   %edi: not used
-    //   %ebp: frame pointer
-    //   %esp: stack pointer
-    //
-    // For multitasking:
-    //   %edi: data stack pointer
-    //   %ebp: return stack pointer for primitives implemented in rust
-    //   %esp: return stack pointer for colon definitions
-    //
-    // For optimization:
-    //   %ebx, %ecx, %eax, %edx: cache registers
-    //
-    // The top few items of the data stack will be cached in the CPU registers
-    // using optimization strategy developed by FLK.
-    //
-    // RtForth seperates stack for primitives implemented in rust from that for
-    // colon definitions for two reasons:
-    //
-    // * Different depth requirement. The stack for colon definitions is
-    //   shallow if no RECURSE is used.。
-    // * Task-switch. Task-switch only occurs in colon definitions.
-    //
-    // Frame pointer in %ebp should be saved in memory upon RESET.
-    // Before call to primitives implemented in rust,
-    // %ebp and %esp need to be exchanged.
-    //
-    //    xchg %eax,%ebp
-    //    xchg %eax,%esp
-    //    xchg %eax,%ebp
-    //    mov  %esi,%ecx
-    //    call primitive_which_needs_deep_stack
-    //    xchg %eax,%ebp
-    //    xchg %eax,%esp
-    //    xchg %eax,%ebp
-    //
-    // Primitives which need only shallow stack space can be marked so that
-    // they use return stack for colon definitions to reduce frequency of stack
-    // exchange.
-    //
-    // A command SHALLOW is proposed to mark those primitives which need only shallow stack.
-    //
-    // SHALLOW +
-    // SHALLOW -
-    // SHALLOW @
-
-    /// Evaluate a compiled program following self.state().instruction_pointer.
-    /// Any exception causes termination of inner loop.
-    #[inline(never)]
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn run(&mut self) {
-        // Do nothing.
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_word(&mut self, word_index: usize) {
-        // 89 f1            mov    %esi,%ecx
-        // e8 xx xx xx xx   call   self.wordlist()[word_index].action
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        let w = self.wordlist()[word_index].action as usize;
-        self.code_space().compile_relative(w);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_nest(&mut self, word_index: usize) {
-        self.compile_word(word_index);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_nest_code(&mut self, word_index: usize) {
-        self.code_space().align_16bytes();
-        self.wordlist_mut()[word_index].action =
-            unsafe { mem::transmute(self.code_space().here()) };
-        // ; make a copy of vm in %esi because %ecx may be destropyed by
-        // subroutine call.
-        // 56               push   %esi
-        // 89 ce            mov    %ecx,%esi
-        // 83 ec 08         sub    $8,%esp
-        self.code_space().compile_u8(0x56);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xce);
-        self.code_space().compile_u8(0x83);
-        self.code_space().compile_u8(0xec);
-        self.code_space().compile_u8(0x08);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_exit(&mut self, _: usize) {
-        // 83 c4 08         add    $8,%esp
-        // 5e               pop    %esi
-        // c3               ret
-        self.code_space().compile_u8(0x83);
-        self.code_space().compile_u8(0xc4);
-        self.code_space().compile_u8(0x08);
-        self.code_space().compile_u8(0x5e);
-        self.code_space().compile_u8(0xc3);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_var(&mut self, word_index: usize) {
-        let dfa = self.wordlist()[word_index].dfa();
-        self.compile_integer(dfa as isize);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_const(&mut self, word_index: usize) {
-        let dfa = self.wordlist()[word_index].dfa();
-        let value = unsafe { self.data_space().get_isize(dfa) as isize };
-        self.compile_integer(value);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_unmark(&mut self, _: usize) {
-        // Do nothing.
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_fconst(&mut self, word_index: usize) {
-        // self.compile_word(word_index);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn lit(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn lit_integer(&mut self, i: isize) {
-        let slen = self.s_stack().len.wrapping_add(1);
-        self.s_stack().len = slen;
-        self.s_stack()[slen.wrapping_sub(1)] = i;
-    }}
-
-    /// Compile integer `i`.
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_integer(&mut self, i: isize) {
-        // ba nn nn nn nn   mov    $0xnnnn,%edx
-        // 89 f1            mov    %esi,%ecx
-        // e8 xx xx xx xx   call   lit_integer
-        self.code_space().compile_u8(0xba);
-        self.code_space().compile_isize(i as isize);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space()
-            .compile_relative(Self::lit_integer as usize);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn flit(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn lit_float(&mut self, f: f64) {
-        let flen = self.f_stack().len.wrapping_add(1);
-        self.f_stack().len = flen;
-        self.f_stack()[flen.wrapping_sub(1)] = f;
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_float(&mut self, f: f64) {
-        // ba nn nn nn nn   mov    <addr of f>, %edx
-        // 83 ec 08         sub    $0x08,%esp
-        // f2 0f 10 02      movsd  (%edx), %xmm0
-        // 89 f1            mov    %esi, %ecx
-        // f2 0f 11 04 24   movsd  %xmm0,(%esp)
-        // e8 xx xx xx xx   call   lit_float
-        self.data_space().align_f64();
-        let data_addr = self.data_space().here();
-        self.data_space().compile_f64(f);
-        self.code_space().compile_u8(0xba);
-        self.code_space().compile_usize(data_addr as usize);
-        self.code_space().compile_u8(0x83);
-        self.code_space().compile_u8(0xec);
-        self.code_space().compile_u8(0x08);
-        self.code_space().compile_u8(0xf2);
-        self.code_space().compile_u8(0x0f);
-        self.code_space().compile_u8(0x10);
-        self.code_space().compile_u8(0x02);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xf2);
-        self.code_space().compile_u8(0x0f);
-        self.code_space().compile_u8(0x11);
-        self.code_space().compile_u8(0x04);
-        self.code_space().compile_u8(0x24);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::lit_float as usize);
-    }
-
-    /// Runtime of S"
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn p_s_quote(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn lit_str(&mut self, idx: usize) {
-        let (addr, cnt) = {
-            let s = unsafe{ self.code_space().get_str(idx) };
-            (s.as_ptr() as isize, s.len() as isize)
-        };
-        // FIXME
-        // 加下一行會造成 cargo test test_s_quote_and_type --features="stc"
-        // 時 invalid memory reference 。但如果列印的方式改為 {} 就 ok。
-        // 懷疑是 compile_s_quote 設計有問題。或是 println 改變了 calling convension。
-        // 但奇怪的是，無法用 objdump -d 找到 compile_s_quote 以及 lit_counted_string，以致於無法
-        // 理解。
-        // println!("lit_counted_string: addr: {:x}!", addr);
-        let slen = self.s_stack().len.wrapping_add(2);
-        self.s_stack().len = slen;
-        self.s_stack()[slen.wrapping_sub(1)] = cnt;
-        self.s_stack()[slen.wrapping_sub(2)] = addr;
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_s_quote(&mut self, _: usize) {
-        // ba nn nn nn nn   mov    <index of counted string>, %edx
-        // 89 f1            mov    %esi, %ecx
-        // e8 xx xx xx xx   call   lit_str
-        let data_idx = self.data_space().here();
-        self.code_space().compile_u8(0xba);
-        self.code_space().compile_usize(data_idx as usize);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space()
-            .compile_relative(Self::lit_counted_string as usize);
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn patch_compilation_semanticses(&mut self) {
-        let idx_exit = self.find("exit").expect("exit");
-        self.wordlist_mut()[idx_exit].compilation_semantics = Self::compile_exit;
-        let idx_s_quote = self.find("_s\"").expect("_s\"");
-        self.wordlist_mut()[idx_s_quote].compilation_semantics = Self::compile_s_quote;
-        let idx_leave = self.find("leave").expect("leave");
-        self.wordlist_mut()[idx_leave].compilation_semantics = Self::compile_leave;
-        let idx_reset = self.find("reset").expect("reset");
-        self.wordlist_mut()[idx_reset].compilation_semantics = Self::compile_reset;
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn branch(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_branch(&mut self, destination: usize) -> usize {
-        // e9 xx xx xx xx      jmp xxxx
-        self.code_space().compile_u8(0xe9);
-        self.code_space().compile_relative(destination);
-        self.code_space().here()
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn zero_branch(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_zero_branch(&mut self, destination: usize) -> usize {
-        // 89 f1                mov    %esi,%ecx
-        // e8 xx xx xx xx       call   pop_stack ; pop value into %eax.
-        // 85 c0                test   %eax,%eax
-        // 0f 84 yy yy yy yy    je     yyyy
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space()
-            .compile_relative(Self::pop_s_stack as usize);
-        self.code_space().compile_u8(0x85);
-        self.code_space().compile_u8(0xc0);
-        self.code_space().compile_u8(0x0f);
-        self.code_space().compile_u8(0x84);
-        self.code_space().compile_relative(destination);
-        self.code_space().here()
-    }
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _do(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _stc_do(&mut self) {
-        let (n, t) = self.s_stack().pop2();
-        let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
-        let rn = t.wrapping_sub(rt);
-        self.r_stack().push2(rn, rt);
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _qdo(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _stc_qdo(&mut self) -> isize {
-        let (n, t) = self.s_stack().pop2();
-        if n == t {
-            -1
-        } else {
-            let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
-            let rn = t.wrapping_sub(rt);
-            self.r_stack().push2(rn, rt);
-            0
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _loop(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _stc_loop(&mut self) -> isize {
-        let rt = self.r_stack().pop();
-        match rt .wrapping_add(1) {
-            Some(sum) => {
-                self.r_stack().push(sum);
-                0
-            }
-            None => {
-                let _ = self.r_stack().pop();
-                -1
-            }
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _plus_loop(&mut self) {
-        // Do nothing.
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn _stc_plus_loop(&mut self) -> isize {
-        let rt = self.r_stack().pop();
-        let t = self.s_stack().pop();
-        match rt .checked_add(t)  {
-            Some(sum) => {
-                self.r_stack().push(sum);
-                0
-            }
-        } else {
-            let _ = self.r_stack().pop();
-            -1
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn unloop(&mut self) {
-        let _ = self.r_stack().pop2();
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn leave(&mut self) {
-        // Do nothing.
-    }}
-
-    /// Code space
-    /// +-----------+------+--
-    /// | loop body | LOOP |
-    /// +-----------+------+--
-    ///                     ^
-    ///                     |
-    ///               +-----+
-    ///               |
-    /// Data space    |
-    ///             +---+--
-    ///             | x |
-    ///             +---+--
-    ///           leave_part
-    ///
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_leave(&mut self, _: usize) {
-        let leave_part = match self.leave_part() {
-            Some(leave_part) => leave_part,
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        // 89 f1                mov    %esi,%ecx
-        // e8 xx xx xx xx       call   unloop
-        // b8 yy yy yy yy       mov    leave_part,%eax
-        // ff 20                jmp    *(%eax)
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::unloop as usize);
-        self.code_space().compile_u8(0xb8);
-        self.code_space().compile_usize(leave_part as usize);
-        self.code_space().compile_u8(0xff);
-        self.code_space().compile_u8(0x20);
-    }
-
     primitive! {fn p_i(&mut self) {
         match self.r_stack().last() {
             Some(it) => {
@@ -2116,402 +1647,6 @@ pub trait Core: Sized {
                 }
             }
             None => self.abort_with(ReturnStackUnderflow),
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn p_j(&mut self) {
-        let pos = self.r_stack().len() - 3;
-        match self.r_stack().get(pos) {
-            Some(jt) => {
-                match self.r_stack().get(pos-1) {
-                    Some(jn) => {
-                        self.s_stack().push(jt.wrapping_add(jn)),
-                    }
-                    None => self.abort_with(ReturnStackUnderflow),
-                }
-            }
-            None => self.abort_with(ReturnStackUnderflow),
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_if(&mut self) {
-        let here = self.compile_zero_branch(0);
-        self.c_stack().push(Control::If(here));
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_else(&mut self) {
-        let if_part = match self.c_stack().pop() {
-            Control::If(if_part) => if_part,
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            let else_part = self.compile_branch(0);
-            self.c_stack().push(Control::Else(else_part));
-            // if_part: 0f 84 yy yy yy yy    je yyyy
-            let here = self.code_space().here();
-            unsafe{
-                self.code_space()
-                    .put_isize((here - if_part) as isize, if_part - mem::size_of::<isize>());
-            }
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_then(&mut self) {
-        let branch_part = match self.c_stack().pop() {
-            Control::If(branch_part) => branch_part,
-            Control::Else(branch_part) => branch_part,
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            // branch_part:
-            //      0f 84 yy yy yy yy   je yyyy
-            // or
-            //      e9 xx xx xx xx      jmp xxxx
-            let here = self.code_space().here();
-            unsafe{
-                self.code_space()
-                    .put_isize(
-                        (here - branch_part) as isize,
-                        branch_part - mem::size_of::<isize>()
-                    );
-            }
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_case(&mut self) {
-        self.c_stack().push(Control::Case);
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_of(&mut self) {
-        match self.c_stack().pop() {
-            Control::Case => {
-                self.c_stack().push(Control::Case);
-            },
-            Control::Endof(n) => {
-                self.c_stack().push(Control::Endof(n));
-            },
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            let idx = self.references().idx_over;
-            self.compile_word(idx);
-            let idx = self.references().idx_equal;
-            self.compile_word(idx);
-            let here = self.compile_zero_branch(0);
-            self.c_stack().push(Control::Of(here));
-            let idx = self.references().idx_drop;
-            self.compile_word(idx);
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_endof(&mut self) {
-        let of_part = match self.c_stack().pop() {
-            Control::Of(of_part) => {
-                of_part
-            },
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            let endof_part = self.compile_branch(0);
-            self.c_stack().push(Control::Endof(endof_part));
-            // of_part: 0f 84 yy yy yy yy    je yyyy
-            let here = self.code_space().here();
-            unsafe{
-                self.code_space()
-                    .put_isize((here - of_part) as isize, of_part - mem::size_of::<isize>());
-            }
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_endcase(&mut self) {
-        let idx = self.references().idx_drop;
-        self.compile_word(idx);
-        loop {
-            let endof_part = match self.c_stack().pop() {
-                Control::Case => { break; }
-                Control::Endof(endof_part) => {
-                    endof_part
-                }
-                _ => {
-                    self.abort_with(ControlStructureMismatch);
-                    return;
-                }
-            };
-            if self.c_stack().underflow() {
-                self.abort_with(ControlStructureMismatch);
-            } else {
-                let here = self.code_space().here();
-                unsafe{
-                    self.code_space()
-                        .put_isize(
-                            (here - endof_part) as isize,
-                            endof_part - mem::size_of::<isize>()
-                        );
-                }
-            }
-        }
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_begin(&mut self) {
-        let here = self.code_space().here();
-        self.c_stack().push(Control::Begin(here));
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_while(&mut self) {
-        let while_part = self.compile_zero_branch(0);
-        self.c_stack().push(Control::While(while_part));
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_repeat(&mut self) {
-        let (begin_part, while_part) = match self.c_stack().pop2() {
-            (Control::Begin(begin_part), Control::While(while_part)) => (begin_part, while_part),
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            let _ = self.compile_branch(begin_part);
-            // while_part: 0f 84 yy yy yy yy    je yyyy
-            let here = self.code_space().here();
-            unsafe{
-                self.code_space()
-                    .put_isize((here - while_part) as isize, while_part - mem::size_of::<isize>());
-            }
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_until(&mut self) {
-        let begin_part = match self.c_stack().pop() {
-            Control::Begin(begin_part) => begin_part,
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            let _ = self.compile_zero_branch(begin_part);
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_again(&mut self) {
-        let begin_part = match self.c_stack().pop() {
-            Control::Begin(begin_part) => begin_part,
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            let _ = self.compile_branch(begin_part);
-        }
-    }}
-
-    /// Code space
-    /// +-----------------+--------------+--
-    /// | move %esi, %ecx | call _stc_do |
-    /// +-----------------+--------------+--
-    ///                                   ^
-    ///                                   |
-    ///             +---------------------+
-    ///             |
-    /// Control::Do(here, leave_part)
-    ///                   |
-    ///               +---+
-    ///               |
-    /// Data space    v
-    ///             +---+--
-    ///             | 0 |
-    ///             +---+--
-    ///
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_do(&mut self) {
-        // 89 f1                mov    %esi,%ecx
-        // e8 xx xx xx xx       call   _stc_do
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::_stc_do as usize);
-        let here = self.code_space().here();
-        let leave_part = self.data_space().here();
-        self.data_space().compile_usize(0);
-        self.c_stack().push(Control::Do(here, leave_part));
-    }}
-
-    /// Code space
-    /// +-------+-----------+------+--
-    /// | (?DO) | loop body | LOOP |
-    /// +-------+-----------+------+--
-    ///          ^                  ^
-    ///          |                  |
-    ///          +--+               +----+
-    ///             |                    |
-    /// Control::Do(here, leave_part)    |
-    ///                   |              |
-    ///               +---+              |
-    ///               |                  |
-    /// Data space    v                  |
-    ///             +---+--              |
-    ///             | 0 |                |
-    ///             +---+--              |
-    ///               |                  |
-    ///               +------------------+
-    ///
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_qdo(&mut self) {
-        //   89 f1                mov    %esi,%ecx
-        //   e8 xx xx xx xx       call   _stc_qdo
-        //   85 c0                test   %eax,%eax
-        //   0f 84 yy yy yy yy    je     do_part
-        //   b8 yy yy yy yy       mov    leave_part,%eax
-        //   ff 20                jmp    *(%eax)
-        // do_part:
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::_stc_qdo as usize);
-        self.code_space().compile_u8(0x85);
-        self.code_space().compile_u8(0xc0);
-        self.code_space().compile_u8(0x0f);
-        self.code_space().compile_u8(0x84);
-        self.code_space().compile_usize(7);
-        let leave_part = self.data_space().here();
-        self.data_space().compile_usize(0);
-        self.code_space().compile_u8(0xb8);
-        self.code_space().compile_usize(leave_part as usize);
-        self.code_space().compile_u8(0xff);
-        self.code_space().compile_u8(0x20);
-        let here = self.code_space().here();
-        self.c_stack().push(Control::Do(here, leave_part));
-    }}
-
-    /// Code space
-    /// +-----------+-----------+--
-    /// | loop body | loop code |
-    /// +-----------+-----------+--
-    ///  ^                       ^
-    ///  |                       |
-    ///  |                       +----------+
-    ///  +----------+                       |
-    ///             |                       |
-    /// Control::Do(do_part, leave_part)    |
-    ///                      |              |
-    ///               +------+              |
-    ///               |                     |
-    /// Data space    v                     |
-    ///             +---+--                 |
-    ///             | x |                   |
-    ///             +---+--                 |
-    ///               |                     |
-    ///               +---------------------+
-    ///
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_loop(&mut self) {
-        let (do_part, leave_part) = match self.c_stack().pop() {
-            Control::Do(do_part, leave_part) => (do_part, leave_part),
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            //      89 f1                mov    %esi,%ecx
-            //      e8 xx xx xx xx       call    _stc_loop
-            //      85 c0                test   %eax,%eax
-            //      0f 84 yy yy yy yy    je     do_part
-            // leave_part:
-            self.code_space().compile_u8(0x89);
-            self.code_space().compile_u8(0xf1);
-            self.code_space().compile_u8(0xe8);
-            self.code_space().compile_relative(Self::_stc_loop as usize);
-            self.code_space().compile_u8(0x85);
-            self.code_space().compile_u8(0xc0);
-            self.code_space().compile_u8(0x0f);
-            self.code_space().compile_u8(0x84);
-            self.code_space().compile_relative(do_part);
-            // TODO: 目前 data_space() 的 put_usize 和 code_space() 的作法不同。
-            // 未來 data_space() 要改為和 code_space() 作法一樣。雖然 leave_part 在
-            // data space，這兒先使用 code_space() 的作法。
-            let here = self.code_space().here();
-            unsafe{ self.code_space().put_usize(here as usize, leave_part); }
-        }
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    primitive! {fn imm_plus_loop(&mut self) {
-        let (do_part, leave_part) = match self.c_stack().pop() {
-            Control::Do(do_part, leave_part) => (do_part, leave_part),
-            _ => {
-                self.abort_with(ControlStructureMismatch);
-                return;
-            }
-        };
-        if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
-        } else {
-            //      89 f1                mov    %esi,%ecx
-            //      e8 xx xx xx xx       call    _stc_plus_loop
-            //      85 c0                test   %eax,%eax
-            //      0f 84 yy yy yy yy    je     do_part
-            // leave_part:
-            self.code_space().compile_u8(0x89);
-            self.code_space().compile_u8(0xf1);
-            self.code_space().compile_u8(0xe8);
-            self.code_space().compile_relative(Self::_stc_plus_loop as usize);
-            self.code_space().compile_u8(0x85);
-            self.code_space().compile_u8(0xc0);
-            self.code_space().compile_u8(0x0f);
-            self.code_space().compile_u8(0x84);
-            self.code_space().compile_relative(do_part);
-            // TODO: 目前 data_space() 的 put_usize 和 code_space() 的作法不同。
-            // 未來 data_space() 要改為和 code_space() 作法一樣。雖然 leave_part 在
-            // data space，這兒先使用 code_space() 的作法。
-            let here = self.code_space().here();
-            unsafe{ self.code_space().put_usize(here as usize, leave_part); }
         }
     }}
 
@@ -3138,13 +2273,11 @@ pub trait Core: Sized {
         } else {
             let nfa = self.data_space().compile_str(&last_token);
             self.data_space().align();
-            self.code_space().align();
             let word = Word::new(
                 action,
                 compilation_semantics,
                 nfa,
                 self.data_space().here(),
-                self.code_space().here(),
             );
             self.wordlist_mut().push(&last_token, word);
             self.set_last_token(last_token);
@@ -3190,9 +2323,9 @@ pub trait Core: Sized {
 
     primitive! {fn unmark(&mut self) {
         let wp = self.state().word_pointer;
-        let (nfa, cfa, mut dfa) = {
+        let (nfa, mut dfa) = {
             let w = &self.wordlist()[wp];
-            (w.nfa(), w.cfa(), w.dfa())
+            (w.nfa(), w.dfa())
         };
         let x = unsafe{ self.data_space().get_usize(dfa) };
         self.wordlist_mut().last = x;
@@ -3202,7 +2335,6 @@ pub trait Core: Sized {
             self.wordlist_mut().buckets[i] = x;
         }
         self.data_space().truncate(nfa);
-        self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
     }}
 
@@ -3244,11 +2376,11 @@ pub trait Core: Sized {
     /// range                             |
     ///                                   |
     ///   action                          |
-    ///   +------+                        |
-    ///   | does |                        |
-    ///   +------+                        |
+    ///   +-------+                       |
+    ///   | xdoes |                       |
+    ///   +-------+                       |
     ///                                   |
-    ///   cfa                             |
+    ///   doer                            |
     ///   +------+                        |
     ///   | x    |------------------------+
     ///   +------+
@@ -3259,13 +2391,23 @@ pub trait Core: Sized {
     ///   +---+----+
     ///
     primitive! {fn does(&mut self) {
+        let idx = self.references().idx__does;
+        self.s_stack().push(idx as isize);
+        self.compile_comma();
+        let idx = self.references().idx_exit;
+        self.s_stack().push(idx as isize);
+        self.compile_comma();
+    }}
+
+    primitive! {fn xdoes(&mut self) {
+
         // Push DFA.
         let wp = self.state().word_pointer;
-        let dfa = self.wordlist()[wp].dfa();
-        let cfa = self.wordlist()[wp].cfa();
+        let word = &self.wordlist()[wp];
+        let dfa = word.dfa();
+        let doer = word.doer;
         self.s_stack().push(dfa as isize);
         // Execute words behind DOES>.
-        let doer = unsafe{ self.code_space().get_usize(cfa) };
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
         self.state().instruction_pointer = doer;
@@ -3274,10 +2416,11 @@ pub trait Core: Sized {
     /// Run time behavior of does>.
     primitive! {fn _does(&mut self) {
         let doer = self.state().instruction_pointer + mem::size_of::<isize>();
-        self.code_space().compile_usize(doer);
+        self.data_space().compile_usize(doer);
         let def = self.wordlist().last;
         let word = &mut self.wordlist_mut()[def];
-        word.action = Core::does;
+        word.action = Core::xdoes;
+        word.doer = doer;
     }}
 
     // -----------
@@ -4036,61 +3179,6 @@ pub trait Core: Sized {
         self.left_bracket();
         self.set_error(None);
     }}
-
-    primitive! {fn _regs(&mut self) -> &mut [usize; 2] {
-        self.regs()
-    }}
-
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn compile_reset(&mut self, _: usize) {
-        //      ; Make a copy of vm in %esi because %ecx may be destroyed by
-        //      ; subroutine call.
-        //      ; Note that RESET is the first Forth instruction in QUIT.
-        //      ; Also note that %esi is not saved here because QUIT doesn't
-        //      ; return to caller.
-        //      89 ce            mov    %ecx,%esi
-        //      ; 判斷之前是否執行過 set_regs。
-        //      e8 xx xx xx xx  call   _regs()
-        //      8b 10           mov    (%eax),%edx
-        //      85 d2           test   %edx,%edx
-        //      74 04           je     set_regs
-        //      ; 若則執行過，重設 %esp 。
-        //      89 d4           mov    %edx,%esp
-        //      eb 02           jmp    call_reset
-        // set_regs:
-        //     ; 記住 quit 的 %esp 。
-        //      89 20           mov %esp, (%eax)
-        // call_reset:
-        //      89 f1           mov %esi,%ecx
-        //      e8 xx xx xx xx  call reset
-        //      89 f1           mov %esi,%ecx
-        //      e8 xx xx xx xx  call clear_stacks
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xce);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::_regs as usize);
-        self.code_space().compile_u8(0x8b);
-        self.code_space().compile_u8(0x10);
-        self.code_space().compile_u8(0x85);
-        self.code_space().compile_u8(0xd2);
-        self.code_space().compile_u8(0x74);
-        self.code_space().compile_u8(0x04);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xd4);
-        self.code_space().compile_u8(0xeb);
-        self.code_space().compile_u8(0x02);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0x20);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space().compile_relative(Self::reset as usize);
-        self.code_space().compile_u8(0x89);
-        self.code_space().compile_u8(0xf1);
-        self.code_space().compile_u8(0xe8);
-        self.code_space()
-            .compile_relative(Self::clear_stacks as usize);
-    }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
     fn abort_with(&mut self, e: Exception) {
@@ -5699,11 +4787,8 @@ mod tests {
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
-        // : t1 0 if true else false then ; t1
-        // let action = vm.code_space().here();
         vm.set_source(": t1 0 if true else false then ; t1");
         vm.evaluate_input();
-        // dump(vm, action);
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 0);
@@ -6087,7 +5172,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "stc"))]
     fn test_here_comma_compile_interpret() {
         let vm = &mut VM::new(16, 16);
         vm.comma();
@@ -6117,121 +5201,5 @@ mod tests {
                 vm.references().idx_exit as isize
             );
         }
-    }
-
-    #[test]
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn test_subroutine_threaded_colon_and_semi_colon() {
-        let vm = &mut VM::new(16, 16);
-        // : nop ;
-        // 56               push   %esi
-        // 89 ce            mov    %ecx,%esi
-        // 83 ec 08         sub    $8,%esp
-        //
-        // 83 c4 08         add    $8,%esp
-        // 5e               pop    %esi
-        // c3               ret
-        let action = vm.code_space().here();
-        vm.set_source(": nop ; nop");
-        vm.evaluate_input();
-        let w = vm.wordlist().last();
-        assert_eq!(vm.wordlist()[w].action as usize, action);
-        unsafe {
-            assert_eq!(vm.code_space().get_u8(action + 0), 0x56);
-            assert_eq!(vm.code_space().get_u8(action + 1), 0x89);
-            assert_eq!(vm.code_space().get_u8(action + 2), 0xce);
-            assert_eq!(vm.code_space().get_u8(action + 3), 0x83);
-            assert_eq!(vm.code_space().get_u8(action + 4), 0xec);
-            assert_eq!(vm.code_space().get_u8(action + 5), 0x08);
-
-            assert_eq!(vm.code_space().get_u8(action + 6), 0x83);
-            assert_eq!(vm.code_space().get_u8(action + 7), 0xc4);
-            assert_eq!(vm.code_space().get_u8(action + 8), 0x08);
-            assert_eq!(vm.code_space().get_u8(action + 9), 0x5e);
-            assert_eq!(vm.code_space().get_u8(action + 10), 0xc3);
-        }
-    }
-
-    fn dump(vm: &mut VM, addr: usize) {
-        if vm.code_space().has(addr) {
-            for i in 0..8 {
-                if vm.code_space().has(addr + 7 + i * 8) {
-                    unsafe {
-                        println!(
-                            "{:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x}",
-                            vm.code_space().get_u8(addr + 0 + i * 8),
-                            vm.code_space().get_u8(addr + 1 + i * 8),
-                            vm.code_space().get_u8(addr + 2 + i * 8),
-                            vm.code_space().get_u8(addr + 3 + i * 8),
-                            vm.code_space().get_u8(addr + 4 + i * 8),
-                            vm.code_space().get_u8(addr + 5 + i * 8),
-                            vm.code_space().get_u8(addr + 6 + i * 8),
-                            vm.code_space().get_u8(addr + 7 + i * 8),
-                        );
-                    }
-                } else {
-                    panic!("Error: invaild dump address.");
-                }
-            }
-        } else {
-            panic!("Error: invaild dump address.");
-        }
-    }
-
-    #[test]
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn test_subroutine_threaded_lit_and_plus() {
-        let vm = &mut VM::new(16, 16);
-        // : 2+3 2 3 + ;
-        // let action = vm.code_space().here();
-        vm.set_source(": 2+3 2 3 + ;");
-        vm.evaluate_input();
-        // dump(vm, action);
-        // 2+3
-        vm.set_source("2+3");
-        vm.evaluate_input();
-        assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), 5);
-    }
-
-    #[test]
-    #[cfg(all(feature = "stc", target_arch = "x86"))]
-    fn test_subroutine_threaded_if_then() {
-        let vm = &mut VM::new(16, 16);
-        // : t5 if ; t5
-        vm.set_source(": t5 if ;");
-        vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.reset();
-        vm.clear_stacks();
-        // : t4 then ; t4
-        vm.set_source(": t4 then ; t4");
-        vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        vm.reset();
-        vm.clear_stacks();
-        // let action = vm.code_space().here();
-        // : tx dup drop ;
-        vm.set_source(": tx dup drop ;");
-        vm.evaluate_input();
-        // dump(vm, action);
-        // println!("**** t1 ****");
-        // let action = vm.code_space().here();
-        // : t1 0 dup if drop -1 then ; t1
-        vm.set_source(": t1 0 dup if drop -1 then ; t1");
-        vm.evaluate_input();
-        // dump(vm, action);
-        assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), 0);
-        vm.reset();
-        vm.clear_stacks();
-        // : t2 -1 dup if drop 0 then ; t1
-        vm.set_source(": t2 -1 dup if drop -1 then ; t2");
-        vm.evaluate_input();
-        assert!(vm.last_error().is_none());
-        assert_eq!(vm.s_stack().len(), 1);
-        assert_eq!(vm.s_stack().pop(), -1);
     }
 }

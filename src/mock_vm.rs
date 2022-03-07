@@ -7,7 +7,7 @@ use float::Float;
 use hibitset::BitSet;
 use loader::HasLoader;
 use loader::Source;
-use memory::{CodeSpace, DataSpace};
+use memory::DataSpace;
 use output::Output;
 use std::fs::File;
 use tools::Tools;
@@ -24,7 +24,6 @@ const LABEL_COUNT: u32 = 1000;
 pub struct Task {
     awake: bool,
     state: State,
-    regs: [usize; 2],
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
     c_stk: Stack<Control>,
@@ -41,7 +40,6 @@ impl Task {
         Task {
             awake: false,
             state: State::new(),
-            regs: [0, 0],
             s_stk: Stack::new(0x12345678),
             r_stk: Stack::new(0x12345678),
             c_stk: Stack::new(Control::Canary),
@@ -69,7 +67,6 @@ pub struct VM {
     handler: usize,
     wordlist: Wordlist<VM>,
     data_space: DataSpace,
-    code_space: CodeSpace,
     tkn: Option<String>,
     outbuf: Option<String>,
     hldbuf: String,
@@ -100,7 +97,6 @@ impl VM {
             handler: 0,
             wordlist: Wordlist::with_capacity(1000),
             data_space: DataSpace::new(data_pages),
-            code_space: CodeSpace::new(code_pages),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
@@ -150,12 +146,6 @@ impl Core for VM {
     fn data_space_const(&self) -> &DataSpace {
         &self.data_space
     }
-    fn code_space(&mut self) -> &mut CodeSpace {
-        &mut self.code_space
-    }
-    fn code_space_const(&self) -> &CodeSpace {
-        &self.code_space
-    }
     fn hold_buffer(&mut self) -> &mut String {
         &mut self.hldbuf
     }
@@ -203,9 +193,6 @@ impl Core for VM {
     }
     fn set_last_token(&mut self, buffer: String) {
         self.tkn = Some(buffer);
-    }
-    fn regs(&mut self) -> &mut [usize; 2] {
-        &mut self.tasks[self.current_task].regs
     }
     fn s_stack(&mut self) -> &mut Stack<isize> {
         &mut self.tasks[self.current_task].s_stk

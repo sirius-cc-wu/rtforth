@@ -10,7 +10,7 @@ use rtforth::facility::Facility;
 use rtforth::file_access::FileAccess;
 use rtforth::float::Float;
 use rtforth::loader::{HasLoader, Source};
-use rtforth::memory::{CodeSpace, DataSpace};
+use rtforth::memory::DataSpace;
 use rtforth::output::Output;
 use rtforth::tools::Tools;
 use rtforth::units::Units;
@@ -73,7 +73,6 @@ pub struct VM {
     handler: usize,
     wordlist: Wordlist<VM>,
     data_space: DataSpace,
-    code_space: CodeSpace,
     tkn: Option<String>,
     outbuf: Option<String>,
     hldbuf: String,
@@ -104,7 +103,6 @@ impl VM {
             handler: 0,
             wordlist: Wordlist::with_capacity(1000),
             data_space: DataSpace::new(data_pages),
-            code_space: CodeSpace::new(code_pages),
             tkn: Some(String::with_capacity(64)),
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
@@ -148,12 +146,6 @@ impl Core for VM {
     }
     fn data_space_const(&self) -> &DataSpace {
         &self.data_space
-    }
-    fn code_space(&mut self) -> &mut CodeSpace {
-        &mut self.code_space
-    }
-    fn code_space_const(&self) -> &CodeSpace {
-        &self.code_space
     }
     fn hold_buffer(&mut self) -> &mut String {
         &mut self.hldbuf

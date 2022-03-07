@@ -118,11 +118,6 @@ pub trait Tools: Output {
     ///
     /// Print the memory usage information.
     primitive! {fn dot_memory(&mut self) {
-        let cs_start = self.code_space().start();
-        let cs_limit = self.code_space().limit();
-        let cs_here = self.code_space().here();
-        let cs_cap = cs_limit - cs_start;
-        let cs_used = cs_here - cs_start;
         let ds_start = self.data_space().start();
         let ds_limit = self.data_space().limit();
         let ds_here = self.data_space().here();
@@ -130,10 +125,8 @@ pub trait Tools: Output {
         let ds_used = ds_here - ds_start;
         match self.output_buffer().as_mut() {
             Some(buf) => {
-                writeln!(buf, "code space capacity: {}, used: {}, start: 0x{:X}, limit: 0x{:X}, here: 0x{:X}",
-                    cs_cap, cs_used, cs_start, cs_limit, cs_here).expect("write code space");
                 writeln!(buf, "data space capacity: {}, used: {}, start: 0x{:X}, limit: 0x{:X}, here: 0x{:X}",
-                    ds_cap, ds_used, ds_start, ds_limit, ds_here).expect("write code space");
+                    ds_cap, ds_used, ds_start, ds_limit, ds_here).expect("write data space");
             }
             None => {}
         }

@@ -43,7 +43,3 @@ unicode-width = "~0.1.5"
 
 [profile.release]
 debug = true
-
-[features]
-default = []
-stc = []

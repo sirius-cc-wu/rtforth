@@ -89,9 +89,8 @@ pub struct VM {
 }
 
 impl VM {
-    /// Create a VM with data and code space size specified
-    /// by `data_pages` and `code_pages`.
-    pub fn new(data_pages: usize, code_pages: usize) -> VM {
+    /// Create a VM with data space size specified by `data_pages`.
+    pub fn new(data_pages: usize) -> VM {
         let mut labels = Vec::with_capacity(LABEL_COUNT as _);
         labels.resize(LABEL_COUNT as _, 0);
         let mut vm = VM {
@@ -296,7 +295,7 @@ impl Tools for VM {}
 impl FileAccess for VM {}
 
 fn main() {
-    let vm = &mut VM::new(1024, 1024);
+    let vm = &mut VM::new(1024);
 
     let args: Vec<_> = env::args().collect();
     let program = args[0].clone();

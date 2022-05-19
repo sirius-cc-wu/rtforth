@@ -1,4 +1,5 @@
 extern crate libc;
+use crate::primitive;
 use hibitset::{BitSet, BitSetLike};
 use loader::Source;
 use memory::{CodeSpace, DataSpace, Memory};

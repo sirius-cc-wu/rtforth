@@ -1,98 +1,8 @@
-extern crate libc;
-
 use exception::Exception;
+use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::marker;
 use std::mem;
 use std::slice;
-
-extern "C" {
-    fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
-}
-
-const PAGE_SIZE: usize = 4096;
-
-#[allow(dead_code)]
-pub struct CodeSpace {
-    pub(crate) inner: *mut u8,
-    cap: usize,
-    len: usize,
-}
-
-impl CodeSpace {
-    /// Allocate memory for x86/x86_64.
-    ///
-    /// The memory is populated with `0xc3` (RET).
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    pub fn new(num_pages: usize) -> CodeSpace {
-        let mut ptr: *mut libc::c_void;
-        let size = num_pages * PAGE_SIZE;
-        unsafe {
-            ptr = mem::uninitialized();
-            libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(
-                ptr,
-                size,
-                libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE,
-            );
-            memset(ptr, 0xc3, size); // prepopulate with 'RET'
-        }
-        CodeSpace {
-            inner: ptr as *mut u8,
-            cap: size,
-            len: 0,
-        }
-    }
-
-    /// Allocate memory for CPU other than x86/x86_64.
-    ///
-    /// The memory is populated with `0x00`.
-    #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-    pub fn new(num_pages: usize) -> CodeSpace {
-        let mut ptr: *mut libc::c_void;
-        let size = num_pages * PAGE_SIZE;
-        unsafe {
-            ptr = mem::uninitialized();
-            libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(
-                ptr,
-                size,
-                libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE,
-            );
-            memset(ptr, 0x00, size);
-        }
-        let mut result = CodeSpace {
-            inner: ptr as *mut u8,
-            cap: size,
-            len: 0,
-        };
-        result
-    }
-}
-
-impl Memory for CodeSpace {
-    fn start(&self) -> usize {
-        unsafe { self.inner.offset(0) as usize }
-    }
-
-    fn limit(&self) -> usize {
-        unsafe { self.inner.offset(self.cap as isize) as usize }
-    }
-
-    fn here(&mut self) -> usize {
-        unsafe { self.inner.offset(self.len as isize) as usize }
-    }
-
-    fn set_here(&mut self, pos: usize) -> Result<(), Exception> {
-        // here is allowed to be 1 place after the last memory address.
-        if self.start() <= pos && pos <= self.limit() {
-            let len = pos as isize - self.start() as isize;
-            self.len = len as usize;
-            Ok(())
-        } else {
-            Err(Exception::InvalidMemoryAddress)
-        }
-    }
-}
 
 pub struct SystemVariables {
     null: isize,
@@ -108,25 +18,31 @@ impl SystemVariables {
 #[allow(dead_code)]
 pub struct DataSpace {
     pub inner: *mut u8,
+    layout: Layout,
     cap: usize,
     len: usize,
     marker: marker::PhantomData<SystemVariables>,
 }
 
 impl DataSpace {
-    pub fn new(num_pages: usize) -> DataSpace {
-        let mut ptr: *mut libc::c_void;
-        let size = num_pages * PAGE_SIZE;
-        unsafe {
-            ptr = mem::uninitialized();
-            libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
-            libc::mprotect(ptr, size, libc::PROT_READ | libc::PROT_WRITE);
+    pub fn new(num_pages: usize) -> Self {
+        let cap = num_pages * page_size::get();
+        Self::with_capacity(cap)
+    }
 
-            memset(ptr, 0x00, size);
+    pub fn with_capacity(cap: usize) -> Self {
+        let ptr: *mut u8;
+        let layout = Layout::from_size_align(cap, page_size::get()).unwrap();
+        unsafe {
+            ptr = alloc_zeroed(layout);
+            if ptr.is_null() {
+                panic!("Cannot allocate data space");
+            }
         }
         let mut result = DataSpace {
-            inner: ptr as *mut u8,
-            cap: size,
+            inner: ptr,
+            layout,
+            cap,
             len: mem::size_of::<SystemVariables>(),
             marker: marker::PhantomData,
         };
@@ -146,6 +62,14 @@ impl DataSpace {
     }
 }
 
+impl Drop for DataSpace {
+    fn drop(&mut self) {
+        unsafe {
+            dealloc(self.inner, self.layout);
+        }
+    }
+}
+
 impl Memory for DataSpace {
     fn start(&self) -> usize {
         unsafe { self.inner.offset(0) as usize }
@@ -155,7 +79,11 @@ impl Memory for DataSpace {
         unsafe { self.inner.offset(self.cap as isize) as usize }
     }
 
-    fn here(&mut self) -> usize {
+    fn capacity(&self) -> usize {
+        self.limit() - self.start()
+    }
+
+    fn here(&self) -> usize {
         unsafe { self.inner.offset(self.len as isize) as usize }
     }
 
@@ -178,6 +106,9 @@ pub(crate) trait Memory {
     /// Upper limit of address
     fn limit(&self) -> usize;
 
+    /// Capacity
+    fn capacity(&self) -> usize;
+
     /// Does memory contains addresss `pos`?
     ///
     /// True if self.start() <= pos < self.limit()
@@ -186,7 +117,7 @@ pub(crate) trait Memory {
     }
 
     /// Next free space
-    fn here(&mut self) -> usize;
+    fn here(&self) -> usize;
 
     /// Set next free space.
     fn set_here(&mut self, pos: usize) -> Result<(), Exception>;

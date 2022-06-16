@@ -9,7 +9,7 @@ use std::process;
 use vm::VM;
 
 fn main() {
-    let mut vm = VM::new(0x100, 0x100);
+    let mut vm = VM::new(0x100);
     vm.add_primitive("bye", bye);
 
     vm.set_source(

@@ -22,7 +22,6 @@ use rtforth::NUM_TASKS;
 use std::env;
 use std::fmt::Write;
 use std::fs::File;
-use std::process;
 
 const BUFFER_SIZE: usize = 0x400;
 const LABEL_COUNT: u32 = 1000;
@@ -133,7 +132,6 @@ impl VM {
         vm.add_file_access();
         vm.add_loader();
         vm.add_primitive("receive", receive);
-        vm.add_primitive("bye", bye);
 
         vm.load_core_fs();
 
@@ -357,7 +355,7 @@ primitive! {fn receive(vm: &mut VM) {
             vm.set_source(&line);
         }
         Err(rustyline::error::ReadlineError::Eof) => {
-            bye(vm);
+            vm.bye();
         }
         Err(err) => {
             match vm.output_buffer().as_mut() {
@@ -370,17 +368,12 @@ primitive! {fn receive(vm: &mut VM) {
     }
 }}
 
-/// Terminate process.
-primitive! {fn bye(vm: &mut VM) {
-    vm.flush_output();
-    process::exit(0);
-}}
-
 #[inline(never)]
 fn repl(vm: &mut VM) {
     let cold = vm.find("COLD").expect("COlD");
     vm.execute_word(cold);
     vm.run();
+    vm.flush_output();
 }
 
 fn print_usage(program: &str, opts: Options) {

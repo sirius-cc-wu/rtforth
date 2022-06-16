@@ -690,6 +690,7 @@ pub trait Core: Sized {
         self.add_primitive("source-id!", Core::p_set_source_id);
         self.add_primitive("source-idx", Core::p_source_idx);
         self.add_primitive("source-idx!", Core::p_set_source_idx);
+        self.add_primitive("bye", Core::bye);
 
         self.references().idx_lit = self.find("lit").expect("lit undefined");
         self.references().idx_flit = self.find("flit").expect("flit undefined");
@@ -3617,6 +3618,13 @@ pub trait Core: Sized {
         let rlen = self.r_stack().len.wrapping_sub(1);
         self.state().instruction_pointer = self.r_stack()[rlen] as usize;
         self.r_stack().len = rlen;
+    }}
+
+    /// Execution: ( -- )
+    ///
+    /// Set the instruction pointer to zero in order to terminate inner interpreter.
+    primitive! {fn bye(&mut self) {
+        self.state().instruction_pointer = 0;
     }}
 
     /// Run-time: ( a-addr -- x )

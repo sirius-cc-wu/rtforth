@@ -1,0 +1,19 @@
+[package]
+
+name = "rtf"
+version = "0.6.0"
+authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
+keywords = ["forth", "real-time"]
+description = "Forth implemented in Rust for realtime application"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+rtforth = { path = ".." }
+rustyline = "^4"
+getopts = "~0.2.21"
+time = "~0.1"
+lazy_static = "~1.3.0"
+unicode-width = "~0.1.5"
+
+[profile.release]
+debug = true

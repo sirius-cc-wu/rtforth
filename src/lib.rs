@@ -26,9 +26,8 @@ macro_rules! primitive {
         => { extern "fastcall" fn $f $args -> &mut [usize; 2] $body };
 }
 
-#[macro_use]
 extern crate approx;
-extern crate hibitset;
+pub extern crate hibitset;
 extern crate uom;
 
 pub mod core;

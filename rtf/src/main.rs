@@ -1,18 +1,17 @@
 extern crate getopts;
 #[macro_use(primitive)]
 extern crate rtforth;
-extern crate hibitset;
 extern crate rustyline;
 extern crate time;
 
 use getopts::Options;
-use hibitset::BitSet;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
 use rtforth::env::Environment;
 use rtforth::exception::Exception;
 use rtforth::facility::Facility;
 use rtforth::file_access::FileAccess;
 use rtforth::float::Float;
+use rtforth::hibitset::BitSet;
 use rtforth::loader::{HasLoader, Source};
 use rtforth::memory::DataSpace;
 use rtforth::output::Output;

@@ -11,26 +11,16 @@ Documentation at [rtForth Primer](https://mapacode.github.io/rtforth/).
 
 ## Usage
 
-Install Rust version nightly-2019-11-01。
-
 ```
-rustup toolchain install nightly-2019-11-01
-```
-
-After installation of Rust:
-
-```
-$ cargo build --example rf
-$ ./target/debug/examples/rf --help         # Display help information.
-$ ./target/debug/examples/rf <file>         # Load forth commands in <file>.
-$ ./target/debug/examples/rf lib.fs <file>  # Load lib.fs before <file>.
-$ cargo build --release --example rf        # Compile optimized token-threaded rtForth.
-$ cargo build --example rf --release --features="subroutine-threaded"    # Compile optimized subroutine-threaded rtForth.
+cargo install --path ./rtf
+rtf --help         # Display help information.
+rtf <file>         # Load forth commands in <file>.
+rtf lib.fs <file>  # Load lib.fs before <file>.
 ```
 
 ```
-$ cargo run --example rf              # Execute debug version of rtForth.
-rtForth v0.1.39, Copyright (C) 2017 Mapacode Inc.
+$ rtf              # Execute debug version of rtForth.
+rtForth v0.6.0, Copyright (C) 2018 Mapacode Inc.
 Type 'bye' or press Ctrl-D to exit.
 rf> : star 42 emit ;
  ok

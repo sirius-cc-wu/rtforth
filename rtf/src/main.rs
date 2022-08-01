@@ -129,8 +129,8 @@ impl VM {
 
         vm.load_core_fs();
 
-        let rffs = include_str!("./rf.fs");
-        vm.load_str(rffs);
+        let rtffs = include_str!("./rtf.fs");
+        vm.load_str(rtffs);
         if vm.last_error().is_some() {
             panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
         }
@@ -334,7 +334,7 @@ fn print_version() {
 }
 
 primitive! {fn receive(vm: &mut VM) {
-    match vm.editor.readline("rf> ") {
+    match vm.editor.readline("rtf> ") {
         Ok(line) => {
             vm.editor.add_history_entry(&line);
             vm.set_source(&line);

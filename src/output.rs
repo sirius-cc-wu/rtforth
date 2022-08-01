@@ -32,7 +32,7 @@ pub trait Output: Core {
     /// Run-time: ( x -- )
     ///
     /// Put x into output buffer.
-    primitive! {fn emit(&mut self) {
+    fn emit(&mut self) {
         let ch = self.s_stack().pop();
         match self.output_buffer().take() {
             Some(mut buffer) => {
@@ -41,12 +41,12 @@ pub trait Output: Core {
             }
             None => {}
         }
-    }}
+    }
 
     /// Run-time: ( c-addr u -- )
     ///
     /// Put the character string specified by c-addr and u into output buffer.
-    primitive! {fn p_type(&mut self) {
+    fn p_type(&mut self) {
         let (addr, len) = self.s_stack().pop2();
         if self.s_stack().underflow() {
             self.abort_with(StackUnderflow);
@@ -55,10 +55,10 @@ pub trait Output: Core {
         match self.output_buffer().take() {
             Some(mut buffer) => {
                 {
-                    let s = unsafe{
-                        &self.data_space().str_from_raw_parts(
-                            addr as usize, len as usize
-                        )
+                    let s = unsafe {
+                        &self
+                            .data_space()
+                            .str_from_raw_parts(addr as usize, len as usize)
                     };
                     buffer.push_str(s);
                 }
@@ -66,7 +66,7 @@ pub trait Output: Core {
             }
             None => {}
         }
-    }}
+    }
 
     /// Compilation: ( "ccc<quote>" -- )
     ///
@@ -77,16 +77,13 @@ pub trait Output: Core {
     ///
     /// Return c-addr and u describing a string consisting of the characters ccc. A program
     /// shall not alter the returned string.
-    primitive! {fn s_quote(&mut self) {
+    fn s_quote(&mut self) {
         let input_buffer = self.input_buffer().take().unwrap();
         {
-            let source = &input_buffer[self.state().source_index+1..input_buffer.len()];
+            let source = &input_buffer[self.state().source_index + 1..input_buffer.len()];
             let s = match source.find('"') {
                 Some(n) => {
-                    &input_buffer[
-                        self.state().source_index+1..
-                        self.state().source_index + 1 + n
-                    ]
+                    &input_buffer[self.state().source_index + 1..self.state().source_index + 1 + n]
                 }
                 None => source,
             };
@@ -100,7 +97,7 @@ pub trait Output: Core {
             self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;
         }
         self.set_input_buffer(input_buffer);
-    }}
+    }
 
     /// Compilation: ( "ccc<quote>" -- )
     ///
@@ -110,16 +107,16 @@ pub trait Output: Core {
     /// Run-time: ( -- )
     ///
     /// Display ccc.
-    primitive! {fn dot_quote(&mut self) {
+    fn dot_quote(&mut self) {
         self.s_quote();
         let idx_type = self.references().idx_type;
         self.compile_word(idx_type);
-    }}
+    }
 
     /// Execution: ( "ccc&lt;paren&gt;" -- )
     ///
     /// Parse and display ccc delimited by ) (right parenthesis). .( is an immediate word.
-    primitive! {fn dot_paren(&mut self) {
+    fn dot_paren(&mut self) {
         self.s_stack().push(')' as isize);
         self.parse();
         let last_token = self.last_token().take().unwrap();
@@ -127,14 +124,14 @@ pub trait Output: Core {
             buffer.extend(last_token.chars());
         }
         self.set_last_token(last_token);
-    }}
+    }
 
     /// Run-time: ( n1 n2 -- )
     ///
     /// Display `n1` right aligned in a field `n2` characters wide.
-    primitive! {fn dot_r(&mut self) {
+    fn dot_r(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
-        let base = unsafe{ self.data_space().get_isize(base_addr) };
+        let base = unsafe { self.data_space().get_isize(base_addr) };
         let mut valid_base = true;
         let (n1, n2) = self.s_stack().pop2();
         if let Some(mut buf) = self.output_buffer().take() {
@@ -167,7 +164,7 @@ pub trait Output: Core {
         if !valid_base {
             self.abort_with(UnsupportedOperation);
         }
-    }}
+    }
 
     /// Run-time: ( n1 n2 -- ) ( F: r -- )
     ///
@@ -175,7 +172,7 @@ pub trait Output: Core {
     /// stack in a field `n1` characters wide, with `n2` digits after the decimal point.
     ///
     /// If n2 greater than 17, only 17 digits after the decimal point is printed.
-    primitive! {fn fdot_r(&mut self) {
+    fn fdot_r(&mut self) {
         let r = self.f_stack().pop();
         let (n1, n2) = self.s_stack().pop2();
         if let Some(mut buf) = self.output_buffer().take() {
@@ -206,9 +203,9 @@ pub trait Output: Core {
             buf.push_str(self.hold_buffer());
             self.set_output_buffer(buf);
         }
-    }}
+    }
 
-    primitive! {fn flush_output(&mut self) {
+    fn flush_output(&mut self) {
         match self.output_buffer().as_mut() {
             Some(buf) => {
                 if buf.len() > 0 {
@@ -218,7 +215,7 @@ pub trait Output: Core {
             }
             None => {}
         }
-    }}
+    }
 }
 
 #[cfg(test)]

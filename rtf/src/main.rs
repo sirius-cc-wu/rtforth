@@ -1,5 +1,4 @@
 extern crate getopts;
-#[macro_use(primitive)]
 extern crate rtforth;
 extern crate rustyline;
 extern crate time;
@@ -333,7 +332,7 @@ fn print_version() {
     println!("rtForth v0.6.0, Copyright (C) 2018 Mapacode Inc.");
 }
 
-primitive! {fn receive(vm: &mut VM) {
+fn receive(vm: &mut VM) {
     match vm.editor.readline("rtf> ") {
         Ok(line) => {
             vm.editor.add_history_entry(&line);
@@ -342,16 +341,14 @@ primitive! {fn receive(vm: &mut VM) {
         Err(rustyline::error::ReadlineError::Eof) => {
             vm.bye();
         }
-        Err(err) => {
-            match vm.output_buffer().as_mut() {
-                Some(ref mut buf) => {
-                    write!(buf, "{}", err).unwrap();
-                }
-                None => {}
+        Err(err) => match vm.output_buffer().as_mut() {
+            Some(ref mut buf) => {
+                write!(buf, "{}", err).unwrap();
             }
-        }
+            None => {}
+        },
     }
-}}
+}
 
 #[inline(never)]
 fn repl(vm: &mut VM) {

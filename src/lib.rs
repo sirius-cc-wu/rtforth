@@ -1,31 +1,3 @@
-#[cfg(target_arch = "arm")]
-#[macro_export]
-macro_rules! primitive {
-    (fn $args:tt) => { fn $args };
-    (fn $f:ident $args:tt $body:tt) => { fn $f $args $body };
-    (fn $f:ident $args:tt -> isize $body:tt) => { fn $f $args -> isize $body };
-    (fn $f:ident $args:tt -> &mut [usize; 2] $body:tt) => { fn $f $args -> &mut [usize; 2] $body };
-}
-
-#[cfg(target_arch = "aarch64")]
-#[macro_export]
-macro_rules! primitive {
-    (fn $args:tt) => { fn $args };
-    (fn $f:ident $args:tt $body:tt) => { fn $f $args $body };
-    (fn $f:ident $args:tt -> isize $body:tt) => { fn $f $args -> isize $body };
-    (fn $f:ident $args:tt -> &mut [usize; 2] $body:tt) => { fn $f $args -> &mut [usize; 2] $body };
-}
-
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[macro_export]
-macro_rules! primitive {
-    (fn $args:tt) => { extern "fastcall" fn $args };
-    (fn $f:ident $args:tt $body:tt) => { extern "fastcall" fn $f $args $body };
-    (fn $f:ident $args:tt -> isize $body:tt) => { extern "fastcall" fn $f $args -> isize $body };
-    (fn $f:ident $args:tt -> &mut [usize; 2] $body:tt)
-        => { extern "fastcall" fn $f $args -> &mut [usize; 2] $body };
-}
-
 extern crate approx;
 pub extern crate hibitset;
 extern crate uom;

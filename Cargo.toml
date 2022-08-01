@@ -17,10 +17,6 @@ name = "rtforth"
 path = "src/lib.rs"
 
 [[example]]
-name = "rf"
-path = "examples/rf.rs"
-
-[[example]]
 name = "multitask"
 path = "examples/multitask.rs"
 

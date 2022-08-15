@@ -302,7 +302,7 @@ fn main() {
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
-            panic!(f.to_string());
+            panic!("{}", f.to_string());
         }
     };
     if matches.opt_present("h") {
@@ -329,7 +329,7 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.6.0, Copyright (C) 2018 Mapacode Inc.");
+    println!("rtForth v0.6.2, Copyright (C) 2022 Mapacode Inc.");
 }
 
 fn receive(vm: &mut VM) {

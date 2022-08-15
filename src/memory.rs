@@ -1,4 +1,4 @@
-use exception::Exception;
+use exception::{Exception, INVALID_MEMORY_ADDRESS};
 use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::marker;
 use std::mem;
@@ -94,7 +94,7 @@ impl Memory for DataSpace {
             self.len = len as usize;
             Ok(())
         } else {
-            Err(Exception::InvalidMemoryAddress)
+            Err(INVALID_MEMORY_ADDRESS)
         }
     }
 }

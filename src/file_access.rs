@@ -1,7 +1,9 @@
+use exception::{
+    FILE_IO_EXCEPTION, INVALID_MEMORY_ADDRESS, INVALID_NUMERIC_ARGUMENT, RESULT_OUT_OF_RANGE,
+};
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use Core;
-use Exception;
 use Memory;
 
 const PATH_NAME_MAX_LEN: usize = 256;
@@ -30,13 +32,13 @@ pub trait FileAccess: Core {
     /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
     /// maximum value of ud allowed is isize::max_value(). So an exception
-    /// ResultOutOfRange will be returned for a file size larger than
+    /// RESULT_OUT_OF_RANGE will be returned for a file size larger than
     /// isize::max_value().
     fn file_size(&mut self) {
         let fileid = self.s_stack().pop();
         if fileid <= 0 {
             self.s_stack()
-                .push3(-1, -1, Exception::InvalidNumericArgument as _);
+                .push3(-1, -1, INVALID_NUMERIC_ARGUMENT.into());
             return;
         }
         let fileid = fileid as usize - 1;
@@ -48,24 +50,24 @@ pub trait FileAccess: Core {
                         if ud <= isize::max_value() as u64 {
                             Ok(ud)
                         } else {
-                            Err(Exception::ResultOutOfRange)
+                            Err(RESULT_OUT_OF_RANGE)
                         }
                     }
-                    Err(_) => Err(Exception::FileIOException),
+                    Err(_) => Err(FILE_IO_EXCEPTION),
                 },
-                &None => Err(Exception::InvalidNumericArgument),
+                &None => Err(INVALID_NUMERIC_ARGUMENT),
             };
             match ud {
                 Ok(ud) => {
                     self.s_stack().push3(ud as isize, 0, 0);
                 }
                 Err(e) => {
-                    self.s_stack().push3(-1, -1, e as _);
+                    self.s_stack().push3(-1, -1, e.into());
                 }
             }
         } else {
             self.s_stack()
-                .push3(-1, -1, Exception::InvalidNumericArgument as _);
+                .push3(-1, -1, INVALID_NUMERIC_ARGUMENT.into());
         }
     }
 
@@ -78,13 +80,13 @@ pub trait FileAccess: Core {
     /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
     /// maximum value of ud allowed is isize::max_value(). So an exception
-    /// ResultOutOfRange will be returned for a file position larger than
+    /// RESULT_OUT_OF_RANGE will be returned for a file position larger than
     /// isize::max_value().
     fn file_position(&mut self) {
         let fileid = self.s_stack().pop();
         if fileid <= 0 {
             self.s_stack()
-                .push3(-1, -1, Exception::InvalidNumericArgument as _);
+                .push3(-1, -1, INVALID_NUMERIC_ARGUMENT.into());
             return;
         }
         let fileid = fileid as usize - 1;
@@ -95,22 +97,22 @@ pub trait FileAccess: Core {
                         if ud <= isize::max_value() as u64 {
                             Ok(ud)
                         } else {
-                            Err(Exception::ResultOutOfRange)
+                            Err(RESULT_OUT_OF_RANGE)
                         }
                     }
-                    Err(_) => Err(Exception::FileIOException),
+                    Err(_) => Err(FILE_IO_EXCEPTION),
                 },
-                &mut None => Err(Exception::InvalidNumericArgument),
+                &mut None => Err(INVALID_NUMERIC_ARGUMENT),
             };
             match ud {
                 Ok(ud) => {
                     self.s_stack().push3(ud as isize, 0, 0);
                 }
-                Err(e) => self.s_stack().push3(-1, -1, e as _),
+                Err(e) => self.s_stack().push3(-1, -1, e.into()),
             }
         } else {
             self.s_stack()
-                .push3(-1, -1, Exception::InvalidNumericArgument as _);
+                .push3(-1, -1, INVALID_NUMERIC_ARGUMENT.into());
         }
     }
 
@@ -121,7 +123,7 @@ pub trait FileAccess: Core {
     fn close_file(&mut self) {
         let fileid = self.s_stack().pop();
         if fileid <= 0 {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
             return;
         }
         let fileid = fileid as usize - 1;
@@ -129,7 +131,7 @@ pub trait FileAccess: Core {
             self.files_mut()[fileid] = None;
             self.s_stack().push(0);
         } else {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
         }
     }
 
@@ -151,16 +153,14 @@ pub trait FileAccess: Core {
         let caddr = caddr as usize;
         let u = u as usize;
         if u > PATH_NAME_MAX_LEN {
-            self.s_stack()
-                .push2(-1, Exception::InvalidNumericArgument as _);
+            self.s_stack().push2(-1, INVALID_NUMERIC_ARGUMENT.into());
             return;
         }
         let mut options = OpenOptions::new();
         match fam {
             0 => {
                 // Impossible to create a read-only file.
-                self.s_stack()
-                    .push2(-1, Exception::InvalidNumericArgument as _);
+                self.s_stack().push2(-1, INVALID_NUMERIC_ARGUMENT.into());
                 return;
             }
             1 => {
@@ -170,8 +170,7 @@ pub trait FileAccess: Core {
                 options.read(true).write(true).truncate(true).create(true);
             }
             _ => {
-                self.s_stack()
-                    .push2(-1, Exception::InvalidNumericArgument as _);
+                self.s_stack().push2(-1, INVALID_NUMERIC_ARGUMENT.into());
                 return;
             }
         };
@@ -179,16 +178,16 @@ pub trait FileAccess: Core {
             if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
                 let path_name = unsafe { self.data_space().str_from_raw_parts(caddr, u) };
                 match options.open(&path_name) {
-                    Err(_) => Err(Exception::FileIOException),
+                    Err(_) => Err(FILE_IO_EXCEPTION),
                     Ok(file) => Ok(file),
                 }
             } else {
-                Err(Exception::InvalidMemoryAddress)
+                Err(INVALID_MEMORY_ADDRESS)
             }
         };
         match file {
             Err(e) => {
-                self.s_stack().push2(-1, e as _);
+                self.s_stack().push2(-1, e.into());
             }
             Ok(file) => {
                 let position = self.files().iter().position(|x| x.is_none());
@@ -216,18 +215,17 @@ pub trait FileAccess: Core {
         let caddr = caddr as usize;
         let u = u as usize;
         if u > PATH_NAME_MAX_LEN {
-            self.s_stack()
-                .push2(-1, Exception::InvalidNumericArgument as _);
+            self.s_stack().push2(-1, INVALID_NUMERIC_ARGUMENT.into());
         } else {
             let result = {
                 if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
                     let path_name = unsafe { self.data_space().str_from_raw_parts(caddr, u) };
                     match fs::remove_file(path_name) {
-                        Err(_) => Exception::FileIOException as _,
+                        Err(_) => FILE_IO_EXCEPTION.into(),
                         Ok(_) => 0,
                     }
                 } else {
-                    Exception::InvalidMemoryAddress as _
+                    INVALID_MEMORY_ADDRESS.into()
                 }
             };
             self.s_stack().push(result);
@@ -249,8 +247,7 @@ pub trait FileAccess: Core {
         let caddr = caddr as usize;
         let u = u as usize;
         if u > PATH_NAME_MAX_LEN {
-            self.s_stack()
-                .push2(-1, Exception::InvalidNumericArgument as _);
+            self.s_stack().push2(-1, INVALID_NUMERIC_ARGUMENT.into());
             return;
         }
         let mut options = OpenOptions::new();
@@ -265,8 +262,7 @@ pub trait FileAccess: Core {
                 options.read(true).write(true);
             }
             _ => {
-                self.s_stack()
-                    .push2(-1, Exception::InvalidNumericArgument as _);
+                self.s_stack().push2(-1, INVALID_NUMERIC_ARGUMENT.into());
                 return;
             }
         };
@@ -274,16 +270,16 @@ pub trait FileAccess: Core {
             if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
                 let path_name = unsafe { self.data_space().str_from_raw_parts(caddr, u) };
                 match options.open(&path_name) {
-                    Err(_) => Err(Exception::FileIOException),
+                    Err(_) => Err(FILE_IO_EXCEPTION),
                     Ok(file) => Ok(file),
                 }
             } else {
-                Err(Exception::InvalidMemoryAddress)
+                Err(INVALID_MEMORY_ADDRESS)
             }
         };
         match file {
             Err(e) => {
-                self.s_stack().push2(-1, e as _);
+                self.s_stack().push2(-1, e.into());
             }
             Ok(file) => {
                 let position = self.files_mut().iter().position(|x| x.is_none());
@@ -334,22 +330,20 @@ pub trait FileAccess: Core {
         let u1 = u1 as usize;
         let fileid = fileid as usize;
         if fileid == 0 {
-            self.s_stack()
-                .push2(-1, Exception::InvalidNumericArgument as _);
+            self.s_stack().push2(-1, INVALID_NUMERIC_ARGUMENT.into());
             return;
         }
         let fileid = fileid - 1;
         if fileid >= self.files().len() || self.files()[fileid].is_none() {
-            self.s_stack()
-                .push2(0, Exception::InvalidNumericArgument as _);
+            self.s_stack().push2(0, INVALID_NUMERIC_ARGUMENT.into());
         } else {
             let mut file = self.files_mut()[fileid].take().unwrap();
             let result = {
                 if self.data_space().start() <= caddr && caddr + u1 <= self.data_space().limit() {
                     let mut buf = unsafe { self.data_space().buffer_from_raw_parts_mut(caddr, u1) };
-                    file.read(&mut buf).or(Err(Exception::FileIOException as _))
+                    file.read(&mut buf).or(Err(FILE_IO_EXCEPTION.into()))
                 } else {
-                    Err(Exception::InvalidMemoryAddress as _)
+                    Err(INVALID_MEMORY_ADDRESS.into())
                 }
             };
             match result {
@@ -379,7 +373,7 @@ pub trait FileAccess: Core {
         let caddr = caddr as usize;
         let u = u as usize;
         if fileid <= 0 {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
             return;
         }
         let fileid = fileid as usize - 1;
@@ -393,23 +387,23 @@ pub trait FileAccess: Core {
                             let buf = unsafe {
                                 self.data_space().buffer_from_raw_parts(caddr as _, u as _)
                             };
-                            f.write_all(buf).or(Err(Exception::FileIOException))
+                            f.write_all(buf).or(Err(FILE_IO_EXCEPTION))
                         } else {
-                            Err(Exception::InvalidMemoryAddress)
+                            Err(INVALID_MEMORY_ADDRESS)
                         }
                     };
                     match result {
                         Ok(_) => self.s_stack().push(0),
-                        Err(_) => self.s_stack().push(Exception::FileIOException as _),
+                        Err(_) => self.s_stack().push(FILE_IO_EXCEPTION.into()),
                     }
                     self.files_mut()[fileid] = Some(f);
                 }
                 None => {
-                    self.s_stack().push(Exception::InvalidNumericArgument as _);
+                    self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
                 }
             }
         } else {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
         }
     }
 
@@ -428,22 +422,22 @@ pub trait FileAccess: Core {
     /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
     /// maximum value of ud allowed is isize::max_value(). So an exception
-    /// InvalidNumericArgument will be returned for a ud larger than
+    /// INVALID_NUMERIC_ARGUMENT will be returned for a ud larger than
     /// isize::max_value().
     fn resize_file(&mut self) {
         let (ud_lower, ud_upper, fileid) = self.s_stack().pop3();
         if fileid <= 0 {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
             return;
         }
         let fileid = fileid as usize - 1;
         let ud_lower = ud_lower as usize;
         if ud_upper != 0 {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
         } else if ud_lower > isize::max_value() as usize {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
         } else if fileid >= self.files().len() {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
         } else {
             match self.files_mut()[fileid].take() {
                 Some(f) => {
@@ -452,13 +446,13 @@ pub trait FileAccess: Core {
                             self.s_stack().push(0);
                         }
                         Err(_) => {
-                            self.s_stack().push(Exception::FileIOException as _);
+                            self.s_stack().push(FILE_IO_EXCEPTION.into());
                         }
                     }
                     self.files_mut()[fileid] = Some(f);
                 }
                 None => {
-                    self.s_stack().push(Exception::InvalidNumericArgument as _);
+                    self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
                 }
             }
         }
@@ -475,22 +469,22 @@ pub trait FileAccess: Core {
     /// Note: As rtForth does not support double-length integers, the higher
     /// part of ud is 0. rtForth also does not support unsigned integers, the
     /// maximum value of ud allowed is isize::max_value(). So an exception
-    /// InvalidNumericArgument will be returned for a ud larger than
+    /// INVALID_NUMERIC_ARGUMENT will be returned for a ud larger than
     /// isize::max_value().
     fn reposition_file(&mut self) {
         let (ud_lower, ud_upper, fileid) = self.s_stack().pop3();
         if fileid <= 0 {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
             return;
         }
         let fileid = fileid as usize - 1;
         let ud_lower = ud_lower as usize;
         if ud_upper != 0 {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
         } else if ud_lower > isize::max_value() as usize {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
         } else if fileid >= self.files().len() {
-            self.s_stack().push(Exception::InvalidNumericArgument as _);
+            self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
         } else {
             match self.files_mut()[fileid].take() {
                 Some(mut f) => {
@@ -499,13 +493,13 @@ pub trait FileAccess: Core {
                             self.s_stack().push(0);
                         }
                         Err(_) => {
-                            self.s_stack().push(Exception::FileIOException as _);
+                            self.s_stack().push(FILE_IO_EXCEPTION.into());
                         }
                     }
                     self.files_mut()[fileid] = Some(f);
                 }
                 None => {
-                    self.s_stack().push(Exception::InvalidNumericArgument as _);
+                    self.s_stack().push(INVALID_NUMERIC_ARGUMENT.into());
                 }
             }
         }

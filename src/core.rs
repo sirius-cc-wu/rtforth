@@ -1,4 +1,11 @@
 extern crate libc;
+use exception::{
+    self, Exception, ABORT, CONTROL_STRUCTURE_MISMATCH, DIVISION_BY_ZERO,
+    FLOATING_POINT_STACK_OVERFLOW, FLOATING_POINT_STACK_UNDERFLOW,
+    INTERPRETING_A_COMPILE_ONLY_WORD, INVALID_MEMORY_ADDRESS, INVALID_NUMERIC_ARGUMENT,
+    RETURN_STACK_OVERFLOW, RETURN_STACK_UNDERFLOW, STACK_OVERFLOW, STACK_UNDERFLOW, UNDEFINED_WORD,
+    UNEXPECTED_END_OF_FILE, UNSUPPORTED_OPERATION,
+};
 use hibitset::{BitSet, BitSetLike};
 use loader::Source;
 use memory::{DataSpace, Memory};
@@ -9,12 +16,6 @@ use std::fs::File;
 use std::mem;
 use std::ops::{Index, IndexMut};
 use std::str;
-use Exception::{
-    self, Abort, ControlStructureMismatch, DivisionByZero, FloatingPointStackOverflow,
-    FloatingPointStackUnderflow, InterpretingACompileOnlyWord, InvalidMemoryAddress,
-    InvalidNumericArgument, ReturnStackOverflow, ReturnStackUnderflow, StackOverflow,
-    StackUnderflow, UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation,
-};
 use {FALSE, NUM_TASKS, TRUE};
 
 // Word
@@ -760,7 +761,7 @@ pub trait Core: Sized {
         if i < self.wordlist().len() {
             (self.wordlist()[i].action())(self);
         } else {
-            self.abort_with(UnsupportedOperation);
+            self.abort_with(UNSUPPORTED_OPERATION);
         }
     }
 
@@ -1050,7 +1051,7 @@ pub trait Core: Sized {
     fn leave(&mut self) {
         let (third, _, _) = self.r_stack().pop3();
         if self.r_stack().underflow() {
-            self.abort_with(ReturnStackUnderflow);
+            self.abort_with(RETURN_STACK_UNDERFLOW);
             return;
         }
         self.state().instruction_pointer =
@@ -1063,7 +1064,7 @@ pub trait Core: Sized {
                 self.compile_word(word_idx);
             }
             _ => {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                 return;
             }
         };
@@ -1076,9 +1077,9 @@ pub trait Core: Sized {
                 Some(jn) => {
                     self.s_stack().push(jt.wrapping_add(jn));
                 }
-                None => self.abort_with(ReturnStackUnderflow),
+                None => self.abort_with(RETURN_STACK_UNDERFLOW),
             },
-            None => self.abort_with(ReturnStackUnderflow),
+            None => self.abort_with(RETURN_STACK_UNDERFLOW),
         }
     }
 
@@ -1129,12 +1130,12 @@ pub trait Core: Sized {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
             _ => {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                 return;
             }
         };
         if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let here = self.compile_branch(0);
             self.c_stack().push(Control::Else(here));
@@ -1150,12 +1151,12 @@ pub trait Core: Sized {
             Control::If(branch_part) => branch_part,
             Control::Else(branch_part) => branch_part,
             _ => {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                 return;
             }
         };
         if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let here = self.data_space().here();
             unsafe {
@@ -1199,12 +1200,12 @@ pub trait Core: Sized {
                 self.c_stack().push(Control::Endof(n));
             }
             _ => {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                 return;
             }
         };
         if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let idx = self.references().idx_over;
             self.compile_word(idx);
@@ -1221,12 +1222,12 @@ pub trait Core: Sized {
         let of_part = match self.c_stack().pop() {
             Control::Of(of_part) => of_part,
             _ => {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                 return;
             }
         };
         if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let here = self.compile_branch(0);
             self.c_stack().push(Control::Endof(here));
@@ -1247,12 +1248,12 @@ pub trait Core: Sized {
                 }
                 Control::Endof(endof_part) => endof_part,
                 _ => {
-                    self.abort_with(ControlStructureMismatch);
+                    self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                     return;
                 }
             };
             if self.c_stack().underflow() {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
             } else {
                 let here = self.data_space().here();
                 unsafe {
@@ -1262,7 +1263,7 @@ pub trait Core: Sized {
             }
         }
         if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         }
     }
 
@@ -1300,12 +1301,12 @@ pub trait Core: Sized {
         let (begin_part, while_part) = match self.c_stack().pop2() {
             (Control::Begin(begin_part), Control::While(while_part)) => (begin_part, while_part),
             _ => {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                 return;
             }
         };
         if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let here = self.compile_branch(begin_part);
             unsafe {
@@ -1332,12 +1333,12 @@ pub trait Core: Sized {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
             _ => {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                 return;
             }
         };
         if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             self.compile_zero_branch(begin_part);
         }
@@ -1360,12 +1361,12 @@ pub trait Core: Sized {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
             _ => {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                 return;
             }
         };
         if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             self.compile_branch(begin_part);
         }
@@ -1401,13 +1402,13 @@ pub trait Core: Sized {
                 self.forward_bitset_mut().remove(n as u32);
                 self.resolved_bitset_mut().add(n as u32);
             } else if self.resolved_bitset().contains(n as u32) {
-                self.abort_with(Exception::InvalidNumericArgument);
+                self.abort_with(INVALID_NUMERIC_ARGUMENT);
             } else {
                 self.labels_mut()[n] = here;
                 self.resolved_bitset_mut().add(n as u32);
             }
         } else {
-            self.abort_with(Exception::InvalidNumericArgument);
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
     }
 
@@ -1441,7 +1442,7 @@ pub trait Core: Sized {
                 self.forward_bitset_mut().add(n as u32);
             }
         } else {
-            self.abort_with(Exception::InvalidNumericArgument);
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
     }
 
@@ -1557,12 +1558,12 @@ pub trait Core: Sized {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part, _) => do_part,
             _ => {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                 return;
             }
         };
         if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let idx = self.references().idx_loop;
             self.compile_word(idx);
@@ -1585,12 +1586,12 @@ pub trait Core: Sized {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part, _) => do_part,
             _ => {
-                self.abort_with(ControlStructureMismatch);
+                self.abort_with(CONTROL_STRUCTURE_MISMATCH);
                 return;
             }
         };
         if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let idx = self.references().idx_plus_loop;
             self.compile_word(idx);
@@ -1621,7 +1622,7 @@ pub trait Core: Sized {
         } else {
             let ip = self.r_stack().pop() as usize;
             self.state().instruction_pointer = ip;
-            self.abort_with(Exception::InvalidNumericArgument);
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
     }
 
@@ -1633,10 +1634,10 @@ pub trait Core: Sized {
                     Some(inext) => {
                         self.s_stack().push(it.wrapping_add(inext));
                     }
-                    None => self.abort_with(ReturnStackUnderflow),
+                    None => self.abort_with(RETURN_STACK_UNDERFLOW),
                 }
             }
-            None => self.abort_with(ReturnStackUnderflow),
+            None => self.abort_with(RETURN_STACK_UNDERFLOW),
         }
     }
 
@@ -1718,7 +1719,7 @@ pub trait Core: Sized {
             }
             None => {
                 self.set_last_token(last_token);
-                self.abort_with(UnexpectedEndOfFile);
+                self.abort_with(UNEXPECTED_END_OF_FILE);
             }
         }
     }
@@ -1835,7 +1836,7 @@ pub trait Core: Sized {
         let last_token = self.last_token().take().expect("token");
         if last_token.is_empty() {
             self.set_last_token(last_token);
-            self.abort_with(UnexpectedEndOfFile);
+            self.abort_with(UNEXPECTED_END_OF_FILE);
         } else {
             match self.find(&last_token) {
                 Some(xt) => {
@@ -1846,7 +1847,7 @@ pub trait Core: Sized {
                 }
                 None => {
                     self.set_last_token(last_token);
-                    self.abort_with(UndefinedWord);
+                    self.abort_with(UNDEFINED_WORD);
                 }
             }
         }
@@ -1900,7 +1901,7 @@ pub trait Core: Sized {
                 if done {
                     /* Do nothing. */
                 } else {
-                    self.abort_with(UndefinedWord);
+                    self.abort_with(UNDEFINED_WORD);
                 }
             }
         }
@@ -1912,7 +1913,7 @@ pub trait Core: Sized {
             Some(found_index) => {
                 self.set_last_token(last_token);
                 if self.wordlist()[found_index].is_compile_only() {
-                    self.abort_with(InterpretingACompileOnlyWord);
+                    self.abort_with(INTERPRETING_A_COMPILE_ONLY_WORD);
                 } else {
                     self.execute_word(found_index);
                 }
@@ -1935,7 +1936,7 @@ pub trait Core: Sized {
                 if done {
                     /* Do nothing. */
                 } else {
-                    self.abort_with(UndefinedWord);
+                    self.abort_with(UNDEFINED_WORD);
                 }
             }
         }
@@ -2002,7 +2003,7 @@ pub trait Core: Sized {
                 },
             }
         } else {
-            self.abort_with(InvalidMemoryAddress);
+            self.abort_with(INVALID_MEMORY_ADDRESS);
         }
     }
 
@@ -2062,7 +2063,7 @@ pub trait Core: Sized {
                 parser::IResult::Done(bytes, sign) => match parser::uint_in_base(&bytes, base) {
                     parser::IResult::Done(bytes, value) => {
                         if bytes.len() != 0 {
-                            self.set_error(Some(UnsupportedOperation));
+                            self.set_error(Some(UNSUPPORTED_OPERATION));
                         } else {
                             if self.state().is_compiling {
                                 self.compile_integer(sign.wrapping_mul(value));
@@ -2202,10 +2203,10 @@ pub trait Core: Sized {
         }
 
         if failed {
-            self.set_error(Some(UnsupportedOperation))
+            self.set_error(Some(UNSUPPORTED_OPERATION))
         } else {
             if self.references().idx_flit == 0 {
-                self.set_error(Some(UnsupportedOperation));
+                self.set_error(Some(UNSUPPORTED_OPERATION));
             } else {
                 let value = (significand_sign as f64)
                     * (integer_part as f64 + fraction_part)
@@ -2258,7 +2259,7 @@ pub trait Core: Sized {
         }
         if last_token.is_empty() {
             self.set_last_token(last_token);
-            self.abort_with(UnexpectedEndOfFile);
+            self.abort_with(UNEXPECTED_END_OF_FILE);
         } else {
             let nfa = self.data_space().compile_str(&last_token);
             self.data_space().align();
@@ -2280,9 +2281,9 @@ pub trait Core: Sized {
 
     fn semicolon(&mut self) {
         if self.c_stack().len != 0 {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else if self.forward_bitset().layer3() != 0 {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let idx = self.references().idx_exit;
             let compile = self.wordlist()[idx].compilation_semantics;
@@ -2597,7 +2598,7 @@ pub trait Core: Sized {
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
         if t == 0 {
-            self.abort_with(DivisionByZero);
+            self.abort_with(DIVISION_BY_ZERO);
         } else {
             self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_div(t);
             self.s_stack().len = slen.wrapping_sub(1);
@@ -2609,7 +2610,7 @@ pub trait Core: Sized {
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
         if t == 0 {
-            self.abort_with(DivisionByZero);
+            self.abort_with(DIVISION_BY_ZERO);
         } else {
             self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_rem(t);
             self.s_stack().len = slen.wrapping_sub(1);
@@ -2621,7 +2622,7 @@ pub trait Core: Sized {
         let t = self.s_stack()[slen.wrapping_sub(1)];
         let n = self.s_stack()[slen.wrapping_sub(2)];
         if t == 0 {
-            self.abort_with(DivisionByZero);
+            self.abort_with(DIVISION_BY_ZERO);
         } else {
             self.s_stack()[slen.wrapping_sub(2)] = n.wrapping_rem(t);
             self.s_stack()[slen.wrapping_sub(1)] = n.wrapping_div(t);
@@ -2761,7 +2762,7 @@ pub trait Core: Sized {
             let value = unsafe { self.data_space().get_isize(t as usize) as isize };
             self.s_stack().push(value);
         } else {
-            self.abort_with(InvalidMemoryAddress);
+            self.abort_with(INVALID_MEMORY_ADDRESS);
         }
     }
 
@@ -2775,7 +2776,7 @@ pub trait Core: Sized {
         {
             unsafe { self.data_space().put_isize(n as isize, t as usize) };
         } else {
-            self.abort_with(InvalidMemoryAddress);
+            self.abort_with(INVALID_MEMORY_ADDRESS);
         }
     }
 
@@ -2789,7 +2790,7 @@ pub trait Core: Sized {
             let value = unsafe { self.data_space().get_u8(t as usize) as isize };
             self.s_stack().push(value);
         } else {
-            self.abort_with(InvalidMemoryAddress);
+            self.abort_with(INVALID_MEMORY_ADDRESS);
         }
     }
 
@@ -2804,7 +2805,7 @@ pub trait Core: Sized {
         if self.data_space().start() < t && t < self.data_space().limit() {
             unsafe { self.data_space().put_u8(n as u8, t as usize) };
         } else {
-            self.abort_with(InvalidMemoryAddress);
+            self.abort_with(INVALID_MEMORY_ADDRESS);
         }
     }
 
@@ -2844,7 +2845,7 @@ pub trait Core: Sized {
                     }
                 }
             } else {
-                self.abort_with(InvalidMemoryAddress);
+                self.abort_with(INVALID_MEMORY_ADDRESS);
             }
         }
     }
@@ -2859,7 +2860,7 @@ pub trait Core: Sized {
         let last_token = self.last_token().take().expect("last token");
         if last_token.is_empty() {
             self.set_last_token(last_token);
-            self.abort_with(UnexpectedEndOfFile);
+            self.abort_with(UNEXPECTED_END_OF_FILE);
         } else {
             match self.find(&last_token) {
                 Some(found_index) => {
@@ -2868,7 +2869,7 @@ pub trait Core: Sized {
                 }
                 None => {
                     self.set_last_token(last_token);
-                    self.abort_with(UndefinedWord);
+                    self.abort_with(UNDEFINED_WORD);
                 }
             }
         }
@@ -2883,7 +2884,7 @@ pub trait Core: Sized {
             let dfa = self.wordlist()[t].dfa() as isize;
             self.s_stack().push(dfa);
         } else {
-            self.abort_with(InvalidNumericArgument);
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
     }
 
@@ -2895,7 +2896,7 @@ pub trait Core: Sized {
             let nfa = self.wordlist()[t].nfa() as isize;
             self.s_stack().push(nfa);
         } else {
-            self.abort_with(InvalidNumericArgument);
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
     }
 
@@ -2917,7 +2918,7 @@ pub trait Core: Sized {
         let last_token = self.last_token().take().expect("last token");
         if last_token.is_empty() {
             self.set_last_token(last_token);
-            self.abort_with(UnexpectedEndOfFile);
+            self.abort_with(UNEXPECTED_END_OF_FILE);
         } else {
             match self.find(&last_token) {
                 Some(found_index) => {
@@ -2926,7 +2927,7 @@ pub trait Core: Sized {
                 }
                 None => {
                     self.set_last_token(last_token);
-                    self.abort_with(UndefinedWord);
+                    self.abort_with(UNDEFINED_WORD);
                 }
             }
         }
@@ -3041,21 +3042,21 @@ pub trait Core: Sized {
 
     fn check_stacks(&mut self) {
         if self.s_stack().overflow() {
-            self.abort_with(StackOverflow);
+            self.abort_with(STACK_OVERFLOW);
         } else if self.s_stack().underflow() {
-            self.abort_with(StackUnderflow);
+            self.abort_with(STACK_UNDERFLOW);
         } else if self.r_stack().overflow() {
-            self.abort_with(ReturnStackOverflow);
+            self.abort_with(RETURN_STACK_OVERFLOW);
         } else if self.r_stack().underflow() {
-            self.abort_with(ReturnStackUnderflow);
+            self.abort_with(RETURN_STACK_UNDERFLOW);
         } else if self.c_stack().overflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else if self.c_stack().underflow() {
-            self.abort_with(ControlStructureMismatch);
+            self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else if self.f_stack().overflow() {
-            self.abort_with(FloatingPointStackOverflow);
+            self.abort_with(FLOATING_POINT_STACK_OVERFLOW);
         } else if self.f_stack().underflow() {
-            self.abort_with(FloatingPointStackUnderflow);
+            self.abort_with(FLOATING_POINT_STACK_UNDERFLOW);
         }
     }
 
@@ -3068,7 +3069,7 @@ pub trait Core: Sized {
     fn error(&mut self) {
         match self.last_error() {
             Some(e) => {
-                self.s_stack().push(e as isize);
+                self.s_stack().push(e.into());
             }
             None => {
                 self.s_stack().push(0);
@@ -3086,7 +3087,7 @@ pub trait Core: Sized {
         match self.last_error() {
             Some(e) => match self.output_buffer().as_mut() {
                 Some(buf) => {
-                    write!(buf, "{}", e.description()).expect("write");
+                    write!(buf, "{}", exception::description(e)).expect("write");
                 }
                 None => {}
             },
@@ -3095,7 +3096,7 @@ pub trait Core: Sized {
     }
 
     /// Clear data, floating point, and control stacks.
-    /// Called by VM's client upon Abort.
+    /// Called by VM's client upon ABORT.
     fn clear_stacks(&mut self) {
         self.s_stack().reset();
         self.f_stack().reset();
@@ -3128,12 +3129,12 @@ pub trait Core: Sized {
             {
                 self.state().source_id = id;
             } else {
-                self.abort_with(Exception::InvalidNumericArgument);
+                self.abort_with(INVALID_NUMERIC_ARGUMENT);
             }
         } else if id == 0 {
             self.state().source_id = id;
         } else {
-            self.abort_with(Exception::InvalidNumericArgument);
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
     }
 
@@ -3178,7 +3179,7 @@ pub trait Core: Sized {
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
     fn abort(&mut self) {
-        self.abort_with(Abort);
+        self.abort_with(ABORT);
     }
 
     /// Pause the current task and resume the next task which is awake.
@@ -3205,7 +3206,7 @@ pub trait Core: Sized {
         if i < NUM_TASKS {
             self.set_awake(i as usize, false);
         } else {
-            self.abort_with(InvalidNumericArgument);
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
     }
 
@@ -3215,7 +3216,7 @@ pub trait Core: Sized {
         if i < NUM_TASKS {
             self.set_awake(i as usize, true);
         } else {
-            self.abort_with(InvalidNumericArgument);
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
     }
 }
@@ -3225,10 +3226,10 @@ mod tests {
     extern crate test;
     use self::test::Bencher;
     use super::{Core, Memory};
-    use exception::Exception::{
-        Abort, ControlStructureMismatch, InterpretingACompileOnlyWord, InvalidMemoryAddress,
-        ReturnStackUnderflow, StackUnderflow, UndefinedWord, UnexpectedEndOfFile,
-        UnsupportedOperation,
+    use exception::{
+        ABORT, CONTROL_STRUCTURE_MISMATCH, INTERPRETING_A_COMPILE_ONLY_WORD,
+        INVALID_MEMORY_ADDRESS, RETURN_STACK_UNDERFLOW, STACK_UNDERFLOW, UNDEFINED_WORD,
+        UNEXPECTED_END_OF_FILE, UNSUPPORTED_OPERATION,
     };
     use loader::HasLoader;
     use mock_vm::VM;
@@ -3283,7 +3284,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.p_drop();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -3308,13 +3309,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.nip();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.nip();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -3343,13 +3344,13 @@ mod tests {
         vm.swap();
         vm.check_stacks();
         // check_stacks() cannot detect this kind of underflow.
-        // assert_eq!(vm.last_error(), Some(StackUnderflow));
+        // assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.swap();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -3378,7 +3379,7 @@ mod tests {
         vm.dup();
         vm.check_stacks();
         // check_stacks can not detect this underflow();
-        //        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        //        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -3408,14 +3409,14 @@ mod tests {
         vm.over();
         vm.check_stacks();
         // check_stacks() cannot detect stack underflow of over().
-        // assert_eq!(vm.last_error(), Some(StackUnderflow));
+        // assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.check_stacks();
         vm.over();
         // check_stacks() cannot detect stack underflow of over().
-        // assert_eq!(vm.last_error(), Some(StackUnderflow));
+        // assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -3448,20 +3449,20 @@ mod tests {
         vm.rot();
         vm.check_stacks();
         // check_stacks() cannot detect this kind of stack underflow of over().
-        // assert_eq!(vm.last_error(), Some(StackUnderflow));
+        // assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.rot();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(2);
         vm.rot();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -3697,7 +3698,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.one_plus();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -3722,7 +3723,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.one_minus();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(2);
@@ -3747,13 +3748,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.minus();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
         vm.minus();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
@@ -3780,13 +3781,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.plus();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
         vm.plus();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
@@ -3813,13 +3814,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.star();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
         vm.star();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(5);
@@ -3846,13 +3847,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.slash();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
         vm.slash();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
@@ -3879,13 +3880,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.p_mod();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
         vm.p_mod();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
@@ -3913,13 +3914,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.slash_mod();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
         vm.slash_mod();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
@@ -3958,7 +3959,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.negate();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(30);
@@ -3974,7 +3975,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.zero_less();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(-1);
@@ -3996,7 +3997,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.zero_equals();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
@@ -4024,7 +4025,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.zero_greater();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -4046,7 +4047,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.zero_not_equals();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
@@ -4074,13 +4075,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.less_than();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(-1);
         vm.less_than();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(-1);
@@ -4104,13 +4105,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.equals();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
         vm.equals();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
@@ -4141,13 +4142,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.greater_than();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.greater_than();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -4171,13 +4172,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.not_equals();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
         vm.not_equals();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(0);
@@ -4208,20 +4209,20 @@ mod tests {
         let vm = &mut VM::new();
         vm.within();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.within();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.s_stack().push(1);
         vm.within();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -4263,7 +4264,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.invert();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
@@ -4293,13 +4294,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.or();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
         vm.or();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
@@ -4316,13 +4317,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.xor();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
         vm.xor();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(707);
@@ -4339,13 +4340,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.lshift();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
         vm.lshift();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(1);
@@ -4369,13 +4370,13 @@ mod tests {
         let vm = &mut VM::new();
         vm.rshift();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(8);
         vm.rshift();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         vm.s_stack().push(8);
@@ -4414,25 +4415,25 @@ mod tests {
         // >r
         vm.set_source(">r");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(InterpretingACompileOnlyWord));
+        assert_eq!(vm.last_error(), Some(INTERPRETING_A_COMPILE_ONLY_WORD));
         vm.reset();
         vm.clear_stacks();
         // drop
         vm.set_source("drop");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         // error in colon definition: 4drop
         vm.set_source(": 4drop drop drop drop drop ; 4drop");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         // undefined word
         vm.set_source("xdrop");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(UndefinedWord));
+        assert_eq!(vm.last_error(), Some(UNDEFINED_WORD));
         vm.reset();
         vm.clear_stacks();
         // false true dup 1+ 2 -3
@@ -4487,7 +4488,7 @@ mod tests {
         // :
         vm.set_source(":");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(UnexpectedEndOfFile));
+        assert_eq!(vm.last_error(), Some(UNEXPECTED_END_OF_FILE));
         vm.reset();
         vm.clear_stacks();
         // : 2+3 2 3 + ; 2+3
@@ -4505,7 +4506,7 @@ mod tests {
         vm.set_source("constant");
         vm.evaluate_input();
         // Note: cannot detect underflow.
-        // assert_eq!(vm.last_error(), Some(StackUnderflow));
+        // assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         // 5 constant x x x
@@ -4535,19 +4536,19 @@ mod tests {
         // @
         vm.set_source("@");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(InvalidMemoryAddress));
+        assert_eq!(vm.last_error(), Some(INVALID_MEMORY_ADDRESS));
         vm.reset();
         vm.clear_stacks();
         // !
         vm.set_source("!");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(InvalidMemoryAddress));
+        assert_eq!(vm.last_error(), Some(INVALID_MEMORY_ADDRESS));
         vm.reset();
         vm.clear_stacks();
         // create x  1 cells allot  x !
         vm.set_source("create x  1 cells allot  x !");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         // create x  1 cells allot  x @  3 x !  x @
@@ -4589,7 +4590,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.char_plus();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         // 2 char+
         vm.set_source("2 char+");
@@ -4603,11 +4604,11 @@ mod tests {
         let vm = &mut VM::new();
         vm.cell_plus();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.cells();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.set_source("2 cell+  9 cells");
         vm.evaluate_input();
@@ -4626,12 +4627,12 @@ mod tests {
         let vm = &mut VM::new();
         // '
         vm.tick();
-        assert_eq!(vm.last_error(), Some(UnexpectedEndOfFile));
+        assert_eq!(vm.last_error(), Some(UNEXPECTED_END_OF_FILE));
         vm.reset();
         // ' xdrop
         vm.set_source("' xdrop");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(UndefinedWord));
+        assert_eq!(vm.last_error(), Some(UNDEFINED_WORD));
         vm.reset();
         vm.clear_stacks();
         // ' drop
@@ -4647,7 +4648,7 @@ mod tests {
         // execute
         vm.execute();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(UnsupportedOperation));
+        assert_eq!(vm.last_error(), Some(UNSUPPORTED_OPERATION));
         vm.reset();
         vm.clear_stacks();
         // ' drop execute
@@ -4655,7 +4656,7 @@ mod tests {
         vm.evaluate_input();
         vm.execute();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         // 1 2  ' swap execute
@@ -4673,7 +4674,7 @@ mod tests {
         // allot
         vm.allot();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         // here 2 cells allot here -
         vm.set_source("here 2 cells allot here -");
@@ -4740,13 +4741,13 @@ mod tests {
         // : t5 if ; t5
         vm.set_source(": t5 if ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t4 then ; t4
         vm.set_source(": t4 then ; t4");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t1 false dup if drop true then ; t1
@@ -4771,7 +4772,7 @@ mod tests {
         // : t3 else then ; t3
         vm.set_source(": t3 else then ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         vm.set_source(": t1 0 if true else false then ; t1");
@@ -4793,13 +4794,13 @@ mod tests {
         // : t3 begin ;
         vm.set_source(": t3 begin ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t2 again ;
         vm.set_source(": t2 again ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t1 0 begin 1+ dup 3 = if exit then again ; t1
@@ -4816,37 +4817,37 @@ mod tests {
         // : t1 begin ;
         vm.set_source(": t1 begin ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t2 while ;
         vm.set_source(": t2 while ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t3 repeat ;
         vm.set_source(": t3 repeat ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t4 begin while ;
         vm.set_source(": t4 begin while ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t5 begin repeat ;
         vm.set_source(": t5 begin repeat ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t6 while repeat ;
         vm.set_source(": t6 while repeat ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t7 0 begin 1+ dup 3 <> while repeat ; t1
@@ -4886,7 +4887,7 @@ mod tests {
         vm.clear_stacks();
         vm.set_source(": test5   0labels  [ 10 ] call ; test5");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         // 0 goto
         vm.clear_stacks();
         vm.clear_error();
@@ -4936,7 +4937,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.set_source("1 2 3 abort 5 6 7");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(Abort));
+        assert_eq!(vm.last_error(), Some(ABORT));
         assert_eq!(vm.s_stack().len(), 0);
     }
 
@@ -4946,13 +4947,13 @@ mod tests {
         // : t1 do ;
         vm.set_source(": t1 do ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t2 loop ;
         vm.set_source(": t2 loop ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : main 1 5 0 do 1+ loop ;  main
@@ -4969,7 +4970,7 @@ mod tests {
         // : t1 unloop ;
         vm.set_source(": t1 unloop ; t1");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ReturnStackUnderflow));
+        assert_eq!(vm.last_error(), Some(RETURN_STACK_UNDERFLOW));
         vm.reset();
         vm.clear_stacks();
         // : main 1 5 0 do 1+ dup 3 = if unloop exit then loop ;  main
@@ -4986,13 +4987,13 @@ mod tests {
         // : t1 +loop ;
         vm.set_source(": t1 +loop ;");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : t2 5 0 do +loop ;
         vm.set_source(": t2 5 0 do +loop ; t2");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.clear_stacks();
         vm.reset();
         // : t3 1 5 0 do 1+ 2 +loop ;  main
@@ -5015,7 +5016,7 @@ mod tests {
         // : t1 leave ;
         vm.set_source(": t1 leave ;  t1");
         vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
+        assert_eq!(vm.last_error(), Some(CONTROL_STRUCTURE_MISMATCH));
         vm.reset();
         vm.clear_stacks();
         // : main 1 5 0 do 1+ dup 3 = if drop 88 leave then loop 9 ;  main
@@ -5163,7 +5164,7 @@ mod tests {
         let vm = &mut VM::new();
         vm.comma();
         vm.check_stacks();
-        assert_eq!(vm.last_error(), Some(StackUnderflow));
+        assert_eq!(vm.last_error(), Some(STACK_UNDERFLOW));
         vm.reset();
         // here 1 , 2 , ] lit exit [ here
         let here = vm.data_space().here();

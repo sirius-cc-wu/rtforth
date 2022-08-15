@@ -1,5 +1,5 @@
 use core::Core;
-use exception::Exception::InvalidMemoryAddress;
+use exception::INVALID_MEMORY_ADDRESS;
 use memory::{DataSpace, Memory};
 use std::f64::consts::PI;
 use std::mem;
@@ -113,7 +113,7 @@ pub trait Float: Core {
             let value = unsafe { self.data_space().get_f64(t) };
             self.f_stack().push(value);
         } else {
-            self.abort_with(InvalidMemoryAddress);
+            self.abort_with(INVALID_MEMORY_ADDRESS);
         }
     }
 
@@ -125,7 +125,7 @@ pub trait Float: Core {
         if self.data_space().start() <= t && t < self.data_space().limit() {
             unsafe { self.data_space().put_f64(n, t) };
         } else {
-            self.abort_with(InvalidMemoryAddress);
+            self.abort_with(INVALID_MEMORY_ADDRESS);
         }
     }
 

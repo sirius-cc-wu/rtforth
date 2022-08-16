@@ -10,6 +10,8 @@ use rtforth::exception::Exception;
 use rtforth::facility::Facility;
 use rtforth::file_access::FileAccess;
 use rtforth::float::Float;
+#[cfg(feature = "gui")]
+use rtforth::gui::Gui;
 use rtforth::hibitset::BitSet;
 use rtforth::loader::{HasLoader, Source};
 use rtforth::memory::DataSpace;
@@ -124,6 +126,8 @@ impl VM {
         vm.add_units();
         vm.add_file_access();
         vm.add_loader();
+        #[cfg(feature = "gui")]
+        vm.add_gui();
         vm.add_primitive("receive", receive);
 
         vm.load_core_fs();
@@ -289,6 +293,8 @@ impl HasLoader for VM {}
 impl Output for VM {}
 impl Tools for VM {}
 impl FileAccess for VM {}
+#[cfg(feature = "gui")]
+impl Gui for VM {}
 
 fn main() {
     let vm = &mut VM::new(1024);

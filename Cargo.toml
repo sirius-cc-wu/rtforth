@@ -29,7 +29,6 @@ uom = "~0.31.0"
 approx = "~0.3"
 libc = "^0.2.48"
 page_size = "0.4.2"
-eframe = { version = "0.18", optional = true }
 
 [dependencies.hibitset]
 version = "~0.5.0"
@@ -37,6 +36,3 @@ default-features = false    # do not use rayon
 
 [profile.release]
 debug = true
-
-[features]
-gui = ["eframe"]

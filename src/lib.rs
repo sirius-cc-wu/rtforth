@@ -1,6 +1,4 @@
 extern crate approx;
-#[cfg(feature = "gui")]
-extern crate eframe;
 pub extern crate hibitset;
 extern crate uom;
 
@@ -17,9 +15,6 @@ pub mod output;
 pub(crate) mod parser;
 pub mod tools;
 pub mod units;
-
-#[cfg(feature = "gui")]
-pub mod gui;
 
 use core::Core;
 use exception::Exception;

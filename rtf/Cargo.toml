@@ -12,11 +12,8 @@ rtforth = "=0.6.2"
 rustyline = "^4"
 getopts = "~0.2.21"
 time = "~0.1"
-lazy_static = "~1.4.0"
+lazy_static = "~1.3.0"
 unicode-width = "~0.1.5"
 
 [profile.release]
 debug = true
-
-[features]
-gui = ["rtforth/gui"]

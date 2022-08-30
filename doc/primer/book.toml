@@ -3,4 +3,4 @@ authors = ["Sirius Wu"]
 language = "en"
 multilingual = false
 src = "src"
-title = "rtForth門"
+title = "rtForth 入門"

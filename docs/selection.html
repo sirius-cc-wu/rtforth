@@ -1,0 +1,501 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>選擇 - rtForth門</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> 簡介</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> 安裝 rtForth</a></li><li class="chapter-item expanded "><a href="calculator.html"><strong aria-hidden="true">3.</strong> Forth 計算機</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="integer.html"><strong aria-hidden="true">3.1.</strong> 整數運算</a></li><li class="chapter-item expanded "><a href="float.html"><strong aria-hidden="true">3.2.</strong> 浮點運算</a></li><li class="chapter-item expanded "><a href="logic.html"><strong aria-hidden="true">3.3.</strong> 比較及邏輯運算</a></li><li class="chapter-item expanded "><a href="colon.html"><strong aria-hidden="true">3.4.</strong> 自己定義運算指令</a></li></ol></li><li class="chapter-item expanded "><a href="programming.html"><strong aria-hidden="true">4.</strong> Forth 程式入門</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="selection.html" class="active"><strong aria-hidden="true">4.1.</strong> 選擇</a></li><li class="chapter-item expanded "><a href="repetition.html"><strong aria-hidden="true">4.2.</strong> 循環</a></li><li class="chapter-item expanded "><a href="dictionary.html"><strong aria-hidden="true">4.3.</strong> 字典</a></li><li class="chapter-item expanded "><a href="tasking.html"><strong aria-hidden="true">4.4.</strong> 多工、異常處理與文本直譯器</a></li><li class="chapter-item expanded "><a href="style.html"><strong aria-hidden="true">4.5.</strong> 程式碼風格</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">rtForth門</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="選擇"><a class="header" href="#選擇">選擇</a></h1>
+<h2 id="結構化程式"><a class="header" href="#結構化程式">結構化程式</a></h2>
+<p>依據結構化程式理論，程式的控制流程都可以化為三種型式：</p>
+<ul>
+<li>順序 (sequence)</li>
+<li>選擇 (selection)</li>
+<li>循環 (repetitiion)</li>
+</ul>
+<p>我們以前一章的兩個冒號定義說明 Forth 如何順序執行。以下是它們被编譯進字典中的示意圖。</p>
+<pre><code>: x^2-y^2 ( x y -- x^2-y^2 )   square  swap  square  - negate ;
+: square   dup * ;
+
+x^2-y^2   +--------+------+--------+---+--------+------+
+          | square | swap | square | - | negate | exit |
+          +--------+------+--------+---+--------+------+
+                            |        ^
+            +---------------+        |
+            |                        |
+            v                        |
+          +-----+---+------+         |
+square    | dup | * | exit |         |
+          +-----+---+------+         |
+            ^                        |
+            |                        |
++-----------|------------------------|-----------------+
+|           |                        |     Forth 虛擬機 |
+|         +---+              +-----+---+--             |
+|         | x |              | ... | x |               |
+|         +---+              +-----+---+--             |
+|        程式計數器            返回堆疊                   |
++------------------------------------------------------+
+</code></pre>
+<p>示意圖中冒號定義名稱和 <code>;</code> 之間的指令被依序放入字典中，並由一個 <code>;</code> 編譯進字典的指令 <code>exit</code> 結束。</p>
+<p>當執行到 <code>square</code> 時，Forth 的執行核心或稱為 Forth 虛擬機 (virtual machine) 中的「程式計數器」會指到如圖中的位置。虛擬機由此順序執行 <code>dup</code> 、 <code>*</code> 。程式計數器不斷後移，直到解得 <code>exit</code>。指令 <code>exit</code> 從返回堆疊上取得副程式返回的位址，於是 Forth 虛擬機繼續從上圖中的 <code>-</code> 開始順序執行。</p>
+<h2 id="選擇-1"><a class="header" href="#選擇-1">選擇</a></h2>
+<p>在之前我們學過 <code>min</code> 這個指令。現在我們看看它是怎麼用冒號定義出來的：</p>
+<pre><code>\ 當 `n1&lt;n2` 時 n3 = n1，否則 n3 = n2。
+: min ( n1 n2 -- n3 )   2dup &lt; if drop else nip then ;
+</code></pre>
+<p>Forth 表達選擇的方式是 ( 條件 ) if A else B then C。條件是在堆疊上的一個真假值。</p>
+<p>指令 <code>if</code> 會檢查堆疊上這個數值，如果為真，即使只是部份為真，只要不是 0，就執行 A ，否則執行 B ，最後都會執行 C。請參照以下的流程圖：</p>
+<pre><code>( 條件 ) if A else B then C
+
+               |
+               v
+         +-----------+
+         | 條件為真或  | No
+         | 一部份為真  |--------+
+         +-----------+        |
+               | Yes          |
+               v              v
+          +---------+    +---------+
+          |    A    |    |    B    |
+          +---------+    +---------+
+               |              |
+               |&lt;-------------+
+               v
+          +---------+
+          |    C    |
+          +---------+
+               |
+</code></pre>
+<p>當沒有 B 這個分支時，可以只使用 <code>if</code> 和 <code>then</code>。比如以下這個 <code>?dup</code> 指令，當堆疊上的數字不為 0 時才會複制一份。</p>
+<pre><code>: ?dup ( n -- 0 | n n )  dup if dup then ;
+</code></pre>
+<p>在此我們在堆疊效果中使用垂直線 <code>|</code> 來表示堆疊的結果是 0 或 n n 中的一個。</p>
+<p>練習：請以冒號定義一個行為和  <code>abs</code> 一樣的 <code>my-abs</code>。</p>
+<pre><code>rf&gt; : my-abs ( n -- |n| )   dup 0&lt; if negate then ;
+ ok
+rf&gt; 3 my-abs .   -3 my-abs .
+3 3  ok
+rf&gt; .s
+ ok
+</code></pre>
+<p>練習：請以冒號定義一個行為和  <code>max</code> 一樣的 <code>my-max</code>。</p>
+<pre><code>rf&gt; : my-max ( n1 n2 -- n1 | n2 )   2dup &lt; if nip  else drop then ;
+ ok
+rf&gt; 1 3 my-max .  3 1 my-max .
+3 3  ok
+rf&gt; .s
+ ok
+</code></pre>
+<p>在最後我們用 <code>.s</code> 確定堆疊上沒留下不該留的資料。Forth 的冒號定義通常都很短，而且容易獨立測試。透過和直譯器的互動，以及像 <code>.s</code> 這樣的工具，可以很快的找出 Forth 程式中的 bug。而不需要依賴除錯器 (debugger)。</p>
+<p>指令 <code>if</code> 、 <code>else</code> 、 <code>then</code> 只能用於冒號定義中。它們和 <code>.&quot;</code> 以及  <code>;</code> 一樣，都是只能用於冒號定義中的「編譯指令」。如果用在冒號定義之外，會出現錯誤訊息。</p>
+<pre><code>rf&gt; if
+Interpreting a compile only word
+</code></pre>
+<p>另外，<code>if then</code> 必須在冒號定義中成對出現，而 <code>else</code> 只能出現在 <code>if then</code> 之間構成 <code>if else then</code> 的控制結構。否則會出現控制結構錯誤的訊息。</p>
+<pre><code>rf&gt; : then-without-if   then ;
+Control structure mismatch
+</code></pre>
+<p>下圖是 <code>min</code> 被編譯進字典的示意圖。我們發現字典中的 <code>min</code> 內並沒有 <code>if</code> 、<code>else</code> 、 <code>then</code>。但多了 <code>0branch</code> 和 <code>branch</code> 以及之後的數字。這些是由編譯指令 <code>if</code> 、 <code>else</code> 和 <code>then</code> 编進字典，在執行 <code>min</code> 時真正進行判斷和選擇的指令。指令 <code>0branch</code> 就如之前我們對 <code>if</code> 的說明一樣，會檢查堆疊上的數字，若為 0 就依據它後面的數字跳到 <code>nip</code> 的位置，否則順序執行 <code>drop</code>。而 <code>branch</code> 則無條件依其後的數字跳到之後的 <code>exit</code>。</p>
+<p>指令 <code>0branch</code> 和 <code>branch</code> 並不是 Forth 2012 標準中的指令，只是 Forth 實作選擇方式中的一種。因其概念簡單，我們藉此說明 <code>if</code> 、 <code>else</code> 、 <code>then</code> 的編譯行為。</p>
+<pre><code>: min   2dup &lt; if drop else nip then ;
+
+                             +-----------------------+
+                             |                       |
+                             |                       v
+      +------+---+---------+---+------+--------+---+-----+------+
+min   | 2dup | &lt; | 0branch | 3 | drop | branch | 1 | nip | exit |
+      +------+---+---------+---+------+--------+---+-----+------+
+                                                 |         ^
+                                                 |         |
+                                                 +---------+
+</code></pre>
+<h3 id="本節指令集"><a class="header" href="#本節指令集">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>if</code></td><td>( flag -- )   如果 flag 為真，或部份為真，執行之後的指令；否則跳到 <code>else</code> 或 <code>then</code> 之後的指令。</td><td>if</td></tr>
+<tr><td><code>else</code></td><td>( -- )   標記著 <code>if else then</code> 結構中，當 <code>if</code> 判斷為假時要執行的分支</td><td>else</td></tr>
+<tr><td><code>then</code></td><td>( -- )   結束由 <code>if</code> 開始的控制結構。不論 <code>if</code> 判斷選擇了哪個分支，最後都要從 <code>then</code> 之後的指令繼續執行。</td><td>then</td></tr>
+<tr><td><code>?dup</code></td><td>( x -- 0 | x x )   如果 x 不為零，則複製一份。常用於當 x 為零就不處理的情況。</td><td>question-dupe</td></tr>
+<tr><td><code>exit</code></td><td>( -- )   結束冒號定義的執行，返回呼叫者</td><td>exit</td></tr>
+</tbody></table>
+<h2 id="猜數字"><a class="header" href="#猜數字">猜數字</a></h2>
+<p>現在我們來設計一款猜數字的遊戲。</p>
+<p>遊戲一開始會先產生一個比 100 小的數字藏在堆疊上，當我們猜一個數字時，遊戲會和堆疊上的數字作比較，如果太大就會說「太大」，太小就說「太小」。猜中了就說「猜中了」。</p>
+<p>以下是玩遊戲的一個案例：</p>
+<pre><code>rf&gt; game
+rf&gt; 32 guess
+太小
+rf&gt; 64 guess
+太大
+rf&gt; 54 guess
+答對了!
+</code></pre>
+<p>我們設計兩個 Forth 指令：</p>
+<ul>
+<li>指令 <code>game</code> 會產生一個比 100 小的數字放上堆疊。因此它的堆疊效果是 ( -- n )。</li>
+<li>指令 <code>guess</code> 會比較堆疊上的兩個數，一個是 <code>game</code> 產生的，另一個是玩家猜的。如果猜的數比較大，就印出「太大」，太小就印「太小」，這兩種情況下，那個隱藏在堆疊上的數字都應繼續藏在堆疊上。當猜中時，印出「猜中了」，而且把藏在堆疊上的數字拋棄。因此堆疊效果是 ( n1 n2 -- | n1 ) 。在此我們使用垂直線表示堆疊的兩種情況。第一種情況 n1 和 n2 都被拋棄，另一種情況會留下 n1。</li>
+</ul>
+<p>為了要產生小於 100 的數字，我們需要亂數產生器。某些 Forth 版本會提供產生亂數的指令。在此我們使用 George Marsaglia 的
+<a href="https://en.wikipedia.org/wiki/Xorshift">Xorshift 亂數產生器</a>。</p>
+<pre><code>: xorshift ( n -- x ) dup 13 lshift xor dup 17 rshift xor dup 5 lshift xor ;
+</code></pre>
+<p>使用這產生器，我們需要先給一個亂數種子 (seed) ，<code>xorshift</code> 每次執行時會利用這種子計算出一個新的數字，並且把這新的數字當成新的種子。在我們尚未學到變數 (variable) 前，先把種子放在堆疊上。未來談到變數時，再將這個種子放在變數中，就不必每次都要讓玩家輸入了。</p>
+<p>測試一下：</p>
+<pre><code>rf&gt; : xorshift ( n -- x ) dup 13 lshift xor dup 17 rshift xor dup 5 lshift xor ;
+ ok
+rf&gt; 1 xorshift .s
+270369  ok
+rf&gt; xorshift .s
+68787111425  ok
+rf&gt; xorshift .s
+18597760640231621  ok
+rf&gt; xorshift .s
+5629809312759907  ok
+rf&gt; xorshift .s
+-8956027557026519269  ok
+rf&gt; xorshift .s
+9011377231533407587  ok
+rf&gt; xx
+xx Undefined word
+</code></pre>
+<p>最後我們使用一個 Forth 不認識的指令 <code>xx</code> 來清除堆疊。</p>
+<p>經過幾次測試，我們發現亂數的種子不可以是 0。</p>
+<pre><code>rf&gt; 0 xorshift .s
+0  ok
+</code></pre>
+<p>因此我們修改一下 <code>game</code> 的規格：</p>
+<ul>
+<li>指令 <code>game</code>：玩家先在堆疊上放一個他喜歡的數字。這個數字不可以是 0。指令 <code>game</code> 會以 <code>xorshift</code> 產生一個比 100 小的數字放上堆疊。因此它的堆疊效果是 ( n1=seed -- n2 )，在此我們使用 n1=seed 來表示 n1 是一個種子。</li>
+</ul>
+<p>因為 <code>xorshift</code> 產生的數字可能超過 100，我們可以使用求餘數的指令 <code>mod</code> 來得到小於 100 的數字。但是必須注意到 <code>xorshift</code> 可能會產生小於 0 的數字。而不同 Forth 版本的指令 <code>mod</code> 在除數和被除數的正負號不同時，會有不同的答案。請看以下 rtForth、SwiftForth 和 gforth 的測試結果：</p>
+<p>rtForth:</p>
+<pre><code>rf&gt; -100 9 mod .
+-1  ok
+</code></pre>
+<p>SwiftForth:</p>
+<pre><code>-100 9 mod . -1  ok
+</code></pre>
+<p>gforth:</p>
+<pre><code>-100 9 mod . 8  ok
+</code></pre>
+<p>解決的方法是取 <code>mod</code> 結果的絕對值。</p>
+<p>以下是我們對 <code>game</code> 的定義：</p>
+<pre><code>\ Start the guessing game, n1 is a seed to generate
+\ the hidden number n2 on stack. N2 should be positive and less than 100. 
+\ If the seed given is zero, print an error message and drop the seed.
+: game ( n1=seed -- | n2 )
+   ?dup if
+      xorshift  100 mod  abs  ( n2 )
+   else
+      .&quot; 種子不可以為 0&quot;        ( )
+   then ;
+</code></pre>
+<p>請分析一下每行的堆疊效果以確定你瞭解這段程式。</p>
+<p>以下是我們對 <code>guess</code> 的定義：</p>
+<pre><code>\ 當 n2 &gt; n1，印出「太大」。當 n2 &lt; n1，印出「太小」。這兩種情況都保留 n1 在堆疊上。否則印出「答對了」，並拋棄 n1。
+: guess ( n1 n2 -- | n1 )
+   2dup &lt; if .&quot; 太大&quot;  drop
+   else 2dup &gt;
+      if .&quot; 太小&quot;  drop
+      else .&quot; 猜中了&quot;  2drop
+      then
+   then ;
+</code></pre>
+<p>請分析一下每行的堆疊效果以確定你瞭解這段程式。</p>
+<p>玩一下我們的遊戲：</p>
+<pre><code>rf&gt; 10 game
+ ok
+rf&gt; 8 guess
+太小 ok
+rf&gt; 20 guess
+太小 ok
+rf&gt; 50 guess
+太小 ok
+rf&gt; 80 guess
+太小 ok
+rf&gt; 90 guess
+猜中了 ok
+</code></pre>
+<h2 id="多選一"><a class="header" href="#多選一">多選一</a></h2>
+<p>指令<code>if</code>讓我們能在 0 和非 0 這兩種條件間進行選擇。當我們要用它實現多選一時，會發現它不那麼好用。以下是使用 <code>if</code> 在 1 、 2 、 3 之間選擇的例子。</p>
+<pre><code>\ 判斷 x 是 1,2,3 中的哪一個
+: choose ( x -- )
+  dup 1 = if drop .&quot; one&quot; else
+    dup 2 = if drop .&quot; two&quot; else
+      dup 3 = if drop .&quot; three&quot; else .&quot; value is &quot; . then
+    then
+  then ;
+</code></pre>
+<p>我們必須以一層套一層的巢狀結構來實現多選一。當選項多時，巢狀結構會很深，我們必須注意每個分支中堆疊指令的效果。Forth 提供另一種能更清晰表達多選一的方式。以下程式效果和上面這段程式一樣。</p>
+<pre><code>\ 判斷 n 是 1,2,3 中的哪一個
+: choose ( x -- )
+  case
+    1 of .&quot; one&quot; endof
+    2 of .&quot; two&quot; endof
+    3 of .&quot; three&quot; endof
+    .&quot; value is &quot; dup .
+  endcase ;
+</code></pre>
+<p>在上例中，指令 <code>case</code> 開始多選一的控制結構。在指令 <code>case</code> 之前，資料堆疊上已經有一未知的，需要透過此一控制結構檢查的數字 x。在 case 之後的 <code>1 of ... endof</code> 檢查 <code>x</code> 是否是 1，如果是就移除 <code>x</code> 和 1，執行 <code>of</code> 和 <code>endof</code> 之間的指令，並於完成後跳到 <code>endcase</code> 之後執行。如果 <code>x</code> 不是 1，執行之後的 <code>2 of ... endof</code>、<code>3 of ... endof</code>。如果所有由 <code>of</code> 開始的敘述都不成功，會執行在所有 <code>of ... endof</code> 之後，在 <code>endcase</code> 之前的敘述。也就是例子中的 <code>.&quot; value is&quot; dup .</code>。此時堆疊頂端仍然是那個未知整數 <code>x</code>。指令 <code>endcase</code> 會拋棄這個 <code>x</code> 並結束由 <code>case</code> 開始的控制結構。</p>
+<p>注意 <code>endcase</code> 會拋棄堆疊最頂端的數字。如果我們在 <code>.&quot; value is &quot; dup .</code> 這敘述中忘了 <code>dup</code>， <code>endcase</code> 發現堆疊上沒有資料，會發出 Stack underflow 這樣的錯誤訊息。</p>
+<p>指令 <code>case</code> 和 <code>endcase</code> 之間可以有多段由 <code>of</code> 開始，由 <code>endof</code> 結束的指令，以及一段在所有 <code>of ... endof</code> 敘述之後，比較都失敗時才執行的敘述。</p>
+<p>和 <code>if</code> 、 <code>else</code> 、 <code>then</code> 一樣，指令 <code>case</code> 、 <code>of</code> 、 <code>endof</code> 、 <code>endcase</code> 都是只能用於冒號定義中的「編譯指令」。</p>
+<p>以下是它們编譯到字典的示意圖。注意這只是眾多實作方式的一種。圖中的數字 n2 及 n3 被编譯到字典中的方式是 <code>lit n2</code> 及 <code>lit n3</code>。指令 <code>lit</code> 會將其後的數字推上參數堆疊。编譯指令 <code>of</code> 不只編譯跳躍指令 <code>0branch</code> 及其後跳躍的相對位置到字典中，還编譯了之前的 <code>over = </code> 以進行堆疊上數字的比較，以及之後的 <code>drop</code> 於比對成功時拋棄 n1 。而 <code>endcase</code> 也在 C 之後 D 之前編譯了一個 <code>drop</code> 到字典中以拋棄 n1。 </p>
+<pre><code>( n1 )
+case
+   n2 of A endof
+   n3 of B endof
+   C
+endcase
+D
+
+    +-----+----+------+---+---------+---+------+---+--------+----+
+    | lit | n2 | over | = | 0branch | 4 | drop | A | branch | 12 |
+    +-----+----+------+---+---------+---+------+---+--------+----+
+                                      |                       |
+      +-------------------------------+                       +--------------+
+      |                                                       |              |
+      v                                                       |              v
+    +-----+----+------+---+---------+---+------+---+--------+---+---+------+---+
+    | lit | n3 | over | = | 0branch | 4 | drop | B | branch | 2 | C | drop | D |
+    +-----+----+------+---+---------+---+------+---+--------+---+---+------+---+
+                                      |                           ^
+                                      |                           |
+                                      +---------------------------+
+</code></pre>
+<h3 id="本節指令集-1"><a class="header" href="#本節指令集-1">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>case</code></td><td>( -- )   開始一多選一控制結構</td><td>case</td></tr>
+<tr><td><code>of</code></td><td>( x n -- x | )   比較 x 和 n 是否相等。若相等，從資料堆疊移除這兩個值並執行 <code>of</code> 之後一直到 <code>endof</code> 之間的指令，否則保留 x ，執行在 <code>endof</code> 之後的指令</td><td>of</td></tr>
+<tr><td><code>endof</code></td><td>( -- )   結束由 <code>of</code> 開始的控制結構，然後執行在 <code>endcase</code> 之後的指令</td><td>end-of</td></tr>
+<tr><td><code>endcase</code></td><td>( x -- )   拋棄資料堆疊頂端的整數  x，結束以 <code>case</code> 開始的控制結構</td><td>end-case</td></tr>
+</tbody></table>
+<hr />
+<h2 id="本章重點整理"><a class="header" href="#本章重點整理">本章重點整理</a></h2>
+<ul>
+<li>結構化程式 (structured programming)</li>
+<li>順序 (sequence)</li>
+<li>選擇 (selection)</li>
+<li>循環 (repetition)</li>
+<li>編譯指令</li>
+<li>Forth 虛擬機</li>
+<li>返回堆疊 (return stack)</li>
+<li>Xorshift 亂數產生器</li>
+</ul>
+<hr />
+<h2 id="本章指令集"><a class="header" href="#本章指令集">本章指令集</a></h2>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>if</code></td><td>( flag -- )   如果 flag 為真，或部份為真，執行之後的指令；否則跳到 <code>else</code> 或 <code>then</code> 之後的指令。</td><td>if</td></tr>
+<tr><td><code>else</code></td><td>( -- )   標記著 <code>if else then</code> 結構中，當 <code>if</code> 判斷為假時要執行的分支</td><td>else</td></tr>
+<tr><td><code>then</code></td><td>( -- )   結束由 <code>if</code> 開始的控制結構。不論 <code>if</code> 判斷選擇了哪個分支，最後都要從 <code>then</code> 之後的指令繼續執行。</td><td>then</td></tr>
+<tr><td><code>?dup</code></td><td>( x -- 0 | x x )   如果 x 不為零，則複製一份。常用於當 x 為零就不處理的情況。</td><td>question-dupe</td></tr>
+<tr><td><code>exit</code></td><td>( -- )   結束冒號定義的執行，返回呼叫者</td><td>exit</td></tr>
+<tr><td><code>case</code></td><td>( -- )   開始一多選一控制結構</td><td>case</td></tr>
+<tr><td><code>of</code></td><td>( x n -- x | )   比較 x 和 n 是否相等。若相等，從資料堆疊移除這兩個值並執行 <code>of</code> 之後一直到 <code>endof</code> 之間的指令，否則保留 x ，執行在 <code>endof</code> 之後的指令</td><td>of</td></tr>
+<tr><td><code>endof</code></td><td>( -- )   結束由 <code>of</code> 開始的控制結構，然後執行在 <code>endcase</code> 之後的指令</td><td>end-of</td></tr>
+<tr><td><code>endcase</code></td><td>( x -- )   拋棄資料堆疊頂端的整數  x，結束以 <code>case</code> 開始的控制結構</td><td>end-case</td></tr>
+</tbody></table>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="programming.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="repetition.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="programming.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="repetition.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>自己定義運算指令 - rtForth門</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> 簡介</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> 安裝 rtForth</a></li><li class="chapter-item expanded "><a href="calculator.html"><strong aria-hidden="true">3.</strong> Forth 計算機</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="integer.html"><strong aria-hidden="true">3.1.</strong> 整數運算</a></li><li class="chapter-item expanded "><a href="float.html"><strong aria-hidden="true">3.2.</strong> 浮點運算</a></li><li class="chapter-item expanded "><a href="logic.html"><strong aria-hidden="true">3.3.</strong> 比較及邏輯運算</a></li><li class="chapter-item expanded "><a href="colon.html" class="active"><strong aria-hidden="true">3.4.</strong> 自己定義運算指令</a></li></ol></li><li class="chapter-item expanded "><a href="programming.html"><strong aria-hidden="true">4.</strong> Forth 程式入門</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="selection.html"><strong aria-hidden="true">4.1.</strong> 選擇</a></li><li class="chapter-item expanded "><a href="repetition.html"><strong aria-hidden="true">4.2.</strong> 循環</a></li><li class="chapter-item expanded "><a href="dictionary.html"><strong aria-hidden="true">4.3.</strong> 字典</a></li><li class="chapter-item expanded "><a href="tasking.html"><strong aria-hidden="true">4.4.</strong> 多工、異常處理與文本直譯器</a></li><li class="chapter-item expanded "><a href="style.html"><strong aria-hidden="true">4.5.</strong> 程式碼風格</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">rtForth門</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="自己定義運算指令"><a class="header" href="#自己定義運算指令">自己定義運算指令</a></h1>
+<p>之前我們看到了 <code>+</code> 、 <code>-</code> 、 <code>f+</code> 、 <code>f-</code> 等指令，這些是系統內建的指令。現在讓我們定義自己的第一個指令。這個指令在安裝的章節已經定義過。輸入時請注意 Forth 使用空格來解析使用者的輸入，因此指令 <code>.&quot;</code> 之後要有空格，指令 <code>;</code> 之前也要有空格。</p>
+<pre><code>rf&gt; : hello .&quot; Hello World!&quot; ;
+ ok
+</code></pre>
+<p>測試一下新定義的指令。</p>
+<pre><code>rf&gt; hello
+Hello World! ok
+</code></pre>
+<p>這個指令是使用冒號 (<code>:</code>) 定義出來的。因此被稱為冒號定義 (colon definition)。冒號定義相當於其他程式語言的副程式或函式。</p>
+<p>冒號 <code>:</code> 定義了一個新指令，在它之後的 hello 是這個新指令的名稱。名稱之後到 <code>;</code> 之前的部份是這個指令的行為。分號 <code>;</code> 結束了這個新的定義。</p>
+<p>指令 <code>.&quot;</code> 編譯了它之後一直到 <code>&quot;</code> 的字串，然後，當 hello 執行時，這個字串被印出來。</p>
+<p>在前幾章我們學會如何使用 Forth 的整數、浮點數及比較邏輯運算指令來進行運算。在以下幾節，我們將使用自行定義的冒號定義來處理更複雜的運算。</p>
+<h3 id="本節指令集"><a class="header" href="#本節指令集">本節指令集</a></h3>
+<p>為了描述 <code>:</code> 及 <code>.&quot;</code> 這類之後必須接其他資料的指令，我們在堆疊效果的括弧中以引號表達指令之後所需的資料。</p>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>:</code></td><td>( &quot;name&quot; -- )   定義一個名為 name 的指令後，進入編譯模式</td><td>colon</td></tr>
+<tr><td><code>;</code></td><td>( -- )   結束一個冒號定義，會编譯一個結束指令 EXIT 並且結束編譯模式</td><td>semicolon</td></tr>
+<tr><td><code>.&quot;</code></td><td>( &quot;text&quot; -- )   編譯其後直到下一個 &quot; 的文字，並於未來指令執行時印出此文字</td><td>dot-quote</td></tr>
+</tbody></table>
+<hr />
+<h2 id="資料堆疊指令"><a class="header" href="#資料堆疊指令">資料堆疊指令</a></h2>
+<p>Forth 使用堆疊存放資料。但是用堆疊計算時，常會出現困境，使得我們明明看到堆疊上有我們想要的資料，卻苦於無法使用。解決的方法是堆疊指令。以下我們透過幾個小問題，讓我們理解這個需求。</p>
+<h3 id="複製堆疊頂端的數"><a class="header" href="#複製堆疊頂端的數">複製堆疊頂端的數</a></h3>
+<p>我們先從一個小問題開始：設計指令計算整數的平方。</p>
+<p>從前幾章我們學到可以這樣計算 3 的平方：<code>3 3 *</code>。現在我們希望能設計一個名為 <code>square</code> 的指令，執行 <code>3 square</code> 時，就會計算出 3 的平方。因為使用者只放了一個 3 到堆疊上，所以我們必須先將堆疊上的那個 3 複製一次，使得堆疊上有兩個 3 ，才能執行乘法。Forth 提供了一個複製堆疊上整數的指令 <code>dup</code>。所以我們可以定義這平方指令如下：</p>
+<pre><code>rf&gt; : square   dup * ;
+ ok
+rf&gt; 3 square  .
+9  ok
+rf&gt; 4 square  .
+16  ok
+</code></pre>
+<p>練習：請設計指令 <code>cube</code> 計算堆疊上整數的立方。</p>
+<h3 id="交換堆疊上的兩個數"><a class="header" href="#交換堆疊上的兩個數">交換堆疊上的兩個數</a></h3>
+<p>假設堆疊上有兩個數字 ( x y )，我們設計一個指令計算 x<sup>2</sup> - y<sup>2</sup>。我們採用以下思路：</p>
+<pre><code>( x y )     square
+( x y*y)    &lt;- 糟糕，x 不在堆疊頂端，如何將它平方？
+</code></pre>
+<p>我們需要能將堆疊頂端的兩個數字交換的指令，<code>swap</code> 就是這個指令。</p>
+<pre><code>( x y*y )   swap
+( y*y x )   square
+( y*y x*x ) &lt;- 糟糕，我們要算的是 x*x-y*y。但是在這兒用減法會得到 y*y-x*x。
+</code></pre>
+<p>沒關係，我們可以先減再求負數，如下：</p>
+<pre><code>( y*y x*x ) -
+( y*y-x*x)  negate
+( x*x-y*y)
+</code></pre>
+<p>或是先交換再減，如下：</p>
+<pre><code>( y*y x*x ) swap
+( x*x y*y ) -
+( x*x-y*y )
+</code></pre>
+<p>我們使用第一個版本：</p>
+<pre><code>rf&gt; : x^2-y^2 ( x y -- x^2-y^2 )   square  swap  square  - negate ;
+ ok
+rf&gt; 3 2 x^2-y^2  .
+5  ok
+</code></pre>
+<p>注意這兒我們使用 x^2-y^2 做為這個指令的名字。Forth 指令名字不像其他語言的函式名只能是英文字母和數字。重點是指令和指令之前必須以空格隔開。</p>
+<p>練習：假設堆疊上有兩個數字 ( x y ) 。設計一個指令計算 x<sup>2</sup> - y 。</p>
+<h3 id="其他資料堆疊指令"><a class="header" href="#其他資料堆疊指令">其他資料堆疊指令</a></h3>
+<p>除了 <code>dup</code> 與 <code>swap</code> ，Forth 還提供以下資料堆疊指令：</p>
+<ul>
+<li>檢視堆疊上的資料：指令 <code>.s</code> 顯示資料堆疊和浮點堆疊上的數值，但不會改變堆疊的內容。</li>
+<li>拋棄堆疊上的資料。指令 <code>drop</code> 拋棄資料堆疊最上方的整數。指令 <code>nip</code> 則拋棄最上方之下的那個整數。</li>
+<li>複製堆疊上的資料。之前已說過 <code>dup</code> 複製了資料堆疊最上方的整數。指令 <code>over</code> 則複製最上方之下的那個整數。</li>
+<li>旋轉堆疊上的資料。當堆疊上有三個整數 ( n1 n2 n3 ) 時，指令 <code>rot</code> 會旋轉它們的次序使得原本在堆疊從上數來第三位的 n1 會出現在最上方。指令 <code>-rot</code> 則以相反的方向旋轉，使得最上方的 n3 出現在從上數來第三位的位置。</li>
+<li>雙整數堆疊指令。另有 <code>2dup</code> <code>2drop</code> <code>2swap</code> <code>2over</code> 類似 <code>dup</code> <code>drop</code> <code>swap</code> <code>over</code> ，但以兩個整數為一組進行處理。</li>
+</ul>
+<p>請參考本節指令集中的堆疊效果以瞭解以上說明。</p>
+<p>雖然堆疊是 CPU 內極為重要的資料結構，但是大多數的程式語言並不讓人直接存取堆疊。因此對有其他程式語言經驗的人，這是接受 Forth 最困難的，也最需要練習的部份。Forth 將這部份開放給它的使用者，帶來很特別的好處：極度簡化 Forth 的文本直譯器。這使得 Forth 成為少數能由非資工背景的工程師完全掌握，甚至自行開發的語言。</p>
+<p>例子：堆疊上原本有三個數字 ( 1 2 3 )，請運用堆疊指令使其次序變成  ( 3 2 1 )，並以 .s 檢查結果。</p>
+<pre><code>rf&gt; 1 2 3 .s
+1 2 3  ok
+rf&gt; -rot .s
+3 1 2  ok
+rf&gt; swap .s
+3 2 1  ok
+</code></pre>
+<p>練習：請做以下練習，在表格中填入能達成堆疊效果的 Forth 堆疊指令。並以 <code>.s</code> 檢查結果。若有必要可以輸入任何 Forth 不認得的指令，比如 <code>xx</code> ，以清除堆疊。因為 Forth 在發生錯誤時會清除所有堆疊。</p>
+<table><thead><tr><th>堆疊效果</th><th>所需 Forth 指令</th></tr></thead><tbody>
+<tr><td>( 1 2 3 -- 3 2 1 )</td><td>-rot swap</td></tr>
+<tr><td>( 1 2 3 -- 1 2 )</td><td></td></tr>
+<tr><td>( 1 2 3 -- 1 3 )</td><td></td></tr>
+<tr><td>( 1 2 3 -- 2 3 )</td><td></td></tr>
+<tr><td>( 1 2 3 -- 3 1 )</td><td></td></tr>
+<tr><td>( 1 2 3 -- 2 2 3 )</td><td></td></tr>
+<tr><td>( 1 2 3 -- 1 2 3 1 )</td><td></td></tr>
+<tr><td>( 1 2 3 -- 1 2 3 1 2 )</td><td></td></tr>
+<tr><td>( 1 2 3 -- 1 2 3 1 2 3 )</td><td></td></tr>
+<tr><td>( 1 2 3 -- 2 1 3 1 )</td><td></td></tr>
+<tr><td>( 1 2 3 4 -- 1 2 3 4 2 1 )</td><td></td></tr>
+<tr><td>( 1 2 3 4 -- 4 3 2 1 )</td><td></td></tr>
+</tbody></table>
+<h3 id="本節指令集-1"><a class="header" href="#本節指令集-1">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>.s</code></td><td>( ... -- ... )   顯示但不改變資料堆疊和浮點堆疊的內容</td><td>dot-s</td></tr>
+<tr><td><code>dup</code></td><td>( n -- n n )   複製資料堆疊頂端的數</td><td>dup</td></tr>
+<tr><td><code>drop</code></td><td>( n -- )   拋棄資料堆疊頂端的數</td><td>drop</td></tr>
+<tr><td><code>nip</code></td><td>( n1 n2 -- n2 )   拋棄資料堆疊頂端數來第二個數</td><td>nip</td></tr>
+<tr><td><code>swap</code></td><td>( n1 n2 -- n2 n1 )   交換資料堆疊頂端的兩個數</td><td>swap</td></tr>
+<tr><td><code>over</code></td><td>( n1 n2 -- n1 n2 n1 )   複製資料堆疊從頂端數來的第二個數</td><td>over</td></tr>
+<tr><td><code>rot</code></td><td>( n1 n2 n3 -- n2 n3 n1 )   旋轉資料堆疊頂端的三個數，使得第三個數被移到頂端</td><td>rote</td></tr>
+<tr><td><code>-rot</code></td><td>( n1 n2 n3 -- n3 n1 n2 )   旋轉資料堆疊頂端的三個數，使得最頂的數被移到頂端算來第三個位置</td><td>minus-rote</td></tr>
+<tr><td><code>2dup</code></td><td>( n1 n2 -- n1 n2 n1 n2 )   複製資料堆疊頂端的兩個數</td><td>two-dup</td></tr>
+<tr><td><code>2drop</code></td><td>( n1 n2 -- )   拋棄資料堆疊頂端的兩個數</td><td>two-drop</td></tr>
+<tr><td><code>2swap</code></td><td>( n1 n2 n3 n4 -- n3 n4 n1 n2 )   交換資料堆疊頂端的兩對整數</td><td>two-swap</td></tr>
+<tr><td><code>2over</code></td><td>( n1 n2 n3 n4 -- n1 n2 n3 n4 n1 n2 )   複製資料堆疊從頂端數來的第三、第四個數</td><td>two-over</td></tr>
+</tbody></table>
+<hr />
+<h2 id="浮點堆疊指令"><a class="header" href="#浮點堆疊指令">浮點堆疊指令</a></h2>
+<p>Forth 也同樣提供浮點堆疊指令，但沒有資料堆疊那麼完整。請參考本節指令集。</p>
+<p>例子： 求 x<sup>5</sup> + 2 x<sup>4</sup> + 3 x<sup>3</sup> + 4 x<sup>2</sup> + 5 x + 6 。</p>
+<p>若直接計算這個五次方程式，需要執行 4 + 4 + 3 + 2 + 1 = 14 個乘法，以及 5 個加法。使用 Horner's method 可以簡少計算量：</p>
+<p>x<sup>5</sup> + 2 x<sup>4</sup> + 3 x<sup>3</sup> + 4 x<sup>2</sup> + 5 x + 6</p>
+<p>= (x<sup>4</sup> + 2 x<sup>3</sup> + 3 x<sup>2</sup> + 4 x + 5) x + 6</p>
+<p>= ((x<sup>3</sup> + 2 x<sup>2</sup> + 3 x + 4) x  + 5) x + 6</p>
+<p>= (((x<sup>2</sup> + 2 x + 3) x + 4) x  + 5) x + 6</p>
+<p>= ((((x + 2) x + 3) x + 4) x  + 5) x + 6</p>
+<p>最後的式子 ((((x + 2) x + 3) x + 4) x  + 5) x + 6 只需要 5 個加法及 4 個乘法，在計算上更有效率。以下設計 Forth 指令計算這個式子：</p>
+<pre><code>: poly5 ( F: x -- x^5+2x^4+3x^3+4x^4+5x^5+6 )
+   fdup         \ ( F: x x )
+   2e f+        \ ( F: x x+2 )
+   fover f*     \ ( F: x (x+2)x )
+   3e f+        \ ( F: x ((x+2)x+3) )
+   fover f*     \ ( F: x ((x+2)x+3)x )
+   4e f+        \ ( F: x (((x+2)x+3)x+4) )
+   fover f*     \ ( F: x (((x+2)x+3)x+4)x )
+   5e f+        \ ( F: x ((((x+2)x+3)x+4)x+5) )
+   fover f*     \ ( F: x ((((x+2)x+3)x+4)x+5)x )
+   6e f+        \ ( F: x ((((x+2)x+3)x+4)x+5)x+6 )
+;
+</code></pre>
+<p>在指令 <code>poly5</code> 之後加上了堆疊效果，這是撰寫 Forth 指令的好習慣。</p>
+<p>指令 <code>\</code> 會忽略其後至換行的所有字元，因此類似 <code>(</code> 的作用，是另一種註解方式。在此採用此一註解方式的原因是註解中有很多括弧，不適合使用 <code>(</code>。</p>
+<p>直式方式加上使用 <code>\</code> 開頭的註解，方便初學者瞭解堆疊變化。已熟悉 Forth 堆疊操作的工程師會以下列方式撰寫：</p>
+<pre><code>\ Caculate x^5+2x^4+3x^3+4x^4+5x^5+6 using Horner's method.
+: poly5 ( x -- result )
+   fdup
+   2e f+ fover f*
+   3e f+ fover f*
+   4e f+ fover f*
+   5e f+ fover f*
+   6e f+ fnip
+;
+</code></pre>
+<p>練習：假設浮點堆疊上資料為 ( F: x )，請設計指令 <code>poly3</code> 計算 x<sup>3</sup> + 2 x <sup>2</sup> + 3 x + 4 的值。從 <code>poly5</code> 的型式你應該能很快的寫出這個指令。</p>
+<h3 id="本節指令集-2"><a class="header" href="#本節指令集-2">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>fdup</code></td><td>( F: r  -- r r )   複製浮點堆疊頂端的數值</td><td>f-dup</td></tr>
+<tr><td><code>fdrop</code></td><td>( F: r -- )   拋棄浮點堆疊頂端的數值</td><td>f-drop</td></tr>
+<tr><td><code>fswap</code></td><td>( F: r1 r2 -- r2 r1 )   交換浮點堆疊頂端的兩個數值</td><td>f-swap</td></tr>
+<tr><td><code>fover</code></td><td>( F: r1 r2 -- r1 r2 r1 )   複製浮點堆疊從頂端數來的第二個數值</td><td>f-over</td></tr>
+<tr><td><code>frot</code></td><td>( F: r1 r2 r3 -- r2 r3 r1 )   旋轉浮點堆疊頂端的三個數，使得第三個數被移到頂端</td><td>f-rote</td></tr>
+<tr><td><code>\</code></td><td>( &quot;comment&quot; )   忽略其後到此行結尾的文字，可做為註解</td><td>backslash</td></tr>
+</tbody></table>
+<hr />
+<h2 id="第一個腳本程式"><a class="header" href="#第一個腳本程式">第一個腳本程式</a></h2>
+<p>我們也可以以簡單的文字編輯器編輯 Forth 程式存檔，形成所謂的腳本。在之後執行。</p>
+<p>請將以下腳本以自己熟悉的文字編輯器輸入並存於一 square.fs 檔中。</p>
+<pre><code>: square ( n -- n*n )
+   dup    ( n n )
+   *      ( n*n )
+   ;
+
+3 square  .
+4 square  .
+bye
+</code></pre>
+<p>在腳本定義 square 時，以垂直的型式撰寫並在後面加上了堆疊效果的註解，這有助於新手學習，也有助於閱讀的人理解這個指令。當程式複雜時這是一個很好的習慣。請注意註解以指令 <code>(</code> 開頭，以 <code>)</code> 結束，<code>(</code> 後要有空格，因為它是一個指令。</p>
+<p>執行 <code>./target/debug/examples/rf /path/to/square.fs</code> ，</p>
+<pre><code>$ ./target/debug/examples/rf /tmp/square.fs
+9 16
+</code></pre>
+<p>在這個腳本中我們還執行了 <code>3 square .</code> 及 <code>4 square .</code>，最後執行 <code>bye</code> ，完成任務離開 Forth 系統。若不執行這些， 執行完腳本後會出現 <code>rf&gt;</code> 這個提示字串，容許我們繼續輸入 Forth 指令。於是這腳本就相當於一個函式庫。</p>
+<hr />
+<h2 id="本章重點整理"><a class="header" href="#本章重點整理">本章重點整理</a></h2>
+<ul>
+<li>冒號定義</li>
+<li>編譯模式</li>
+<li>Horner's method</li>
+<li>腳本</li>
+</ul>
+<hr />
+<h2 id="本章指令集"><a class="header" href="#本章指令集">本章指令集</a></h2>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>:</code></td><td>( &quot;name&quot; -- )   定義一個名為 name 的指令後，進入編譯模式</td><td>colon</td></tr>
+<tr><td><code>;</code></td><td>( -- )   結束一個冒號定義，會编譯一個結束指令 EXIT 並且結束編譯模式</td><td>semicolon</td></tr>
+<tr><td><code>.&quot;</code></td><td>( &quot;text&quot; -- )   編譯其後直到下一個 &quot; 的文字，並於未來指令執行時印出此文字</td><td>dot-quote</td></tr>
+<tr><td><code>.s</code></td><td>( ... -- ... )   顯示但不改變資料堆疊和浮點堆疊的內容</td><td>dot-s</td></tr>
+<tr><td><code>dup</code></td><td>( n -- n n )   複製資料堆疊頂端的數</td><td>dup</td></tr>
+<tr><td><code>drop</code></td><td>( n -- )   拋棄資料堆疊頂端的數</td><td>drop</td></tr>
+<tr><td><code>nip</code></td><td>( n1 n2 -- n2 )   拋棄資料堆疊頂端數來第二個數</td><td>nip</td></tr>
+<tr><td><code>swap</code></td><td>( n1 n2 -- n2 n1 )   交換資料堆疊頂端的兩個數</td><td>swap</td></tr>
+<tr><td><code>over</code></td><td>( n1 n2 -- n1 n2 n1 )   複製資料堆疊從頂端數來的第二個數</td><td>over</td></tr>
+<tr><td><code>rot</code></td><td>( n1 n2 n3 -- n2 n3 n1 )   旋轉資料堆疊頂端的三個數，使得第三個數被移到頂端</td><td>rote</td></tr>
+<tr><td><code>-rot</code></td><td>( n1 n2 n3 -- n3 n1 n2 )   旋轉資料堆疊頂端的三個數，使得最頂的數被移到頂端算來第三個位置</td><td>minus-rote</td></tr>
+<tr><td><code>2dup</code></td><td>( n1 n2 -- n1 n2 n1 n2 )   複製資料堆疊頂端的兩個數</td><td>two-dup</td></tr>
+<tr><td><code>2drop</code></td><td>( n1 n2 -- )   拋棄資料堆疊頂端的兩個數</td><td>two-drop</td></tr>
+<tr><td><code>2swap</code></td><td>( n1 n2 n3 n4 -- n3 n4 n1 n2 )   交換資料堆疊頂端的兩對整數</td><td>two-swap</td></tr>
+<tr><td><code>2over</code></td><td>( n1 n2 n3 n4 -- n1 n2 n3 n4 n1 n2 )   複製資料堆疊從頂端數來的第三、第四個數</td><td>two-over</td></tr>
+<tr><td><code>fdup</code></td><td>( F: r  -- r r )   複製浮點堆疊頂端的數值</td><td>f-dup</td></tr>
+<tr><td><code>fdrop</code></td><td>( F: r -- )   拋棄浮點堆疊頂端的數值</td><td>f-drop</td></tr>
+<tr><td><code>fswap</code></td><td>( F: r1 r2 -- r2 r1 )   交換浮點堆疊頂端的兩個數值</td><td>f-swap</td></tr>
+<tr><td><code>fover</code></td><td>( F: r1 r2 -- r1 r2 r1 )   複製浮點堆疊從頂端數來的第二個數值</td><td>f-over</td></tr>
+<tr><td><code>frot</code></td><td>( F: r1 r2 r3 -- r2 r3 r1 )   旋轉浮點堆疊頂端的三個數，使得第三個數被移到頂端</td><td>f-rote</td></tr>
+<tr><td><code>\</code></td><td>( &quot;comment&quot; -- )   忽略其後到此行結尾的文字，可做為註解</td><td>backslash</td></tr>
+</tbody></table>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="logic.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="programming.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="logic.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="programming.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </body>
+</html>

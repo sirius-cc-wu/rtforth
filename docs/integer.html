@@ -1,0 +1,412 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>整數運算 - rtForth門</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> 簡介</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> 安裝 rtForth</a></li><li class="chapter-item expanded "><a href="calculator.html"><strong aria-hidden="true">3.</strong> Forth 計算機</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="integer.html" class="active"><strong aria-hidden="true">3.1.</strong> 整數運算</a></li><li class="chapter-item expanded "><a href="float.html"><strong aria-hidden="true">3.2.</strong> 浮點運算</a></li><li class="chapter-item expanded "><a href="logic.html"><strong aria-hidden="true">3.3.</strong> 比較及邏輯運算</a></li><li class="chapter-item expanded "><a href="colon.html"><strong aria-hidden="true">3.4.</strong> 自己定義運算指令</a></li></ol></li><li class="chapter-item expanded "><a href="programming.html"><strong aria-hidden="true">4.</strong> Forth 程式入門</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="selection.html"><strong aria-hidden="true">4.1.</strong> 選擇</a></li><li class="chapter-item expanded "><a href="repetition.html"><strong aria-hidden="true">4.2.</strong> 循環</a></li><li class="chapter-item expanded "><a href="dictionary.html"><strong aria-hidden="true">4.3.</strong> 字典</a></li><li class="chapter-item expanded "><a href="tasking.html"><strong aria-hidden="true">4.4.</strong> 多工、異常處理與文本直譯器</a></li><li class="chapter-item expanded "><a href="style.html"><strong aria-hidden="true">4.5.</strong> 程式碼風格</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">rtForth門</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="整數運算"><a class="header" href="#整數運算">整數運算</a></h1>
+<p>如上一章所述執行除錯版的 rtForth： </p>
+<pre><code>$ ./target/debug/examples/rf
+</code></pre>
+<p>或執行最佳化版本的 rtForth： </p>
+<pre><code>$ ./target/release/examples/rf
+</code></pre>
+<p>在 <code>rf&gt;</code> 提示後輸入 <code>2 17 + .</code> 後按 Enter， </p>
+<pre><code>rf&gt; 2 17 + .
+19  ok
+rf&gt; 
+</code></pre>
+<p>這兒發生了什麼事？首先 Forth 是直譯式語言，內建<a href="https://zh.wikipedia.org/wiki/%E7%9B%B4%E8%AD%AF%E5%99%A8">直譯器</a> (英文：interpreter) 。當執行 <code>rf</code> 時，rtForth 會起動文本直譯器 (text interpreter) ，先印出 <code>rf&gt;</code>，等待使用者輸入，再一個字 (word) 一個字的，從輸入緩衝區 (input buffer) 掃描 (scan) 使用者的輸入，在字典 (word list) 中查詢字的定義 (definition) 並執行。完成後顯示 <code>ok</code>，告訴使用者執行成功。若失敗則印出錯誤訊息。然後再印出提示字串 (prompt) <code>rf&gt;</code> 請使用者繼續輸入。</p>
+<pre><code>文本直譯器 (Text interpreter)
+
+      Input buffer
+        2     1  7     +     .
+      +--+--+--+--+--+--+--+--+--
+      |50|32|49|55|32|43|32|46|
+      +--+--+--+--+--+--+--+--+--
+                    |
+                    v
+                +-------+ yes     +---------+
+                | Word? |--------&gt;| Execute |----+
+                +-------+         +---------+    |
+                    | no                         |
+                    v             +---------+    |
+                +---------+ yes   | Number  |    |
+                | Number? |------&gt;|   on    |    |
+                +---------+       | stack   |    |
+                    | no          +---------+    |
+                    v                  |         |
+                +---------------+      |         |
+                | Error message |      |         |
+                +---------------+      |         |
+                    |                  |         |
+      Output buffer v                  v         |
+      +---+---+-----------        +---------+    |
+      |111|101|           &lt;-------| ok      |&lt;---+
+      +---+---+-----------        +---------+
+         o   k
+</code></pre>
+<p>Forth 的字和字是以空白或是換行符號隔開的。因此 <code>2 17 + .</code> 裡面一共有四個字。<code>2</code> 和 <code>17</code> 是數字。而 <code>+</code> 和 <code>.</code> 是已經在字典中定義好的指令 (instruction) 。</p>
+<p>當直譯器無法在字典中找到這個字，比如 <code>2</code> 時，會將這個字轉換成數字 (number)，存放在某記憶體中。這塊記憶體被稱為資料堆疊 (data stack)。稱為堆疊的原因是，這些轉成數字的資料會依次序排列，新來的被堆在舊的上面。就像下圖：</p>
+<pre><code>
+輸入緩衝區 (Input buffer) 內存放的數字是 2 17 + . 的 ASCII 碼。
+      +--+--+--+--+--+--+--+--+--
+      |50|32|49|55|32|43|32|46|
+      +--+--+--+--+--+--+--+--+--
+        2     1  7     +     .
+
+文本直譯器處理了 2 17 後的結果：
+
+資料堆疊 (Data stack)
+           |    |
+           +----+
+           | 17 | 疊頂(Top)
+           +----+
+           |  2 |
+           +----+
+</code></pre>
+<p>也可以以左右方式呈現資料堆疊，</p>
+<pre><code>資料堆疊 (Data stack)
+           +---+----+--
+           | 2 | 17 |
+           +---+----+--
+                疊頂
+                (Top)
+</code></pre>
+<p>或是為了方便，在文件中採用 <code>( 2 17 )</code> 這樣的註解呈現。</p>
+<p>在上述例子中，<code>+</code> 從疊頂拿了兩個整數，<code>2</code> 和 <code>17</code>，相加後將結果 <code>19</code> 放回疊頂。所以堆疊的變化如下：</p>
+<pre><code>指令 + 的效果：
+
+Data stack |    |
+           +----+
+           | 17 |    +     |    |
+           +----+   ===&gt;   +----+
+           |  2 |          | 19 |
+           +----+          +----+
+</code></pre>
+<p>在文件中會以 <code>( 2 17 -- 19 )</code> 的註解方式呈現堆疊的效果。</p>
+<p>最後的指令 <code>.</code> 從疊頂拿走了一個整數，將它轉成文字放在輸出緩衝區中。最後輸出緩衝區內的文字被顯示在螢幕上。</p>
+<pre><code>指令 . 的效果：
+
+資料堆疊 (Data stack)
+
+           |    |    .
+           +----+   ===&gt;
+           | 19 |          |    |
+           +----+          +----+
+
+輸出緩衝區 (Output buffer) 內放的是 19 的 ASCII 碼
+    +--+--+--
+    |49|57|
+    +--+--+--
+      1  9
+</code></pre>
+<h3 id="本節指令集"><a class="header" href="#本節指令集">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>+</code></td><td>( n1 n2 -- sum )   將資料堆疊上的最後的兩個整數 n1 n2 相加，將結果 sum 放回堆疊</td><td>plus</td></tr>
+<tr><td><code>.</code></td><td>( n -- )   印出資料堆疊上最後的整數 n，並將它從堆疊上移除</td><td>dot</td></tr>
+<tr><td><code>(</code></td><td>( -- )   註解，因為是指令，之後必須接一個空白。會忽略這空白之後一直到下一個右括弧 ) 之間的文字</td><td>paren</td></tr>
+</tbody></table>
+<hr />
+<h2 id="更多的整數四則運算"><a class="header" href="#更多的整數四則運算">更多的整數四則運算</a></h2>
+<p>Forth 提供了許多整數運算的指令，要執行每個指令前，必須先把所需的資料先放進資料堆疊。這種先資料再指令的方式，被稱為後位法。而我們熟悉的四則運算的表示法則被稱為中位法。下表比較了中位法和後位法：</p>
+<table><thead><tr><th>運算</th><th>中位法</th><th>後位法</th></tr></thead><tbody>
+<tr><td>加</td><td>1 + 2</td><td>1 2 +</td></tr>
+<tr><td>減</td><td>3 - 4</td><td>3 4 -</td></tr>
+<tr><td>乘</td><td>5 * 6</td><td>5 6 *</td></tr>
+<tr><td>求商</td><td>7 / 8</td><td>7 8 /</td></tr>
+<tr><td>求餘數</td><td>7 mod 8</td><td>7 8 mod</td></tr>
+<tr><td>求商數和餘數</td><td>不存在表示法</td><td>7 8 /mod</td></tr>
+</tbody></table>
+<p>實測以上運算如下：</p>
+<pre><code>rf&gt; 1 2 + .  3 4 - .  5 6 * .  7 8 / .  7 8 mod .
+3 -1 30 0 7  ok
+</code></pre>
+<p>在計算時，特意將 <code>1 2 + .</code> 和 <code>3 4 - .</code> 以二個空格隔開，這有點像是英文把句子分成片語，片語再分成單字。寫 Forth 的人常將幾個
+Forth 指令構成的片語和片語用兩個或三個空格隔開，使得程式更容易閱讀。</p>
+<p><code>/mod</code> 指令在堆疊上留下兩個數字，餘數和商。因此需要兩個 <code>.</code> 將它們印出來。測試如下：</p>
+<pre><code>rf&gt; 7 8 /mod . .
+0 7  ok
+</code></pre>
+<p>注意在堆疊上的次序是 <code>( 餘數 商 )</code>。因此，第一個 <code>.</code> 會印出商，第二個會印出餘數。</p>
+<h3 id="本節指令集-1"><a class="header" href="#本節指令集-1">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>-</code></td><td>( n1 n2 -- diff )   將 n1 減去 n2。diff 是 n1, n2 的差</td><td>minus</td></tr>
+<tr><td><code>*</code></td><td>( n1 n2 -- prod )   將 n1 乘以 n2。prod 是 n1, n2 的乘積</td><td>star</td></tr>
+<tr><td><code>/</code></td><td>( n1 n2 -- quot )   將 n1 除以 n2。quot 是 n1 除以 n2 後的商數</td><td>slash</td></tr>
+<tr><td><code>mod</code></td><td>( n1 n2 -- rem )   將 n1 除以 n2。rem 是 n1 除以 n2 後的餘數</td><td>mod</td></tr>
+<tr><td><code>/mod</code></td><td>( n1 n2 -- rem quot )   將 n1 除以 n2。rem 是 n1 除以 n2 後的餘數，quot 是商數</td><td>slash-mod</td></tr>
+</tbody></table>
+<hr />
+<h2 id="整數函式"><a class="header" href="#整數函式">整數函式</a></h2>
+<p>Forth 提供了數學計算上常見的函式：</p>
+<table><thead><tr><th>運算</th><th>函式</th><th>後位法</th></tr></thead><tbody>
+<tr><td>求絕對值</td><td>abs(-5)</td><td>-5 abs</td></tr>
+<tr><td>求加法反元素</td><td>-(6)</td><td>6 negate</td></tr>
+<tr><td>最小值</td><td>min(7,8)</td><td>7 8 min</td></tr>
+<tr><td>最大值</td><td>max(9,0)</td><td>9 0 max</td></tr>
+</tbody></table>
+<p>處理複雜的數學計算時，中位法依賴括弧決定指令執行的優先次序。後位法不使用括弧。由堆疊上資料的次序及及指令執行的次序決定。
+以下以例子說明：</p>
+<p>例一： 中位法 2 × (3 + 4) 和 (3 + 4) × 2</p>
+<pre><code>rf&gt; 3 4 + 2 * .
+14  ok
+</code></pre>
+<p>中位法的 2 × (3 + 4) 和 (3 + 4) × 2 都是先算 3 + 4，再乘以 2。所以後位法都是 <code>3 4 + 2 *</code> 。 </p>
+<p>例二：中位法 (2 × 3 - 4) / 5 + 6</p>
+<pre><code>rf&gt; 2 3 * 4 - 5 / 6 + .
+6  ok
+</code></pre>
+<p>注意這兒的除法 <code>/</code> 是整數除法，求的是整數的商數。如果使用浮點數運算，會得到 6.4。浮點數運算請見下一章。</p>
+<p>例三：中位法 abs(2 - 6) / min(2, 6)，也就是 2 - 6 的絕對值除以 2 和 6 的最小值。</p>
+<pre><code>rf&gt; 2 6 - abs 2 6 min / .
+2  ok
+</code></pre>
+<p>例四：中位法 -(3 + 4)<sup>2</sup>。</p>
+<pre><code>rf&gt; 3 4 + 3 4 + * negate .
+-49  ok
+</code></pre>
+<p>在此 <code>3 4 +</code> 計算了兩次，在未來章節會討論如何以程式簡化平方、立方的計算問題。</p>
+<h3 id="本節指令集-2"><a class="header" href="#本節指令集-2">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>abs</code></td><td>( n -- u )   u 是 n 的絕對值</td><td>abs</td></tr>
+<tr><td><code>negate</code></td><td>( n1 -- n2 )   n2 是 n1 的加法反元素， n1+n2=0</td><td>negate</td></tr>
+<tr><td><code>min</code></td><td>( n1 n2 -- n3 )   n3 是 n1 和 n2 中較小的數</td><td>min</td></tr>
+<tr><td><code>max</code></td><td>( n1 n2 -- n3 )   n3 是 n1 和 n2 中較大的數</td><td>max</td></tr>
+</tbody></table>
+<hr />
+<h2 id="本章重點整理"><a class="header" href="#本章重點整理">本章重點整理</a></h2>
+<ul>
+<li>文本直譯器 (text interpreter)</li>
+<li>資料堆疊 (data stack)</li>
+<li>堆疊效果 (stack effect)：FORTH 文件常以 <code>( before -- after )</code> 的方式呈現執行指令時堆疊的變化。在 <code>--</code> 前的是指令執行前疊頂的內容。在 <code>--</code> 後的是執行後疊頂的內容。</li>
+<li>字 (word)</li>
+<li>指令 (instruction)</li>
+<li>字典或指令集  (word list)</li>
+<li>定義 (definition)</li>
+<li>輸入緩衝區 (input buffer)</li>
+<li>掃描 (scan)</li>
+<li>輸出緩衝區 (output buffer)</li>
+<li>整數 (integer)</li>
+</ul>
+<hr />
+<h2 id="本章指令集"><a class="header" href="#本章指令集">本章指令集</a></h2>
+<table><thead><tr><th>指令</th><th>堆疊效果</th><th>說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>.</code></td><td>( n -- )   印出資料堆疊上最後的整數，並將它從堆疊上移除</td><td>dot</td><td></td></tr>
+<tr><td><code>(</code></td><td>( -- )   註解，因為是指令，之後必須接一個空白。會忽略這空白之後一直到下一個右括弧 ) 之間的文字</td><td>paren</td><td></td></tr>
+<tr><td><code>+</code></td><td>( n1 n2 -- n1+n2 )   將資料堆疊上的最後的兩個整數相加，結果放回堆疊</td><td>plus</td><td></td></tr>
+<tr><td><code>-</code></td><td>( n1 n2 -- diff )   將 n1 減去 n2。diff 是 n1, n2 的差</td><td>minus</td><td></td></tr>
+<tr><td><code>*</code></td><td>( n1 n2 -- prod )   將 n1 乘以 n2。prod 是 n1, n2 的乘積</td><td>star</td><td></td></tr>
+<tr><td><code>/</code></td><td>( n1 n2 -- quot )   將 n1 除以 n2。quot 是 n1 除以 n2 後的商數</td><td>slash</td><td></td></tr>
+<tr><td><code>mod</code></td><td>( n1 n2 -- rem )   將 n1 除以 n2。rem 是 n1 除以 n2 後的餘數</td><td>mod</td><td></td></tr>
+<tr><td><code>/mod</code></td><td>( n1 n2 -- rem quot )   將 n1 除以 n2。rem 是 n1 除以 n2 後的餘數，quot 是商數</td><td>slash-mod</td><td></td></tr>
+<tr><td><code>abs</code></td><td>( n -- u )   u 是 n 的絕對值</td><td>a-b-s</td><td></td></tr>
+<tr><td><code>negate</code></td><td>( n1 -- n2 )   n2 是 n1 的加法反元素， n1+n2=0</td><td>negate</td><td></td></tr>
+<tr><td><code>min</code></td><td>( n1 n2 -- n3 )   n3 是 n1 和 n2 中較小的數</td><td>min</td><td></td></tr>
+<tr><td><code>max</code></td><td>( n1 n2 -- n3 )   n3 是 n1 和 n2 中較大的數</td><td>max</td><td></td></tr>
+</tbody></table>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="calculator.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="float.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="calculator.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="float.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </body>
+</html>

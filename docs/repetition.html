@@ -1,0 +1,520 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>循環 - rtForth門</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> 簡介</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> 安裝 rtForth</a></li><li class="chapter-item expanded "><a href="calculator.html"><strong aria-hidden="true">3.</strong> Forth 計算機</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="integer.html"><strong aria-hidden="true">3.1.</strong> 整數運算</a></li><li class="chapter-item expanded "><a href="float.html"><strong aria-hidden="true">3.2.</strong> 浮點運算</a></li><li class="chapter-item expanded "><a href="logic.html"><strong aria-hidden="true">3.3.</strong> 比較及邏輯運算</a></li><li class="chapter-item expanded "><a href="colon.html"><strong aria-hidden="true">3.4.</strong> 自己定義運算指令</a></li></ol></li><li class="chapter-item expanded "><a href="programming.html"><strong aria-hidden="true">4.</strong> Forth 程式入門</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="selection.html"><strong aria-hidden="true">4.1.</strong> 選擇</a></li><li class="chapter-item expanded "><a href="repetition.html" class="active"><strong aria-hidden="true">4.2.</strong> 循環</a></li><li class="chapter-item expanded "><a href="dictionary.html"><strong aria-hidden="true">4.3.</strong> 字典</a></li><li class="chapter-item expanded "><a href="tasking.html"><strong aria-hidden="true">4.4.</strong> 多工、異常處理與文本直譯器</a></li><li class="chapter-item expanded "><a href="style.html"><strong aria-hidden="true">4.5.</strong> 程式碼風格</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">rtForth門</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="循環"><a class="header" href="#循環">循環</a></h1>
+<p>Forth 有多種表達循環的方式，</p>
+<ul>
+<li>不定循環 (Indefinite loop) - 知道循環停止條件時使用。
+<ul>
+<li><code>begin</code> <code>while</code> <code>repeat</code> - 在每次循環中測試終止條件</li>
+<li><code>begin</code> <code>until</code> - 在每次循環之後進行測試終止條件</li>
+<li><code>begin</code> <code>again</code> - 無限循環</li>
+</ul>
+</li>
+<li>定循環 (Definite loop) - 知道循環次數或上限時使用。
+<ul>
+<li><code>do</code> <code>loop</code> 或 <code>?do</code> <code>loop</code> - 每次循環計數值加一</li>
+<li><code>do</code> <code>+loop</code> 或 <code>?do</code> <code>+loop</code> - 每次循環計數值加上堆疊上的整數</li>
+</ul>
+</li>
+</ul>
+<p>這些表達循環的指令和 <code>if</code> 等指令一樣，都是「編譯指令」。</p>
+<p>在這個章節集中介紹 <code>begin ... while ... repeat</code>。因為它可以實現所有其他循環方式所能做的事。此外，以 <code>do</code> 開始的定循環看似簡單其實有複雜的一面，rtForth 目前對其支援尚未符合 Forth 2012 標準，在此只簡略的對本書之後會用到的兩個指令<code>?do</code> 和 <code>loop</code> 及其相關指令進行說明。</p>
+<h2 id="不定循環-indefinite-loop"><a class="header" href="#不定循環-indefinite-loop">不定循環 (Indefinite loop)</a></h2>
+<h3 id="例一spaces"><a class="header" href="#例一spaces">例一：spaces</a></h3>
+<p>我們先看一個能印出指定數量空格的指令 <code>spaces</code> 的定義：</p>
+<pre><code>\ 印出 n 個空格
+: spaces ( n -- )   0 begin 2dup &gt; while 1+ space repeat 2drop ;
+</code></pre>
+<p>指令 <code>spaces</code> 使用已有的指令 <code>space</code> 印出空格，並使用編譯指令 <code>begin</code> 、 <code>while</code> 、 <code>repeat</code> 實現重覆印出的行為。</p>
+<p>程式中的指令 <code>1+</code> 的行為和 <code>1 +</code> 是一樣的，會將堆疊上的數字加一。另有一 <code>1-</code> 指令會將堆疊上的數字減一。</p>
+<p>我們以直式並加上堆疊註解的方式分析這個指令，以理解 <code>begin</code> 、 <code>while</code> 、 <code>repeat</code> 的作用。</p>
+<pre><code>\ 印出 n 個空格
+: spaces ( n -- )
+  ( n )        0        \ 在堆疊上放 0，代表目前印出的空格數是 0
+  ( n 0 )      begin    \ 標記了不定循環的開始
+  ( n 0 )        2dup   \ 複製堆疊上的兩個數字
+  ( n 0 n 0 )    &gt;      \ 並進行比較
+  ( n 0 flag ) while    \ 當 n 大於已印出的空格數時
+  ( n 0 )        1+     \   已印出的空格數加 1
+  ( n 1 )        space  \   印出一個空格
+  ( n 1 )      repeat   \   重覆執行 begin 開始的敘述
+  ( n 1 )      2drop    \ 否則離開循環，拋棄堆疊上的兩個數
+  ( )          ;
+</code></pre>
+<p>指令 <code>begin</code> 標記了不定循環的開始，<code>while</code> 則測試堆疊上的數字，如果是 0 就結束循環，<code>repeat</code> 重覆從 <code>begin</code> 開始的不定循環。</p>
+<p>以下是敘述 <code>begin A while B repeat C</code> 編譯結果的示意圖：</p>
+<pre><code>begin A while B repeat C
+
+                +---------------------+
+                |                     |
+                |                     v
++---+---------+---+---+--------+----+---+
+| A | 0branch | 3 | B | branch | -6 | C |
++---+---------+---+---+--------+----+---+
+  ^                              |
+  |                              |
+  +------------------------------+
+</code></pre>
+<h3 id="例二正弦表"><a class="header" href="#例二正弦表">例二：正弦表</a></h3>
+<p>以不定循環指令印出以下表格。</p>
+<table><thead><tr><th style="text-align: left">x</th><th style="text-align: right">0.000</th><th style="text-align: right">15.000</th><th style="text-align: right">30.000</th><th style="text-align: right">45.000</th><th style="text-align: right">60.000</th><th style="text-align: right">75.000</th><th style="text-align: right">90.000</th></tr></thead><tbody>
+<tr><td style="text-align: left">sin(x)</td><td style="text-align: right">0.000</td><td style="text-align: right">0.259</td><td style="text-align: right">0.500</td><td style="text-align: right">0.707</td><td style="text-align: right">0.866</td><td style="text-align: right">0.966</td><td style="text-align: right">1.000</td></tr>
+</tbody></table>
+<p>首先我們定義一個指令 <code>.sin-header</code> 印出第一行。定義中的 <code>7 3 f.r</code> 會印出一個欄寬為 7，小數點後有三位，向右對齊的浮點數。指令 <code>f.r</code> 和之前的 <code>f.</code> 還有一項不同： <code>f.r</code> 不會在最後多印出一個空格。</p>
+<pre><code>\ 印出 sine table 的標頭。
+\ 浮點堆疊上有三個數
+\ start: 開始的角度
+\ end: 結束的角度
+\ step: 增量
+\ 印出標頭會是 start start+step start+2*step ... 直到大於 end 為止。
+: .sin-header ( F: start end step -- )
+( F: start end step -- )        .&quot; x      &quot;
+( F: start end step )           frot
+( F: end step start )           begin
+( F: end step start )             fdup  7 3 f.r
+( F: end step start )             fover f+
+( F: end step start' )            frot
+( F: step start' end )            fover fover
+( F: step start' end start' end ) f&gt; not
+( flag F: step start' end )     while
+( F: step start' end )            frot frot
+( F: end step start' )          repeat
+( F: step start' end )          fdrop fdrop fdrop
+;
+</code></pre>
+<p>rtForth 的指令 <code>f.</code> 是使用 <code>f.r</code> 定義出來的。以下是它的定義：</p>
+<pre><code>: f. ( F: r -- )   0 7 f.r space ;
+</code></pre>
+<p>同樣的，有個和 <code>f.r</code> 類似，但用於整數，可以指定欄寬並向右對齊的指令 <code>.r</code>。在 rtForth 中的 <code>.</code> 是以 <code>.r</code> 定義出來的。</p>
+<pre><code>: . ( n -- )   0 .r space ;
+</code></pre>
+<p>請確實理解 <code>.sin-header</code> 的定義，確定每一個浮點堆疊註解合乎預期。並測試一下，</p>
+<pre><code>rf&gt; 0e 91e 15e .sin-header
+x        0.000 15.000 30.000 45.000 60.000 75.000 90.000 ok
+</code></pre>
+<p>接下來我們設計指令印出第二排的正弦值。</p>
+<p>正弦指令 <code>fsin</code> 參數的單位是徑度，我們必須把角度轉成徑度。rtForth 提供指令 <code>deg</code> 進行這項轉換。其他 Forth 系統可以定義 <code>deg</code> 如下：</p>
+<pre><code>\ 將角度轉成徑度
+: deg ( n1 -- n2 ) 180e f/  pi f* ;
+</code></pre>
+<p>以下是印出正弦值的指令 <code>.sin-values</code> 的定義。它和 <code>.sin-header</code> 幾乎一模一樣，只差在 <code>.&quot; x&quot;</code> 被改成 <code>.&quot; sin(x)&quot;</code>。以及 <code>fdup  7 3 f.r</code> 被改成 <code>fdup deg fsin  7 3 f.r</code> 。</p>
+<pre><code>\ 印出 sine table 的值
+: .sin-values ( F: start end step -- )
+( F: start end step )        .&quot; sin(x) &quot;
+( F: start end step )           frot
+( F: end step start )           begin
+( F: end step start )             fdup deg fsin  7 3 f.r
+( F: end step start )             fover f+
+( F: end step start' )            frot
+( F: step start' end )            fover fover
+( F: step start' end start' end ) f&gt; not
+( flag ) ( F: step start' end ) while
+( F: step start' end )            frot frot
+( F: end step start' )          repeat
+( F: step start' end )          fdrop fdrop fdrop
+;
+</code></pre>
+<p>最後我們使用 <code>.sin-header</code> 和 <code>.sin-values</code> 來合成印表格的 <code>.sin-table</code> 指令。如下。這兒使用了之前未提及的浮點堆疊操作指令 <code>fpick</code> 。敘述 <code>0 fpick</code> 的行為和 <code>fdup</code> 一樣，會複製浮點堆疊從疊頂數來的第一個浮點數。敘述 <code>1 fpick</code> 的行為和 <code>fover</code> 一樣，會複製浮點堆疊從疊頂數來的第二個浮點數。<code>2 fpick</code> 則複製疊頂第三個浮點數。在此使用 <code>fpick</code> 是因為我們需要複製疊頂上第三個浮點數。這是之前其他浮點堆疊運算指令做不到的。</p>
+<p>定義中的指令 <code>cr</code> 是回車 (carriage return) 的意思，會使輸出換一行。</p>
+<pre><code>\ 印出 sine table
+: .sin-table ( F: start end step -- )
+   ( F: start end step )   2 fpick  2 fpick  2 fpick
+   ( F: start end step start end step )   .sin-header  cr
+   ( F: start end step )   .sin-values
+;
+</code></pre>
+<p>測試一下，</p>
+<pre><code>rf&gt; 0e 91e 15e .sin-table
+x        0.000 15.000 30.000 45.000 60.000 75.000 90.000
+sin(x)   0.000  0.259  0.500  0.707  0.866  0.966  1.000 ok
+</code></pre>
+<h3 id="不定循環中的-begin--until-和-begin--again"><a class="header" href="#不定循環中的-begin--until-和-begin--again">不定循環中的 BEGIN ... UNTIL 和 BEGIN ... AGAIN</a></h3>
+<p>不定循環中的另兩個版本 <code>begin ... until</code> 和 <code>begin ... again</code> 可視為 <code>begin ... while ... repeat</code> 的簡化版。
+敘述 <code>begin ... until</code> 中的 <code>until</code> 會檢查資料堆疊上的數，若為真就結束循環。因此它的行為和 <code>begin ... 0= while repeat</code> 一樣。無限循環 <code>begin ... again</code> 則相當於敘述 <code>begin ... true while repeat</code> 。</p>
+<p>本書建議儘量使用 <code>begin ... while ... repeat</code> ，不使用 <code>begin ... until</code>，因為使用後者時常忘了對循環的第一次執行進行條件測試。例如以下使用 <code>until</code> 實現的 <code>spaces</code> 因忘了檢查 n=0 的情形，導致當 n 為 0 時仍印出了一個空格。</p>
+<pre><code>: wrong-spaces ( n -- )   0 begin space 1+ 2dup &lt;= until 2drop ;
+</code></pre>
+<h3 id="練習一印出所有-3-的倍數"><a class="header" href="#練習一印出所有-3-的倍數">練習一：印出所有 3 的倍數</a></h3>
+<p>請設計一個程式其規格如下：</p>
+<pre><code>\ 印出所有小於 n 的 3 的倍數
+: .multiple3 ( n -- ) ... ;
+</code></pre>
+<p>解答在本章之後。</p>
+<h3 id="例三fibonacci-數列"><a class="header" href="#例三fibonacci-數列">例三：Fibonacci 數列</a></h3>
+<p>有位工程師寫了以下程式想印出 Fibonacci 數列。但是有 Stack underflow 的錯誤。請找出程式的錯誤。</p>
+<pre><code>\ 印出小於 n 的 Fibonacci 數列。
+: fibonacci ( n -- )   0 1 begin dup 3 pick &lt; while . swap over + repeat drop 2drop ;
+</code></pre>
+<p>實測一下，</p>
+<pre><code>rf&gt; : fibonacci   0 1 begin dup 3 pick &lt; while . swap over + repeat drop 2drop ;
+ ok
+rf&gt; 7 fibonacci
+1 7 Stack underflow
+</code></pre>
+<p>真的有問題。為了找出問題，我們可以利用 Forth 的互動式環境理解這個程式。先手動模擬程式執行 <code>7 0 1 begin dup 3 pick &lt;</code>。</p>
+<pre><code>rf&gt; 7 0 1 dup 3 pick .s
+7 0 1 1 7  ok
+</code></pre>
+<p><code>7</code> 是測試時使用者輸入的數字，<code>0 1</code> 是 <code>fibonacci</code> 放上堆疊的數字。<code>begin</code> 是編譯指令，標記循環的開始，但執行時不會做什麼事，忽略它。<code>dup 3 pick</code> 是 <code>begin</code> 後 <code>fibonacci</code> 執行的指令。使用 <code>.s</code> 檢查堆疊內容看看是否和我們期望的一樣。</p>
+<pre><code>rf&gt; &lt;  .s
+7 0 1 -1  ok
+</code></pre>
+<p>接下來比較 1 和 7 的大小。發現  1 小於 7 ，所以要繼續顯示 Fibonacci 數列。</p>
+<pre><code>rf&gt; drop  .s
+7 0 1  ok
+</code></pre>
+<p>由於之後的 <code>while</code> 會判斷疊頂的整數是否為真，這整數就被用掉了。因此我們使用一個 drop 來模擬這個行為。</p>
+<p>在 <code>while</code> 後程式執行 <code>.</code>。這會把 1 印出來，堆疊上會只剩 7 和 0。可是要得到下一個 Fibonacci 數列的 1，我們需要保留原來的 1。因此這兒少了一個 <code>dup</code>。把 <code>dup</code> 加進原來的程式裡再測試一遍。</p>
+<pre><code>rf&gt; : fibonacci   0 1 begin dup 3 pick &lt; while dup . swap over + repeat drop 2drop ;
+Redefining fibonacci ok
+rf&gt; 17 fibonacci
+1 1 2 3 5 8 13  ok
+</code></pre>
+<p>問題解決了。</p>
+<h3 id="例四兩重循環"><a class="header" href="#例四兩重循環">例四：兩重循環</a></h3>
+<p>有時我們需要多重的循環，Forth 的程式師習慣將這兩重的循環拆成兩個指令來實現。比如我們想印出如下的九九乘法表。</p>
+<pre><code>    1    2    3    4    5    6    7    8    9
+    2    4    6    8   10   12   14   16   18
+    3    6    9   12   15   18   21   24   27
+    4    8   12   16   20   24   28   32   36
+    5   10   15   20   25   30   35   40   45
+    6   12   18   24   30   36   42   48   54
+    7   14   21   28   35   42   49   56   63
+    8   16   24   32   40   48   56   64   72
+    9   18   27   36   45   54   63   72   81
+</code></pre>
+<p>請依以下規格設計指令印出上表：</p>
+<pre><code>\ 印出九九乘法表中的第 n 列
+: .row ( n -- ) ... ;
+\ 使用 .row 印出九九乘法表
+: .table ( -- ) ... ;
+</code></pre>
+<p>請不要參考答案先自行嘗試。</p>
+<pre><code>: .row 1 begin dup 9 &lt;= while 2dup *  5 .r  1 + repeat 2drop ;
+: .table 1 begin dup 9 &lt;= while dup .row cr 1 + repeat drop ;
+</code></pre>
+<p>測試一下，</p>
+<pre><code>rf&gt; .table
+
+    1    2    3    4    5    6    7    8    9
+    2    4    6    8   10   12   14   16   18
+    3    6    9   12   15   18   21   24   27
+    4    8   12   16   20   24   28   32   36
+    5   10   15   20   25   30   35   40   45
+    6   12   18   24   30   36   42   48   54
+    7   14   21   28   35   42   49   56   63
+    8   16   24   32   40   48   56   64   72
+    9   18   27   36   45   54   63   72   81
+ ok
+</code></pre>
+<h3 id="練習二斜方形"><a class="header" href="#練習二斜方形">練習二：斜方形</a></h3>
+<p>以下指令會印出 * 號。</p>
+<pre><code>: star   [char] * emit ;
+</code></pre>
+<p>其中的 <code>[char]</code> 是一個編譯指令，會將它之後的字元的 ASCII 碼編譯進字典中。執行時這 ASCII 碼會被放上堆疊。而指令 <code>emit</code> 會取得堆疊上的 ASCII 碼，將它顯示在螢幕上。</p>
+<p>請設計程式印出以下形狀。</p>
+<pre><code>****
+****
+****
+****
+</code></pre>
+<p>以及</p>
+<pre><code>   ****
+  ****
+ ****
+****
+</code></pre>
+<p>程式應由以下幾個指令，配合之前的 <code>spaces</code> 指令構成：</p>
+<pre><code>\ 印出 n 個星
+: stars ( n -- ) ... ;
+\ 印出寬 `w` 高 `h` 的長方形。
+: box ( w h -- ) ... ;
+\ 印出寬 `w` 高 `h` 的斜方形。
+: /box ( w h -- ) ... ;
+</code></pre>
+<p>解答在本章之後。</p>
+<h3 id="中途結束"><a class="header" href="#中途結束">中途結束</a></h3>
+<p>敘述 <code>begin ... while ... repeat</code> 只能在 <code>while</code> 的位置結束循環。這種單一入口單一出口的方式，有助於理解程式。<code>begin ... until</code> 的設計也符合這種單一入口單一出口的原則。但在撰寫複雜的循環時有時這原則會使得程式難以撰寫。</p>
+<p>一個解決的方法是使用 <code>exit</code>：</p>
+<pre><code>: exit-between-loop
+  begin
+    ...
+    ( 測試條件一 )
+  while
+    ...
+    ( 測試條件二 )
+    if ... exit then
+    ...
+    ( 測試條件三 )
+    if ... exit then
+    ...
+  repeat ;
+</code></pre>
+<p>當執行到 <code>exit</code> 時會結束 <code>exit-between-loop</code>，回到呼叫它的指令。</p>
+<h3 id="定循環"><a class="header" href="#定循環">定循環</a></h3>
+<p>如果已知重覆的次數，使用定循環會比不定循環容易表達。比如印出五個星號：</p>
+<pre><code class="language-forth">: 5-stars   5 0 ?do 42 emit loop ;
+</code></pre>
+<p>這指令中的 5 是循環的上限，0 則是循環計數值的初值。指令 <code>?do</code> 會檢查循環初值是否和上限相同，如果相同就不會執行 <code>?do</code> 和 <code>loop</code> 之間的指令，否則會將初值和上限保存在某個用於處理指令呼叫和返回的堆疊內 (返回堆疊，return stack)，然後不斷執行 <code>?do</code> 和 <code>loop</code> 之間的指令，並於每次執行後將計數值加 1，直到計數值等於或大於上限時，將保存的計數值和上限拋棄，結束定循環，並從 <code>loop</code> 之後的指令繼續執行。</p>
+<p>指令 <code>i</code> 可以取得當次循環的計數值，將它放在資料堆疊上。所以以下程式會印出 <code>0 1 2 3 4 5</code> 。</p>
+<pre><code class="language-forth">: 1-5   6 0 ?do i . loop ;
+</code></pre>
+<p>因為定循環將計數值和上限保存在返回堆疊上，不可以冒然使用 <code>exit</code> 離開這個指令。必須先使用指令 <code>unloop</code> 丟掉這之前保存的上限和計數值才能執行 <code>exit</code>，如下例檢查計數值，當計數值大於 3 時就結束執行這指令，結果會印出 <code>0 1 2 3 4</code>：</p>
+<pre><code class="language-forth">: exit-loop   6 0 ?do i .  i 3 &gt; if unloop exit then  loop ;
+</code></pre>
+<p>另外有一個指令 <code>leave</code> 可用來中途離開定循環，但不結束含有 <code>?do ... loop</code> 的指令，而是從 <code>loop</code> 後繼續執行，如下例會印出 <code>0 1 2 3 We are here!</code>：</p>
+<pre><code class="language-forth">: leave-loop   6 0 ?do i .  i 3 &gt; if leave then  loop .&quot; We are here!&quot; ;
+</code></pre>
+<p>本書只說明了計數上限大於等於計數初值的情形。上限小於初值的情形因用到的機會較少，不在本書說明。</p>
+<h2 id="解答"><a class="header" href="#解答">解答</a></h2>
+<h3 id="練習一"><a class="header" href="#練習一">練習一</a></h3>
+<pre><code>rf&gt; : .multiple3   0 begin 2dup &gt;= while dup 5 .r 3 + repeat 2drop ;
+ ok
+rf&gt; 17 .multiple3
+    0    3    6    9   12   15 ok
+rf&gt; .s
+ ok
+</code></pre>
+<h3 id="練習二"><a class="header" href="#練習二">練習二</a></h3>
+<pre><code>: star   [char] * emit ;
+: stars ( n -- )   0 begin 2dup &gt; while 1+ star repeat 2drop ;
+: box ( w h -- )   0 begin 2dup &gt; while 1+ 2 pick stars cr repeat drop 2drop ;
+: /box ( w h -- )
+  0 begin 2dup &gt; while
+    1+  2 pick 2dup swap - 1-  spaces  stars  cr
+  repeat drop 2drop ;
+</code></pre>
+<h2 id="本章指令集"><a class="header" href="#本章指令集">本章指令集</a></h2>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>space</code></td><td>( -- )   印出一個空格</td><td>space</td></tr>
+<tr><td><code>spaces</code></td><td>( n -- )   印出 n 個空格</td><td>spaces</td></tr>
+<tr><td><code>1+</code></td><td>( n -- n+1 )   將 n 加 1</td><td>one-plus</td></tr>
+<tr><td><code>1-</code></td><td>( n -- n-1 )   將 n 減 1</td><td>one-minus</td></tr>
+<tr><td><code>begin</code></td><td>( -- )   標記了不定循環的開始</td><td>begin</td></tr>
+<tr><td><code>while</code></td><td>( flag -- )   測試堆疊上的 flag，如果為假就結束循環</td><td>while</td></tr>
+<tr><td><code>repeat</code></td><td>( -- )   重覆從 <code>begin</code> 開始的不定循環</td><td>repeat</td></tr>
+<tr><td><code>until</code></td><td>( -- )   測試堆疊上的 flag，如果為真就結束循環</td><td>until</td></tr>
+<tr><td><code>again</code></td><td>( -- )   重覆由 <code>begin</code> 開始的循環</td><td>again</td></tr>
+<tr><td><code>.r</code></td><td>( n1 n2=width -- )   以欄寬為 n2 的方式印出 n1。當 n1 短於欄寬時在左方補上空格，達成對齊右方的顯示效果</td><td>dot-r</td></tr>
+<tr><td><code>f.r</code></td><td>( n1=width n2=precision -- ) ( r -- )   以欄寬為 n1，小數點後有 n2 位數的方式顯示 r。如果顯示字串小於欄寬，在左側補上空格，達成對齊右方的效果</td><td>f-dot-r</td></tr>
+<tr><td><code>fpick</code></td><td>( n -- ) ( F: ... -- )   複製浮點堆疊上從疊頂數來的第 n 個數字。<code>0 fpick</code> 相當於 <code>fdup</code>，<code>1 fpick</code> 相當於 <code>fover</code>。其餘類推。</td><td>f-pick</td></tr>
+<tr><td><code>pick</code></td><td>( ... n -- )   複製資料堆疊上指定的數字。<code>0 pick</code> 相當於 <code>dup</code>，<code>1 pick</code> 相當於 <code>over</code>，其餘類推。</td><td>pick</td></tr>
+<tr><td><code>emit</code></td><td>( n -- )   取得堆疊上的 ASCII 碼，將它顯示在螢幕上</td><td>emit</td></tr>
+<tr><td><code>[char]</code></td><td>( &quot;c&quot; -- )   是一個編譯指令，將它之後的字元的 ASCII 碼編譯進字典中。執行時這 ASCII 碼會被放上堆疊</td><td>bracket-care</td></tr>
+<tr><td><code>cr</code></td><td>( -- )   使輸出換行</td><td>c-r</td></tr>
+<tr><td><code>deg</code></td><td>( F: r1 -- r2 )   計算角度 r1 的徑度值 r2</td><td>degree</td></tr>
+<tr><td><code>?do</code></td><td>( n1 n2 -- )   如果 n1=n2，不執行其後至 <code>loop</code> 之間的指令，從 <code>loop</code> 後的指令繼續程式執行。如果 n1 不等於 n2，則會從 n2 開始計數，不斷執行 <code>?do</code> 和 <code>loop</code> 之間的指令，直到計數值等於或大於 n1 為止。</td><td>question-do</td></tr>
+<tr><td><code>loop</code></td><td>( -- )   將計數值加上 1，比較計數值和上限，如果計數值大於或等於上限就丟掉之前保存的上限和計數值，從 <code>loop</code> 後的指令繼續執行。否則從 <code>?do</code> 後的指令繼續。</td><td>loop</td></tr>
+<tr><td><code>i</code></td><td>( -- i )   循環的計數值</td><td>i</td></tr>
+<tr><td><code>unloop</code></td><td>( -- )   丟掉之前保存的循環上限和計數值。</td><td>unloop</td></tr>
+<tr><td><code>leave</code></td><td>( -- )   丟掉之前保存的循環上限和計數值，並從 <code>loop</code> 之後繼續。</td><td>leave</td></tr>
+</tbody></table>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="selection.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="dictionary.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="selection.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="dictionary.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </body>
+</html>

@@ -1,0 +1,494 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>多工、異常處理與文本直譯器 - rtForth門</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> 簡介</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> 安裝 rtForth</a></li><li class="chapter-item expanded "><a href="calculator.html"><strong aria-hidden="true">3.</strong> Forth 計算機</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="integer.html"><strong aria-hidden="true">3.1.</strong> 整數運算</a></li><li class="chapter-item expanded "><a href="float.html"><strong aria-hidden="true">3.2.</strong> 浮點運算</a></li><li class="chapter-item expanded "><a href="logic.html"><strong aria-hidden="true">3.3.</strong> 比較及邏輯運算</a></li><li class="chapter-item expanded "><a href="colon.html"><strong aria-hidden="true">3.4.</strong> 自己定義運算指令</a></li></ol></li><li class="chapter-item expanded "><a href="programming.html"><strong aria-hidden="true">4.</strong> Forth 程式入門</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="selection.html"><strong aria-hidden="true">4.1.</strong> 選擇</a></li><li class="chapter-item expanded "><a href="repetition.html"><strong aria-hidden="true">4.2.</strong> 循環</a></li><li class="chapter-item expanded "><a href="dictionary.html"><strong aria-hidden="true">4.3.</strong> 字典</a></li><li class="chapter-item expanded "><a href="tasking.html" class="active"><strong aria-hidden="true">4.4.</strong> 多工、異常處理與文本直譯器</a></li><li class="chapter-item expanded "><a href="style.html"><strong aria-hidden="true">4.5.</strong> 程式碼風格</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">rtForth門</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="多工異常處理與文本直譯器"><a class="header" href="#多工異常處理與文本直譯器">多工、異常處理與文本直譯器</a></h1>
+<p>在這個章節中，我們討論 rtForth 的多工指令、異常處理的方式以及文本直譯器。</p>
+<p>Forth 2012 的標準並未規範多工的指令集，同時也未規範文本直譯器的設計細節。
+因此本章中許多指令都不是 Forth 2012 的標準指令。當遇到 Forth 2012
+標準指令時會特別註明。</p>
+<hr />
+<h2 id="多工"><a class="header" href="#多工">多工</a></h2>
+<p>多工處理 (Multitasking) 指的是電腦同時執行多個程式的能力。在 rtForth 中指的則是使用一個 rtForth 虚擬機 (Virtual Machine, VM) 同時執行多個 Forth 程式的能力。</p>
+<h3 id="工作-task"><a class="header" href="#工作-task">工作 (Task)</a></h3>
+<p>RtForth 採行協作式 (Cooperative multitasking) 循環制 (round-robin) 的多工。並且提供了五個工作 (Task)，因此可以同時執行五個程式。</p>
+<p>協作式的意思是，每個工作執行的程式都需要適時的放棄自己的執行權利，使得其他工作能取得虚擬機的使用權。如果有某個工作因為設計不良或其他原因不釋放權利，就會導至其他工作停頓。在 rtForth 中這個放棄自己執行權利的指令是 <code>pause</code>。</p>
+<p>每個工作有一個非零的識別碼。依 RtForth 目前的設計，識別碼從 1 開始。</p>
+<p>RtForth 系統冷起動 (Cold start) 時取得執行權利的是工作一，這個工作又被稱為操作者 (Operator) 。指令 <code>operator</code> 會得到這個工作的識別碼 (目前的設計為 1)。每個工作都可以使用指令 <code>me</code> 取得目前工作的識別碼。</p>
+<p>一個工作可以使用指令 <code>activate</code> 指派另一工作執行程式。被指派了的工作會自動進入運行中的狀態，或稱為「清醒 (awake)」的狀態。但不會立刻執行。要等到這工作取得虚擬機的使用權時才會執行。</p>
+<p>指令 <code>suspend</code> 可以暫停另一工作的執行，指令 <code>resume</code>被暫停的工作繼續運作。指令 <code>halt</code> 則使得一工作放棄原來的工作，進入一個無窮的等待迴圈。</p>
+<p>循環制 (round-robin) 的意思是，這些工作是依序取得虛擬機的執行權利的。當工作一釋放了權利後，下個運行中的工作取得權利，直到它放棄權利，下下個運行中的工作又取得權利，最後輪完一圈，執行權利又回到工作一。</p>
+<p>每一個工作有自己的堆疊、自己的解碼指標、自己的直譯或編譯的狀態。這使得工作在執行堆疊運算時不被其他工作打擾。在 RtForth 的設計中，所有的工作共用一個字典，共用一個輸出緩衝區，這使得工作間能透過字典交換資料，同時將訊息輸出到同一個緩衝區中。</p>
+<p>在 RtForth 內建的五個工作中，工作一有自己的輸入緩衝區，用來處理使用者的輸入，我們稱這能和使用者互動的工作為終端工作 (Terminal task)，其他四個工作沒有自己的輸入緩衝區，被稱為背景工作 (Background task)。</p>
+<p>使用 rtForth 的 Rust 函式庫可以對工作進行和本章不同的規畫，比如多於五個的工作，或是像動程科技設計的軸控系統，有兩個終端工作，三個背景工作，同時每個工作都有自己的輸入及輸出緩衝區。</p>
+<p>在本書中其他章節中的所有指令都不會執行 <code>pause</code>。在本章中會執行 <code>pause</code> 的指令都會說明。</p>
+<h3 id="指令-activate-和-pause"><a class="header" href="#指令-activate-和-pause">指令 <code>ACTIVATE</code> 和 <code>PAUSE</code></a></h3>
+<p>先看以下的程式範例，並請實際執行。</p>
+<pre><code class="language-forth">rf&gt; variable counter
+ ok
+rf&gt; : up   2 activate  begin pause 1 counter +! again ;
+ ok
+rf&gt; : down   2 activate  begin pause -1 counter +! again ;
+ ok
+rf&gt; : watch ( n -- )   0 ?do pause counter ? loop ;
+ ok
+rf&gt; up
+ ok
+rf&gt; 5 watch
+0 1 2 3 4  ok
+rf&gt; 8 watch
+5 6 7 8 9 10 11 12  ok
+rf&gt; down
+ ok
+rf&gt; 7 watch
+12 11 10 9 8 7 6  ok
+</code></pre>
+<p>以上範例先定義了一個變數 <code>counter</code>，因為所有的工作共用一套字典，所有的工作都可以存取這個變數。</p>
+<p>指令 <code>up</code> 使用指令 <code>activate</code> 指派工作二執行在 <code>activate</code> 後的程式，也就是從 <code>begin</code> 開始，到 <code>again</code> 的這個無窮迴圈。這個迴圈不斷將 <code>counter</code> 的內容加一，並且每加一次都會使用 <code>pause</code> 交出虚擬機的使用權。注意執行 <code>up</code> 只指派了工作二的工作內容，程式執行到 <code>activate</code> 後就返回了。在 <code>activate</code> 後的那個無窮迴圈要等到工作二取得虚擬機使用權後才會被執行。</p>
+<p>指令 <code>down</code> 行為類似 <code>up</code>，但是在迴圈中不斷的將 <code>counter</code> 的內容減一。</p>
+<p>指令 <code>watch</code> 根據堆疊上的次數監控變數 <code>counter</code> 的變化。同樣的，每印一次 <code>counter</code> 的內容，就會使用 <code>pause</code> 交出虚擬機的使用權。</p>
+<p>於是，一開始時我們執行指令 <code>up</code> 指派工作二要往上計數，此時擁有虚擬機執行權的是工作一，也就是操作者 (operator)。之後，當工作一執行 <code>5 watch</code> 時，<code>watch</code> pause 了五次，使得工作二有五次機會取得虚擬機的執行權，因此往上計數了五次，所以我們看到畫面上出現了 <code>0 1 2 3 4</code>。事實上 <code>counter</code> 在第五次時已經被計數到 5，這數值在之後的 <code>8 watch</code> 才被印出來。</p>
+<p>最後我們使用 <code>down</code> 重新指派工作二進行倒數。並用 <code>7 watch</code> 檢視 <code>counter</code> 的變化。</p>
+<p>本章中所有含有 <code>pause</code> 的迴圈都先 <code>pause</code> ，再做其他的事。這使得這類指令都至少會執行一次 <code>pause</code> ，把虚擬機使用權交給其他工作。</p>
+<h3 id="指令-suspend-和-resume"><a class="header" href="#指令-suspend-和-resume">指令 <code>SUSPEND</code> 和 <code>RESUME</code></a></h3>
+<p>延續上一小節的例子，我們可以使用 <code>suspend</code> 暫停工作二，再以 <code>resume</code> 讓工作二繼續執行。</p>
+<pre><code class="language-forth">rf&gt; 2 suspend
+ ok
+rf&gt; 6 watch
+6 6 6 6 6 6  ok
+rf&gt; 2 resume 6 watch
+5 4 3 2 1 0  ok
+</code></pre>
+<h3 id="指令-nod-stop-和-halt"><a class="header" href="#指令-nod-stop-和-halt">指令 <code>NOD</code> 、<code>STOP</code> 和 <code>HALT</code></a></h3>
+<p>工作執行的必須以無窮迴圈結束或是以 <code>stop</code> 結束。指令 <code>nod</code> 是為此設計的一個無窮迴圈。以下是 <code>stop</code> 和 <code>nod</code> 的定義：</p>
+<pre><code class="language-forth">: nod   begin pause again ;
+: stop   me suspend pause ;
+</code></pre>
+<p>指令 <code>stop</code> 使用了指令 <code>me</code> 取得執行 <code>stop</code> 的工作的識別碼，再使用 <code>suspend</code> 暫停了這個工作，然後執行 <code>pause</code> 將虚擬機的使用權交出去。</p>
+<p>以下是一個例子：</p>
+<pre><code class="language-forth">variable counter
+rf&gt; : up-down  2 activate  5 0 do pause 1 counter +! loop stop 3 0 do pause -1 counter +! loop nod ;
+ ok
+rf&gt; : watch 0 ?do pause counter ? loop ;
+ ok
+rf&gt; up-down 10 watch
+0 1 2 3 4 5 5 5 5 5  ok
+rf&gt; 2 resume 10 watch
+5 4 3 2 2 2 2 2 2 2  ok
+</code></pre>
+<p>指令 <code>up-down</code> 先連續將 <code>counter</code> 上數 5 次，然後以 stop 暫停執行，被喚醒後將 <code>counter</code> 倒數 3 次，然後執行 <code>nod</code> 這個無窮等待的迴圈。</p>
+<p>我們也可以使用指令 <code>halt</code> 使得另一個工作執行 <code>nod</code> 這個無窮等待的迴圈。以下是 <code>halt</code> 的定義：</p>
+<pre><code class="language-forth">: halt ( n -- )   activate ['] nod handler!  nod ;
+</code></pre>
+<p>指令 <code>halt</code> 設定工作的異常處理指令為 <code>nod</code>，同時指派工作進入無窮等待的迴圈。下一節會說明 <code>handler!</code> 這個指令以及異常處理程式。</p>
+<p>有興趣的讀者可以試試讓工作執行到結尾的分號，比如</p>
+<pre><code class="language-forth">: wrong   2 activate ;
+</code></pre>
+<p>目前 rtForth (v0.5.0) 並未為針對這一行為進行保護。因此執行以上程式可能會因不同版本的 rtForth 而有不同的結果。大多數都會造成程式結束或是程式記憶區段錯誤。因此在工作中請務必以內有執行 <code>pause</code> 的無窮迴圈或 <code>nod</code> 或 <code>stop</code> 結束。而若是使用 <code>stop</code> 結束，請務必不要 <code>resume</code> 這個工作，導至最後仍執行到尾端的分號。</p>
+<h3 id="指令-get-和-release"><a class="header" href="#指令-get-和-release">指令 <code>GET</code> 和 <code>RELEASE</code></a></h3>
+<p>當多個工作共享一個系統資源，且使用這資源中途有可能以 <code>pause</code> 釋放虚擬機使用權時，必須考慮如果另一個工作搶用這個資源是否會造成問題。若有必要，可以使用一個變數記錄資源目前的使用者，當這變數內容為 0 時，代表沒有工作正在使用這資源，此時工作可以將自己的識別碼放進變數中，告知其他的工作這資源已經被佔用。當這變數內容為另一個工作的識別碼時，就必須等待那個工作釋放了這項資源，變數內容為零時才可以使用。</p>
+<p>指令 <code>get</code> 和 <code>release</code> 就是在處理這種資源共享的情況。以下是 rtForth 中 <code>get</code> 和 <code>release</code> 的定義。</p>
+<pre><code class="language-forth">\ 取得資源 a，如果 a 正被其他工作佔用，則等待 a 被釋放後，在 a 中填入自己的識別碼。
+: get ( a -- )   begin  pause dup @  while repeat me swap ! ;
+\ 如果資源 a 中的識別碼是自己，那就填入 0 釋放這項資源。
+: release ( a -- )   dup @ me = if 0 swap ! else drop then ;
+</code></pre>
+<p>以上程式中使用指令 <code>me</code> 取得目前工作的識別碼。</p>
+<p>以印表機這項資源為例，當一工作正在列印時，另一工作需要等待。因此，</p>
+<pre><code class="language-forth">variable printer
+: print   printer get  (print)  printer release ;
+</code></pre>
+<p>以上程式中的 <code>printer</code> 是一個代表某項資源的變數，而指令 <code>(print)</code> 執行實際的列印動作。在列印之前必須先以 <code>printer get</code> 取得印表機的使用權，並在列印完成後以 <code>printer release</code> 釋放這項資源。</p>
+<p>要注意當有多於一個以上的系統資源時，每個工作最好一次只取得一項資源的使用權，用完釋放使用權後才再取得另一項資源的使用權。否則很有可能造成所謂的死結 (deadlock)，以下是一個死結的例子：</p>
+<pre><code class="language-forth">variable a
+variable b
+: start-task2   2 activate  a get b get  do-task2  a release b release nod ;
+: start-task3   3 activate  b get a get  do-task3  b release a release nod ;
+</code></pre>
+<p>很可能因為工作二佔用了資源 a，工作三佔用了資源 b，彼此都等不到對方釋放資源。</p>
+<h3 id="時間"><a class="header" href="#時間">時間</a></h3>
+<p>有時，一個工作在進行完某個步驟後，需要等待一段時間，才能進行另一個步驟。這時可以使用指令 <code>ms</code>。延續之前 <code>up</code> 那個範例，假設我們不想時時監控 <code>counter</code> 的值，只要每 100 毫秒監控一次就好。重新定義 <code>watch</code> 如下：</p>
+<pre><code class="language-forth">rf&gt; : watch ( n -- )   0 ?do 100 ms counter ? loop ;
+ ok
+rf&gt; up
+ ok
+rf&gt; 10 watch
+19457 41712 63963 86238 108512 130786 153056 175337 197533 219802  ok
+</code></pre>
+<p>如本章其他使用 pause 的指令，在這 <code>watch</code> 的迴圈中我們也先執行 <code>100 ms</code> 釋放虚擬機使用權，等取回使用權後才做其他的事。</p>
+<p>以下是指令 <code>ms</code> 的定義，它使用指令 <code>mtime</code> 取得時間，之後不斷 <code>pause</code> 直到最新的時間和之前的時間差大於堆疊上的數字 <code>n</code> 為止。<code>ms</code> 和 <code>mtime</code> 使用的時間單位都是毫秒。</p>
+<pre><code class="language-forth">: ms ( n -- )   mtime  begin pause mtime over -  2 pick &lt;  while repeat  2drop ;
+</code></pre>
+<h3 id="本節指令集"><a class="header" href="#本節指令集">本節指令集</a></h3>
+<p>本節指令都非 Forth 2012 標準指令。指令集的設計參考了 Forth Inc. 的 SwiftOS 的多工指令集。
+其中 <code>activate</code> 、<code>pause</code> 和 <code>ms</code> 常見於各種不同的 Forth 系統多工指令集。</p>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>me</code></td><td>( -- n )   目前工作的識別碼</td><td>me</td></tr>
+<tr><td><code>activate</code></td><td>( n -- )   指派工作 <code>n</code> 的工作內容，並喚醒工作 <code>n</code>。</td><td>activate</td></tr>
+<tr><td><code>pause</code></td><td>( n -- )   將虚擬機的使用權交給下一個醒著的工作。</td><td>pause</td></tr>
+<tr><td><code>suspend</code></td><td>( n -- )   暫停工作 <code>n</code>，使它進入休眠狀態。</td><td>suspend</td></tr>
+<tr><td><code>resume</code></td><td>( n -- )   恢復工作 <code>n</code> 的執行，使它進入清醒狀態。</td><td>resume</td></tr>
+<tr><td><code>stop</code></td><td>( -- )   使目前的工作進入休眠狀態。</td><td>stop</td></tr>
+<tr><td><code>nod</code></td><td>( -- )   一個不斷 <code>pause</code> 的無窮迴圈。</td><td>nod</td></tr>
+<tr><td><code>halt</code></td><td>( n -- )   使工作 <code>n</code> 執行 <code>nod</code> 。</td><td>halt</td></tr>
+<tr><td><code>get</code></td><td>( n -- )   取得資源變數 <code>n</code> 的使用權。若變數 <code>n</code> 已被其他工作佔用，等待直到其他工作釋放此一變數。</td><td>get</td></tr>
+<tr><td><code>release</code></td><td>( n -- )   釋放資源變數 <code>n</code> 。</td><td>release</td></tr>
+<tr><td><code>mtime</code></td><td>( -- n )   目前的系統時間。單位為毫秒。</td><td>m-time</td></tr>
+<tr><td><code>ms</code></td><td>( n -- )   等待 <code>n</code> 毫秒。</td><td>ms</td></tr>
+</tbody></table>
+<hr />
+<h2 id="異常處理"><a class="header" href="#異常處理">異常處理</a></h2>
+<p>當我們執行一個字典中沒有的指令 <code>xx</code> 時，會印出 <code>Undefined</code> 的錯誤訊息。當執行 <code>0 0 /</code> 時，會印出 <code>Division by zero</code> 的鐄誤訊息。</p>
+<pre><code>rf&gt; xx
+xx Undefined word
+rf&gt; 0 0 /
+/ Division by zero
+</code></pre>
+<p>當 RtForth 發現錯誤時，會先執行預設的異常處理指令。然後，重設系統，執行系統的文本直譯器。下列程式中的 <code>(abort)</code> 指令就是 RtForth 的異常處理程式。以下說明它使用到的幾個指令：</p>
+<ul>
+<li><code>0stacks</code>：清空堆疊。</li>
+<li><code>error</code>：取得錯誤碼。如果不為零代表有異常發生。</li>
+<li><code>.token</code>：印出文本直譯器最近讀到的指令。</li>
+<li><code>.error</code>：印出錯誤訊息。</li>
+<li><code>0error</code>：清除錯誤碼。</li>
+<li><code>flush-output</code>：印出輸出緩衝區的內容。</li>
+<li><code>quit</code>： 重設工作，並執行工作的預設行為。通常這預設的行為就是 Forth 的文本直譯器。</li>
+</ul>
+<pre><code class="language-forth">: (abort)
+    0stacks error -2 1 within not if
+      .token space .error
+    then flush-output 0error quit ;
+</code></pre>
+<p>指令 <code>(abort)</code> 只在錯誤碼不是 0、-1、-2 時才會印出錯誤訊息。0 代表沒有錯誤，-1 是由某個名為 <code>abort</code> 的指令發出的錯誤碼，系統收到這個錯誤碼時，只執行錯誤處理，不印出任何訊息。-2 是由另一個名為 <code>abort&quot;</code> 的指令發出的錯誤訊息。目前 rtForth 尚未支援指令 <code>abort&quot;</code>。</p>
+<p>使用者的程式中可以使用指令 <code>abort</code> 放棄程式的執行，清除堆疊，回到工作的預設行為。</p>
+<p>若有必要，我們可以修改異常處理指令，甚至修改系統冷起動後的預設行為。本節會說明如何修改異常處理指令，下一節說明 <code>quit</code> 以及如何修改預設行為。</p>
+<p>在之前的章節曾提到向量執行。RtForth 在異常處理上使用向量執行的概念，每個工作都有自己的異常處理向量。我們可以使用指令 <code>handler!</code> 來修改這向量，以改變異常處理的行為。在上一節，指令 <code>halt</code> 使用 <code>['] nod handler!</code> 設定工作的異常處理指令為 <code>nod</code>。RtForth 的冷起動指令 <code>cold</code> 設定了所有工作預設的異常處理指令以及預設的行為，以下是它的定義：</p>
+<pre><code class="language-forth">\ Cold start
+: cold
+    2 halt  3 halt  4 halt  5 halt
+    ['] (abort) handler!  quit ;
+</code></pre>
+<p>執行冷起動的工作是操作者，也就是工作一。首先它使用 <code>halt</code> 設定了工作 2-5 的異常處理程式為 <code>nod</code>，並指派它們的預設行為同樣是 <code>nod</code>。之後 <code>cold</code> 取得異常處理指令 <code>(abort)</code> 的執行令牌，並使用指令 <code>handler!</code> 設定它為工作一的異常處理指令。最後執行 <code>quit</code> 重設工作一，並啟動文本直譯器。</p>
+<p>以下範例修改了工作一的異常處理向量，以不同的方式顯示錯誤訊息：</p>
+<pre><code class="language-forth">rf&gt; : (my-abort)   0stacks error -2 1 within not if .token .&quot;  ===&gt; &quot; .error 0error then flush-output quit ;
+ ok
+rf&gt; ' (my-abort) handler!
+ ok
+rf&gt; 0 0 /
+/ ===&gt; Division by zero
+</code></pre>
+<h3 id="本節指令集-1"><a class="header" href="#本節指令集-1">本節指令集</a></h3>
+<p>本節指令中僅 <code>quit</code> 和 <code>abort</code> 為 Forth 2012 的標準指令。</p>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>quit</code></td><td>( -- )   重設工作，並執行工作的預設行為。通常這預設的行為就是 Forth 的文本直譯器。</td><td>quit</td></tr>
+<tr><td><code>abort</code></td><td>( -- )   放棄程式的執行，清除堆疊，回到工作的預設行為。</td><td>abort</td></tr>
+<tr><td><code>handler!</code></td><td>( xt -- )   設定目前工作的異常處理指令為 <code>xt</code> 。</td><td>handler-store</td></tr>
+<tr><td><code>error</code></td><td>( -- n )   取得錯誤碼。如果不為零代表有異常發生。</td><td>error</td></tr>
+<tr><td><code>0error</code></td><td>( -- )   清除錯誤碼。</td><td>zero-error</td></tr>
+<tr><td><code>.error</code></td><td>( -- )   印出錯誤訊息。</td><td>dot-error</td></tr>
+<tr><td><code>.token</code></td><td>( -- )   印出文本直譯器最近讀到的指令。</td><td>dot-token</td></tr>
+<tr><td><code>0stacks</code></td><td>( -- )   清空資料堆疊和浮點堆疊</td><td>zero-stacks</td></tr>
+<tr><td><code>flush-output</code></td><td>( -- )   印出輸出緩衝區的內容。</td><td>flush-output</td></tr>
+<tr><td><code>cold</code></td><td>( -- )   冷起動 rtForth。</td><td>cold</td></tr>
+</tbody></table>
+<hr />
+<h2 id="文本直譯器"><a class="header" href="#文本直譯器">文本直譯器</a></h2>
+<p>上一節提到，冷起動時 rtForth 會設定各個工作的預設工作內容，並且設定它們的異常處理指令。因此，只要修改 <code>cold</code> 的定義，我們可以讓 rtForth 冷起動就執行我們自己的應用程式，比如控制一台設備，或是搜集外部感測器的資訊。</p>
+<p>但現在先讓我們瞭解 rtForth 冷起動時的預設行為 <code>quit</code>，以下是它的程式。</p>
+<pre><code class="language-forth">\ 文本直譯器
+: evaluate-input
+    begin parse-word
+      token-empty? not
+    while
+      compiling? if compile-token ?stacks else interpret-token ?stacks then
+    repeat ;
+
+\ Operator 工作的預設行為，重設返回堆疊後進入一個接受使用者輸入，
+\ 並執行文本直譯器的無窮迴圈。若文本直譯器執行過程中有異常，會透
+\ 過呼叫異常處理指令，重新執行 `quit`。
+: quit
+    reset
+    begin receive evaluate-input
+    .&quot;  ok&quot; flush-output
+    again ;
+</code></pre>
+<p>指令 <code>evaluate-input</code> 就是所謂的文本直譯器，它使用了幾個我們之前未接觸過的指令，這些指令大多使用 rust 語言實作，在 rtForth 的開源程式中可以找到。指令的行為如下：</p>
+<ul>
+<li><code>parse-word ( -- )</code>：從輸入緩衝區取出一串由空白字元 (空格和換行) 隔開的字串 (token)。</li>
+<li><code>token-empty? ( -- t )</code>：取得的字串是否是空字串？空字串代表輸入緩衝區內所有的資料都被處理完了。</li>
+<li><code>compiling? ( -- t )</code>：現在是否在編譯模式？編譯模式就是由冒號定義指令 : 開始，由分號指令 ; 結束的模式。</li>
+<li><code>compile-token ( -- )</code>：判斷取得的字串是字典中的指令，還是整數，或是浮點數，並依據判斷結果將它編譯進字典中。如果編譯失敗，會呼叫異常處理指令。</li>
+<li><code>interpret-token ( -- )</code>：判斷取得的字串是字典中的指令，還是整數，或是浮點數，並依據判斷結果執行它。如果執行失敗，會呼叫異常處理指令。</li>
+<li><code>?stacks ( -- )</code>：檢查浮點堆疊或資料堆疊是否有滿溢 (overflow) 或不足 (underflow) 的錯誤。如果有就執行異常處理指令。</li>
+</ul>
+<p>所以，<code>evaluate-input</code> 這個文本直譯器逐字的讀取工作的輸入緩衝區，如果緩衝區內已無資料，就以正常的方式回到 <code>quit</code>，否則依據工作的狀態 (編譯與否) 以及取得的字串的類型 (指令、整數、浮點數或是不認得的字串) 決定要編譯或執行這個字串，如果有編譯或執行有錯會呼叫上一節提到的異常處理程式直接回到 <code>quit</code>，在成功編譯或執行了這字串後，會檢查堆疊是否有異常，若有異常也會呼叫異常處理程式回到 <code>quit</code>。</p>
+<p>指令 <code>quit</code> 兩個我們之前未討論過的指令，</p>
+<ul>
+<li><code>reset ( -- )</code>：等待使用者輸入指令，並將輸入放進輸入緩衝區。</li>
+</ul>
+<p>當 <code>quit</code> 成功執行 <code>evaluate-input</code> 後，會印出 ok 。但如果執行過程中發生異常，<code>quit</code> 會被重頭執行，也就不會印出 ok 。</p>
+<p>感謝您花了不少時間閱讀這本手冊，也恭喜您，您學會了 rtForth。如果對本手冊或是 rtForth 有任何建議，請在以下網址提出您的 issues。</p>
+<p><a href="https://github.com/mapacode/rtforth">https://github.com/mapacode/rtforth</a></p>
+<h3 id="本節指令集-2"><a class="header" href="#本節指令集-2">本節指令集</a></h3>
+<p>本節指令都非 Forth 2012 標準指令。</p>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>evaluate-input</code></td><td>( -- )   執行文本直譯器。</td><td>evaluate-input</td></tr>
+<tr><td><code>token-empty?</code></td><td>( -- t )   取得的字串是否是空字串？若是，<code>t</code> 為真。空字串代表輸入緩衝區內所有的資料都被處理完了。</td><td>token-empty</td></tr>
+<tr><td><code>compiling?</code></td><td>( -- t )   現在是否在編譯模式？若是，<code>t</code> 為真。編譯模式就是由冒號定義指令 : 開始，由分號指令 ; 結束的模式。</td><td>compiling</td></tr>
+<tr><td><code>compile-token</code></td><td>( -- )   判斷取得的字串是字典中的指令，還是整數，或是浮點數，並依據判斷結果將它編譯進字典中。如果編譯失敗，會呼叫異常處理指令。</td><td>compile-token</td></tr>
+<tr><td><code>interpret-token</code></td><td>( -- )   判斷取得的字串是字典中的指令，還是整數，或是浮點數，並依據判斷結果執行它。如果執行失敗，會呼叫異常處理指令。</td><td>interpret-token</td></tr>
+<tr><td><code>?stacks</code></td><td>( -- )   檢查浮點堆疊或資料堆疊是否有滿溢 (overflow) 或不足 (underflow) 的錯誤。如果有就執行異常處理指令。</td><td>question-stacks</td></tr>
+<tr><td><code>parse-word</code></td><td>( -- )   從輸入緩衝區取出一串由空白字元 (空格和換行) 隔開的字串 (token)。</td><td>parse-word</td></tr>
+<tr><td><code>reset</code></td><td>( -- )   重設返回堆疊，清除輸入緩衝區，進入非編譯模式，清除錯誤。</td><td>reset</td></tr>
+<tr><td><code>receive</code></td><td>( -- )   等待使用者輸入指令，並將輸入放進輸入緩衝區。</td><td>receive</td></tr>
+</tbody></table>
+<hr />
+<h2 id="本章重點整理"><a class="header" href="#本章重點整理">本章重點整理</a></h2>
+<ul>
+<li>Terminal task：具輸入和輸出緩衝區，方便和使用者互動的工作。</li>
+<li>Background task：不具備輸入和輸出緩衝區，或不具備輸入緩衝區但和 Terminal task
+共用輸出緩衝區的工作。多用於設備的控制或長時間的運算。</li>
+<li>異常處理指令：每個工作可以設定自己的異常處理指令。當工作中有錯誤發生時，會執行異常處理指令，並透過這指令重新開始工作的預設行為。</li>
+</ul>
+<hr />
+<h2 id="本章指令集"><a class="header" href="#本章指令集">本章指令集</a></h2>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>me</code></td><td>( -- n )   目前工作的識別碼</td><td>me</td></tr>
+<tr><td><code>activate</code></td><td>( n -- )   指派工作 <code>n</code> 的工作內容，並喚醒工作 <code>n</code>。</td><td>activate</td></tr>
+<tr><td><code>pause</code></td><td>( n -- )   將虚擬機的使用權交給下一個醒著的工作。</td><td>pause</td></tr>
+<tr><td><code>suspend</code></td><td>( n -- )   暫停工作 <code>n</code>，使它進入休眠狀態。</td><td>suspend</td></tr>
+<tr><td><code>resume</code></td><td>( n -- )   恢復工作 <code>n</code> 的執行，使它進入清醒狀態。</td><td>resume</td></tr>
+<tr><td><code>stop</code></td><td>( -- )   使目前的工作進入休眠狀態。</td><td>stop</td></tr>
+<tr><td><code>nod</code></td><td>( -- )   一個不斷 <code>pause</code> 的無窮迴圈。</td><td>nod</td></tr>
+<tr><td><code>halt</code></td><td>( n -- )   使工作 <code>n</code> 執行 <code>nod</code> 。</td><td>halt</td></tr>
+<tr><td><code>get</code></td><td>( n -- )   取得資源變數 <code>n</code> 的使用權。若變數 <code>n</code> 已被其他工作佔用，等待直到其他工作釋放此一變數。</td><td>get</td></tr>
+<tr><td><code>release</code></td><td>( n -- )   釋放資源變數 <code>n</code> 。</td><td>release</td></tr>
+<tr><td><code>mtime</code></td><td>( -- n )   目前的系統時間。單位為毫秒。</td><td>m-time</td></tr>
+<tr><td><code>ms</code></td><td>( n -- )   等待 <code>n</code> 毫秒。</td><td>ms</td></tr>
+<tr><td><code>quit</code></td><td>( -- )   重設工作，並執行工作的預設行為。通常這預設的行為就是 Forth 的文本直譯器。</td><td>quit</td></tr>
+<tr><td><code>abort</code></td><td>( -- )   放棄程式的執行，清除堆疊，回到工作的預設行為。</td><td>abort</td></tr>
+<tr><td><code>handler!</code></td><td>( xt -- )   設定目前工作的異常處理指令為 <code>xt</code> 。</td><td>handler-store</td></tr>
+<tr><td><code>error</code></td><td>( -- n )   取得錯誤碼。如果不為零代表有異常發生。</td><td>error</td></tr>
+<tr><td><code>0error</code></td><td>( -- )   清除錯誤碼。</td><td>zero-error</td></tr>
+<tr><td><code>.error</code></td><td>( -- )   印出錯誤訊息。</td><td>dot-error</td></tr>
+<tr><td><code>.token</code></td><td>( -- )   印出文本直譯器最近讀到的指令。</td><td>dot-token</td></tr>
+<tr><td><code>0stacks</code></td><td>( -- )   清空資料堆疊和浮點堆疊</td><td>zero-stacks</td></tr>
+<tr><td><code>flush-output</code></td><td>( -- )   印出輸出緩衝區的內容。</td><td>flush-output</td></tr>
+<tr><td><code>cold</code></td><td>( -- )   冷起動 rtForth。</td><td>cold</td></tr>
+<tr><td><code>evaluate-input</code></td><td>( -- )   執行文本直譯器。</td><td>evaluate-input</td></tr>
+<tr><td><code>token-empty?</code></td><td>( -- )   取得的字串是否是空字串？若是，<code>t</code> 為真。空字串代表輸入緩衝區內所有的資料都被處理完了。</td><td>token-empty</td></tr>
+<tr><td><code>compiling?</code></td><td>( -- )   現在是否在編譯模式？若是，<code>t</code> 為真。編譯模式就是由冒號定義指令 : 開始，由分號指令 ; 結束的模式。</td><td>compiling</td></tr>
+<tr><td><code>compile-token</code></td><td>( -- )   判斷取得的字串是字典中的指令，還是整數，或是浮點數，並依據判斷結果將它編譯進字典中。如果編譯失敗，會呼叫異常處理指令。</td><td>compile-token</td></tr>
+<tr><td><code>interpret-token</code></td><td>( -- )   判斷取得的字串是字典中的指令，還是整數，或是浮點數，並依據判斷結果執行它。如果執行失敗，會呼叫異常處理指令。</td><td>interpret-token</td></tr>
+<tr><td><code>?stacks</code></td><td>( -- )   檢查浮點堆疊或資料堆疊是否有滿溢 (overflow) 或不足 (underflow) 的錯誤。如果有就執行異常處理指令。</td><td>question-stacks</td></tr>
+<tr><td><code>parse-word</code></td><td>( -- )   從輸入緩衝區取出一串由空白字元 (空格和換行) 隔開的字串 (token)。</td><td>parse-word</td></tr>
+<tr><td><code>reset</code></td><td>( -- )   重設返回堆疊，清除輸入緩衝區，進入非編譯模式，清除錯誤。</td><td>reset</td></tr>
+<tr><td><code>receive</code></td><td>( -- )   等待使用者輸入指令，並將輸入放進輸入緩衝區。</td><td>receive</td></tr>
+</tbody></table>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="dictionary.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="style.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="dictionary.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="style.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </body>
+</html>

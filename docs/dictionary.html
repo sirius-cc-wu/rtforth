@@ -1,0 +1,1039 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>字典 - rtForth門</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> 簡介</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> 安裝 rtForth</a></li><li class="chapter-item expanded "><a href="calculator.html"><strong aria-hidden="true">3.</strong> Forth 計算機</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="integer.html"><strong aria-hidden="true">3.1.</strong> 整數運算</a></li><li class="chapter-item expanded "><a href="float.html"><strong aria-hidden="true">3.2.</strong> 浮點運算</a></li><li class="chapter-item expanded "><a href="logic.html"><strong aria-hidden="true">3.3.</strong> 比較及邏輯運算</a></li><li class="chapter-item expanded "><a href="colon.html"><strong aria-hidden="true">3.4.</strong> 自己定義運算指令</a></li></ol></li><li class="chapter-item expanded "><a href="programming.html"><strong aria-hidden="true">4.</strong> Forth 程式入門</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="selection.html"><strong aria-hidden="true">4.1.</strong> 選擇</a></li><li class="chapter-item expanded "><a href="repetition.html"><strong aria-hidden="true">4.2.</strong> 循環</a></li><li class="chapter-item expanded "><a href="dictionary.html" class="active"><strong aria-hidden="true">4.3.</strong> 字典</a></li><li class="chapter-item expanded "><a href="tasking.html"><strong aria-hidden="true">4.4.</strong> 多工、異常處理與文本直譯器</a></li><li class="chapter-item expanded "><a href="style.html"><strong aria-hidden="true">4.5.</strong> 程式碼風格</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">rtForth門</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="字典"><a class="header" href="#字典">字典</a></h1>
+<p>Forth 系統核心的資料結構有二：</p>
+<ul>
+<li>堆疊：參數堆疊、浮點堆疊，以及本書未深入提及的返回堆疊。指令和指令之間的資料透過堆疊傳遞。</li>
+<li>字典：記錄 Forth 所有的指令。提供文本解譯器查尋及執行指令的功能。</li>
+</ul>
+<p>在之前的章節，我們花了許多篇幅熟悉堆疊的操作。以及熟悉眾多指令中的一種：冒號定義指令。在這章我們把重點放在字典，在字典中增加新的指令的方法，以及指令存放在字典中的方式。</p>
+<p>想在字典中增加新的指令，可以使用「定義指令」。冒號就是一種定義指令。以下是我們將在這章學到的定義指令：</p>
+<ul>
+<li>定義字典標記： <code>marker</code></li>
+<li>定義常數：<code>constant</code> 、 <code>2constant</code> 、 <code>fconstant</code></li>
+<li>定義變數：<code>variable</code> 、 <code>2variable</code> 、 <code>fvariable</code></li>
+<li>定義資料結構：<code>create</code> 、 <code>+field</code></li>
+</ul>
+<p>我們也將學習如何使用字典中的資料空間。</p>
+<h2 id="指令-words"><a class="header" href="#指令-words">指令 words</a></h2>
+<p>Forth 能執行 <code>+</code> 、 <code>-</code> 、<code>*</code> 、 <code>/</code> 這些指令，是因為它內建的字典 (dictionary) 提供了搜尋及執行指令的功能。如果我們想知道字典中有多少指令，我們可以執行指令 <code>words</code>。</p>
+<pre><code>rf&gt; words
+
+-work (abort) quit evaluate &gt;in source tib #tib fill c, min
+max +! 2variable 2! 2@ align aligned spaces space bl cr
+?dup f&gt; &gt;= &lt;= h. hex decimal accept 1/sec hz rpm um/msec
+mm/min usec msec sec minute hr rad deg um mm meter fnegate
+fceil fround floor fmax fmin f&lt; f0= f0&lt; f~ f** f/ f* f- f+
+...
+</code></pre>
+<p>字典記載了指令的名稱、行為、資料，並提供搜尋指令的方法。</p>
+<pre><code>指令
+            +------+
+        名稱 |  +   |
+            +------+      +-----------------+
+        行為 | plus | ---&gt; | 將堆疊上的數字相加 | 程式碼空間
+            +------+      +-----------------+
+        資料 | 無   |
+            +------+
+
+字典
+            +--------+      +---------+      +------+      +----------+
+  LAST ---&gt; | -work  | ---&gt; | (abort) | ---&gt; | quit | ---&gt; | evaluate | ---&gt;
+            +--------+      +---------+      +------+      +----------+
+            | unmark |      | nest    |      | nest |      | nest     |
+            +--------+      +---------+      +------+      +----------+
+            |        |      |         |      |      |      |          |
+            +--------+      +---------+      +------+      +----------+
+</code></pre>
+<p>指令 <code>words</code> 先顯示較晚定義的指令，再顯示較早定義的指令。以之前的例子來看，指令 <code>-work</code> 是最後一個定義的指令，再來是 <code>(abort)</code>，再來是 <code>quit</code>。示義圖中，LAST 指的是最後一個定義的指令，也就是 <code>-work</code>。它是一個之後會提到的字典標記指令，執行它時，它的行為是 <code>unmark</code>。其他的幾個指令的行為是 <code>nest</code>。行為是 <code>nest</code> 的指令就是我們之前提到的冒號定義指令。</p>
+<p>現在讓我們定義本書的第一個指令 <code>hello</code>。看看字典有什麼變化。</p>
+<pre><code>rf&gt; : hello .&quot; Hello World!&quot; ;
+ ok
+rf&gt; words
+
+hello -work (abort) quit evaluate &gt;in source tib #tib fill
+c, min max +! 2variable 2! 2@ align aligned spaces space bl
+...
+</code></pre>
+<p>可以看到 <code>words</code> 顯示的最後一個指令是剛才定義的 <code>hello</code>。</p>
+<pre><code>: hello   .&quot; Hello World!&quot; ;
+
+            +-------+                                  +-------+
+LAST -&gt; 名稱 | hello | -------------------------------&gt; | -work | ---&gt; 
+            +-------+        +---------------+         +-------+
+        行為 | nest  | -----&gt; | 執行冒號定義指令 | 程式碼空間
+            +-------+        +---------------+
+        資料 |       | --+
+            +-------+   |    +-----+----+--------------+------+------+
+                        +--&gt; | _s&quot; | 12 | Hello World! | type | exit | 資料空間
+                             +-----+----+--------------+------+------+
+</code></pre>
+<p>從圖中可以看出指令的行為被放在程式碼空間 (code space) 中，資料則放在資料空間 (data space) 中。
+這兒所謂的空間，就是一塊連續的記憶體。程式碼空間放的是可以執行的機器語言程式碼。資料空間中放的則是機器語言程式碼執行時所需的資料。某些系統裡將機器語言程式碼和資料放在同一個空間裡。在另外一些系統中，存放名稱、行為、資料的那個資料結構被放在另一個名為標頭空間 (header space) 的記憶體中。</p>
+<p>上圖中的 <code>nest</code> 對應的是執行冒號定義指令的機器語言程式碼。它會取得資料空間中的 Forth 指令依順序執行。第一個指令 <code>_s&quot;</code> 會將長度為 12 的字串 &quot;Hello World!&quot; 的開始位置和長度放在堆疊上。其後的 <code>type</code> 則會依據堆疊上的位置和長度印出字串的內容。這兒的 <code>_s&quot;</code> 和其後的數字和字串，以及 <code>type</code> ，都是编譯指令 <code>.&quot;</code> 编譯進字典中的。例中顯示的只是 rtForth 的編譯結果。不同的 Forth 系統有不同的编譯方式。指令 <code>_s&quot;</code> 不是 Forth 2012 的標準指令。但是 <code>type</code> 是一個標準指令。</p>
+<p>另有一個編譯指令 <code>s&quot;</code> 類似 <code>.&quot;</code> 但只編譯上例中的 <code>_s&quot;</code> 及其後字串的部份，不編譯 <code>type</code>。因此以下兩個冒號定義指令的效果是一樣的：</p>
+<pre><code>: hello-1   .&quot; Hello World!&quot; ;
+: hello-2   s&quot; Hello World!&quot; type ;
+</code></pre>
+<p>RtForth 的指令 <code>.memory</code> 列出 rtForth 對程式碼空間和資料空間的使用情形，</p>
+<pre><code>rf&gt; .memory
+code space capacity: 4194304, used: 0, start: 0x7F9520C00000, limit: 0x7F9521000000, here: 0x7F9520C00000
+data space capacity: 4194304, used: 5344, start: 0x7F9521000000, limit: 0x7F9521400000, here: 0x7F95210014E0
+</code></pre>
+<p>在上面的例子中，程式碼和資料空間容量各為 4Mb。程式空間目前沒被使用，資料碼空間使用了 5344 個位元。</p>
+<h3 id="本節指令集"><a class="header" href="#本節指令集">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>words</code></td><td>( -- )   顯示字典中目前能使用的指令</td><td>words</td></tr>
+<tr><td><code>s&quot; &lt;string&gt;&quot;</code></td><td>( -- )    編譯其後的字串直到下一個 &quot;。</td><td>s-quote</td></tr>
+<tr><td><code>type</code></td><td>( addr n -- )   印出資料空間位置 addr 處，長度為 n 的字串</td><td>type</td></tr>
+<tr><td><code>.memory</code></td><td>( -- )   印出資料空間和程式碼空間的使用情況。</td><td>dot-memory</td></tr>
+</tbody></table>
+<hr />
+<h2 id="標記指令-marker"><a class="header" href="#標記指令-marker">標記指令 (Marker)</a></h2>
+<p>當你使用 rtForth，不想保留自己定義的指令時，可以執行 `-work。</p>
+<pre><code>rf&gt; -work
+ ok
+rf&gt; words
+
+(abort) quit evaluate &gt;in source tib #tib fill c, min max
++! 2variable 2! 2@ align aligned ...
+</code></pre>
+<p>你會發現，不只是剛剛定義的 <code>hello</code> 不見了，連 <code>-work</code> 也不見。</p>
+<p>指令 <code>-work</code> 標記了字典的特定位置 (包括定義 -work 時資料空間和程式碼空間的位置)。執行時，會丟棄指令本身以及其後的所有指令，並且歸還這些指令使用的資料空間和程式碼空間。</p>
+<p>你可以使用 <code>marker</code> 定義這類標記指令。</p>
+<pre><code>rf&gt; marker -work
+ ok
+rf&gt; words
+
+-work (abort) quit evaluate &gt;in source tib #tib fill c, min
+max +! 2variable 2! 2@ align aligned ...
+</code></pre>
+<p>於是一個新的 `-work 又出現了。</p>
+<p>指令 <code>-work</code> 並不是 Forth 2012 的標準指令。但是 <code>marker</code> 是一個標準指令。它的主要用處是標記字典的特定位置，以便在必要時移除一群指令。</p>
+<h3 id="例子cnc-工具機"><a class="header" href="#例子cnc-工具機">例子：CNC 工具機</a></h3>
+<p>CNC 工具機內有兩種不同類型的程式：PLC 程式，也就是所謂的階梯圖，處理機器內各種裝置的開關，以及工件程式，也就是所謂的 G 代碼，處理馬達的運動和加工行為。這兩種不同的程式，都可以透過編譯器翻譯成 Forth 指令。例如 PLC 程式可以翻譯成一個 Forth 指令 <code>run-plc</code>。工件程式可以翻譯成 Forth 指令 <code>run-nc</code>。這兩個指令都放在字典中。</p>
+<p>Forth 本身是一個多工的系統。因此可以使用一個 Task 執行 <code>run-plc</code>，另一個 Task 執行 <code>run-nc</code>。下一章會說明 rtForth 的多工環境。</p>
+<p>一台機器的 PLC 程式通常是不變的，開機時就載入的。但機台製造商的維護的人員有權限修改它。而工件程式則是操作員選擇後才載入的，很可能一天要換好幾個工件程式。因此我們可以用 marker 對字典進行以下的規畫：</p>
+<p>Forth 程式一：定義不隨工件程式和 PLC 變動的指令。在開機時載入。</p>
+<pre><code>\ 定義不隨 PLC 和工件程式變動的指令。
+: xxx ... ;
+
+\ 定義 PLC 和 工件程式的 markers。一開始 PLC 程式和工件程式都是空的。
+marker -plc
+marker -nc
+</code></pre>
+<p>Forth 程式二：PLC 程式。在開機時載入，或在維護人員修改 PLC 程式時載入。</p>
+<pre><code>\ 清除之前的 PLC 程式
+-plc   marker -plc
+
+: run-plc   ... ;
+
+\ 定義工件程式的 markers。目前工件程式是空的。
+marker -nc
+</code></pre>
+<p>Forth 程式三：工件程式，在操作員選擇加工程式時載入。</p>
+<pre><code>-nc   marker -nc
+
+: run-nc   ... ;
+</code></pre>
+<p>如此，當維護人員要修改 PLC 程式時，指令 <code>-plc</code> 會清除 PLC 程式以及之後的工件程式。並定義新的 <code>-plc</code> 和 <code>-nc</code> 這兩個 markers。當操作員要下載新的工件程式時，指令 <code>-nc</code> 會清除舊的工件程式，並定義新的 <code>-nc</code> marker。</p>
+<h3 id="本節指令集-1"><a class="header" href="#本節指令集-1">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>marker &lt;name&gt;</code></td><td>( -- )   定義一個用來刪除一群指令，名為 <code>name</code> 的標記指令。執行此一指令時，會刪除自己以及其後定義的所有指令，並釋放所有這些指令配置的記憶體。</td><td>marker</td></tr>
+</tbody></table>
+<hr />
+<h2 id="常數"><a class="header" href="#常數">常數</a></h2>
+<p>像 <code>true</code> 、 <code>false</code> 和 <code>pi</code> 這類被賦與固定數值的指令，被稱為常數。Forth 定義整數常數的方法如下：</p>
+<pre><code>&lt;整數&gt; constant &lt;常數名&gt;
+&lt;整數&gt; &lt;整數&gt; 2constant &lt;常數名&gt;
+&lt;浮點數&gt; fconstant &lt;常數名&gt;
+</code></pre>
+<p>指令 <code>constant</code> 從堆疊上取得整數，從輸入緩衝區取得跟在它後面的名稱，然後在字典裡建立了一個同名的常數。指令 <code>fconstant</code> 的行為類似，但定義的是浮點數常數。而 <code>2constant</code> 則從堆疊上取得兩個整數，為它們定義了一個常數。</p>
+<p>例一：定義自己的真、假、圓週率常數</p>
+<pre><code>rf&gt; -1 constant my-true
+ ok
+rf&gt; 0 constant my-false
+ ok
+rf&gt; 3.141592653e fconstant my-pi
+ ok
+rf&gt; my-true .  my-false .  my-pi f.
+-1 0 3.1415927  ok
+</code></pre>
+<p>例二：某機器只能大於或等於 4°C ，小於 40°C 時工作，超過就要停機，請將 4 和 40 這組數字定為一常數 <code>range</code> 並以 <code>within</code> 分別判斷 3 度、20 度及 40 度是否落在機器可以工作的範圍內。</p>
+<pre><code>4 40 2constant range
+: in-range ( n -- )   range within ;
+</code></pre>
+<p>以下是使用 <code>constant</code> 和 <code>fconstant</code> 定義出來的指令在字典中的示意圖。</p>
+<pre><code>-1 constant my-true
+
+            +---------+
+        名稱 | my-true |
+            +---------+       +---------------------------+
+        行為 | const   | ----&gt; | 將資料空間內的整數放上資料堆疊 | 程式碼空間
+            +---------+       +---------------------------+
+        資料 |         | --+
+            +---------+   |   +----+
+                          +-&gt; | -1 | 資料空間
+                              +----+
+
+3.141592653e fconstant my-pi
+
+            +--------------+
+        名稱 | my-pi        |
+            +--------------+      +-----------------------------+
+        行為 | fconst       | ---&gt; | 將資料空間內的浮點數放上浮點堆疊 | 程式碼空間
+            +--------------+      +-----------------------------+
+        資料 |              | --+
+            +--------------+   |   +--------------+
+                               +-&gt; | 3.141592653e | 資料空間
+                                   +--------------+
+
+</code></pre>
+<h3 id="本節指令集-2"><a class="header" href="#本節指令集-2">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>constant &lt;name&gt;</code></td><td>( n -- )   使用 n 來定義一個名為 <code>name</code> 的指令。當這指令執行時，數字 n 會被放上堆疊。</td><td>constant</td></tr>
+<tr><td><code>2constant &lt;name&gt;</code></td><td>( n1 n2 -- )   使用 n1 n2 來定義一個名為 <code>name</code> 的指令。當這指令執行時，數字 n1 和 n2 會被放上堆疊。</td><td>two-constant</td></tr>
+<tr><td><code>fconstant &lt;name&gt;</code></td><td>( F: r -- )   使用浮點數 r 來定義一個名為 <code>name</code> 的指令。當這指令執行時，浮點數 r 會被放上浮點堆疊。</td><td>f-constant</td></tr>
+</tbody></table>
+<hr />
+<h2 id="資料空間"><a class="header" href="#資料空間">資料空間</a></h2>
+<p>我們已見到冒號定義及常數如何使用資料空間。當我們想要設計複雜的資料結構時，必須先瞭解資料空間的特性。以下是我們定義了 <code>my-false</code> 、 <code>my-pi</code> 、 <code>range</code> 及 <code>in-range</code> 之後資料空間的示意圖。</p>
+<pre><code>資料空間
+
+    較低的記憶位址                                    here
+    +------+------+------+------+------+------+------+-------------------------
+    | 3.141592653e|  4   |  40  | range|within| exit |
+    +------+------+------+------+------+------+------+-------------------------
+     my-pi         range         in-range             未使用的記憶空間
+     8 bytes       4 + 4 bytes
+     1 cell        2 cells       3 cells
+</code></pre>
+<p>資料依從低到高的次序放進資料空間中。記憶體位址的單位是位元組 (byte) 。但是大多數的資料大小超過一個位元組。比如上圖中的整數佔了 4 位元，浮點數佔了 8 位元。Forth 系統習慣將整數所佔的位元組數目稱為一個單元 (cell)。</p>
+<table><thead><tr><th>Fort  h</th><th>作業系統</th><th>資料堆疊上整數所佔位元組數</th><th>資料空間中整數所佔位元組數</th><th>浮點數所佔位元組數</th><th>cell 的位元組數</th></tr></thead><tbody>
+<tr><td>rtForth</td><td>64 位元 Linux</td><td>8</td><td>4</td><td>8</td><td>4</td></tr>
+<tr><td>rtForth</td><td>32 位元 Linux</td><td>4</td><td>4</td><td>8</td><td>4</td></tr>
+<tr><td>SwiftForth</td><td>64 位元 Linux</td><td>4</td><td>4</td><td>8</td><td>4</td></tr>
+<tr><td>gforth</td><td>64 位元 Linux</td><td>8</td><td>8</td><td>8</td><td>8</td></tr>
+</tbody></table>
+<p>上表中 rtForth 在 64 位元的作業系統下，資料堆疊的整數佔了 8 個位元組，也就是 64 位元。但資料空間中的整數只佔了 4 個位元組，也就是 32 位元。這使得放在資料堆疊上的整數可以比放在資料空間中的整數大得多。將資料堆疊上的整數放進資料空間中時，最高的 32 位元會被截去。如下例，</p>
+<pre><code>rf&gt; $1234123412341234 constant all
+ ok
+rf&gt; all h.
+12341234  ok
+</code></pre>
+<p>由於 32 位元整數能表示的最大整數為 2147483647 。這範圍對工業控制綽綽有餘。此一現象不需要太過顧慮。</p>
+<pre><code>rf&gt; $7fffffff .
+2147483647  ok
+</code></pre>
+<p>Forth 指令 <code>cells</code> 可以得到一個單元所需的位元組數。</p>
+<pre><code>rf&gt; 1 cells .
+4  ok
+</code></pre>
+<p>指令 <code>floats</code> 則可以得到一個浮點數所需的位元組數。</p>
+<pre><code>rf&gt; 1 floats .
+8  ok
+</code></pre>
+<p>另外 Forth 還提供了指令 <code>cell+</code> 和 <code>float+</code>，可以將堆疊上的數字加上一個單元的位元組數或一個浮點數的位元組數。</p>
+<pre><code>rf&gt; 1 cell+ .  1 float+ .
+5 9  ok
+</code></pre>
+<h3 id="一個單元的資料空間指令"><a class="header" href="#一個單元的資料空間指令">一個單元的資料空間指令</a></h3>
+<p>Forth 指令 <code>here</code> 可以得到目前資料空間未使用部份的開始位址，也就是資料空間下一個可以使用的位置。我們先以 <code>-work  marker -work</code> 清除自己定義的指令，然後使用 <code>here .</code> 檢查一下下一個可以使用的資料空間的位址。然後再定義一個常數看看。</p>
+<pre><code>rf&gt; -work  marker -work
+ ok
+rf&gt; here h.
+7F95210014E0  ok
+rf&gt; -1 constant my-true
+ ok
+rf&gt; here h.
+7F95210014E8  ok
+</code></pre>
+<p>因為新定義的指令使用了部份的資料空間。我們發現 <code>here</code> 的數值改變了。</p>
+<p>你使用的 Forth 系統在清除了自己定義的指令後，<code>here</code> 的位置可能和本書例子中的不一致。嘗試以下例子時請依據自己系統的情形修改輸入的數值。</p>
+<p>我們可以使用指令 <code>allot</code> 保留一部份資料空間給我們的程式使用。</p>
+<pre><code>rf&gt; 1 cells allot here h.
+7F95210014F0  ok
+</code></pre>
+<p>指令 <code>1 cells allot</code> 保留了一個單元，在此是 4 個位元組。因此 <code>here</code> 的值增加了。</p>
+<p>指令 <code>!</code> 可以用來將一個整數存放在資料空間中某個記憶體位址內。而指令 <code>@</code> 可以將指定的記憶體位址內的整數取出放到堆疊上。</p>
+<pre><code>rf&gt; 1234 $7F95210014E8 !
+ ok
+rf&gt; $7F95210014E8 @ .
+1234  ok
+</code></pre>
+<p>在上例中我們以指令 <code>!</code> 將 1234 放進剛剛保留了一個單元的記憶體位址 1260 中。然後再以指令 <code>@ .</code> 將位址 1260 內的整數印出來。果然那個位址內的整數是 1234。有一個指令 <code>?</code> 的行為就是 <code>@ .</code> 。因此我們也可以以下方式將 1260 內的資料印出。</p>
+<pre><code>rf&gt; $7F95210014E8 ?
+1234  ok
+</code></pre>
+<p>另有一指令 <code>dump</code> 可以讓我們檢視一塊記憶體的內容。</p>
+<pre><code>rf&gt; $7F95210014E8 2 dump
+7F95210014E8 :  D2  4  0  0   0  0  0  0 - 0  0  0  0   0  0  0  0  0_______________
+ ok
+rf&gt; $4D2 .
+1234  ok
+</code></pre>
+<p>指令 <code>+!</code> 會將指定位址內的整數加上堆疊上的數字。</p>
+<pre><code>rf&gt; 1 $7F41CEE014E8 +!  $7F41CEE014E8 ?
+1235  ok
+</code></pre>
+<p>指令 <code>,</code> 會配置一個單元的資料空間，然後把資料堆疊疊頂的整數放進這個剛配置的空間中。我們習慣將這種配置記憶體同時填入數值的行為稱為「編譯」。因為编譯指令 <code>if</code>， <code>.&quot;</code>， <code>;</code> 等都會做類似的事。我們會說指令 <code>,</code> 將一個整數「編譯」到字典裡面。</p>
+<pre><code>rf&gt; here h.  1 ,  here h.  2 ,
+7F41CEE014F0 7F41CEE014F8  ok
+rf&gt; $7F41CEE014F0 ?  $7F41CEE014F8 ?
+1 2  ok
+</code></pre>
+<p>在上例中我們使用指令 <code>,</code> 將 1 、 2 編譯到字典裡。因為每個整數在資料空間中佔一個單元，我們可以知道每個整數所在的位址，並用指令 <code>?</code> 將它們印出來。</p>
+<h3 id="雙單元的資料空間指令"><a class="header" href="#雙單元的資料空間指令">雙單元的資料空間指令</a></h3>
+<p>指令 <code>!</code> 和 <code>@</code> 存取一個單元的資料空間。Forth 也提供了 <code>2!</code> 和 <code>2@</code> 兩個指令用來存取兩個單元的資料空間。</p>
+<p>請進行以下練習：</p>
+<pre><code>rf&gt; -work marker -work
+ ok
+rf&gt; here h.  2 cells allot
+7F41CEE014E0  ok
+rf&gt; 1 2 $7F41CEE014E0  2!  .s
+ ok
+rf&gt; $7F41CEE014E0 2@ .s
+1 2  ok
+rf&gt; $7F41CEE014E0 dup @  swap cell+ @  .s
+1 2 2 1  ok
+rf&gt; xx
+xx Undefined word
+</code></pre>
+<p>我們先清除自行定義的指令，以 <code>allot</code> 配置兩個單元的資料空間。將整數 1、2 以 <code>2!</code> 放入配置的記憶體。以 <code>2@</code> 取出。期間我們使用 <code>.s</code> 來檢查堆疊是否如我們預期。我們還使用 <code>@</code> 依序取出這兩個單元的內容。我們發現堆疊上 ( 1 2 ) 這兩筆資料被放進字典的次序是先把疊頂的 2 放進低位址 1256 的記憶體內，再把底下的 1 放在高位址 1260 的記憶體內。最後我們執行文本直譯器不認得的指令 <code>xx</code> 以清除堆疊。</p>
+<p>Forth 2012 標準並未提供相當於指令 <code>,</code> 的雙單元的編譯指令 <code>2,</code>。但 rtForth 和 gforth 都有提供。使用 SwiftForth 的人可以可以自行定義一個如下：</p>
+<pre><code>\ 將 n1 n2 編進字典裡
+: 2, ( n1 n2 -- )   here  2 cells allot  2! ;
+</code></pre>
+<h3 id="對齊"><a class="header" href="#對齊">對齊</a></h3>
+<p>資料放進記憶體的開始位址應符合 CPU 的對齊 (alignment) 規則。比如 32 位元的整數因為是由 4 個位元組構成，應該放在開始位址是 4 的倍數的地方。而 64 位元的浮點數則應放在開始位址是 8 的倍數的地方。這方便 CPU 的資料匯流排 (data bus) 一次存取所有的資料。如果資料沒對齊它該有的位址，因為無法一次存取，指令執行的性能變差。甚至在某些 CPU 會無法正確取得資料。在 ARMv7 以上的版本以及 Intel 的 CPU 上，資料都能正確存取。就是性能需要注意。</p>
+<table><thead><tr><th>Forth</th><th>作業系統</th><th>整數對齊位址</th><th>浮點數對齊位址</th></tr></thead><tbody>
+<tr><td>rtForth</td><td>64 位元 Linux</td><td>4 的倍數</td><td>8 的倍數</td></tr>
+<tr><td>rtForth</td><td>32 位元 Linux</td><td>4 的倍數</td><td>8 的倍數</td></tr>
+<tr><td>SwiftForth</td><td>64 位元 Linux</td><td>4 的倍數</td><td>8 的倍數</td></tr>
+<tr><td>gforth</td><td>64 位元 Linux</td><td>8 的倍數</td><td>8 的倍數</td></tr>
+</tbody></table>
+<p>指令 <code>aligned</code> 及 <code>faligned</code> 分別調整疊頂的整數使其符合整數及浮點的對齊原則。</p>
+<p>例子：</p>
+<pre><code>rf&gt; 0 aligned .  1 aligned .
+0 8  ok
+rf&gt; 0 faligned .  1 faligned .
+0 8  ok
+</code></pre>
+<p>上例中因為 1 不符合對齊原則而被 <code>aligned</code> 及 <code>faligned</code> 調整為符合的數值。</p>
+<p>指令 <code>align</code> 和 <code>falign</code> 則分別調整 <code>here</code> 的回傳值使其符合整數及浮點數的對齊原則。</p>
+<p>例子：</p>
+<pre><code>rf&gt; 1 allot  here h.
+7F41CEE014F1  ok
+rf&gt; align here h.
+7F41CEE014F8  ok
+rf&gt; 2 allot here h.  falign here h.
+7F41CEE014FA 7F41CEE01500  ok
+</code></pre>
+<p>上例中在執行了 <code>1 allot</code> 後，<code>here</code> 變成 $7F41CEE014F1，不符合對齊原則。我們以 <code>align</code> 修正使得 here 變成符合整數對齊原則的 $7F41CEE014F8，在 2 allot 之後，又以 <code>falign</code> 修正使其變成符合浮點數對齊原則的 $7F41CEE01500。</p>
+<h3 id="浮點數的資料空間指令"><a class="header" href="#浮點數的資料空間指令">浮點數的資料空間指令</a></h3>
+<p>類似 <code>!</code> 、 <code>@</code> 和 <code>,</code>，Forth 提供了浮點數的版本： <code>f!</code> 、<code>f@</code> 、 <code>f,</code> 。
+因為 <code>f,</code> 不是 Forth 2012 標準，如果你的系統沒有 <code>f,</code>，可以定義 <code>f,</code> 如下：</p>
+<pre><code>: f, ( F: r -- )   here  1 floats allot  f! ;
+</code></pre>
+<p>指令 <code>f,</code> 先以 <code>here</code> 取得下一個可用的資料空間，然後使用 <code>1 floats allot</code> 配置一個浮點數大小的空間，然後以指令 <code>f!</code> 把浮點堆疊上的浮點數 <code>r</code> 存在這個空間裡。</p>
+<p>注意 <code>f,</code> 並未事先執行 <code>falign</code> 對齊浮點數所需位址。若重視存取的性能，應先以 falign 對齊。</p>
+<p>請進行以下練習：</p>
+<pre><code>rf&gt; -work marker -work
+ ok
+rf&gt; here h.
+7FEFB0E014E0  ok
+rf&gt; 2 ,  falign  1e f,  2e f,
+ ok
+rf&gt; $7FEFB0E014E0  dup ?  cell+ faligned dup f@ f.  float+ dup f@ f.
+2 1.0000000 2.0000000  ok
+rf&gt; $7FEFB0E014E0  20 dump
+7FEFB0E014E0 :   2  0  0  0   0  0  0  0 -  0  0  0  0   0  0 F0 3F  ______________p?
+7FEFB0E014F0 :   0  0  0  0   0  0  0 40 -  0  0  0  0   0  0  0  0  _______@________
+ ok
+</code></pre>
+<p>在練習中，我們編譯了一個大小為二的浮點數陣列到字典中。首先我們使用 <code>3 ,</code> 先編譯了這個陣列的大小，也就是 3。因為這個編譯行為會造成 <code>here</code> 不再對齊浮點數所需的位址。所以我們使用 <code>falign</code> 調整 <code>here</code>，之後再以 <code>1e f, 2e f,</code> 將兩個浮點數編譯到字典中。</p>
+<p>要取出那陣列的資料時，我們先以 <code>?</code> 印出陣列的長度，再以 <code>cell+ faligned</code> 跳過陣列的長度到下一個對齊浮點數的位址，以 <code>f@ f.</code> 印出，再以 <code>float+ dup f@ f.</code> 跳過這個浮點數並印出下一個。</p>
+<p>在最後出於好奇我們以 <code>dump</code> 印出之前存在資料空間中的資料，在此不對其內容進行解讀。</p>
+<h3 id="本節指令集-3"><a class="header" href="#本節指令集-3">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>cells</code></td><td>( n1 -- n2 )   傳回 n1 個單元所佔的位元組數 n2</td><td>cells</td></tr>
+<tr><td><code>cell+</code></td><td>( a1 -- a2 )   將位址 a1 加上一個單元所佔的位元組數，結果是 a2</td><td>cell+</td></tr>
+<tr><td><code>floats</code></td><td>( n1 -- n2 )   傳回 n1 個浮點數所佔的位元組數 n2</td><td>floats</td></tr>
+<tr><td><code>float+</code></td><td>( -- )   將位址 a1 加上一個浮點數所佔的位元組數，結果是 a2</td><td>float+</td></tr>
+<tr><td><code>here</code></td><td>( -- )   將資料空間的下一個未被使用的位址放上堆疊</td><td>here</td></tr>
+<tr><td><code>allot</code></td><td>( n -- )   從未被使用的資料空間中配置一下塊 n 個位元組的空間，常在 create 之後使用</td><td>allot</td></tr>
+<tr><td><code>!</code></td><td>( n addr -- )   將 n 存在資料空間位址 addr 內</td><td>store</td></tr>
+<tr><td><code>@</code></td><td>( addr -- n )   從資料空間位址 addr 取出一個單元大小的整數放上堆疊</td><td>fetch</td></tr>
+<tr><td><code>?</code></td><td>( addr -- )   印出資料空間位址 addr 內一個單元大小的整數</td><td>question</td></tr>
+<tr><td><code>+!</code></td><td>( n addr -- )   將位址 addr 內的整數加 n</td><td>plus-store</td></tr>
+<tr><td><code>,</code></td><td>( n -- )   從未被使用的資料空間中配置下一塊大小為一個單元的空間，並將 n 放進這個空間</td><td>comma</td></tr>
+<tr><td><code>2@</code></td><td>( addr -- n1 n2 )   從資料空間位址 addr 處拿出兩個整數放上堆疊</td><td>two-fetch</td></tr>
+<tr><td><code>2!</code></td><td>( n1 n2 addr -- )   將 n1 和 n2 放進資料空間位址 addr 處</td><td>two-store</td></tr>
+<tr><td><code>2,</code></td><td>( n1 n2 -- )   從未被使用的資料空間中配置下一塊大小為兩個單元的空間，並將 n1 和 n2 放進這個空間</td><td>two-comma</td></tr>
+<tr><td><code>f!</code></td><td>( addr -- ) ( F: r -- )   將 r 放進資料空間位址 addr 處</td><td>f-store</td></tr>
+<tr><td><code>f@</code></td><td>( addr -- ) ( F: -- r )   從資料空間位址 addr 處拿出一個浮點數放上浮點堆疊</td><td>f-fetch</td></tr>
+<tr><td><code>f,</code></td><td>( F: r -- )   從未被使用的資料空間中配置下一塊大小能容一個浮點數的空間，並將 r 放進這個空間</td><td>f-comma</td></tr>
+<tr><td><code>align</code></td><td>( -- )   如果資料空間下一未被使用的位址不符合單元的對齊原則，修正使其對齊</td><td>align</td></tr>
+<tr><td><code>aligned</code></td><td>( addr -- addr' )   如果資料空間的位址 addr 不符合單元的對齊原則，修正使其對齊</td><td>aligned</td></tr>
+<tr><td><code>falign</code></td><td>( -- )   如果資料空間下一未被使用的位址不符合浮點數的對齊原則，修正使其對齊</td><td>f-align</td></tr>
+<tr><td><code>faligned</code></td><td>( addr -- addr' )   如果資料空間的位址 addr 不符合浮點數的對齊原則，修正使其對齊</td><td>f-aligned</td></tr>
+<tr><td><code>dump</code></td><td>( addr n -- )   以 16 進制及位元方式印出資料空間位址 <code>addr</code> 開始處 <code>n</code> 個字元的資料</td><td>dump</td></tr>
+</tbody></table>
+<hr />
+<h2 id="變數"><a class="header" href="#變數">變數</a></h2>
+<p>如果我們想為我們配置好的記憶體取個名字，可以使用 constant。例如：</p>
+<pre><code>rf&gt; here  1 ,  constant the-one
+ ok
+rf&gt; the-one ?
+1  ok
+</code></pre>
+<p>在上面，我們先將下個可以配置的資料空間的位址放上堆疊。然後，使用 <code>1 ,</code> 配置一個單元的空間並將數字 1 放進去，然後執行 <code>constant the-one</code>，指令 <code>constant</code> 取得保存在堆疊上的資料空間位址，也就是存放數字 1 的資料空間位址，將它命名為常數 <code>the-one</code>。當執行常數 <code>the-one</code> 時，對應的資料空間位址被放上堆疊。之後的指令 <code>?</code> 取出這個位址內的資料並印出。</p>
+<p>因為常有將配置的記憶體命名的需求，Forth 提供了變數定義指令<code>variable</code> 、 <code>2variable</code> 及 <code>fvariable</code>。這幾個定義指令都會在配置記憶體時先以 <code>align</code> 或 <code>falign</code> 對齊好記憶體。執行由這些指令定義出來的變數時，會將配置的記憶體的開始位址放在堆疊上。可以使用上一章節提及的指令來存取這些記憶體。</p>
+<p>例子：</p>
+<pre><code>rf&gt; variable x 2variable xy fvariable fxy
+ ok
+rf&gt; x h.  xy h.  fxy h.  here h.
+7F6303C014F0 7F6303C014F8 7F6303C01508 7F6303C01510  ok
+rf&gt; x @ .  xy 2@ . .  fxy f@ f.
+0 0 0 0.0000000  ok
+rf&gt; 1 x !  2 3 xy 2!  4e fxy f!
+ ok
+rf&gt; x @ .  xy 2@ . .  fxy f@ f.
+1 3 2 4.0000000  ok
+</code></pre>
+<p>在這例子中，新建立的變數的內容是 0 或是 0e。rtForth 會在建立變數時填入這些預設值。在 Forth 2012 標準中並未要求在建立時使用 0 或 0e 為預設值。因此使用其他 Forth 版本注意要給予正確的預設值。</p>
+<p>通常 Forth 的程式在計算過程中會將結果放上堆疊，再以其他指令處理這些結果。有時不想立刻使用這些結果時，可以把結果放在變數中，需要時才拿出來使用。</p>
+<p>例子：之前的章節提到了亂數產生器。那時我們將亂數的種子放在堆疊上。現在讓我們將種子放在變數裡。</p>
+<pre><code>: xorshift ( n -- x ) dup 13 lshift xor dup 17 rshift xor dup 5 lshift xor ;
+variable seed   2463534242 seed !
+: rnd ( n1 -- n2 )   seed @  xorshift  dup seed !  swap mod abs ;
+</code></pre>
+<p>以上的 <code>xorshift</code> 就是之前的 <code>xorshift</code>。我們以 <code>variable</code> 定義了一個變數 <code>seed</code>，並使用指令 <code>!</code> 隨便存了一個整數 2463534242 到這個變數中。之後定了一個指令 <code>rnd</code> 使用指令 <code>@</code> 從 <code>seed</code> 拿出目前的種子，使用 <code>xorshift</code> 算出新的種子，複製一份保存在 <code>seed</code> 中。然後把這新的種子依前一章的方式求 <code>n1</code> 的餘數，並以 <code>abs</code> 求正數。</p>
+<p>測試一下：</p>
+<pre><code>rf&gt; 100 rnd .
+79  ok
+rf&gt; 100 rnd .
+60  ok
+rf&gt; 100 rnd .
+0  ok
+</code></pre>
+<h3 id="本節指令集-4"><a class="header" href="#本節指令集-4">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>variable &lt;name&gt;</code></td><td>( -- )   定義一個名為 <code>name</code> 的指令，並配給它一個單元的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊</td><td>variable</td></tr>
+<tr><td><code>2variable &lt;name&gt;</code></td><td>( -- )   定義一個名為 <code>name</code> 的指令，並配給它兩個單元的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊</td><td>two-variable</td></tr>
+<tr><td><code>fvariable &lt;name&gt;</code></td><td>( -- )   定義一個名為 <code>name</code> 的指令，並配給它可容一個浮點數的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊</td><td>f-variable</td></tr>
+</tbody></table>
+<hr />
+<h2 id="向量執行"><a class="header" href="#向量執行">向量執行</a></h2>
+<p>先看一段處理語言的程式。</p>
+<pre><code>0 constant english
+1 constant italian
+variable language   english language !
+: greet   language @
+    case
+      english of .&quot; Hello!&quot; endof
+      italian of .&quot; Ciao!&quot; endof
+      .&quot; Unknown language&quot;
+    endcase
+;
+</code></pre>
+<p>執行一下，</p>
+<pre><code>rf&gt; greet
+Hello! ok
+rf&gt; italian language !
+ ok
+rf&gt; greet
+Ciao! ok
+</code></pre>
+<p>這程式雖然符合我們的預期，但有個缺點：每增加一種語言我們就需要修改 <code>greet</code> 這個指令。如果這是我們提供給別人的函ft式庫，那麼別人必須修改我們提供的指令。</p>
+<p>一個解決的方法是使用「令牌」(execution token)。令牌是一個代表 Forth 指令的數字。我們可以使用這個數字來執行對應的指令。</p>
+<p>先定義以下兩個指令，</p>
+<pre><code>: hello   .&quot; Hello!&quot; ;
+: ciao    .&quot; Ciao!&quot; ;
+</code></pre>
+<p>我們可以使用指令 <code>'</code> 得到 <code>hello</code> 或 <code>ciao</code> 的執行令牌，再以 <code>execute</code> 執行它們。</p>
+<pre><code>rf&gt; ' hello .   ' ciao .
+219 220  ok
+rf&gt; ' hello execute
+Hello! ok
+rf&gt; ' ciao execute
+Ciao! ok
+</code></pre>
+<p>我們可以將不同語言問候指令的令牌放進變數中，</p>
+<pre><code>variable 'greet
+: greet   'greet @ execute ;
+</code></pre>
+<p>在這兒我們遵照 Forth 的習慣：以 <code>'</code> 開始的名稱代表用來存放令牌的變數。
+指令 <code>greet</code> 會從變數 <code>'greet</code> 中取出令牌來執行。因此我們只要改變變數 <code>'greet</code> 的內容，就可以改變指令 <code>greet</code> 的行為。</p>
+<p>測試一下：</p>
+<pre><code>rf&gt; ' hello  'greet !
+ ok
+rf&gt; greet
+Hello! ok
+rf&gt; ' ciao  'greet !
+ ok
+rf&gt; greet
+Ciao! ok
+</code></pre>
+<p>然後我們可以定義語言切換的指令。</p>
+<pre><code>: english   ['] hello  'greet ! ;
+: italian   ['] ciao  'greet ! ;
+</code></pre>
+<p>在這兒，我們使用指令 <code>'</code> 的編譯版本 <code>[']</code>。指令 <code>[']</code> 會取得其後指令的令牌，編譯進字典中，在執行 <code>english</code> 或 <code>italian</code> 時這令牌會被推上堆疊。</p>
+<p>當某種行為有直譯和編譯兩種版本時，Forth 習慣在直譯的版本外加上<code>[</code>和<code>]</code>來命名編譯的版本。像之前提過的 <code>[char]</code>，它的直譯版本是 <code>char</code>。測試一下：</p>
+<pre><code>rf&gt; char * emit
+* ok
+</code></pre>
+<p>我們以以下兩個程式說明直譯版和编譯版的不同：</p>
+<pre><code>: ex1   [char] * emit ;
+: ex2   char * emit ;
+</code></pre>
+<p>以下是編譯的結果：</p>
+<pre><code>+-----+----+------+------+
+| lit | 42 | emit | exit | ex1 的資料空間
++-----+----+------+------+
++------+---+------+------+
+| char | * | emit | exit | ex2 的資料空間
++------+---+------+------+
+</code></pre>
+<p>所謂的冒號定義其實就是把定義中的 Forth 指令的令牌編到字典裡。執行一個冒號定義指令時，Forth 的內層直譯器 (inner interpreter) 會取得定義內的令牌，順序執行。</p>
+<p>在定義 <code>ex1</code> 的時候，指令 <code>[char]</code> 會執行，得到之後 <code>*</code> 的 ASCII 碼 42 後，編了 <code>lit</code> 的令牌和數字 42 進字典裡。當 <code>ex1</code> 執行到 <code>lit</code> 時，指令 <code>lit</code> 會將之後的 42 放上堆疊。</p>
+<p>在定義 <code>ex2</code> 時，指令 <code>char</code> 被編譯到字典中，因此並沒有取得之後 <code>*</code> 的 ASCII 碼。於是之後的 <code>*</code> 被認為是乘法指令，被編進字典中。直到 <code>ex2</code> 執行時，<code>char</code> 才會執行，並且取得在 <code>ex2</code> 之後的字元的 ASCII 碼放上堆疊。測試一下：</p>
+<pre><code>rf&gt; 2 ex2 1
+b ok
+</code></pre>
+<p>我們先放了一個數字 2，才執行 <code>ex2</code>。<code>ex2</code> 會得到之後的字元 <code>1</code> 的 ASCII 碼 49，將它乘以 2，得到 98，再以 <code>emit</code> 顯示得到 <code>b</code>。</p>
+<p>將令牌放進記憶體中，留待未來執行的技巧被稱為向量執行 (vectored execution)。
+冒號定義本身就是向量執行的一個例子。在下一章中的異常處理是另一個例子。</p>
+<h3 id="本節指令集-5"><a class="header" href="#本節指令集-5">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>['] &lt;name&gt;</code></td><td>( -- )   在冒號定義中使用，是一個編譯指令。會在字典中找尋名為 <code>name</code> 的指令，將其令牌編進冒號定義內。當之後冒號定義執行時，會將此一令牌推上堆疊</td><td>bracket-tick</td></tr>
+<tr><td><code>execute</code></td><td>( xt -- )   執行令牌 xt 對應的指令</td><td>execute</td></tr>
+<tr><td><code>' &lt;name&gt;</code></td><td>( -- xt )   在字典中找尋名為 <code>name</code> 的指令，將其令牌推上堆疊</td><td>tick</td></tr>
+<tr><td><code>char &lt;name&gt;</code></td><td>( -- )   解析在 <code>char</code> 之後的輸入文字 <code>name</code>，將其第一個字元的 ASCII 碼放上堆疊</td><td>char</td></tr>
+</tbody></table>
+<hr />
+<h2 id="定義自己的資料結構"><a class="header" href="#定義自己的資料結構">定義自己的資料結構</a></h2>
+<h3 id="使用-create-定義新的資料結構"><a class="header" href="#使用-create-定義新的資料結構">使用 CREATE 定義新的資料結構</a></h3>
+<p>之前我們學到了幾個定義指令： <code>variable</code>, <code>2variable</code> 和 <code>fvariable</code>。在 rtForth 中，他們都是使用冒號定義出來的：</p>
+<pre><code>: variable   create  0 , ;
+: 2variable   create  0 , 0 , ;
+: fvariable   create falign 0e f, does&gt; faligned ;
+</code></pre>
+<p>指令 <code>create</code> 是最基本的定義資料結構的指令。它可以定義一個新的指令，當這指令執行時就會回傳資料空間下一個可配置的記憶體位址，指令 <code>create</code> 不配置任何記憶體給這新的指令使用。我們可以用 <code>allot</code> 、 <code>,</code> 、 <code>f,</code> 等配置適當的記憶體給這個指令使用。比如指令 <code>variable</code>，就是先用 <code>create</code> 建立了一個能回傳資料空間下一個可配置記憶體位址的指令，然後用 <code>0 ,</code> 在之後附加了一個長度為一個單元，內容為 0 的記憶體。</p>
+<p>例子：用 <code>create</code> 定義一個 3×3 的單位浮點數矩陣。
+一個 3×3 的單位矩陣總共有 9 個元素，其中有三個元素為 1.0，其他為 0.0。</p>
+<pre><code>\ 定義一個名為 m 的 3x3 浮點矩陣
+create m
+    falign
+    1e f, 0e f, 0e f,
+    0e f, 1e f, 0e f,
+    0e f, 0e f, 1e f,
+\ 將 matrix 的第 row 列第 col 行的內容取出
+: m@ ( row col matrix -- ) ( F: -- value )
+    faligned -rot
+    swap 3 * +  floats +  f@ ;
+\ 將 value 放進 matrix 的第 row 列第 col 行
+: m! ( row col matrix -- ) ( F: value -- )
+    faligned -rot
+    swap 3 * +  floats +  f! ;
+\ 印出 matrix 的所有元素
+: .m ( matrix -- )
+    0
+    begin
+      dup 9 &lt;
+    while
+      ( matrix index ) dup floats  2 pick + f@
+      9 3 f.r
+      ( matrix index ) 1+
+      ( matrix index ) dup 3 = over 6 = or if cr then
+    repeat ( matrix index ) 2drop ;
+</code></pre>
+<p>指令 <code>create</code> 只會將資料空間的可配置位址，也就是 <code>here</code> 會回傳的位置，調整到對齊單元的位置。透過指令 <code>falign</code> 可對齊到浮點數所需的位置。因此在存取時也必須使用 faligned 來計算出這個經調整過的位置。雖然在目前的 rtForth 中，這帶來的性能改進不大。但在未來最佳化的 rtForth 版本，這可能會對程式執行效率有很大影響。</p>
+<p>測試一下：</p>
+<pre><code>rf&gt; 0 0 m m@ f.
+1.0000000  ok
+rf&gt; 1 1 m m@ f.
+1.0000000  ok
+rf&gt; 2 2 m m@ f.
+1.0000000  ok
+rf&gt; 0 1 m m@ f.
+0.0000000  ok
+rf&gt; 3e 0 1 m m! 
+ ok
+rf&gt; m .m
+    1.000    3.000    0.000
+    0.000    1.000    0.000
+    0.000    0.000    1.000 ok
+rf&gt; .s
+ ok
+</code></pre>
+<p>最後我們使用 <code>.s</code> 檢查一下設計沒有不小心漏了一些資料在堆疊上。</p>
+<h3 id="定義自己的定義指令"><a class="header" href="#定義自己的定義指令">定義自己的定義指令</a></h3>
+<p>上面的例子中我們使用 <code>create</code> 直接定義了矩陣 <code>m</code>，現在設計我們的第一個定義指令 <code>matrix</code>：</p>
+<pre><code>: matrix   create 
+    falign
+    1e f, 0e f, 0e f,
+    0e f, 1e f, 0e f,
+    0e f, 0e f, 1e f, ;
+</code></pre>
+<p>用它來定義多個矩陣：</p>
+<pre><code>rf&gt; matrix m1
+ ok
+rf&gt; matrix m2
+ ok
+rf&gt; m1 .m
+    1.000    0.000    0.000
+    0.000    1.000    0.000
+    0.000    0.000    1.000 ok
+rf&gt; m2 .m
+    1.000    0.000    0.000
+    0.000    1.000    0.000
+    0.000    0.000    1.000 ok
+</code></pre>
+<h3 id="使用-does-定義資料結構的行為"><a class="header" href="#使用-does-定義資料結構的行為">使用 DOES&gt; 定義資料結構的行為</a></h3>
+<p>指令 <code>2variable</code> 可以由冒號定義出來。但是指令 <code>2constant</code> 呢？指令 <code>2variable</code> 和 <code>2constant</code> 都會記住兩個整數。只是 <code>2variable</code> 回傳了存放整數資料的記憶體位址，而 <code>2constant</code> 會將這兩個數字從記憶體中拿出來放上堆疊。因此 <code>2constant</code> 和 <code>2variable</code> 只差在行為不同。以下是 <code>2constant</code> 的定義。</p>
+<pre><code>: 2constant ( n1 n2 -- )
+    create  , ,              \ 定義時的行為
+    does&gt; ( -- n1 n2 )   2@  \ 被定義出來的指令執行時的行為
+;
+</code></pre>
+<p>下圖是 <code>2constant</code> 本身以及被它定義出來的指令在字典中的示意圖。</p>
+<pre><code>: 2constant   create , , does&gt; 2@ ;
+4 40 2constant range
+
+2constant
++--------+---+---+-------+------+----+------+
+| create | , | , | _does | exit | 2@ | exit |
++--------+---+---+-------+------+----+------+
+                                  ^
+range                             |
+                                  |
+  action                          |
+  +------+                        |
+  | does |                        |
+  +------+                        |
+                                  |
+  +---+                           |
+  | x |---------------------------+
+  +---+
+  程式碼空間
+
+  +---+----+
+  | 4 | 40 |
+  +---+----+
+  資料空間
+</code></pre>
+<p>當 <code>4 40 2constant range</code> 執行時，<code>2constant</code> 會使用 <code>create , ,</code> 建造一個名為 <code>range</code>，資料空間內容為 4、40 的指令。然後執行由編譯指令 <code>does&gt;</code> 編進字典的 <code>_does exit</code>，<code>_does</code> 修改被定義出來的 <code>range</code> 的行為，也就是圖中標示 action 的欄位，使其指向另一個函式 <code>does</code>。同時修改的還有程式碼空間中的欄位 ( 圖中的 x ) 使其指向 <code>does&gt;</code> 後的 <code>2@ exit</code>。<code>_does</code> 之後的 <code>exit</code> 結束了 <code>2constant</code> 的執行。</p>
+<p>當 <code>range</code> 執行時，因為它的行為是 <code>does</code>，會把資料空間的起始位址放上堆疊。然後依據程式碼空間中的 x 的指示，跳到 <code>does&gt;</code> 之後的 <code>2@ exit</code> 那兒開始執行。</p>
+<h3 id="使用-field-定義欄位"><a class="header" href="#使用-field-定義欄位">使用 +FIELD 定義欄位</a></h3>
+<p>之前定義矩陣時，我們並未定義距陣的各個欄位。這在 Forth 是常見的作法。但有的時候我們還是希望能為各個欄位取個容易記憶的名稱。Forth 2012 標準中提到了一個指令 <code>+field</code> 可以滿足我們的期望。它也是一個可以使用 <code>create ... does&gt; ... ;</code> 定義出來的指令。</p>
+<pre><code>\ 定義時建立一個欄位，記住欄位在資料結構中的偏移量 offset，然後計算出下一個偏移量 offset' = offset + size，留給之後的指令使用。
+\ 被定義出來的指令執行時，會將資料結構的開始位址 addr 加上之前記住的偏移量 offset，得到資料結構中所在欄位的位址 addr' = addr + offset。
+: +field ( offset size -- offset' )
+    create over , +
+    does&gt; ( addr -- addr' )   @ + ;
+</code></pre>
+<p>以下是 <code>+field</code> 的用法。</p>
+<pre><code>0                               \ 第一個欄位的位元組偏移量
+  &lt;位元組數一&gt; +field &lt;欄位名稱一&gt; \ 定義第一個欄位
+  &lt;位元組數二&gt; +field &lt;欄位名稱二&gt; \ 定義第二個欄位
+constant &lt;資料結構的位元組數名稱&gt;   \ 為資料結構的大小取個名字
+</code></pre>
+<p>注意當有必要是使用 <code>aligned</code> 或 <code>faligned</code> 來調整偏移量。</p>
+<p>例子：定義一個很簡單的資料結構 <code>person</code>。結構 <code>person</code> 有兩個欄位，第一個欄位是這個人的年齡，是一個整數。第二個欄位是他的月薪，是一個浮點數。</p>
+<pre><code>0
+   1 cells +field person.age
+   faligned
+   1 floats +field person.salary
+constant /person
+
+: person   create /person allot ;
+: .person ( 'person -- )  .&quot; age: &quot; dup person.age @ .  .&quot; salary: &quot; person.salary f@ f. ;
+</code></pre>
+<p>測試一下：</p>
+<pre><code>rf&gt; person John
+  ok
+rf&gt; 23 John person.age !
+  ok
+rf&gt; 35000e John person.salary f!
+  ok
+rf&gt; John .person
+ age: 23  salary: 35000.0000000   ok
+</code></pre>
+<p>例子：定義一個二維的點。</p>
+<pre><code>\ 定義二維點的各欄位
+0                         \ 第一個欄位的位元組偏移量
+   1 floats +field p.x    \ 欄位 p.x 佔了一個浮點數大小
+   1 floats +field p.y    \ 欄位 p.y 佔了一個浮點數大小
+constant /point           \ 點的位元組數
+
+\ point2 &lt;name&gt; 定義一個二維的點。
+: point2   create  falign  /point allot  does&gt; faligned ;
+\ 印出點 p 的內容。
+: .point ( p -- )
+    [char] ( emit  dup p.x f@ f.
+    [char] , emit      p.y f@ f.  [char] ) emit ;
+</code></pre>
+<p>測試一下：</p>
+<pre><code>rf&gt; point2 p1
+  ok
+rf&gt; 1e p1 p.x f!
+  ok
+rf&gt; 2e p1 p.y f!
+  ok
+rf&gt; p1 .point
+(1.0000000 ,2.0000000 )  ok
+</code></pre>
+<h3 id="陣列"><a class="header" href="#陣列">陣列</a></h3>
+<p>Forth 2012 標準中並未提供定義陣列的指令。因為 Forth 的使用者很容易依自己的需求定義自己的陣列定義指令。
+初學 Forth 的人可以從以下的兩種定義方式開始。其中較簡單版本的陣列索引從 0 開始，不做索引範圍檢查，因此性能比較好但使用者要注意安全。較複雜版本的索引從 1 開始，會檢查索引範圍，範圍有問題時會結束程式執行。因為在下一章才會說明程式遇到異常狀況的處理方式，本節的例子使用不做範圍檢查的陣列定義指令。</p>
+<p>不檢查範圍，索引從 0 開始的版本：</p>
+<pre><code>: array ( capacity -- )
+    create cells allot
+    does&gt; ( n -- a ) swap cells + ;
+</code></pre>
+<p>檢查範圍，索引從 1 開始的版本：</p>
+<pre><code>: array ( capacity -- )
+    create  dup , cells allot
+    does&gt; ( n -- a )
+      tuck  @ over &lt;  over 1 &lt;  or
+      if .&quot; Index out of range, &quot; abort then
+      cells + ;
+</code></pre>
+<p>以下我們使用一個控制紅綠燈的例子來展示這個陣列指令，以及之前提及的向量執行。</p>
+<p>首先我們使用整數代表紅黃綠三種燈號。以下我們在常數名稱後加上 <code>#</code> ，代表數字或識別碼。這是常見的 Forth 風格。如果 <code>#</code> 出現在名稱開頭，常代表總數或大小。</p>
+<pre><code>0 constant red#
+1 constant green#
+2 constant yellow#
+</code></pre>
+<p>再來我們希望紅燈停 80 秒，緣燈行 50 秒，黃燈閃 30 秒。許多 Forth 系統會提供一個名為 <code>ms</code> 的指令，用來等待指定的毫秒數。我們在此使用一個點 <code>.</code> 來模擬 10 秒鐘。</p>
+<pre><code>\ 等待 n 個 10 秒
+: 10-seconds ( n -- )
+    begin dup 0&gt;
+    while [char] . emit  1-
+    repeat drop ;
+\ 亮紅燈並等待 80 秒後，將下一個狀態 ( green# ) 留在堆疊上。
+: red ( -- green# ) .&quot; red&quot;   8 10-seconds  green# ;
+\ 亮綠燈並等待 50 秒後，將下一個狀態 ( yellow# ) 留在堆疊上。
+: green  ( -- yellow# ) .&quot; green&quot; 5 10-seconds  yellow# ;
+\ 閃黃燈並等待 30 秒後，將下一個狀態 ( red# ) 留在堆疊上。
+: yellow  ( -- red# ) .&quot; yellow&quot;  3 10-seconds  red# ;
+</code></pre>
+<p>上面的指令 <code>red</code> 、 <code>green</code> 和 <code>yellow</code> 有兩個作用，</p>
+<ul>
+<li>執行在對應狀態所需的行為。</li>
+<li>決定下一個狀況。</li>
+</ul>
+<p>在較複雜的系統，這兩個作用常使用兩個不同的指令實作。</p>
+<p>再來我們使用先前提過的向量執行技巧，但這次我們使用陣列而非變數。先定一個向量執行的陣列，</p>
+<pre><code>3 array vector
+
+' red     0 vector !
+' green   1 vector !
+' yellow  2 vector !
+</code></pre>
+<p>使用向量執行的好處時，當有必要時我們可以很容易的改變執行的行為。比如我們可以設計一個除錯版的 <code>red-debug</code>，再使用以下方式改變紅燈的行為：</p>
+<pre><code>: red-debug ... ; \ 定義一個除錯版的紅燈處理指令
+' red-debug   0 vector !
+</code></pre>
+<p>然後，我們要從紅燈開始，依照規則切換燈號。在這兒我們不想使用一個無窮迴圈，以免程式尚未測試完整一執行就停不下來。所以我們使用一個計算次數的變數，在執行到指定的次數時就停止。</p>
+<pre><code>variable down-counter  0 down-counter !
+\ 控制燈號，初始狀態為 state#，狀態切換 #count 次就停止。
+\ 參數 state# 可以是 red# 、 green# 、 yellow# 中的一個。
+: control ( state# #count -- )
+    down-counter !
+    begin
+      down-counter @ 0&gt;
+    while
+      ( state# )
+      -1 down-counter +!
+      vector  @ execute ( state# )
+    repeat ( state# )  drop ;
+</code></pre>
+<p>測試一下：</p>
+<pre><code>f&gt; red# 1 control
+ red........  ok
+rf&gt; red# 2 control
+ red........ green.....  ok
+rf&gt; red# 3 control
+ red........ green..... yellow...  ok
+rf&gt; red# 4 control
+ red........ green..... yellow... red........  ok
+</code></pre>
+<p>Forth 的一大好處就是它能即寫即測。使用 Forth 的工程師常能很快的用 Forth 指令檢查設備的狀態，快速找出設備的軟硬體問題。</p>
+<h3 id="本節指令集-6"><a class="header" href="#本節指令集-6">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>create &lt;name&gt;</code></td><td>( -- )   以資料空間中下一個未被使用的位址來建立一個名稱為 <code>name</code> 的指令，當這指令執行時會將這個位址放上堆疊，在指令 <code>create</code> 之後通常會使用 <code>allot</code> 或是 <code>,</code> 等配置更多的空間</td><td>create</td></tr>
+<tr><td><code>does&gt;</code></td><td>( -- )   使用 Forth 指令來定義某個以 <code>create</code> 建造的指令的行為。當這個被 <code>create</code> 建造出來的指令執行時，和這指令結合的那塊資料空間的位址會先被放上堆疊，然後才執行 <code>does&gt;</code> 之後的指令。</td><td>does</td></tr>
+<tr><td><code>+field &lt;name&gt;</code></td><td>( n1 n2 -- n3 )   定義一個名稱為 <code>name</code> 的欄位，此欄位的偏移量為 n1 個位元組，大小為 n2 個位元組。定義好欄位後會在堆疊上留下下一個欄位的偏移量， n3 = n1 + n2</td><td>plus-field</td></tr>
+</tbody></table>
+<hr />
+<h2 id="本章重點整理"><a class="header" href="#本章重點整理">本章重點整理</a></h2>
+<ul>
+<li>字典 (dictionary)</li>
+<li>變數 (variable)</li>
+<li>常數 (constant)</li>
+<li>單元 (cell)</li>
+<li>資料空間 (data space)</li>
+<li>程式碼空間 (code space)</li>
+<li>對齊 (alignment)</li>
+<li>標記指令 (marker)</li>
+<li>執行令牌 (execution token)</li>
+<li>內層直譯器 (inner interpreter)</li>
+<li>向量執行 (vectored execution)</li>
+<li>定義指令 (defining word)</li>
+</ul>
+<hr />
+<h2 id="本章指令集"><a class="header" href="#本章指令集">本章指令集</a></h2>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>words</code></td><td>( -- )   顯示字典中目前能使用的指令</td><td>words</td></tr>
+<tr><td><code>s&quot; &lt;string&gt;&quot;</code></td><td>( -- )    編譯其後的字串直到下一個 &quot;。</td><td>s-quote</td></tr>
+<tr><td><code>type</code></td><td>( addr n -- )   印出資料空間位置 addr 處，長度為 n 的字串</td><td>type</td></tr>
+<tr><td><code>marker &lt;name&gt;</code></td><td>( -- )   定義一個用來刪除一群指令，名為 <code>name</code> 的標記指令。執行此一指令時，會刪除自己以及其後定義的所有指令，並釋放所有這些指令配置的記憶體。</td><td>marker</td></tr>
+<tr><td><code>constant &lt;name&gt;</code></td><td>( n -- )   使用 n 來定義一個名為 <code>name</code> 的指令。當這指令執行時，數字 n 會被放上堆疊。</td><td>constant</td></tr>
+<tr><td><code>2constant &lt;name&gt;</code></td><td>( n1 n2 -- )   使用 n1 n2 來定義一個名為 <code>name</code> 的指令。當這指令執行時，數字 n1 和 n2 會被放上堆疊。</td><td>two-constant</td></tr>
+<tr><td><code>fconstant &lt;name&gt;</code></td><td>( F: r -- )   使用浮點數 r 來定義一個名為 <code>name</code> 的指令。當這指令執行時，浮點數 r 會被放上浮點堆疊。</td><td>f-constant</td></tr>
+<tr><td><code>cells</code></td><td>( n1 -- n2 )   傳回 n1 個單元所佔的位元組數 n2</td><td>cells</td></tr>
+<tr><td><code>cell+</code></td><td>( a1 -- a2 )   將位址 a1 加上一個單元所佔的位元組數，結果是 a2</td><td>cell+</td></tr>
+<tr><td><code>floats</code></td><td>( n1 -- n2 )   傳回 n1 個浮點數所佔的位元組數 n2</td><td>floats</td></tr>
+<tr><td><code>float+</code></td><td>( -- )   將位址 a1 加上一個浮點數所佔的位元組數，結果是 a2</td><td>float+</td></tr>
+<tr><td><code>here</code></td><td>( -- )   將資料空間的下一個未被使用的位址放上堆疊</td><td>here</td></tr>
+<tr><td><code>allot</code></td><td>( n -- )   從未被使用的資料空間中配置一下塊 n 個位元組的空間，常在 create 之後使用</td><td>allot</td></tr>
+<tr><td><code>!</code></td><td>( n addr -- )   將 n 存在資料空間位址 addr 內</td><td>store</td></tr>
+<tr><td><code>@</code></td><td>( addr -- n )   從資料空間位址 addr 取出一個單元大小的整數放上堆疊</td><td>fetch</td></tr>
+<tr><td><code>?</code></td><td>( addr -- )   印出資料空間位址 addr 內一個單元大小的整數</td><td>question</td></tr>
+<tr><td><code>+!</code></td><td>( n addr -- )   將位址 addr 內的整數加 n</td><td>plus-store</td></tr>
+<tr><td><code>,</code></td><td>( n -- )   從未被使用的資料空間中配置下一塊大小為一個單元的空間，並將 n 放進這個空間</td><td>comma</td></tr>
+<tr><td><code>2@</code></td><td>( addr -- n1 n2 )   從資料空間位址 addr 處拿出兩個整數放上堆疊</td><td>two-fetch</td></tr>
+<tr><td><code>2!</code></td><td>( n1 n2 addr -- )   將 n1 和 n2 放進資料空間位址 addr 處</td><td>two-store</td></tr>
+<tr><td><code>2,</code></td><td>( n1 n2 -- )   從未被使用的資料空間中配置下一塊大小為兩個單元的空間，並將 n1 和 n2 放進這個空間</td><td>two-comma</td></tr>
+<tr><td><code>f!</code></td><td>( addr -- ) ( F: r -- )   將 r 放進資料空間位址 addr 處</td><td>f-store</td></tr>
+<tr><td><code>f@</code></td><td>( addr -- ) ( F: -- r )   從資料空間位址 addr 處拿出一個浮點數放上浮點堆疊</td><td>f-fetch</td></tr>
+<tr><td><code>f,</code></td><td>( F: r -- )   從未被使用的資料空間中配置下一塊大小能容一個浮點數的空間，並將 r 放進這個空間</td><td>f-comma</td></tr>
+<tr><td><code>align</code></td><td>( -- )   如果資料空間下一未被使用的位址不符合單元的對齊原則，修正使其對齊</td><td>align</td></tr>
+<tr><td><code>aligned</code></td><td>( addr -- addr' )   如果資料空間的位址 addr 不符合單元的對齊原則，修正使其對齊</td><td>aligned</td></tr>
+<tr><td><code>falign</code></td><td>( -- )   如果資料空間下一未被使用的位址不符合浮點數的對齊原則，修正使其對齊</td><td>f-align</td></tr>
+<tr><td><code>faligned</code></td><td>( addr -- addr' )   如果資料空間的位址 addr 不符合浮點數的對齊原則，修正使其對齊</td><td>f-aligned</td></tr>
+<tr><td><code>variable &lt;name&gt;</code></td><td>( -- )   定義一個名為 <code>name</code> 的指令，並配給它一個單元的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊</td><td>variable</td></tr>
+<tr><td><code>2variable &lt;name&gt;</code></td><td>( -- )   定義一個名為 <code>name</code> 的指令，並配給它兩個單元的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊</td><td>two-variable</td></tr>
+<tr><td><code>fvariable &lt;name&gt;</code></td><td>( -- )   定義一個名為 <code>name</code> 的指令，並配給它可容一個浮點數的資料空間。當執行這個指令時，空間的開始位址會被推上堆疊</td><td>f-variable</td></tr>
+<tr><td><code>['] &lt;name&gt;</code></td><td>( -- )   在冒號定義中使用，是一個編譯指令。會在字典中找尋名為 <code>name</code> 的指令，將其令牌編進冒號定義內。當之後冒號定義執行時，會將此一令牌推上堆疊</td><td>bracket-tick</td></tr>
+<tr><td><code>execute</code></td><td>( xt -- )   執行令牌 xt 對應的指令</td><td>execute</td></tr>
+<tr><td><code>' &lt;name&gt;</code></td><td>( -- xt )   在字典中找尋名為 <code>name</code> 的指令，將其令牌推上堆疊</td><td>tick</td></tr>
+<tr><td><code>char &lt;name&gt;</code></td><td>( -- )   解析在 <code>char</code> 之後的輸入文字 <code>name</code>，將其第一個字元的 ASCII 碼放上堆疊</td><td>char</td></tr>
+<tr><td><code>create &lt;name&gt;</code></td><td>( -- )   以資料空間中下一個未被使用的位址來建立一個名稱為 <code>name</code> 的指令，當這指令執行時會將這個位址放上堆疊，在指令 <code>create</code> 之後通常會使用 <code>allot</code> 或是 <code>,</code> 等配置更多的空間</td><td>create</td></tr>
+<tr><td><code>does&gt;</code></td><td>( -- )   使用 Forth 指令來定義某個以 <code>create</code> 建造的指令的行為。當這個被 <code>create</code> 建造出來的指令執行時，和這指令結合的那塊資料空間的位址會先被放上堆疊，然後才執行 <code>does&gt;</code> 之後的指令。</td><td>does</td></tr>
+<tr><td><code>+field &lt;name&gt;</code></td><td>( n1 n2 -- n3 )   定義一個名稱為 <code>name</code> 的欄位，此欄位的偏移量為 n1 個位元組，大小為 n2 個位元組。定義好欄位後會在堆疊上留下下一個欄位的偏移量， n3 = n1 + n2</td><td>plus-field</td></tr>
+<tr><td><code>dump</code></td><td>( addr n -- )   以 16 進制及位元方式印出資料空間位址 <code>addr</code> 開始處 <code>n</code> 個字元的資料</td><td>dump</td></tr>
+<tr><td><code>.memory</code></td><td>( -- )   印出資料空間和程式碼空間的使用情況。</td><td>dot-memory</td></tr>
+</tbody></table>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="repetition.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="tasking.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="repetition.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="tasking.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </body>
+</html>

@@ -1,0 +1,339 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>程式碼風格 - rtForth門</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> 簡介</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> 安裝 rtForth</a></li><li class="chapter-item expanded "><a href="calculator.html"><strong aria-hidden="true">3.</strong> Forth 計算機</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="integer.html"><strong aria-hidden="true">3.1.</strong> 整數運算</a></li><li class="chapter-item expanded "><a href="float.html"><strong aria-hidden="true">3.2.</strong> 浮點運算</a></li><li class="chapter-item expanded "><a href="logic.html"><strong aria-hidden="true">3.3.</strong> 比較及邏輯運算</a></li><li class="chapter-item expanded "><a href="colon.html"><strong aria-hidden="true">3.4.</strong> 自己定義運算指令</a></li></ol></li><li class="chapter-item expanded "><a href="programming.html"><strong aria-hidden="true">4.</strong> Forth 程式入門</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="selection.html"><strong aria-hidden="true">4.1.</strong> 選擇</a></li><li class="chapter-item expanded "><a href="repetition.html"><strong aria-hidden="true">4.2.</strong> 循環</a></li><li class="chapter-item expanded "><a href="dictionary.html"><strong aria-hidden="true">4.3.</strong> 字典</a></li><li class="chapter-item expanded "><a href="tasking.html"><strong aria-hidden="true">4.4.</strong> 多工、異常處理與文本直譯器</a></li><li class="chapter-item expanded "><a href="style.html" class="active"><strong aria-hidden="true">4.5.</strong> 程式碼風格</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">rtForth門</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="程式碼風格"><a class="header" href="#程式碼風格">程式碼風格</a></h1>
+<hr />
+<h2 id="空格及縮排"><a class="header" href="#空格及縮排">空格及縮排</a></h2>
+<p>指令和指令之間至少一個空格。如果一群指令構成一個有意義的片語，則片語和片語之間隔兩個空格。例如以下的 <code>1 counter +!</code> 被視為一個片語，</p>
+<pre><code class="language-forth">: up   activate  begin pause  1 counter +! again ;
+</code></pre>
+<p>指令名稱和它之後的定義之間空三格，如上例，或是將定義寫在下一行，縮排四個空格。如下，</p>
+<pre><code class="language-forth">: up ( n -- )
+    activate
+    begin
+      pause  1 counter +!
+    again
+;
+</code></pre>
+<p>較長的巢狀控制結構縮排兩個空格，分號可以放在最後一個指令之後，或另起新的一行放在開頭，如上。</p>
+<hr />
+<h2 id="註解"><a class="header" href="#註解">註解</a></h2>
+<h3 id="指令說明"><a class="header" href="#指令說明">指令說明</a></h3>
+<p>很短的指令，如果很容易明瞭它的意思，可以不加指令說明。</p>
+<p>較長或較不易理解的指令應加指令說明。指令說明以指令 <code>\</code> 開始，到同一行結尾。可以放在三個位置。</p>
+<ul>
+<li>指令之前，例如，</li>
+</ul>
+<pre><code class="language-forth">\ 指令說明
+: 指令 ( -- )   ... ;
+</code></pre>
+<ul>
+<li>和指令名稱同一行且在指令名稱之後，之間空一格，例如，</li>
+</ul>
+<pre><code class="language-forth">variable counter \ 計數值
+: up \ ( n -- ) 指派工作 `n` 向上計數
+    activate begin pause  1 counter +! again ;
+</code></pre>
+<ul>
+<li>指令內部，用以說明指令實作中較難理解的部份。例如，</li>
+</ul>
+<pre><code class="language-forth">: 指令 ( -- )
+    \ 步驟一
+    ...
+    \ 步驟二
+;
+</code></pre>
+<h3 id="堆疊效果"><a class="header" href="#堆疊效果">堆疊效果</a></h3>
+<p>所有的指令都需要有堆疊效果的註解。</p>
+<p>指令的堆疊效果以 ( &quot;input&quot; before -- after ) 表示，&quot;input&quot; 代表指令會從輸入緩衝區取得的資料。
+before 是指令會使用的資料堆疊上的資料，after 是指令執行後會放上堆疊的資料。</p>
+<p>如果是浮點堆疊，會使用 ( F: before -- after ) 表示。</p>
+<p>另外，使用以下字元來代表堆疊上資料的型別或意義：</p>
+<ul>
+<li>addr 或是 a：位址，程式碼空間或是資料空間的位址，或某個變數的位址。</li>
+<li>c：字元</li>
+<li>n：整數</li>
+<li>f：浮點數</li>
+<li>t：真假值</li>
+</ul>
+<p>例如：</p>
+<ul>
+<li><code>: ( &quot;name&quot; -- )</code> 冒號定義指令之後要跟著被定義指令的名稱。</li>
+<li><code>+ ( n1 n2 -- n1+n2 )</code> 指令 <code>+</code> 會將堆疊上的兩個數字相加，並把和放上堆疊。</li>
+<li><code>f+ ( F: f1 f2 -- f )</code> 將浮點數 <code>f1</code> 和 <code>f2</code> 相加，得到 <code>f</code>。</li>
+<li><code>! ( n a -- )</code> 將整數 <code>n</code> 放進變數位址 <code>a</code>。</li>
+<li><code>compiling? ( -- t )</code> 是否在編譯狀態？</li>
+</ul>
+<p>如果指令的執行會依情況產生兩種不同的效果，使用 <code>|</code> 表示有兩種可能情況，例如，</p>
+<pre><code class="language-forth">: ?dup ( n -- 0 | n n )   dup if dup then  ;
+</code></pre>
+<p>若有必要，可以使用 <code>=</code> 表明堆疊上的資料的意義，或是不用等號，直接使用英文字表示，例如，</p>
+<pre><code class="language-forth">: game ( n1=seed -- | n2 ) ... ;
+</code></pre>
+<p>或是</p>
+<pre><code class="language-forth">: game ( seed -- | n2 ) ... ;
+</code></pre>
+<p>堆疊效果的註解放的位置有三處：</p>
+<ul>
+<li>放在以指令 <code>\</code> 開始的註解內。例如</li>
+</ul>
+<pre><code class="language-forth">\ 簡短的說明 ( n n -- )
+\ 更清楚的說明
+: 指令 .... ;
+</code></pre>
+<ul>
+<li>放在指令定義之後，和指令名稱之間空一個空格，和之後的程式空三個空格。例如，</li>
+</ul>
+<pre><code class="language-forth">: 2dup ( n1 n2 -- n1 n2 n1 n2 )   over over ;
+</code></pre>
+<ul>
+<li>放在複雜的指令內部說明堆疊的變化，例如，</li>
+</ul>
+<pre><code class="language-forth">: game ( n1=seed -- | n2 )
+   ?dup if
+      xorshift  100 mod  abs  ( n2 )
+   else
+      .&quot; 種子不可以為 0&quot;        ( )
+   then ;
+</code></pre>
+<p>或</p>
+<pre><code class="language-forth">: .sin-table ( F: start end step -- )
+   ( F: start end step )   2 fpick  2 fpick  2 fpick
+   ( F: start end step start end step )   .sin-header  cr
+   ( F: start end step )   .sin-values
+;
+</code></pre>
+<hr />
+<h2 id="命名原則"><a class="header" href="#命名原則">命名原則</a></h2>
+<p>指令的名稱不區分大小寫。動程科技在本手冊中使用小寫。</p>
+<p>以下是動程科技撰寫 Forth 程式時指令的命名原則，也是本手冊指令的命名原則。</p>
+<table><thead><tr><th>命名</th><th>意義</th><th>書中範例</th></tr></thead><tbody>
+<tr><td>!name</td><td>存入一整筆資料</td><td></td></tr>
+<tr><td>name!</td><td>存入一項資料</td><td>handler!</td></tr>
+<tr><td>@name</td><td>取出一整筆資料</td><td></td></tr>
+<tr><td>name@</td><td>取出一項資料</td><td></td></tr>
+<tr><td>#name</td><td>資料總數</td><td></td></tr>
+<tr><td>name#</td><td>號碼、代號</td><td>yellow#</td></tr>
+<tr><td>'name</td><td>資料位址</td><td></td></tr>
+<tr><td>(name)</td><td>實作 name 的內部指令</td><td>(abort)</td></tr>
+<tr><td>+name</td><td>增加</td><td>+field</td></tr>
+<tr><td>致能、啟用</td><td></td><td></td></tr>
+<tr><td>-name</td><td>減少、移除</td><td>-work</td></tr>
+<tr><td>禁用，使停止</td><td></td><td></td></tr>
+<tr><td>.name</td><td>印出資料</td><td>.error .token .row</td></tr>
+<tr><td>以某種方式印出</td><td>.r f.r</td><td></td></tr>
+<tr><td>name.</td><td>印出某種型別的資料</td><td>h. f.</td></tr>
+<tr><td>;name</td><td>結束</td><td></td></tr>
+<tr><td>?name</td><td>有條件的執行</td><td>?dup ?do</td></tr>
+<tr><td>檢查</td><td>?stacks</td><td></td></tr>
+<tr><td>name?</td><td>狀況，回傳真假值</td><td>compiling? token-empty?</td></tr>
+<tr><td>/name</td><td>資料的位元組數</td><td>/point /person</td></tr>
+<tr><td>&gt;name</td><td>轉換成 name</td><td></td></tr>
+<tr><td>name&gt;</td><td>轉換自 name</td><td></td></tr>
+<tr><td>name,</td><td>編譯進字典</td><td>2, f,</td></tr>
+<tr><td>0name</td><td>清除，重設</td><td>0error 0stacks</td></tr>
+<tr><td>2name</td><td>兩筆資料</td><td>2, 2dup</td></tr>
+<tr><td>name-name</td><td>複合字使用 - 連接</td><td>token-empty?</td></tr>
+</tbody></table>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="tasking.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="tasking.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </body>
+</html>

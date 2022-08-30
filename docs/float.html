@@ -1,0 +1,425 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>浮點運算 - rtForth門</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> 簡介</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> 安裝 rtForth</a></li><li class="chapter-item expanded "><a href="calculator.html"><strong aria-hidden="true">3.</strong> Forth 計算機</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="integer.html"><strong aria-hidden="true">3.1.</strong> 整數運算</a></li><li class="chapter-item expanded "><a href="float.html" class="active"><strong aria-hidden="true">3.2.</strong> 浮點運算</a></li><li class="chapter-item expanded "><a href="logic.html"><strong aria-hidden="true">3.3.</strong> 比較及邏輯運算</a></li><li class="chapter-item expanded "><a href="colon.html"><strong aria-hidden="true">3.4.</strong> 自己定義運算指令</a></li></ol></li><li class="chapter-item expanded "><a href="programming.html"><strong aria-hidden="true">4.</strong> Forth 程式入門</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="selection.html"><strong aria-hidden="true">4.1.</strong> 選擇</a></li><li class="chapter-item expanded "><a href="repetition.html"><strong aria-hidden="true">4.2.</strong> 循環</a></li><li class="chapter-item expanded "><a href="dictionary.html"><strong aria-hidden="true">4.3.</strong> 字典</a></li><li class="chapter-item expanded "><a href="tasking.html"><strong aria-hidden="true">4.4.</strong> 多工、異常處理與文本直譯器</a></li><li class="chapter-item expanded "><a href="style.html"><strong aria-hidden="true">4.5.</strong> 程式碼風格</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">rtForth門</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="浮點運算"><a class="header" href="#浮點運算">浮點運算</a></h1>
+<p>浮點數 (floating point) 是電腦用來表示實數的方式。浮點數不是實數，只能近似實數。這產生種種問題。因此，如果你是位工作上需要處理浮點數的工程師，務必閱讀以下文件：</p>
+<ul>
+<li>David Goldberg 的 <a href="https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html">What Every Computer Scientist Should Know About Floating-Point Arithmetic</a></li>
+</ul>
+<p>Forth 提供浮點運算能力，浮點運算類似整數運算，但有以下不同，</p>
+<ul>
+<li>輸入浮點數必須有字母 <code>e</code>。字母 <code>e</code> 後的整數代表 10 的指數。若沒有整數，指數為 0。所以 <code>1e</code> 是 1.0 × 10<sup>0</sup> 也就是 1.0。2e3 是 2.0 × 10<sup>3</sup> 也就是 2000.0 。
+以下都是正確的浮點輸入：<code>1e</code> <code>1.e</code> <code>1.e0</code> <code>+1.23e-1</code> <code>-1.23e+1</code>。</li>
+<li>四則運算指令以 <code>f</code> 開頭。比如 <code>f+</code>、<code>f-</code>、<code>f*</code>、<code>f/</code>。</li>
+<li>沒有和 <code>mod</code> 及 <code>/mod</code> 對應的指令，但有求次方的指令 <code>f**</code>，以及求平方根的 <code>fsqrt</code>。</li>
+<li>資料堆疊放的是整數，浮點數放在另一個浮點堆疊 (floating point stack) 上。</li>
+<li>浮點數的堆疊效果表示法是 ( F: before -- after )。</li>
+</ul>
+<p>讓我們測試一下。</p>
+<p>例一：輸入 <code>1e</code> <code>1.e</code> <code>1.e0</code> <code>+1.23e-1</code> <code>-1.23e+1</code> 並以 <code>f.</code> 印出來。</p>
+<pre><code>rf&gt; 1e f.  1.e f.  1.e0 f.  +1.23e-1 f.  -1.23e+1 f.
+1.0000000 1.0000000 1.0000000 0.1230000 -12.3000000  ok
+</code></pre>
+<p>例二：以浮點計算 7 + (6 × 5<sup>2</sup> + 3)</p>
+<pre><code>rf&gt; 5e 2e f**  6e f*  3e f+  7e f+  f.
+160.0000000  ok
+</code></pre>
+<p>例三：以浮點計算 1 / (3<sup>2</sup>)</p>
+<pre><code>rf&gt; 1e  3e 2e f**  f/  f.
+0.1111111  ok
+</code></pre>
+<p>例四：計算 2.0 的平方根。</p>
+<pre><code>rf&gt; 2e fsqrt  f.
+1.4142136  ok
+</code></pre>
+<h3 id="浮點數不是實數"><a class="header" href="#浮點數不是實數">浮點數不是實數</a></h3>
+<p>浮點數不是實數，只是近似實數。它能表示的實數範圍有限。精確度也有限。以下以例子呈現幾個浮點數的問題。以及當浮點數運算遇到 0/0 、 1/0 或是對負數開根號時的處理方式。這些例子在 64 位元的 rtforth 上測試。不同的電腦及不同的 Forth 會有不同的結果。</p>
+<p>例五：計算 10<sup>10</sup>、 10<sup>100</sup> 及 10<sup>1000</sup></p>
+<pre><code>rf&gt; 1e10 f.
+10000000000.0000000  ok
+rf&gt; 1e100 f.
+10000000000000002101697803323328251387822715387464188032188166609887360023982790799717755191065313280.0000000  ok
+rf&gt; 1e1000 f.
+inf  ok
+</code></pre>
+<p>從例子中可以看出，電腦無法正確表示 10<sup>100</sup> 次方，只能用一個近似的數字來表示。正確表示的就只有前面 16 位數。而遇到 10<sup>1000</sup>時，電腦干脆以無限大 (inf) 來表示。</p>
+<p>例六：計算 10<sup>100</sup> + 1。</p>
+<pre><code>rf&gt; 1e100 1e f+ f.
+10000000000000002101697803323328251387822715387464188032188166609887360023982790799717755191065313280.0000000  ok
+</code></pre>
+<p>從例子中可以看出計算 10<sup>100</sup> + 1 和計算 10<sup>100</sup> 結果相同。將一個很大的數字加上相對來說很小的數字時，很小的數字常被忽略不計。如果我們將 10<sup>100</sup> 加 1，連加 10<sup>100</sup> 次，照理應得到 2 × 10<sup>100</sup>。但結果還是 10<sup>100</sup>。也就是說，原本還有 16 位數有效位數，只剩 0 位數有效位數。</p>
+<p>因此，為了計算的精確度，維持足夠的有效位數，當要將一群大小懸殊的數字相加時，應先加數值較小的數，再加數值大的數。 1 + 10 + 100 + 1000 + ... + 10<sup>100</sup> 會比 10<sup>100</sup> + 10<sup>99</sup> + ... + 10 + 1 精確得多。</p>
+<p>例七：計算 -2.0 的平方根、 0.0 / 0.0 以及 1.0 / 0.0 。</p>
+<pre><code>rf&gt; -2e fsqrt f.
+NaN  ok
+rf&gt; 0e 0e f/ f.
+NaN  ok
+rf&gt; 1e 0e f/ f.
+inf  ok
+</code></pre>
+<p>1.0/0.0 得到無限大 (infinity)。但是 0.0/0.0 或是 1.0/0.0 會得到 NaN (Not a Number)。NaN 有個很重要的特性，對它進行的幾乎所有的算術運算都會得到 NaN。這簡化了浮點運算錯誤的處理，程式不必對每個有可能出錯的運算進行檢查，只需要檢查最後的結果，就知道是否有某浮點運算出錯。</p>
+<p>例八：求 (1.0 / 0.0) × 0.0</p>
+<pre><code>rf&gt; 1e 0e f/  0e f*  f.
+NaN  ok
+</code></pre>
+<p>顯然，無限大乘以 0 會得到 NaN。同樣，無限大減無限大、無限大除以無限大都會得到 NaN。</p>
+<h3 id="本節指令集"><a class="header" href="#本節指令集">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>f.</code></td><td>( F:  r -- )   印出浮點堆疊上最後的浮點數，並將它從堆疊上移除</td><td>f-dot</td></tr>
+<tr><td><code>f+</code></td><td>( F:  r1 r2 -- r1+r2 )   將浮點堆疊上的 r1 加上 r2，將結果放回浮點堆疊</td><td>f-plus</td></tr>
+<tr><td><code>f-</code></td><td>( F:  r1 r2 -- r1-r2 )   將浮點堆疊上的 r1 減去 r2，將結果放回浮點堆疊</td><td>f-minus</td></tr>
+<tr><td><code>f*</code></td><td>( F:  r1 r2 -- r1*r2 )   將浮點堆疊上的 r1 乘以 r2，將結果放回浮點堆疊</td><td>f-star</td></tr>
+<tr><td><code>f/</code></td><td>( F:  r1 r2 -- r1/r2 )   將浮點堆疊上的 r1 除以 r2，將結果放回浮點堆疊。</td><td>f-slash</td></tr>
+<tr><td><code>f**</code></td><td>( F:  r1 r2 -- r1<sup>r2</sup>)   求浮點堆疊上的 r1 的 r2 次方，將結果放回浮點堆疊</td><td>f-star-star</td></tr>
+<tr><td><code>fsqrt</code></td><td>( F:  r1 -- r2 )   計算 r1 的平方根，結果為 r2</td><td>f-sqrt</td></tr>
+</tbody></table>
+<hr />
+<h2 id="更多的浮點算術指令"><a class="header" href="#更多的浮點算術指令">更多的浮點算術指令</a></h2>
+<p>如同整數，Forth 提供了類似 <code>abs</code> 、 <code>negate</code> 、 <code>max</code> 、 <code>min</code> 的 <code>fabs</code> 、 <code>fnegate</code> 、 <code>fmax</code> 、 <code>fmin</code> 。</p>
+<p>另外，因浮點數的特性，還提供了對浮點數行四捨五入的 <code>fround</code>、求小於等於浮點數的最大整數的 <code>floor</code> 及求大於等於浮點數的最小整數的 <code>fceil</code> 。這三個指令雖說是求整數，但結果仍以浮點數表示。</p>
+<p>注意 <code>fceil</code> 指令不是 <a href="https://forth-standard.org/standard/index">FORTH 標準</a> 中的指令，但存在於某些 Forth 系統中 (包括 rtForth)。</p>
+<p>練習一下，</p>
+<p>例九：100.0 / 9.0 後四捨五入。</p>
+<pre><code>rf&gt; 100e 9e f/  fround  f.
+11.0000000  ok
+</code></pre>
+<p>例十：請問 3.5 介於哪兩個整數之間？</p>
+<pre><code>rf&gt; 3.5e floor f.  3.5e fceil f.
+3.0000000 4.0000000  ok
+</code></pre>
+<p>例十一：(29 / 4.05) 和 7 哪一個比較大？</p>
+<pre><code>rf&gt; 29e 4.05e f/  7e fmax  f.
+7.1604938  ok
+</code></pre>
+<p>例十二：求中位法 -ａbs(3.2 - 1.7) 和 -1.4 的最小值。 </p>
+<pre><code>rf&gt; 3.2e 1.7e f-  fabs  fnegate  -1.4e fmin  f.
+-1.5000000  ok
+</code></pre>
+<h3 id="本節指令集-1"><a class="header" href="#本節指令集-1">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>fnegate</code></td><td>( F:  r1 -- r2 )   求 r1 的加法反元素。</td><td>f-negate</td></tr>
+<tr><td><code>fabs</code></td><td>( F:  r1 -- r2 )   求 r1 的絕對值</td><td>f-abs</td></tr>
+<tr><td><code>fmax</code></td><td>( F:  r1 r2 -- r3 )   求 r1 和 r2 中較大的數</td><td>f-max</td></tr>
+<tr><td><code>fmin</code></td><td>( F:  r1 r2 -- r3 )   求 r1 和 r2 中較小的數</td><td>f-min</td></tr>
+<tr><td><code>fround</code></td><td>( F:  r1 -- r2 )   將 r1 四捨五入，注意結果仍是浮點數</td><td>f-round</td></tr>
+<tr><td><code>floor</code></td><td>( F:  r1 -- r2 )   求小於等於 r1 的最大整數，注意結果仍是浮點數</td><td>floor</td></tr>
+<tr><td><code>fceil</code></td><td>( F:  r1 -- r2 )   求大於等於 r1 的最小整數，注意結果仍是浮點數</td><td>f-ceil</td></tr>
+</tbody></table>
+<hr />
+<h2 id="整數和浮點數轉換"><a class="header" href="#整數和浮點數轉換">整數和浮點數轉換</a></h2>
+<p>Forth 提供整數和浮點數的轉換指令。當浮點數轉成整數時，小數部份會被<em>向零捨去</em> 。</p>
+<p>例十三：將 2.9 及 -2.9 轉成整數。</p>
+<pre><code>rf&gt; 2.9e f&gt;s .  -2.9e f&gt;s .
+2 -2  ok
+</code></pre>
+<p>例十四：將整數 2 和 3 轉成浮點數後相除。</p>
+<pre><code>rf&gt; 2 s&gt;f  3 s&gt;f  f/  f.
+0.6666667  ok
+</code></pre>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令 說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>s&gt;f</code></td><td>( n -- ) ( F:  -- r )   將整數 n 轉成浮點數 r</td><td>s-to-f</td></tr>
+<tr><td><code>f&gt;s</code></td><td>( -- n ) ( F:  r -- )   將浮點數 r 轉成整數 n</td><td>f-to-s</td></tr>
+</tbody></table>
+<hr />
+<h2 id="三角函數"><a class="header" href="#三角函數">三角函數</a></h2>
+<p>Forth 提供了三角函數的指令集。這在處理幾何問題時非常有用。不過使用時要注意其定義域和值域的範圍。</p>
+<p>例十五：驗證 sin(π / 2) = 1。</p>
+<pre><code>rf&gt; pi 2e f/  fsin  f.
+1.0000000  ok
+</code></pre>
+<p>例十六：驗證 sin(1)<sup>2</sup> + cos(1)<sup>2</sup> = 1。</p>
+<pre><code>rf&gt; 1e fsin 2e f**  1e fcos 2e f**  f+  f.
+1.0000000  ok
+</code></pre>
+<p>例十七：求 tan(45°)。</p>
+<pre><code>rf&gt; pi 4e f/  ftan  f.
+1.0000000  ok
+</code></pre>
+<p>例十八：求 sin<sup>-1</sup>(sin(π)) 和 sin<sup>-1</sup>(sin(-π/2)) 。</p>
+<pre><code>rf&gt; pi fsin  fasin  f.
+0.0000000  ok
+rf&gt; pi fnegate 2e f/  fsin  fasin  f.
+-1.5707963  ok
+</code></pre>
+<p><code>fasin</code> 的值域是 -π/2 - π/2，因此 sin<sup>-1</sup>(sin(π)) 無法得到 π。</p>
+<p>例十九：求 cos<sup>-1</sup>(cos(π)) 和 cos<sup>-1</sup>(cos(-π)) 。</p>
+<pre><code>rf&gt; pi fcos  facos  f.
+3.1415927  ok
+rf&gt; pi fnegate  fcos  facos  f.
+3.1415927  ok
+</code></pre>
+<p><code>facos</code> 的值域是 0 - π，因此 cos<sup>-1</sup>(cos(-π)) 無法得到 -π。</p>
+<p>例二十：驗證 4*atan(1) = π。</p>
+<pre><code>rf&gt; 1e fatan  4e f*  f.
+3.1415927  ok
+</code></pre>
+<p><code>fasin</code> 、 <code>facos</code> 、 <code>fatan</code> 的值域都無法涵蓋整個 360° 的範圍。
+<code>fatan2</code> 則可以從一個二維向量得到角度。而和它對應的 <code>fsincos</code> 則可以從一個角度得到一個二維單位向量。</p>
+<p>例二十一：求向量 (1, 0) 、 (0, -1) 與 x 軸之夾角。注意 fatan2 的堆疊效應是 ( y x -- θ ) 。</p>
+<pre><code>rf&gt; 0e 1e fatan2  f.
+0.0000000  ok
+rf&gt; -1e 0e fatan2  f.
+-1.5707963  ok
+</code></pre>
+<p>例二十二：求對應弳度 0 和 -1.5707963 的二維單位向量。注意 fsincos 的堆疊效應是 ( θ -- sinθ cosθ ) 。</p>
+<pre><code>rf&gt; 0e fsincos f. f.
+1.0000000 0.0000000  ok
+rf&gt; -1.5707963e fsincos f. f.
+0.0000000 -1.0000000  ok
+</code></pre>
+<h3 id="本節指令集-2"><a class="header" href="#本節指令集-2">本節指令集</a></h3>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>pi</code></td><td>( F:  -- pi )   將 PI 放上浮點堆疊</td><td>pi</td></tr>
+<tr><td><code>fsin</code></td><td>( F:  r1 -- r2 )   計算弳度角 r1 的正弦 r2</td><td>f-sine</td></tr>
+<tr><td><code>fcos</code></td><td>( F:  r1 -- r2 )   計算弳度角 r1 的餘弦 r2</td><td>f-cos</td></tr>
+<tr><td><code>ftan</code></td><td>( F:  r1 -- r2 )   計算弳度角 r1 的正切 r2</td><td>f-tan</td></tr>
+<tr><td><code>fsincos</code></td><td>( F:  r1 -- r2 r3 )   計算弳度角 r1 的正弦 r2 及餘弦 r3</td><td>f-sine-cos</td></tr>
+<tr><td><code>fasin</code></td><td>( F:  r1 -- r2 )   計算正弦為 r1 的弳度角 r2</td><td>f-a-sine</td></tr>
+<tr><td><code>facos</code></td><td>( F:  r1 -- r2 )   計算餘弦為 r1 的弳度角 r2</td><td>f-a-cos</td></tr>
+<tr><td><code>fatan</code></td><td>( F:  r1 -- r2 )   計算正切為 r1 的弳度角 r2</td><td>f-a-tan</td></tr>
+<tr><td><code>fatan2</code></td><td>( F:  y x -- r )   從向量 (x, y) 得其方向角的弳度 r3</td><td>f-a-tan-two</td></tr>
+</tbody></table>
+<hr />
+<h2 id="本章重點整理"><a class="header" href="#本章重點整理">本章重點整理</a></h2>
+<ul>
+<li>浮點數 (floating point)</li>
+<li>無限大 (infinity)</li>
+<li>NaN (Not a Number)</li>
+</ul>
+<hr />
+<h2 id="本章指令集"><a class="header" href="#本章指令集">本章指令集</a></h2>
+<table><thead><tr><th>指令</th><th>堆疊效果及指令說明</th><th>口語唸法</th></tr></thead><tbody>
+<tr><td><code>pi</code></td><td>( F:  -- pi )   將 PI 放上浮點堆疊</td><td>pi</td></tr>
+<tr><td><code>f.</code></td><td>( F:  r -- )   印出浮點堆疊上最後的浮點數，並將它從堆疊上移除</td><td>f-dot</td></tr>
+<tr><td><code>f+</code></td><td>( F:  r1 r2 -- r1+r2 )   將浮點堆疊上的 r1 加上 r2，將結果放回浮點堆疊</td><td>f-plus</td></tr>
+<tr><td><code>f-</code></td><td>( F:  r1 r2 -- r1-r2 )   將浮點堆疊上的 r1 減去 r2，將結果放回浮點堆疊</td><td>f-minus</td></tr>
+<tr><td><code>f*</code></td><td>( F:  r1 r2 -- r1*r2 )   將浮點堆疊上的 r1 乘以 r2，將結果放回浮點堆疊</td><td>f-star</td></tr>
+<tr><td><code>f/</code></td><td>( F:  r1 r2 -- r1/r2 )   將浮點堆疊上的 r1 除以 r2，將結果放回浮點堆疊。</td><td>f-slash</td></tr>
+<tr><td><code>f**</code></td><td>( F:  r1 r2 -- r1<sup>r2</sup>)   求浮點堆疊上的 r1 的 r2 次方，將結果放回浮點堆疊</td><td>f-star-star</td></tr>
+<tr><td><code>fsqrt</code></td><td>( F:  r1 -- r2 )   計算 r1 的平方根，結果為 r2</td><td>f-sqrt</td></tr>
+<tr><td><code>fnegate</code></td><td>( F:  r1 -- r2 )   求 r1 的加法反元素。</td><td>f-negate</td></tr>
+<tr><td><code>fabs</code></td><td>( F:  r1 -- r2 )   求 r1 的絕對值</td><td>f-abs</td></tr>
+<tr><td><code>fmax</code></td><td>( F:  r1 r2 -- r3 )   求 r1 和 r2 中較大的數</td><td>f-max</td></tr>
+<tr><td><code>fmin</code></td><td>( F:  r1 r2 -- r3 )   求 r1 和 r2 中較小的數</td><td>f-min</td></tr>
+<tr><td><code>fround</code></td><td>( F:  r1 -- r2 )   將 r1 四捨五入，注意結果仍是浮點數</td><td>f-round</td></tr>
+<tr><td><code>floor</code></td><td>( F:  r1 -- r2 )   求小於等於 r1 的最大整數，注意結果仍是浮點數</td><td>floor</td></tr>
+<tr><td><code>fceil</code></td><td>( F:  r1 -- r2 )   求大於等於 r1 的最小整數，注意結果仍是浮點數</td><td>f-ceil</td></tr>
+<tr><td><code>s&gt;f</code></td><td>( n -- ) ( F:  -- r )   將整數 n 轉成浮點數 r</td><td>s-to-f</td></tr>
+<tr><td><code>f&gt;s</code></td><td>( -- n ) ( F:  r -- )   將浮點數 r 轉成整數 n</td><td>f-to-s</td></tr>
+<tr><td><code>fsin</code></td><td>( F:  r1 -- r2 )   計算弳度角 r1 的正弦 r2</td><td>f-sine</td></tr>
+<tr><td><code>fcos</code></td><td>( F:  r1 -- r2 )   計算弳度角 r1 的餘弦 r2</td><td>f-cos</td></tr>
+<tr><td><code>ftan</code></td><td>( F:  r1 -- r2 )   計算弳度角 r1 的正切 r2</td><td>f-tan</td></tr>
+<tr><td><code>fsincos</code></td><td>( F:  r1 -- r2 r3 )   計算弳度角 r1 的正弦 r2 及餘弦 r3</td><td>f-sine-cos</td></tr>
+<tr><td><code>fasin</code></td><td>( F:  r1 -- r2 )   計算正弦為 r1 的弳度角 r2</td><td>f-a-sine</td></tr>
+<tr><td><code>facos</code></td><td>( F:  r1 -- r2 )   計算餘弦為 r1 的弳度角 r2</td><td>f-a-cos</td></tr>
+<tr><td><code>fatan</code></td><td>( F:  r1 -- r2 )   計算正切為 r1 的弳度角 r2</td><td>f-a-tan</td></tr>
+<tr><td><code>fatan2</code></td><td>( F:  y x -- r )   從向量 (x, y) 得其方向角的弳度 r3</td><td>f-a-tan-two</td></tr>
+</tbody></table>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="integer.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="logic.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="integer.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="logic.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </body>
+</html>

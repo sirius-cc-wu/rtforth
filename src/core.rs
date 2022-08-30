@@ -1,4 +1,6 @@
 //! rtForth core words
+//!
+//! This module contains rtForth core words.
 
 extern crate libc;
 use exception::{
@@ -486,7 +488,7 @@ pub trait Core: Sized {
     /// Input source identifier
     ///
     /// > 0: input from source at `self.sources[source_id] and input buffer
-    /// `self.lines[source_id]`.
+    /// `self.lines\[source_id\]`.
     /// = 0: input from the default user input buffer.
     fn source_id(&self) -> isize;
     /// Get `input_buffer`.
@@ -943,6 +945,7 @@ pub trait Core: Sized {
     /// type.  Anything already on the return stack becomes unavailable until
     /// the loop-control parameters are discarded.
     ///
+    /// ```
     ///         +--------------------------+
     ///         |                          |
     ///         |                          v
@@ -952,6 +955,7 @@ pub trait Core: Sized {
     ///         ^
     ///         |
     ///         ip
+    /// ```
     ///
     fn _do(&mut self) {
         let ip = self.state().instruction_pointer as isize;
@@ -972,6 +976,7 @@ pub trait Core: Sized {
     /// until the loop control parameters are discarded. An ambiguous condition
     /// exists if n1|u1 and n2|u2 are not both of the same type.
     ///
+    /// ```
     ///          +--------------------------+
     ///          |                          |
     ///          |                          v
@@ -981,6 +986,7 @@ pub trait Core: Sized {
     ///          ^
     ///          |
     ///          ip
+    /// ```
     ///
     fn _qdo(&mut self) {
         let (n, t) = self.s_stack().pop2();
@@ -1099,6 +1105,7 @@ pub trait Core: Sized {
         }
     }
 
+    /// ```
     /// IF A THEN
     ///
     ///         +------+
@@ -1110,12 +1117,13 @@ pub trait Core: Sized {
     ///         ^
     ///         |
     ///         ip
-    ///
+    /// ```
     fn imm_if(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::If(here));
     }
 
+    /// ```
     /// IF A ELSE B THEN
     ///
     ///             +--------------------+
@@ -1128,6 +1136,7 @@ pub trait Core: Sized {
     ///             |                |       |
     ///             ip               +-------+
     ///
+    /// ```
     fn imm_else(&mut self) {
         let if_part = match self.c_stack().pop() {
             Control::If(if_part) => if_part,
@@ -1168,6 +1177,7 @@ pub trait Core: Sized {
         }
     }
 
+    /// ```text
     /// n1 CASE
     ///   n2 OF A ENDOF
     ///   n3 OF B ENDOF
@@ -1189,6 +1199,7 @@ pub trait Core: Sized {
     ///                                   |                           |
     ///                                   +---------------------------+
     ///
+    /// ```
     fn imm_case(&mut self) {
         self.c_stack().push(Control::Case);
     }
@@ -1279,6 +1290,7 @@ pub trait Core: Sized {
     ///
     /// If all bits of `flag` are zero, continue execution at the location following `repeat`.
     ///
+    /// ```text
     /// begin A while B repeat C
     ///
     ///                +--------------------+
@@ -1291,6 +1303,7 @@ pub trait Core: Sized {
     ///   |                              |
     ///   +------------------------------+
     ///
+    /// ```
     fn imm_while(&mut self) {
         let here = self.compile_zero_branch(0);
         self.c_stack().push(Control::While(here));
@@ -1322,6 +1335,7 @@ pub trait Core: Sized {
     ///
     /// If all bits of `flag` are zero, continue execution at the location following `begin`.
     ///
+    /// ```text
     /// begin A until C
     ///
     /// +---+---------+---+---+
@@ -1331,6 +1345,7 @@ pub trait Core: Sized {
     ///   |             |
     ///   +-------------+
     ///
+    /// ```
     fn imm_until(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -1350,6 +1365,7 @@ pub trait Core: Sized {
     ///
     /// Continue execution at the location following `begin`.
     ///
+    /// ```
     /// begin A again C
     ///
     /// +---+--------+---+---+
@@ -1359,6 +1375,7 @@ pub trait Core: Sized {
     ///   |            |
     ///   +------------+
     ///
+    /// ```
     fn imm_again(&mut self) {
         let begin_part = match self.c_stack().pop() {
             Control::Begin(begin_part) => begin_part,
@@ -1418,13 +1435,13 @@ pub trait Core: Sized {
     ///
     /// Go to label `n`.
     ///
-    /// +------------+-------------------------+--+---
-    /// | BRANCH | data ptr of label n | ... |  addr at label n
-    /// +------------+-------------------------+--+---
-    ///                         |                                               ^
-    ///                         +-----------------------------+
-    ///
     /// ```
+    /// +--------+---------------------+-----+-------
+    /// | BRANCH | data ptr of label n | ... |  addr at label n
+    /// +--------+---------------------+-----+-------
+    ///             |                             ^
+    ///             +-----------------------------+
+    ///
     /// [ n ] goto ... [ n ] label ...
     /// [ n ] label ... [ n ]  goto
     /// ```
@@ -1452,6 +1469,7 @@ pub trait Core: Sized {
     ///
     /// Call subroutine at label `n`.
     ///
+    /// ```
     /// +----+-----------------+----+------------+-------------------------+--+------+
     /// | LIT | return_addr | >R |  BRANCH | data ptr of label n | ... | EXIT |
     /// +----+-----------------+----+------------+-------------------------+--+------+
@@ -1460,7 +1478,6 @@ pub trait Core: Sized {
     ///
     /// Usage:
     ///
-    /// ```
     /// [ n ] call ... [ n ] label ... exit ...
     /// [ n ] label .. exit ... [ n ] call ...
     /// ```
@@ -1477,6 +1494,7 @@ pub trait Core: Sized {
     /// Append the run-time semantics of `_do` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
     ///
+    /// ```
     /// +-----+---+--
     /// | _do | 0 |
     /// +-----+---+--
@@ -1485,7 +1503,7 @@ pub trait Core: Sized {
     ///            ++-----+
     ///             |     |
     /// Control::Do(here, here)
-    ///
+    /// ```
     fn imm_do(&mut self) {
         let idx = self.references().idx_do;
         self.compile_word(idx);
@@ -1504,6 +1522,7 @@ pub trait Core: Sized {
     /// Append the run-time semantics of `_qdo` to the current definition.
     /// The semantics are incomplete until resolved by `LOOP` or `+LOOP`.
     ///
+    /// ```
     /// +------+---+--
     /// | _qdo | 0 |
     /// +------+---+--
@@ -1512,7 +1531,7 @@ pub trait Core: Sized {
     ///             ++-----+
     ///              |     |
     /// Control::Do(here, here)
-    ///
+    /// ```
     fn imm_qdo(&mut self) {
         let idx = self.references().idx_qdo;
         self.compile_word(idx);
@@ -1528,6 +1547,7 @@ pub trait Core: Sized {
     /// the location given by do-sys and the next location for a transfer of
     /// control, to execute the words following the `LOOP`.
     ///
+    /// ```
     /// For DO ... LOOP,
     ///
     ///         +--------------------------+
@@ -1555,7 +1575,7 @@ pub trait Core: Sized {
     ///             +--------------------+
     ///             |
     /// Control::Do(do_part, _)
-    ///
+    /// ```
     fn imm_loop(&mut self) {
         let do_part = match self.c_stack().pop() {
             Control::Do(do_part, _) => do_part,
@@ -1828,11 +1848,13 @@ pub trait Core: Sized {
     ///
     /// For example:
     ///
+    /// ```
     /// : does>   postpone _does  postpone exit ;
     ///
     /// +------+-------------+-----------+------+------------+-----------+
     /// | _lit | xt of _does | _postpone | _lit | xt of exit | _postpone |
     /// +--------------------+-----------+------+------------+-----------+
+    /// ```
     fn postpone(&mut self) {
         self.parse_word();
         let last_token = self.last_token().take().expect("token");
@@ -2350,10 +2372,9 @@ pub trait Core: Sized {
     /// Token threaded version.
     ///
     /// Example of does>
-    /// ```text
+    /// ```
     /// : 2constant   create , , does> 2@ ;
     /// 4 40 2constant range
-    /// ```
     ///
     /// 2constant
     /// +--------+---+---+-------+------+----+------+
@@ -2376,7 +2397,7 @@ pub trait Core: Sized {
     ///   +---+----+
     ///   | 4 | 40 |
     ///   +---+----+
-    ///
+    /// ```
     fn does(&mut self) {
         let idx = self.references().idx__does;
         self.s_stack().push(idx as isize);

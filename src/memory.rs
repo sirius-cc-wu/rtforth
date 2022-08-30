@@ -1,3 +1,5 @@
+//! Memory access
+
 use exception::{Exception, INVALID_MEMORY_ADDRESS};
 use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::marker;

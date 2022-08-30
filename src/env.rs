@@ -1,3 +1,5 @@
+//! Environemnt word set
+
 use core::Core;
 
 pub trait Environment: Core {

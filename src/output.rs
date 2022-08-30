@@ -1,3 +1,5 @@
+//! Words output to console
+
 use core::Core;
 use exception::{STACK_UNDERFLOW, UNSUPPORTED_OPERATION};
 use memory::Memory;

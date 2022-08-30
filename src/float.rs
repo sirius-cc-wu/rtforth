@@ -1,3 +1,5 @@
+//! Floating-point word set
+
 use core::Core;
 use exception::INVALID_MEMORY_ADDRESS;
 use memory::{DataSpace, Memory};

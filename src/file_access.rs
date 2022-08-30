@@ -1,3 +1,5 @@
+//! File access word set
+
 use exception::{
     FILE_IO_EXCEPTION, INVALID_MEMORY_ADDRESS, INVALID_NUMERIC_ARGUMENT, RESULT_OUT_OF_RANGE,
 };

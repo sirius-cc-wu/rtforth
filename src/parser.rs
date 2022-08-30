@@ -1,3 +1,5 @@
+//! Numeric parser
+
 use exception::{Exception, RESULT_OUT_OF_RANGE};
 
 #[derive(PartialEq, Debug)]

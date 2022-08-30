@@ -1,3 +1,11 @@
+//! This crate implements a Forth language interpreter in Rust that can be
+//! embedded in Rust applications as a scripting language.
+//!
+//! Also provided is a Forth executable [rtf] as an example application
+//! using this library.
+//!
+//! [rtf]: https://crates.io/crates/rtf
+
 extern crate approx;
 pub extern crate hibitset;
 extern crate uom;

@@ -1,3 +1,5 @@
+//! Source input
+
 use core::Core;
 use exception::{Exception, FILE_IO_EXCEPTION, INVALID_NUMERIC_ARGUMENT};
 use memory::Memory;

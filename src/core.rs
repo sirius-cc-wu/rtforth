@@ -1,3 +1,5 @@
+//! rtForth core words
+
 extern crate libc;
 use exception::{
     self, Exception, ABORT, CONTROL_STRUCTURE_MISMATCH, DIVISION_BY_ZERO,

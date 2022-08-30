@@ -1,3 +1,5 @@
+//! Facility word set
+
 use core::Core;
 
 pub trait Facility: Core {

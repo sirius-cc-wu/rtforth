@@ -1,3 +1,5 @@
+//! Units
+
 use core::Core;
 use std::f64::consts::PI;
 use uom::si::f64::{Length, Time};

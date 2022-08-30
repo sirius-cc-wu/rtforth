@@ -1,3 +1,5 @@
+//! Tools to inspect the rtforth system
+
 use memory::Memory;
 use output::Output;
 use std::fmt::Write;

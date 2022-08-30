@@ -2,7 +2,7 @@
 
 目前動程科技並未提供 rtForth 的二進位執行檔。有興趣的人可以從 Github 下載原程式安裝。
 
-* [https://github.com/mapacode/rtforth](https://github.com/mapacode/rtforth)
+* [https://github.com/chengchangwu/rtforth](https://github.com/chengchangwu/rtforth)
 
 安裝步驟請見以下章節。
 

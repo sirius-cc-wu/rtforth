@@ -16,7 +16,7 @@ rtForth 的 rt 有兩個意思。首先是 real-time 的意思。動程科技的
 
 本書的網路版位於，
 
-* [https://mapacode.github.io/rtforth/](https://mapacode.github.io/rtforth/)
+* [rtForth 中文入門](https://chengchangwu.github.io/rtforth/)
 
 
 本書「rtForth 入門」透過例子展示 Foth 語言的語法和概念。在本書中使用的 Forth 指令絕大多數屬於 [FORTH 標準](https://forth-standard.org/standard/index) 指令集的子集，若有不屬於 [FORTH 標準](https://forth-standard.org/standard/index) 的指令，會特別說明。

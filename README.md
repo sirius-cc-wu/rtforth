@@ -2,7 +2,7 @@
 
 Forth implemented in Rust, designed for real-time applications.
 
-Documentation at [rtForth Primer](https://chengchangwu.github.io/rtforth/).
+Documentation in traditional Chinese at [rtForth 入門](https://chengchangwu.github.io/rtforth/).
 
 ## Design decisions:
 

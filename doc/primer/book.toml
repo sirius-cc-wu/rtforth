@@ -1,0 +1,6 @@
+[book]
+authors = ["Sirius Wu"]
+language = "en"
+multilingual = false
+src = "src"
+title = "rtForth門"

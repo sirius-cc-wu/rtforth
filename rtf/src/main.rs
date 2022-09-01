@@ -1,7 +1,6 @@
 extern crate getopts;
 extern crate rtforth;
 extern crate rustyline;
-extern crate time;
 
 use getopts::Options;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
@@ -20,6 +19,7 @@ use rtforth::NUM_TASKS;
 use std::env;
 use std::fmt::Write;
 use std::fs::File;
+use std::time::Instant;
 
 const BUFFER_SIZE: usize = 0x400;
 const LABEL_COUNT: u32 = 1000;
@@ -79,7 +79,7 @@ pub struct VM {
     outbuf: Option<String>,
     hldbuf: String,
     references: ForwardReferences,
-    now: time::Tm,
+    now: Instant,
     forward_bitset: BitSet,
     resolved_bitset: BitSet,
     labels: Vec<usize>,
@@ -110,7 +110,7 @@ impl VM {
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
             references: ForwardReferences::new(),
-            now: time::now(),
+            now: Instant::now(),
             forward_bitset: BitSet::with_capacity(LABEL_COUNT),
             resolved_bitset: BitSet::with_capacity(LABEL_COUNT),
             labels,
@@ -231,12 +231,10 @@ impl Core for VM {
         &mut self.references
     }
     fn system_time_ns(&self) -> u64 {
-        let elapsed = time::now() - self.now;
-        match elapsed.num_nanoseconds() {
-            Some(d) => d as u64,
-            None => 0,
-        }
+        let elapsed = self.now.elapsed();
+        elapsed.as_nanos() as _
     }
+
     fn current_task(&self) -> usize {
         self.current_task
     }

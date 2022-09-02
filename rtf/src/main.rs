@@ -1,6 +1,8 @@
+extern crate crossterm;
 extern crate getopts;
 extern crate rtforth;
-extern crate rustyline;
+
+mod term;
 
 use getopts::Options;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
@@ -20,6 +22,7 @@ use std::env;
 use std::fmt::Write;
 use std::fs::File;
 use std::time::Instant;
+use term::Term;
 
 const BUFFER_SIZE: usize = 0x400;
 const LABEL_COUNT: u32 = 1000;
@@ -70,7 +73,7 @@ impl Task {
 pub struct VM {
     current_task: usize,
     tasks: [Task; NUM_TASKS],
-    editor: rustyline::Editor<()>,
+    term: term::Term,
     last_error: Option<Exception>,
     handler: usize,
     wordlist: Wordlist<VM>,
@@ -101,7 +104,7 @@ impl VM {
                 Task::new_background(),
                 Task::new_background(),
             ],
-            editor: rustyline::Editor::<()>::new(),
+            term: Term::new(),
             last_error: None,
             handler: 0,
             wordlist: Wordlist::with_capacity(1000),
@@ -321,27 +324,27 @@ fn main() {
         repl(vm);
     } else {
         print_version();
-        println!("Type 'bye' or press Ctrl-D to exit.");
+        println!("Type 'bye' or press Ctrl-D to exit.\r");
         repl(vm);
     }
 }
 
 fn print_version() {
-    println!("rtForth v0.6.3, Copyright (C) 2022 Mapacode Inc.");
+    println!("rtForth v0.6.3, Copyright (C) 2022 Mapacode Inc.\r");
 }
 
 fn receive(vm: &mut VM) {
-    match vm.editor.readline("rtf> ") {
+    let line = vm.term.read_line();
+    match line {
         Ok(line) => {
-            vm.editor.add_history_entry(&line);
             vm.set_source(&line);
         }
-        Err(rustyline::error::ReadlineError::Eof) => {
+        Err(term::Error::Eof) => {
             vm.bye();
         }
         Err(err) => match vm.output_buffer().as_mut() {
             Some(ref mut buf) => {
-                write!(buf, "{}", err).unwrap();
+                write!(buf, "{:?}", err).unwrap();
             }
             None => {}
         },

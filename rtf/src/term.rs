@@ -98,6 +98,7 @@ impl Term {
 
 impl Drop for Term {
     fn drop(&mut self) {
+        print!("\r");
         terminal::disable_raw_mode().expect("Could not disable raw mode");
         if let Some(dirs) = ProjectDirs::from("", "", "rtforth") {
             let mut path = dirs.cache_dir().to_path_buf();

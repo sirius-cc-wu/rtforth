@@ -3,7 +3,6 @@ use crossterm::{
     event::{read, Event, KeyCode, KeyModifiers},
     queue,
     terminal::{self, Clear, ClearType},
-    QueueableCommand,
 };
 use directories::ProjectDirs;
 use std::{
@@ -66,7 +65,12 @@ impl Term {
                                     let len = buffer.len();
                                     if len > 0 {
                                         let width = buffer.chars().last().unwrap().width().unwrap();
-                                        stdout.queue(cursor::MoveLeft(width as _)).unwrap();
+                                        queue!(
+                                            stdout,
+                                            cursor::MoveLeft(width as _),
+                                            Clear(ClearType::UntilNewLine)
+                                        )
+                                        .unwrap();
                                         stdout.flush().unwrap();
                                         let mut boundary = len - 1;
                                         while !buffer.is_char_boundary(boundary) {

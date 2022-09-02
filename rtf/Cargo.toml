@@ -13,6 +13,7 @@ crossterm = "0.25"
 unicode-width = "0.1"
 getopts = "0.2.21"
 lazy_static = "1.4.0"
+directories = "4.0"
 
 [profile.release]
 debug = true

@@ -1,4 +1,5 @@
 extern crate crossterm;
+extern crate directories;
 extern crate getopts;
 extern crate rtforth;
 extern crate unicode_width;

@@ -14,7 +14,7 @@
         ." :"  load-line# @  0 .r ." : " .source-line ." )"
       else drop
       then
-      ." , " .backtrace
+      ." , " .backtrace  13 emit
     then flush-output 0error quit ;
 
 \ Cold start

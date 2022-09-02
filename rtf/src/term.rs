@@ -4,6 +4,7 @@ use crossterm::{
     terminal, QueueableCommand,
 };
 use std::io::{stdout, Write};
+use unicode_width::UnicodeWidthChar;
 
 #[derive(Debug)]
 pub enum Error {
@@ -32,9 +33,14 @@ impl Term {
                                 KeyCode::Backspace => {
                                     let len = buffer.len();
                                     if len > 0 {
-                                        buffer.remove(len - 1);
-                                        stdout.queue(cursor::MoveLeft(1));
+                                        let width = buffer.chars().last().unwrap().width().unwrap();
+                                        stdout.queue(cursor::MoveLeft(width as _));
                                         stdout.flush();
+                                        let mut boundary = len - 1;
+                                        while !buffer.is_char_boundary(boundary) {
+                                            boundary -= 1;
+                                        }
+                                        buffer.remove(boundary);
                                     }
                                 }
                                 KeyCode::Enter => {

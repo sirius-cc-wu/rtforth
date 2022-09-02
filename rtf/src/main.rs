@@ -1,6 +1,7 @@
 extern crate crossterm;
 extern crate getopts;
 extern crate rtforth;
+extern crate unicode_width;
 
 mod term;
 

@@ -1,14 +1,16 @@
 use crossterm::{
-    cursor,
+    cursor::{self, MoveTo},
     event::{read, Event, KeyCode, KeyModifiers},
-    terminal, QueueableCommand,
+    queue,
+    terminal::{self, Clear, ClearType},
+    QueueableCommand,
 };
 use directories::ProjectDirs;
 use std::{
     fs,
     io::{self, stdout, BufRead, LineWriter, Write},
 };
-use unicode_width::UnicodeWidthChar;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 #[derive(Debug)]
 pub enum Error {
@@ -56,11 +58,16 @@ impl Term {
                         if key.modifiers == KeyModifiers::NONE {
                             match key.code {
                                 KeyCode::Backspace => {
+                                    if h != self.history.len() {
+                                        buffer.clear();
+                                        buffer.push_str(&self.history[h]);
+                                        h = self.history.len();
+                                    }
                                     let len = buffer.len();
                                     if len > 0 {
                                         let width = buffer.chars().last().unwrap().width().unwrap();
-                                        stdout.queue(cursor::MoveLeft(width as _));
-                                        stdout.flush();
+                                        stdout.queue(cursor::MoveLeft(width as _)).unwrap();
+                                        stdout.flush().unwrap();
                                         let mut boundary = len - 1;
                                         while !buffer.is_char_boundary(boundary) {
                                             boundary -= 1;
@@ -69,12 +76,84 @@ impl Term {
                                     }
                                 }
                                 KeyCode::Enter => {
+                                    if h != self.history.len() {
+                                        buffer.clear();
+                                        buffer.push_str(&self.history[h]);
+                                        h = self.history.len();
+                                    }
                                     done = true;
                                 }
                                 KeyCode::Char(ch) => {
+                                    if h != self.history.len() {
+                                        buffer.clear();
+                                        buffer.push_str(&self.history[h]);
+                                        h = self.history.len();
+                                    }
                                     buffer.push(ch);
                                     print!("{}", ch);
-                                    stdout.flush();
+                                    stdout.flush().unwrap();
+                                }
+                                KeyCode::Up => {
+                                    if h == 0 {
+                                        h = self.history.len();
+                                    } else {
+                                        h -= 1;
+                                    }
+                                    if h == self.history.len() {
+                                        let p = cursor::position().unwrap();
+                                        let width = buffer.width();
+                                        queue!(
+                                            stdout,
+                                            Clear(ClearType::CurrentLine),
+                                            MoveTo(0, p.1)
+                                        )
+                                        .unwrap();
+                                        print!("{}", buffer);
+                                        queue!(stdout, MoveTo(width as u16, p.1)).unwrap();
+                                    } else {
+                                        let p = cursor::position().unwrap();
+                                        let width = self.history[h].width();
+                                        queue!(
+                                            stdout,
+                                            Clear(ClearType::CurrentLine),
+                                            MoveTo(0, p.1)
+                                        )
+                                        .unwrap();
+                                        print!("{}", &self.history[h]);
+                                        queue!(stdout, MoveTo(width as u16, p.1)).unwrap();
+                                    }
+                                    stdout.flush().unwrap();
+                                }
+                                KeyCode::Down => {
+                                    if h == self.history.len() {
+                                        h = 0;
+                                    } else {
+                                        h += 1;
+                                    }
+                                    if h == self.history.len() {
+                                        let p = cursor::position().unwrap();
+                                        let width = buffer.width();
+                                        queue!(
+                                            stdout,
+                                            Clear(ClearType::CurrentLine),
+                                            MoveTo(0, p.1)
+                                        )
+                                        .unwrap();
+                                        print!("{}", buffer);
+                                        queue!(stdout, MoveTo(width as u16, p.1)).unwrap();
+                                    } else {
+                                        let p = cursor::position().unwrap();
+                                        let width = self.history[h].width();
+                                        queue!(
+                                            stdout,
+                                            Clear(ClearType::CurrentLine),
+                                            MoveTo(0, p.1)
+                                        )
+                                        .unwrap();
+                                        print!("{}", &self.history[h]);
+                                        queue!(stdout, MoveTo(width as u16, p.1)).unwrap();
+                                    }
+                                    stdout.flush().unwrap();
                                 }
                                 _ => {}
                             }

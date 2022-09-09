@@ -54,7 +54,9 @@ impl Term {
             match read() {
                 Ok(ev) => match ev {
                     Event::Key(key) => {
-                        if key.modifiers == KeyModifiers::NONE {
+                        if key.modifiers == KeyModifiers::NONE
+                            || key.modifiers == KeyModifiers::SHIFT
+                        {
                             match key.code {
                                 KeyCode::Backspace => {
                                     if h != self.history.len() {

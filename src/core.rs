@@ -5126,7 +5126,7 @@ mod tests {
     #[bench]
     fn bench_sieve(b: &mut Bencher) {
         let vm = &mut VM::new();
-        vm.load_core_fs();
+        vm.load_core_fth();
         if vm.last_error().is_some() {
             eprintln!(
                 "Error {:?} at {:?}",

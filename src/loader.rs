@@ -192,8 +192,8 @@ pub trait HasLoader: Core + Output {
         self.evaluate_input();
     }
 
-    fn load_core_fs(&mut self) {
-        let libfs = include_str!("../core.fs");
+    fn load_core_fth(&mut self) {
+        let libfs = include_str!("../core.fth");
         self.load_str(libfs);
         if self.last_error().is_some() {
             panic!(

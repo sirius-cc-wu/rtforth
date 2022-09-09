@@ -116,7 +116,7 @@ impl VM {
         vm.add_file_access();
         vm.add_loader();
 
-        vm.load_core_fs();
+        vm.load_core_fth();
 
         vm
     }

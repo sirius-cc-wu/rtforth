@@ -3,7 +3,8 @@
 : quit
     reset
     begin receive ."  " evaluate-input
-    ."  ok" 13 emit flush-output
+    compiling? not if ."  ok"  then
+    13 emit flush-output
     again ;
 
 : (abort)

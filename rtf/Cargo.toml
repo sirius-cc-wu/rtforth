@@ -1,14 +1,14 @@
 [package]
 
 name = "rtf"
-version = "0.6.6"
+version = "0.6.7"
 authors = ["Sirius Wu <ccwu660601@mapacode.tw>"]
 keywords = ["forth", "real-time"]
 description = "Forth implemented in Rust for realtime application"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-rtforth = "0.6.3"
+rtforth = "0.6.7"
 crossterm = "0.25"
 unicode-width = "0.1"
 getopts = "0.2.21"

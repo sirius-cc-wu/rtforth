@@ -131,10 +131,10 @@ impl VM {
         vm.add_loader();
         vm.add_primitive("receive", receive);
 
-        vm.load_core_fs();
+        vm.load_core_fth();
 
-        let rtffs = include_str!("../rtf.fs");
-        vm.load_str(rtffs);
+        let rtf_fth = include_str!("../rtf.fth");
+        vm.load_str(rtf_fth);
         if vm.last_error().is_some() {
             panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
         }

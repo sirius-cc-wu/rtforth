@@ -133,7 +133,7 @@ impl VM {
 
         vm.load_core_fs();
 
-        let rtffs = include_str!("./rtf.fs");
+        let rtffs = include_str!("../rtf.fs");
         vm.load_str(rtffs);
         if vm.last_error().is_some() {
             panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());

@@ -332,7 +332,8 @@ fn main() {
 }
 
 fn print_version() {
-    println!("rtForth v0.6.4, Copyright (C) 2022 Mapacode Inc.\r");
+    let version = env!("CARGO_PKG_VERSION");
+    println!("rtForth v{}, Copyright (C) 2022 Mapacode Inc.\r", version);
 }
 
 fn receive(vm: &mut VM) {

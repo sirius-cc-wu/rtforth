@@ -1,5 +1,3 @@
-#![feature(duration_as_u128)]
-#[macro_use(primitive)]
 extern crate rtforth;
 mod vm;
 
@@ -20,13 +18,10 @@ fn main() {
     ",
     );
     vm.evaluate_input();
-    match vm.last_error() {
-        Some(e) => {
-            println!("{}", e.description());
-            vm.reset();
-        }
-        None => {}
+    if vm.last_error().is_some() {
+        panic!("Error {:?} {:?}", vm.last_error().unwrap(), vm.last_token());
     }
+    vm.flush_output();
 
     let main = vm.find("main").unwrap();
     vm.execute_word(main);
@@ -34,7 +29,7 @@ fn main() {
 }
 
 /// Terminate process.
-primitive! {fn bye(vm: &mut VM) {
+fn bye(vm: &mut VM) {
     vm.flush_output();
     process::exit(0);
-}}
+}

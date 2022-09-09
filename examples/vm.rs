@@ -1,6 +1,5 @@
 extern crate hibitset;
 extern crate rtforth;
-extern crate time;
 
 use self::hibitset::BitSet;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
@@ -16,7 +15,7 @@ use rtforth::tools::Tools;
 use rtforth::units::Units;
 use rtforth::NUM_TASKS;
 use std::fs::File;
-use std::time::SystemTime;
+use std::time::Instant;
 
 const BUFFER_SIZE: usize = 0x400;
 const LABEL_COUNT: u32 = 1000;
@@ -28,7 +27,6 @@ const LABEL_COUNT: u32 = 1000;
 pub struct Task {
     awake: bool,
     state: State,
-    regs: [usize; 2],
     s_stk: Stack<isize>,
     r_stk: Stack<isize>,
     c_stk: Stack<Control>,
@@ -45,7 +43,6 @@ impl Task {
         Task {
             awake: false,
             state: State::new(),
-            regs: [0, 0],
             s_stk: Stack::new(0x12345678),
             r_stk: Stack::new(0x12345678),
             c_stk: Stack::new(Control::Canary),
@@ -77,7 +74,7 @@ pub struct VM {
     outbuf: Option<String>,
     hldbuf: String,
     references: ForwardReferences,
-    now: time::Tm,
+    now: Instant,
     forward_bitset: BitSet,
     resolved_bitset: BitSet,
     labels: Vec<usize>,
@@ -106,7 +103,7 @@ impl VM {
             outbuf: Some(String::with_capacity(128)),
             hldbuf: String::with_capacity(128),
             references: ForwardReferences::new(),
-            now: time::now(),
+            now: Instant::now(),
             forward_bitset: BitSet::with_capacity(LABEL_COUNT),
             resolved_bitset: BitSet::with_capacity(LABEL_COUNT),
             labels,
@@ -121,7 +118,7 @@ impl VM {
         vm.add_file_access();
         vm.add_loader();
 
-        vm.load_core_fs();
+        vm.load_core_fth();
 
         vm
     }
@@ -193,9 +190,6 @@ impl Core for VM {
     fn set_last_token(&mut self, buffer: String) {
         self.tkn = Some(buffer);
     }
-    fn regs(&mut self) -> &mut [usize; 2] {
-        &mut self.tasks[self.current_task].regs
-    }
     fn s_stack(&mut self) -> &mut Stack<isize> {
         &mut self.tasks[self.current_task].s_stk
     }
@@ -221,11 +215,8 @@ impl Core for VM {
         &mut self.references
     }
     fn system_time_ns(&self) -> u64 {
-        let elapsed = time::now() - self.now;
-        match elapsed.num_nanoseconds() {
-            Some(d) => d as u64,
-            None => 0,
-        }
+        let elapsed = self.now.elapsed();
+        elapsed.as_nanos() as _
     }
     fn current_task(&self) -> usize {
         self.current_task

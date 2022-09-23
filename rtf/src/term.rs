@@ -50,8 +50,9 @@ impl Term {
     pub fn read_line(&mut self) -> Result<String, Error> {
         let mut done = false;
         let mut stdout = stdout();
-        let mut h = self.history.len();
+        self.history.push(String::new());
         self.buffer.clear();
+        let mut h = self.history.len() - 1;
         while !done {
             match read() {
                 Ok(ev) => match ev {
@@ -61,45 +62,39 @@ impl Term {
                         {
                             match key.code {
                                 KeyCode::Backspace => {
-                                    let buf = if h == self.history.len() {
-                                        &mut self.buffer
-                                    } else {
-                                        &mut self.history[h]
-                                    };
-
-                                    let len = buf.len();
+                                    let len = self.buffer.len();
                                     if len > 0 {
                                         let mut boundary = len - 1;
-                                        while !buf.is_char_boundary(boundary) {
+                                        while !self.buffer.is_char_boundary(boundary) {
                                             boundary -= 1;
                                         }
-                                        buf.remove(boundary);
+                                        self.buffer.remove(boundary);
                                     }
                                 }
                                 KeyCode::Enter => {
-                                    if h != self.history.len() {
-                                        self.buffer.clear();
-                                        self.buffer.push_str(&self.history[h]);
-                                    }
                                     done = true;
                                 }
                                 KeyCode::Char(ch) => {
-                                    let buf = if h == self.history.len() {
-                                        &mut self.buffer
-                                    } else {
-                                        &mut self.history[h]
-                                    };
-                                    buf.push(ch);
+                                    self.buffer.push(ch);
                                 }
                                 KeyCode::Up => {
+                                    self.history[h].clear();
+                                    self.history[h].push_str(&self.buffer);
                                     if h != 0 {
                                         h -= 1;
                                     }
+                                    self.buffer.clear();
+                                    self.buffer.push_str(&self.history[h]);
                                 }
                                 KeyCode::Down => {
-                                    if h < self.history.len() {
-                                        h += 1;
+                                    self.history[h].clear();
+                                    self.history[h].push_str(&self.buffer);
+                                    h += 1;
+                                    if h > self.history.len() - 1 {
+                                        h = self.history.len() - 1;
                                     }
+                                    self.buffer.clear();
+                                    self.buffer.push_str(&self.history[h]);
                                 }
                                 _ => {}
                             }
@@ -116,19 +111,21 @@ impl Term {
                 }
             }
 
-            let buf = if h == self.history.len() {
-                &mut self.buffer
-            } else {
-                &mut self.history[h]
-            };
             let p = cursor::position().unwrap();
-            let width = buf.width();
+            let width = self.buffer.width();
             queue!(stdout, Clear(ClearType::CurrentLine), MoveTo(0, p.1)).unwrap();
-            print!("{}", buf);
+            print!("{} h: {}", self.buffer, h);
+            queue!(stdout, MoveTo(width as u16, p.1)).unwrap();
             stdout.flush().unwrap();
-            queue!(stdout, MoveTo(width as u16 + 1, p.1)).unwrap();
         }
-        self.history.push(self.buffer.clone());
+        if self.buffer.len() == 0 {
+            // Do not keep empty history.
+            let _ = self.history.pop();
+        } else {
+            h = self.history.len() - 1;
+            self.history[h].clear();
+            self.history[h].push_str(&self.buffer);
+        }
         Ok(self.buffer.clone())
     }
 }

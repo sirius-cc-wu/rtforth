@@ -97,9 +97,7 @@ impl Term {
                                     }
                                     self.buffer.clear();
                                     self.buffer.push_str(&self.history[h]);
-                                    if x > self.buffer.len() {
-                                        x = self.buffer.len();
-                                    }
+                                    x = self.buffer.len();
                                 }
                                 KeyCode::Down => {
                                     self.history[h].clear();
@@ -110,9 +108,7 @@ impl Term {
                                     }
                                     self.buffer.clear();
                                     self.buffer.push_str(&self.history[h]);
-                                    if x > self.buffer.len() {
-                                        x = self.buffer.len();
-                                    }
+                                    x = self.buffer.len();
                                 }
                                 KeyCode::Left => {
                                     if x > 0 {

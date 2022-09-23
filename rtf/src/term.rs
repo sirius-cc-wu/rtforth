@@ -19,6 +19,7 @@ pub enum Error {
 
 pub struct Term {
     history: Vec<String>,
+    buffer: String,
 }
 
 impl Term {
@@ -42,14 +43,15 @@ impl Term {
             Some(h) => history = h,
             None => history = Vec::with_capacity(32),
         }
-        Term { history }
+        let buffer = String::with_capacity(128);
+        Term { history, buffer }
     }
 
     pub fn read_line(&mut self) -> Result<String, Error> {
         let mut done = false;
-        let mut buffer = String::with_capacity(128);
         let mut stdout = stdout();
         let mut h = self.history.len();
+        self.buffer.clear();
         while !done {
             match read() {
                 Ok(ev) => match ev {
@@ -60,7 +62,7 @@ impl Term {
                             match key.code {
                                 KeyCode::Backspace => {
                                     let buf = if h == self.history.len() {
-                                        &mut buffer
+                                        &mut self.buffer
                                     } else {
                                         &mut self.history[h]
                                     };
@@ -76,14 +78,14 @@ impl Term {
                                 }
                                 KeyCode::Enter => {
                                     if h != self.history.len() {
-                                        buffer.clear();
-                                        buffer.push_str(&self.history[h]);
+                                        self.buffer.clear();
+                                        self.buffer.push_str(&self.history[h]);
                                     }
                                     done = true;
                                 }
                                 KeyCode::Char(ch) => {
                                     let buf = if h == self.history.len() {
-                                        &mut buffer
+                                        &mut self.buffer
                                     } else {
                                         &mut self.history[h]
                                     };
@@ -115,7 +117,7 @@ impl Term {
             }
 
             let buf = if h == self.history.len() {
-                &mut buffer
+                &mut self.buffer
             } else {
                 &mut self.history[h]
             };
@@ -126,8 +128,8 @@ impl Term {
             stdout.flush().unwrap();
             queue!(stdout, MoveTo(width as u16 + 1, p.1)).unwrap();
         }
-        self.history.push(buffer.clone());
-        Ok(buffer)
+        self.history.push(self.buffer.clone());
+        Ok(self.buffer.clone())
     }
 }
 

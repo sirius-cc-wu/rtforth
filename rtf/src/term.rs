@@ -60,6 +60,7 @@ impl Term {
         self.history.push(String::new());
         self.buffer.clear();
         let mut h = self.history.len() - 1;
+        let mut x = 0;
         while !done {
             match read() {
                 Ok(ev) => match ev {
@@ -69,20 +70,24 @@ impl Term {
                         {
                             match key.code {
                                 KeyCode::Backspace => {
-                                    let len = self.buffer.len();
-                                    if len > 0 {
-                                        let mut boundary = len - 1;
-                                        while !self.buffer.is_char_boundary(boundary) {
-                                            boundary -= 1;
+                                    if x > 0 {
+                                        x -= 1;
+                                        while !self.buffer.is_char_boundary(x) {
+                                            x -= 1;
                                         }
-                                        self.buffer.remove(boundary);
+                                        self.buffer.remove(x);
                                     }
                                 }
                                 KeyCode::Enter => {
+                                    x = self.buffer.len();
                                     done = true;
                                 }
                                 KeyCode::Char(ch) => {
-                                    self.buffer.push(ch);
+                                    self.buffer.insert(x, ch);
+                                    x += 1;
+                                    while !self.buffer.is_char_boundary(x) {
+                                        x += 1;
+                                    }
                                 }
                                 KeyCode::Up => {
                                     self.history[h].clear();
@@ -92,6 +97,9 @@ impl Term {
                                     }
                                     self.buffer.clear();
                                     self.buffer.push_str(&self.history[h]);
+                                    if x > self.buffer.len() {
+                                        x = self.buffer.len();
+                                    }
                                 }
                                 KeyCode::Down => {
                                     self.history[h].clear();
@@ -102,6 +110,25 @@ impl Term {
                                     }
                                     self.buffer.clear();
                                     self.buffer.push_str(&self.history[h]);
+                                    if x > self.buffer.len() {
+                                        x = self.buffer.len();
+                                    }
+                                }
+                                KeyCode::Left => {
+                                    if x > 0 {
+                                        x -= 1;
+                                    }
+                                    while !self.buffer.is_char_boundary(x) {
+                                        x -= 1;
+                                    }
+                                }
+                                KeyCode::Right => {
+                                    if x < self.buffer.len() {
+                                        x += 1;
+                                    }
+                                    while !self.buffer.is_char_boundary(x) {
+                                        x += 1;
+                                    }
                                 }
                                 _ => {}
                             }
@@ -119,9 +146,9 @@ impl Term {
             }
 
             let p = cursor::position().unwrap();
-            let width = self.buffer.width();
+            let width = self.buffer[..x].width();
             queue!(stdout, Clear(ClearType::CurrentLine), MoveTo(0, p.1)).unwrap();
-            print!("{} h: {}", self.buffer, h);
+            print!("{}", self.buffer);
             queue!(stdout, MoveTo(width as u16, p.1)).unwrap();
             stdout.flush().unwrap();
         }

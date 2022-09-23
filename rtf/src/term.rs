@@ -9,7 +9,7 @@ use std::{
     fs,
     io::{self, stdout, BufRead, LineWriter, Write},
 };
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use unicode_width::UnicodeWidthStr;
 
 #[derive(Debug)]
 pub enum Error {

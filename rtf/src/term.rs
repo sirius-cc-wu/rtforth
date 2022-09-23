@@ -38,11 +38,18 @@ impl Term {
                 );
             }
         }
-        let history;
+        let mut history;
         match opt_history {
             Some(h) => history = h,
             None => history = Vec::with_capacity(32),
         }
+        // Keep only 32 lines.
+        let to_drain = if history.len() > 32 {
+            history.len() - 32
+        } else {
+            0
+        };
+        let _ = history.drain(0..to_drain);
         let buffer = String::with_capacity(128);
         Term { history, buffer }
     }

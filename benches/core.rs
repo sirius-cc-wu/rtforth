@@ -2,9 +2,10 @@ extern crate criterion;
 extern crate rtforth;
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use rtforth::mock_vm::VM;
 use rtforth::core::Core;
 use rtforth::loader::HasLoader;
+use rtforth::memory::Memory;
+use rtforth::mock_vm::VM;
 
 fn bench_noop(c: &mut Criterion) {
     let vm = &mut VM::new();
@@ -18,7 +19,9 @@ fn bench_find_word_not_exist(c: &mut Criterion) {
 
 fn bench_find_word_at_beginning_of_wordlist(c: &mut Criterion) {
     let vm = &mut VM::new();
-    c.bench_function("find word at beginning of worldlist", |b| b.iter(|| vm.find("noop")));
+    c.bench_function("find word at beginning of worldlist", |b| {
+        b.iter(|| vm.find("noop"))
+    });
 }
 
 fn bench_inner_interpreter_without_nest(c: &mut Criterion) {
@@ -32,29 +35,35 @@ fn bench_inner_interpreter_without_nest(c: &mut Criterion) {
     vm.compile_word(idx);
     vm.compile_word(idx);
     vm.compile_word(idx);
-    c.bench_function("inner interpreter without nest", |b| b.iter(|| {
-        vm.state().instruction_pointer = ip;
-        vm.run();
-    }));
+    c.bench_function("inner interpreter without nest", |b| {
+        b.iter(|| {
+            vm.state().instruction_pointer = ip;
+            vm.run();
+        })
+    });
 }
 
 fn bench_drop(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(1);
-    c.bench_function("drop", |b| b.iter(|| {
-        vm.p_drop();
-        vm.s_stack().push(1);
-    }));
+    c.bench_function("drop", |b| {
+        b.iter(|| {
+            vm.p_drop();
+            vm.s_stack().push(1);
+        })
+    });
 }
 
 fn bench_nip(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(1);
     vm.s_stack().push(1);
-    c.bench_function("nip", |b| b.iter(|| {
-        vm.nip();
-        vm.s_stack().push(1);
-    }));
+    c.bench_function("nip", |b| {
+        b.iter(|| {
+            vm.nip();
+            vm.s_stack().push(1);
+        })
+    });
 }
 
 fn bench_swap(c: &mut Criterion) {
@@ -67,20 +76,24 @@ fn bench_swap(c: &mut Criterion) {
 fn bench_dup(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(1);
-    c.bench_function("dup", |b| b.iter(|| {
-        vm.dup();
-        vm.s_stack().pop();
-    }));
+    c.bench_function("dup", |b| {
+        b.iter(|| {
+            vm.dup();
+            vm.s_stack().pop();
+        })
+    });
 }
 
 fn bench_over(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(1);
     vm.s_stack().push(2);
-    c.bench_function("over", |b| b.iter(|| {
-        vm.over();
-        vm.s_stack().pop();
-    }));
+    c.bench_function("over", |b| {
+        b.iter(|| {
+            vm.over();
+            vm.s_stack().pop();
+        })
+    });
 }
 
 fn bench_rot(c: &mut Criterion) {
@@ -93,21 +106,25 @@ fn bench_rot(c: &mut Criterion) {
 
 fn bench_2drop(c: &mut Criterion) {
     let vm = &mut VM::new();
-    c.bench_function("2drop", |b| b.iter(|| {
-        vm.s_stack().push(1);
-        vm.s_stack().push(2);
-        vm.two_drop();
-    }));
+    c.bench_function("2drop", |b| {
+        b.iter(|| {
+            vm.s_stack().push(1);
+            vm.s_stack().push(2);
+            vm.two_drop();
+        })
+    });
 }
 
 fn bench_2dup(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(1);
     vm.s_stack().push(2);
-    c.bench_function("2dup", |b| b.iter(|| {
-        vm.two_dup();
-        vm.two_drop();
-    }));
+    c.bench_function("2dup", |b| {
+        b.iter(|| {
+            vm.two_dup();
+            vm.two_drop();
+        })
+    });
 }
 
 fn bench_2swap(c: &mut Criterion) {
@@ -125,82 +142,100 @@ fn bench_2over(c: &mut Criterion) {
     vm.s_stack().push(2);
     vm.s_stack().push(3);
     vm.s_stack().push(4);
-    c.bench_function("2over", |b| b.iter(|| {
-        vm.two_over();
-        vm.two_drop();
-    }));
+    c.bench_function("2over", |b| {
+        b.iter(|| {
+            vm.two_over();
+            vm.two_drop();
+        })
+    });
 }
 
 fn bench_one_plus(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(0);
-    c.bench_function("one plus", |b| b.iter(|| {
-        vm.one_plus();
-    }));
+    c.bench_function("one plus", |b| {
+        b.iter(|| {
+            vm.one_plus();
+        })
+    });
 }
 
 fn bench_one_minus(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(0);
-    c.bench_function("one minus", |b| b.iter(|| {
-        vm.one_minus();
-    }));
+    c.bench_function("one minus", |b| {
+        b.iter(|| {
+            vm.one_minus();
+        })
+    });
 }
 
 fn bench_minus(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(0);
-    c.bench_function("minus", |b| b.iter(|| {
-        vm.dup();
-        vm.minus();
-    }));
+    c.bench_function("minus", |b| {
+        b.iter(|| {
+            vm.dup();
+            vm.minus();
+        })
+    });
 }
 
 fn bench_plus(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(1);
-    c.bench_function("plus", |b| b.iter(|| {
-        vm.dup();
-        vm.plus();
-    }));
+    c.bench_function("plus", |b| {
+        b.iter(|| {
+            vm.dup();
+            vm.plus();
+        })
+    });
 }
 
 fn bench_star(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(1);
-    c.bench_function("star", |b| b.iter(|| {
-        vm.dup();
-        vm.star();
-    }));
+    c.bench_function("star", |b| {
+        b.iter(|| {
+            vm.dup();
+            vm.star();
+        })
+    });
 }
 
 fn bench_slash(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(1);
-    c.bench_function("slash", |b| b.iter(|| {
-        vm.dup();
-        vm.slash();
-    }));
+    c.bench_function("slash", |b| {
+        b.iter(|| {
+            vm.dup();
+            vm.slash();
+        })
+    });
 }
 
 fn bench_mod(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push(1);
     vm.s_stack().push(2);
-    c.bench_function("mod", |b| b.iter(|| {
-        vm.p_mod();
-        vm.s_stack().push(2);
-    }));
+    c.bench_function("mod", |b| {
+        b.iter(|| {
+            vm.p_mod();
+            vm.s_stack().push(2);
+        })
+    });
 }
 
 fn bench_slash_mod(c: &mut Criterion) {
     let vm = &mut VM::new();
     vm.s_stack().push2(1, 2);
-    c.bench_function("slash mod", |b| b.iter(|| {
-        vm.slash_mod();
-        vm.p_drop();
-        vm.s_stack().push(2);
-    }));
+    c.bench_function("slash mod", |b| {
+        b.iter(|| {
+            vm.slash_mod();
+            vm.p_drop();
+            vm.s_stack().push(2);
+        })
+    });
 }
 
 /*
@@ -230,11 +265,13 @@ fn bench_to_r_r_fetch_r_from(c: &mut Criterion) {
     vm.evaluate_input();
     vm.set_source("' main");
     vm.evaluate_input();
-    c.bench_function("to-r r-fetch r-from", |b| b.iter(|| {
-        vm.dup();
-        vm.execute();
-        vm.run();
-    }));
+    c.bench_function("to-r r-fetch r-from", |b| {
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            vm.run();
+        })
+    });
 }
 
 fn bench_two_to_r_two_r_fetch_two_r_from(c: &mut Criterion) {
@@ -243,11 +280,13 @@ fn bench_two_to_r_two_r_fetch_two_r_from(c: &mut Criterion) {
     vm.evaluate_input();
     vm.set_source("' main");
     vm.evaluate_input();
-    c.bench_function("2>r 2r@ 2r<", |b| b.iter(|| {
-        vm.dup();
-        vm.execute();
-        vm.run();
-    }));
+    c.bench_function("2>r 2r@ 2r<", |b| {
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            vm.run();
+        })
+    });
 }
 
 fn bench_fib(c: &mut Criterion) {
@@ -259,15 +298,17 @@ fn bench_fib(c: &mut Criterion) {
     vm.evaluate_input();
     vm.set_source("' main");
     vm.evaluate_input();
-    c.bench_function("fib", |b| b.iter(|| {
-        vm.dup();
-        vm.execute();
-        vm.run();
-        match vm.last_error() {
-            Some(_) => assert!(false),
-            None => assert!(true),
-        };
-    }));
+    c.bench_function("fib", |b| {
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            vm.run();
+            match vm.last_error() {
+                Some(_) => assert!(false),
+                None => assert!(true),
+            };
+        })
+    });
 }
 
 fn bench_repeat(c: &mut Criterion) {
@@ -278,15 +319,17 @@ fn bench_repeat(c: &mut Criterion) {
     vm.evaluate_input();
     vm.set_source("' main");
     vm.evaluate_input();
-    c.bench_function("repeat", |b| b.iter(|| {
-        vm.dup();
-        vm.execute();
-        vm.run();
-        match vm.last_error() {
-            Some(_) => assert!(false),
-            None => assert!(true),
-        };
-    }));
+    c.bench_function("repeat", |b| {
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            vm.run();
+            match vm.last_error() {
+                Some(_) => assert!(false),
+                None => assert!(true),
+            };
+        })
+    });
 }
 
 fn bench_sieve(c: &mut Criterion) {
@@ -336,23 +379,47 @@ fn bench_sieve(c: &mut Criterion) {
     assert_eq!(vm.last_error(), None);
     vm.set_source("' main");
     vm.evaluate_input();
-    c.bench_function("sieve", |b| b.iter(|| {
-        vm.dup();
-        vm.execute();
-        vm.run();
-        match vm.last_error() {
-            Some(_) => assert!(false),
-            None => assert!(true),
-        };
-    }));
+    c.bench_function("sieve", |b| {
+        b.iter(|| {
+            vm.dup();
+            vm.execute();
+            vm.run();
+            match vm.last_error() {
+                Some(_) => assert!(false),
+                None => assert!(true),
+            };
+        })
+    });
 }
 
-criterion_group!(benches,
-    bench_noop, bench_find_word_not_exist, bench_find_word_at_beginning_of_wordlist,
-    bench_inner_interpreter_without_nest, bench_drop, bench_nip, bench_swap,
-    bench_dup, bench_over, bench_rot, bench_2drop, bench_2dup, bench_2swap,
-    bench_2over, bench_one_plus, bench_one_minus, bench_minus, bench_plus,
-    bench_star, bench_slash, bench_mod, bench_slash_mod, bench_to_r_r_fetch_r_from,
-    bench_two_to_r_two_r_fetch_two_r_from, bench_fib, bench_repeat, bench_sieve
+criterion_group!(
+    benches,
+    bench_noop,
+    bench_find_word_not_exist,
+    bench_find_word_at_beginning_of_wordlist,
+    bench_inner_interpreter_without_nest,
+    bench_drop,
+    bench_nip,
+    bench_swap,
+    bench_dup,
+    bench_over,
+    bench_rot,
+    bench_2drop,
+    bench_2dup,
+    bench_2swap,
+    bench_2over,
+    bench_one_plus,
+    bench_one_minus,
+    bench_minus,
+    bench_plus,
+    bench_star,
+    bench_slash,
+    bench_mod,
+    bench_slash_mod,
+    bench_to_r_r_fetch_r_from,
+    bench_two_to_r_two_r_fetch_two_r_from,
+    bench_fib,
+    bench_repeat,
+    bench_sieve
 );
 criterion_main!(benches);

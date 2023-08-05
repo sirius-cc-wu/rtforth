@@ -6,9 +6,10 @@
 //!
 //! [rtf]: https://crates.io/crates/rtf
 
+#![feature(test)]
+
 extern crate approx;
 pub extern crate hibitset;
-extern crate uom;
 
 pub mod core;
 pub mod env;
@@ -18,7 +19,7 @@ pub mod file_access;
 pub mod float;
 pub mod loader;
 pub mod memory;
-mod mock_vm;
+pub mod mock_vm;
 pub mod output;
 pub(crate) mod parser;
 pub mod tools;

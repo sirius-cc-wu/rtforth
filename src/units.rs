@@ -2,11 +2,16 @@
 
 use core::Core;
 use std::f64::consts::PI;
-use uom::si::f64::{Length, Time};
-use uom::si::length::{meter, micrometer, millimeter};
-use uom::si::time::{hour, microsecond, millisecond, minute, second};
 
 const RPM: f64 = 2.0 * PI / 60.0;
+const METER: f64 = 1.0;
+const MILLIMETER: f64 = 0.001;
+const MICROMETER: f64 = 0.000001;
+const HOUR: f64 = 60.0 * 60.0;
+const MINUTE: f64 = 60.0;
+const SECOND: f64 = 1.0;
+const MILLISECOND: f64 = 0.001;
+const MICROSECOND: f64 = 0.000001;
 
 pub trait Units: Core {
     fn add_units(&mut self) {
@@ -34,17 +39,17 @@ pub trait Units: Core {
 
     fn from_meter(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(Length::new::<meter>(t).value);
+        self.f_stack().push(t * METER);
     }
 
     fn from_mm(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(Length::new::<millimeter>(t).value);
+        self.f_stack().push(t * MILLIMETER);
     }
 
     fn from_um(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(Length::new::<micrometer>(t).value);
+        self.f_stack().push(t * MICROMETER);
     }
 
     fn from_deg(&mut self) {
@@ -59,45 +64,42 @@ pub trait Units: Core {
 
     fn from_hour(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(Time::new::<hour>(t).value);
+        self.f_stack().push(t * HOUR);
     }
 
     fn from_minute(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(Time::new::<minute>(t).value);
+        self.f_stack().push(t * MINUTE);
     }
 
     fn from_sec(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(Time::new::<second>(t).value);
+        self.f_stack().push(t * SECOND);
     }
 
     fn from_msec(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(Time::new::<millisecond>(t).value);
+        self.f_stack().push(t * MILLISECOND);
     }
 
     fn from_usec(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack().push(Time::new::<microsecond>(t).value);
+        self.f_stack().push(t * MICROSECOND);
     }
 
     fn mm_per_min(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack()
-            .push(Length::new::<millimeter>(t).value / Time::new::<minute>(1.0).value);
+        self.f_stack().push(t * MILLIMETER / MINUTE);
     }
 
     fn mm_per_sec(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack()
-            .push(Length::new::<millimeter>(t).value / Time::new::<second>(1.0).value);
+        self.f_stack().push(t * MILLIMETER / SECOND);
     }
 
     fn um_per_msec(&mut self) {
         let t = self.f_stack().pop();
-        self.f_stack()
-            .push(Length::new::<micrometer>(t).value / Time::new::<millisecond>(1.0).value);
+        self.f_stack().push(t * MICROMETER / MILLISECOND);
     }
 
     fn rpm(&mut self) {

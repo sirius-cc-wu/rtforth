@@ -25,7 +25,6 @@ name = "simple"
 path = "examples/simple.rs"
 
 [dependencies]
-uom = "0.33.0"
 approx = "0.5"
 libc = "^0.2.48"
 page_size = "0.4.2"
@@ -34,5 +33,15 @@ page_size = "0.4.2"
 version = "0.6.3"
 default-features = false    # do not use rayon
 
+[profile.dev]
+debug = false
+
 [profile.release]
 debug = true
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "core"
+harness = false

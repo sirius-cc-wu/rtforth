@@ -10,16 +10,16 @@ pub trait Environment: Core {
     /// Run-time: ( -- n )
     ///
     /// Largest usable signed integer
-    primitive! {fn max_n(&mut self) {
+    fn max_n(&mut self) {
         self.s_stack().push(isize::max_value());
-    }}
+    }
 
     /// Run-time: ( -- u )
     ///
     /// Largest usable unsigned integer
-    primitive! {fn max_u(&mut self) {
+    fn max_u(&mut self) {
         self.s_stack().push(usize::max_value() as isize);
-    }}
+    }
 }
 
 #[cfg(test)]

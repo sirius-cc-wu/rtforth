@@ -34,27 +34,25 @@ pub trait HasLoader: Core + Output {
     ///
     /// Also note that it is not checked if the file corresponding to file-id is opened read
     /// or opened read-write.
-    primitive! {fn open_source(&mut self) {
-        let (caddr, u, id )= self.s_stack().pop3();
+    fn open_source(&mut self) {
+        let (caddr, u, id) = self.s_stack().pop3();
         if id > 0 && id - 1 < self.files().len() as isize {
             match self.files_mut()[id as usize - 1].take() {
                 Some(file) => {
-                    let position = self.sources().iter().position(|x| {
-                        x.is_none()
-                    });
+                    let position = self.sources().iter().position(|x| x.is_none());
                     let reader = BufReader::new(file);
-                    let path = String::from( unsafe {
-                            self.data_space().str_from_raw_parts(caddr as _, u as _)
-                        });
+                    let path = String::from(unsafe {
+                        self.data_space().str_from_raw_parts(caddr as _, u as _)
+                    });
                     match position {
                         Some(sid) => {
-                            self.sources_mut()[sid] = Some(Source {reader, path});
+                            self.sources_mut()[sid] = Some(Source { reader, path });
                             self.s_stack().push(sid as isize + 1);
                         }
                         None => {
                             let sid = self.sources().len() as isize;
                             self.s_stack().push(sid as isize + 1);
-                            self.sources_mut().push(Some(Source {reader, path}));
+                            self.sources_mut().push(Some(Source { reader, path }));
                             self.lines_mut().push(Some(String::with_capacity(128)));
                         }
                     }
@@ -66,7 +64,7 @@ pub trait HasLoader: Core + Output {
         } else {
             self.abort_with(Exception::InvalidNumericArgument);
         }
-    }}
+    }
 
     /// ( source-id -- )
     ///
@@ -75,22 +73,24 @@ pub trait HasLoader: Core + Output {
     /// The file owned by the resource is also closed.
     ///
     /// Failed if the source-id is the current source id or if the source-id doesn't exist.
-    primitive! {fn close_source(&mut self) {
+    fn close_source(&mut self) {
         let id = self.s_stack().pop();
         if self.source_id() == id {
             self.abort_with(Exception::InvalidNumericArgument);
         } else {
-            if id > 0 && id - 1 < self.sources().len() as isize
-                && self.sources()[id as usize - 1].is_some() {
+            if id > 0
+                && id - 1 < self.sources().len() as isize
+                && self.sources()[id as usize - 1].is_some()
+            {
                 let _ = self.sources_mut()[id as usize - 1].take();
             } else {
                 self.abort_with(Exception::InvalidNumericArgument);
             }
         }
-    }}
+    }
 
     /// ( source-id -- )
-    primitive! {fn dot_source_path(&mut self) {
+    fn dot_source_path(&mut self) {
         let id = self.s_stack().pop();
         if id > 0 && id - 1 < self.sources().len() as isize {
             let source = self.sources_mut()[id as usize - 1].take();
@@ -99,17 +99,15 @@ pub trait HasLoader: Core + Output {
                     self.push_output(&s.path);
                     self.sources_mut()[id as usize - 1] = Some(s);
                 }
-                None => {
-                    self.abort_with(Exception::InvalidNumericArgument)
-                }
+                None => self.abort_with(Exception::InvalidNumericArgument),
             }
         } else {
             self.abort_with(Exception::InvalidNumericArgument)
         }
-    }}
+    }
 
     /// ( source-id -- )
-    primitive! {fn dot_source_line(&mut self) {
+    fn dot_source_line(&mut self) {
         let id = self.s_stack().pop();
         if id > 0 && id - 1 < self.lines().len() as isize {
             let line = self.lines_mut()[id as usize - 1].take();
@@ -118,27 +116,26 @@ pub trait HasLoader: Core + Output {
                     self.push_output(&s);
                     self.lines_mut()[id as usize - 1] = Some(s);
                 }
-                None => {
-                    self.abort_with(Exception::InvalidNumericArgument)
-                }
+                None => self.abort_with(Exception::InvalidNumericArgument),
             }
         } else {
             self.abort_with(Exception::InvalidNumericArgument)
         }
-    }}
+    }
 
     /// ( source-id -- count not-eof? )
     ///
     /// Load one line from source to input buffer.
-    primitive! {fn p_load_line(&mut self) {
+    fn p_load_line(&mut self) {
         let id = self.s_stack().pop() as usize;
         match self.load_line(id) {
             Err(e) => self.abort_with(e),
             Ok((len, not_eof)) => {
-                self.s_stack().push2(len as isize, if not_eof { -1 } else { 0 });
+                self.s_stack()
+                    .push2(len as isize, if not_eof { -1 } else { 0 });
             }
         }
-    }}
+    }
 
     /// Load a line from file into input buffer.
     ///

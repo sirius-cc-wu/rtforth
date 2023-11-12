@@ -53,223 +53,219 @@ pub trait Float: Core {
 
     // Defining words
 
-    primitive! {fn p_fconst(&mut self) {
+    fn p_fconst(&mut self) {
         let wp = self.state().word_pointer();
         let pos = DataSpace::aligned_f64(self.wordlist()[wp].dfa());
-        let v = unsafe{ self.data_space().get_f64(pos) };
+        let v = unsafe { self.data_space().get_f64(pos) };
         self.f_stack().push(v);
-    }}
+    }
 
-    primitive! {fn fconstant(&mut self) {
+    fn fconstant(&mut self) {
         let v = self.f_stack().pop();
         self.define(Float::p_fconst, Core::compile_fconst);
         self.data_space().align_f64();
         self.data_space().compile_f64(v);
-    }}
+    }
 
     /// Run-time: ( a-addr1 -- a-addr2 )
     ///
     /// Add the size in address units of a float to `a-addr1`, giving `a-addr2`.
-    primitive! {fn float_plus(&mut self) {
+    fn float_plus(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v + mem::size_of::<f64>() as isize);
-    }}
+    }
 
     /// Run-time: ( n1 -- n2 )
     ///
     /// `n2` is the size in address units of `n1` floats.
-    primitive! {fn floats(&mut self) {
+    fn floats(&mut self) {
         let v = self.s_stack().pop();
         self.s_stack().push(v * mem::size_of::<f64>() as isize);
-    }}
+    }
 
     /// Run-time: ( addr -- a-addr )
     ///
     /// Return `a-addr`, the first float-aligned address greater than or equal to `addr`.
-    primitive! {fn faligned(&mut self) {
+    fn faligned(&mut self) {
         let pos = self.s_stack().pop();
         let pos = DataSpace::aligned_f64(pos as usize);
         self.s_stack().push(pos as isize);
-    }}
+    }
 
     /// Run-time: ( -- )
     ///
     /// If the data-space pointer is not float-aligned, reserve enough space to align it.
-    primitive! {fn falign(&mut self) {
+    fn falign(&mut self) {
         self.data_space().align_f64();
-    }}
+    }
 
-    primitive! {fn pi(&mut self) {
+    fn pi(&mut self) {
         self.f_stack().push(PI);
-    }}
+    }
 
     // Floating point primitives
 
-    primitive! {fn ffetch(&mut self) {
+    fn ffetch(&mut self) {
         let t = DataSpace::aligned_f64(self.s_stack().pop() as usize);
         // Because t is aligned to f64 boundary, and memory is 4K-page aligned,
         // checking start() <= t < limit() is enough.
-        if self.data_space().start() <= t &&
-            t < self.data_space().limit()
-        {
-            let value = unsafe{ self.data_space().get_f64(t) };
+        if self.data_space().start() <= t && t < self.data_space().limit() {
+            let value = unsafe { self.data_space().get_f64(t) };
             self.f_stack().push(value);
         } else {
             self.abort_with(InvalidMemoryAddress);
         }
-    }}
+    }
 
-    primitive! {fn fstore(&mut self) {
+    fn fstore(&mut self) {
         let t = DataSpace::aligned_f64(self.s_stack().pop() as usize);
         let n = self.f_stack().pop();
         // Because t is aligned to f64 boundary, and memory is 4K-page aligned,
         // checking start() <= t < limit() is enough.
-        if self.data_space().start() <= t &&
-            t < self.data_space().limit()
-        {
-            unsafe{ self.data_space().put_f64(n, t) };
+        if self.data_space().start() <= t && t < self.data_space().limit() {
+            unsafe { self.data_space().put_f64(n, t) };
         } else {
             self.abort_with(InvalidMemoryAddress);
         }
-    }}
+    }
 
-    primitive! {fn fabs(&mut self) {
+    fn fabs(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.abs());
-    }}
+    }
 
-    primitive! {fn fsin(&mut self) {
+    fn fsin(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.sin());
-    }}
+    }
 
-    primitive! {fn fcos(&mut self) {
+    fn fcos(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.cos());
-    }}
+    }
 
-    primitive! {fn ftan(&mut self) {
+    fn ftan(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.tan());
-    }}
+    }
 
-    primitive! {fn fsincos(&mut self) {
+    fn fsincos(&mut self) {
         let t = self.f_stack().pop();
         let (s, c) = t.sin_cos();
         self.f_stack().push2(s, c);
-    }}
+    }
 
-    primitive! {fn fasin(&mut self) {
+    fn fasin(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.asin());
-    }}
+    }
 
-    primitive! {fn facos(&mut self) {
+    fn facos(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.acos());
-    }}
+    }
 
-    primitive! {fn fatan(&mut self) {
+    fn fatan(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.atan());
-    }}
+    }
 
-    primitive! {fn fatan2(&mut self) {
+    fn fatan2(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n.atan2(t));
-    }}
+    }
 
-    primitive! {fn fsqrt(&mut self) {
+    fn fsqrt(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.sqrt());
-    }}
+    }
 
-    primitive! {fn fswap(&mut self) {
+    fn fswap(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push2(t, n);
-    }}
+    }
 
-    primitive! {fn fnip(&mut self) {
+    fn fnip(&mut self) {
         let t = self.f_stack().pop();
         let _ = self.f_stack().pop();
         self.f_stack().push(t);
-    }}
+    }
 
-    primitive! {fn fdup(&mut self) {
+    fn fdup(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push2(t, t);
-    }}
+    }
 
-    primitive! {fn fdrop(&mut self) {
+    fn fdrop(&mut self) {
         let _ = self.f_stack().pop();
-    }}
+    }
 
-    primitive! {fn frot(&mut self) {
+    fn frot(&mut self) {
         let x3 = self.f_stack().pop();
         let x2 = self.f_stack().pop();
         let x1 = self.f_stack().pop();
         self.f_stack().push3(x2, x3, x1);
-    }}
+    }
 
-    primitive! {fn fover(&mut self) {
+    fn fover(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push3(n, t, n);
-    }}
+    }
 
     /// Place a copy of the nth floating point stack entry on top of the floating point stack. `fpick ( n -- ) ( F: ... -- x )`
     ///
     /// `0 fpick` is equivalent to `fdup`.
-    primitive! {fn fpick(&mut self) {
+    fn fpick(&mut self) {
         let t = self.s_stack().pop() as u8;
         let len = self.f_stack().len;
         let x = self.f_stack()[len.wrapping_sub(t.wrapping_add(1))];
         self.f_stack().push(x);
-    }}
+    }
 
-    primitive! {fn s_to_f(&mut self) {
+    fn s_to_f(&mut self) {
         let t = self.s_stack().pop();
         self.f_stack().push(t as f64);
-    }}
+    }
 
-    primitive! {fn f_to_s(&mut self) {
+    fn f_to_s(&mut self) {
         let t = self.f_stack().pop();
         self.s_stack().push(t as isize);
-    }}
+    }
 
-    primitive! {fn fplus(&mut self) {
+    fn fplus(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n + t);
-    }}
+    }
 
-    primitive! {fn fminus(&mut self) {
+    fn fminus(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n - t);
-    }}
+    }
 
-    primitive! {fn fstar(&mut self) {
+    fn fstar(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n * t);
-    }}
+    }
 
-    primitive! {fn fslash(&mut self) {
+    fn fslash(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n / t);
-    }}
+    }
 
-    primitive! {fn fpowf(&mut self) {
+    fn fpowf(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.f_stack().push(n.powf(t));
-    }}
+    }
 
-    primitive! {fn fproximate(&mut self) {
+    fn fproximate(&mut self) {
         let (x1, x2, x3) = self.f_stack().pop3();
         if x3 > 0.0 {
             self.s_stack()
@@ -279,58 +275,58 @@ pub trait Float: Core {
         } else {
             self.s_stack()
                 .push(if (x1 - x2).abs() < (x3.abs() * (x1.abs() + x2.abs())) {
-                          TRUE
-                      } else {
-                          FALSE
-                      });
+                    TRUE
+                } else {
+                    FALSE
+                });
         }
-    }}
+    }
 
-    primitive! {fn f_zero_less_than(&mut self) {
+    fn f_zero_less_than(&mut self) {
         let t = self.f_stack().pop();
         self.s_stack().push(if t < 0.0 { TRUE } else { FALSE });
-    }}
+    }
 
-    primitive! {fn f_zero_equals(&mut self) {
+    fn f_zero_equals(&mut self) {
         let t = self.f_stack().pop();
         self.s_stack().push(if t == 0.0 { TRUE } else { FALSE });
-    }}
+    }
 
-    primitive! {fn f_less_than(&mut self) {
+    fn f_less_than(&mut self) {
         let t = self.f_stack().pop();
         let n = self.f_stack().pop();
         self.s_stack().push(if n < t { TRUE } else { FALSE });
-    }}
+    }
 
-    primitive! {fn fmin(&mut self) {
+    fn fmin(&mut self) {
         let (n, t) = self.f_stack().pop2();
         self.f_stack().push(t.min(n));
-    }}
+    }
 
-    primitive! {fn fmax(&mut self) {
+    fn fmax(&mut self) {
         let (n, t) = self.f_stack().pop2();
         self.f_stack().push(t.max(n));
-    }}
+    }
 
-    primitive! {fn fround(&mut self) {
+    fn fround(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.round());
-    }}
+    }
 
-    primitive! {fn floor(&mut self) {
+    fn floor(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.floor());
-    }}
+    }
 
-    primitive! {fn fceil(&mut self) {
+    fn fceil(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(t.ceil());
-    }}
+    }
 
-    primitive! {fn fnegate(&mut self) {
+    fn fnegate(&mut self) {
         let t = self.f_stack().pop();
         self.f_stack().push(-t);
-    }}
+    }
 }
 
 #[cfg(test)]

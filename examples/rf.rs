@@ -1,5 +1,4 @@
 extern crate getopts;
-#[macro_use(primitive)]
 extern crate rtforth;
 extern crate hibitset;
 extern crate rustyline;
@@ -334,7 +333,7 @@ fn print_version() {
     println!("rtForth v0.6.0, Copyright (C) 2018 Mapacode Inc.");
 }
 
-primitive! {fn receive(vm: &mut VM) {
+fn receive(vm: &mut VM) {
     match vm.editor.readline("rf> ") {
         Ok(line) => {
             vm.editor.add_history_entry(&line);
@@ -352,7 +351,7 @@ primitive! {fn receive(vm: &mut VM) {
             }
         }
     }
-}}
+}
 
 #[inline(never)]
 fn repl(vm: &mut VM) {

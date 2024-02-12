@@ -1,5 +1,3 @@
-#![feature(duration_as_u128)]
-#[macro_use(primitive)]
 extern crate rtforth;
 mod vm;
 
@@ -34,7 +32,7 @@ fn main() {
 }
 
 /// Terminate process.
-primitive! {fn bye(vm: &mut VM) {
+fn bye(vm: &mut VM) {
     vm.flush_output();
     process::exit(0);
-}}
+}

@@ -30,6 +30,7 @@ uom = "~0.31.0"
 approx = "~0.3"
 libc = "0.2"
 page_size = "0.4.2"
+region = "3.0.0"
 
 [dependencies.hibitset]
 version = "~0.5.0"

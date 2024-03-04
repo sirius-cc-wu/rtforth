@@ -1,5 +1,5 @@
 use exception::Exception;
-use std::alloc::{alloc_zeroed, dealloc, Layout};
+use region::{Allocation, Protection};
 use std::marker;
 use std::mem;
 use std::slice;
@@ -17,8 +17,8 @@ impl SystemVariables {
 
 #[allow(dead_code)]
 pub struct DataSpace {
+    alloc: Allocation,
     pub inner: *mut u8,
-    layout: Layout,
     cap: usize,
     len: usize,
     marker: marker::PhantomData<SystemVariables>,
@@ -31,17 +31,13 @@ impl DataSpace {
     }
 
     pub fn with_capacity(cap: usize) -> Self {
-        let ptr: *mut u8;
-        let layout = Layout::from_size_align(cap, page_size::get()).unwrap();
-        unsafe {
-            ptr = alloc_zeroed(layout);
-            if ptr.is_null() {
-                panic!("Cannot allocate data space");
-            }
-        }
+        let pages = cap.div_ceil(region::page::size());
+        let mut alloc = region::alloc(pages, Protection::READ_WRITE_EXECUTE)
+            .expect("Cannot allocate data space");
+        let ptr = alloc.as_mut_ptr();
         let mut result = DataSpace {
+            alloc,
             inner: ptr,
-            layout,
             cap,
             len: mem::size_of::<SystemVariables>(),
             marker: marker::PhantomData,
@@ -59,14 +55,6 @@ impl DataSpace {
 
     pub fn system_variables_mut(&mut self) -> &mut SystemVariables {
         unsafe { &mut *(self.inner.offset(0) as *mut SystemVariables) }
-    }
-}
-
-impl Drop for DataSpace {
-    fn drop(&mut self) {
-        unsafe {
-            dealloc(self.inner, self.layout);
-        }
     }
 }
 

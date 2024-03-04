@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate approx;
 extern crate hibitset;
+extern crate region;
 extern crate uom;
 
 pub mod core;

@@ -183,7 +183,7 @@ impl<Target> IndexMut<usize> for Wordlist<Target> {
 }
 
 pub struct Stack<T: Default> {
-    pub inner: [T; 256],
+    pub inner: Vec<T>,
     pub len: u8,
     pub canary: T,
 }
@@ -191,7 +191,7 @@ pub struct Stack<T: Default> {
 impl<T: Default + Copy + PartialEq + Display> Stack<T> {
     pub fn new(canary: T) -> Self {
         let mut result = Stack {
-            inner: [T::default(); 256],
+            inner: vec![T::default(); 256],
             len: 0,
             canary: canary,
         };

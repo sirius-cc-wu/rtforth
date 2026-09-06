@@ -1,14 +1,11 @@
 #[macro_use]
 extern crate approx;
-extern crate hibitset;
-extern crate region;
 extern crate uom;
 
 pub mod core;
 pub mod env;
 pub mod exception;
 pub mod facility;
-pub mod file_access;
 pub mod float;
 pub mod loader;
 pub mod memory;
@@ -18,9 +15,7 @@ pub(crate) mod parser;
 pub mod tools;
 pub mod units;
 
-use core::Core;
 use exception::Exception;
-use memory::Memory;
 use std::result;
 
 pub const TRUE: isize = -1;

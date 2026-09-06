@@ -11,11 +11,9 @@ Documentation at [rtForth Primer](https://mapacode.github.io/rtforth/).
 
 ## Usage
 
-Install Rust version nightly-2019-11-01。
+Install Rust:
 
-```
-rustup toolchain install nightly-2019-11-01
-```
+[Installing Rust](https://doc.rust-lang.org/book/installing-rust.html)
 
 After installation of Rust:
 

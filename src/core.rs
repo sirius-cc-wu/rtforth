@@ -1,20 +1,18 @@
 extern crate libc;
-use hibitset::{BitSet, BitSetLike};
-use loader::Source;
-use memory::{DataSpace, Memory};
-use parser;
-use std::fmt::Write;
-use std::fmt::{self, Display};
-use std::fs::File;
-use std::mem;
-use std::ops::{Index, IndexMut};
-use std::str;
-use Exception::{
+
+use exception::Exception::{
     self, Abort, ControlStructureMismatch, DivisionByZero, FloatingPointStackOverflow,
     FloatingPointStackUnderflow, InterpretingACompileOnlyWord, InvalidMemoryAddress,
     InvalidNumericArgument, ReturnStackOverflow, ReturnStackUnderflow, StackOverflow,
     StackUnderflow, UndefinedWord, UnexpectedEndOfFile, UnsupportedOperation,
 };
+use memory::{CodeSpace, DataSpace, Memory};
+use parser;
+use std::fmt::Write;
+use std::fmt::{self, Display};
+use std::mem;
+use std::ops::{Index, IndexMut};
+use std::str;
 use {FALSE, NUM_TASKS, TRUE};
 
 // Word
@@ -26,7 +24,7 @@ pub struct Word<Target> {
     hash: u32,
     nfa: usize,
     dfa: usize,
-    doer: usize,
+    cfa: usize,
     action: fn(&mut Target),
     pub(crate) compilation_semantics: fn(&mut Target, usize),
     // Minimum execution time in [ns]
@@ -41,6 +39,7 @@ impl<Target> Word<Target> {
         compilation_semantics: fn(&mut Target, usize),
         nfa: usize,
         dfa: usize,
+        cfa: usize,
     ) -> Word<Target> {
         Word {
             is_immediate: false,
@@ -50,7 +49,7 @@ impl<Target> Word<Target> {
             hash: 0,
             nfa: nfa,
             dfa: dfa,
-            doer: 0,
+            cfa: cfa,
             action: action,
             compilation_semantics: compilation_semantics,
             min_execution_time: 0,
@@ -88,6 +87,10 @@ impl<Target> Word<Target> {
 
     pub fn dfa(&self) -> usize {
         self.dfa
+    }
+
+    pub fn cfa(&self) -> usize {
+        self.cfa
     }
 
     pub fn action(&self) -> fn(&mut Target) {
@@ -150,21 +153,6 @@ impl<Target> Wordlist<Target> {
         self.words.truncate(i);
         self.last = self.words.len() - 1;
     }
-
-    /// Find execution token of the word to whom the address may belong to.
-    pub fn find_xt(&self, addr: usize) -> Option<usize> {
-        let result = self.words.binary_search_by(|w| w.nfa().cmp(&addr));
-        match result {
-            Ok(xt) => Some(xt),
-            Err(xt) => {
-                if xt == 0 {
-                    None
-                } else {
-                    Some(xt - 1)
-                }
-            }
-        }
-    }
 }
 
 impl<Target> Index<usize> for Wordlist<Target> {
@@ -183,7 +171,7 @@ impl<Target> IndexMut<usize> for Wordlist<Target> {
 }
 
 pub struct Stack<T: Default> {
-    pub inner: Vec<T>,
+    pub inner: [T; 256],
     pub len: u8,
     pub canary: T,
 }
@@ -191,7 +179,7 @@ pub struct Stack<T: Default> {
 impl<T: Default + Copy + PartialEq + Display> Stack<T> {
     pub fn new(canary: T) -> Self {
         let mut result = Stack {
-            inner: vec![T::default(); 256],
+            inner: [T::default(); 256],
             len: 0,
             canary: canary,
         };
@@ -374,8 +362,6 @@ pub struct ForwardReferences {
     pub idx_equal: usize,
     pub idx_drop: usize,
     pub idx__postpone: usize,
-    pub idx_to_r: usize,
-    pub idx__does: usize,
 }
 
 impl ForwardReferences {
@@ -396,8 +382,6 @@ impl ForwardReferences {
             idx_equal: 0,
             idx_drop: 0,
             idx__postpone: 0,
-            idx_to_r: 0,
-            idx__does: 0,
         }
     }
 }
@@ -406,9 +390,7 @@ pub struct State {
     pub is_compiling: bool,
     pub instruction_pointer: usize,
     word_pointer: usize,
-    pub aborted_word_pointer: usize,
     pub source_index: usize,
-    pub source_id: isize,
 }
 
 impl State {
@@ -417,9 +399,7 @@ impl State {
             is_compiling: false,
             instruction_pointer: 0,
             word_pointer: 0,
-            aborted_word_pointer: 0,
             source_index: 0,
-            source_id: 0,
         }
     }
 
@@ -474,30 +454,21 @@ pub trait Core: Sized {
     fn set_handler(&mut self, h: usize);
     fn data_space(&mut self) -> &mut DataSpace;
     fn data_space_const(&self) -> &DataSpace;
+    fn code_space(&mut self) -> &mut CodeSpace;
+    fn code_space_const(&self) -> &CodeSpace;
     /// Numeric output buffer
     fn hold_buffer(&mut self) -> &mut String;
     /// Get `output_buffer`.
     fn output_buffer(&mut self) -> &mut Option<String>;
     /// Set `output_buffer` to `Some(buffer)`.
     fn set_output_buffer(&mut self, buffer: String);
-    /// Input source identifier
-    ///
-    /// > 0: input from source at `self.sources[source_id] and input buffer
-    /// `self.lines[source_id]`.
-    /// = 0: input from the default user input buffer.
-    fn source_id(&self) -> isize;
     /// Get `input_buffer`.
     fn input_buffer(&mut self) -> &mut Option<String>;
     /// Set `input_buffer` to `Some(buffer)`.
     fn set_input_buffer(&mut self, buffer: String);
-    fn files(&self) -> &Vec<Option<File>>;
-    fn files_mut(&mut self) -> &mut Vec<Option<File>>;
-    fn sources(&self) -> &Vec<Option<Source>>;
-    fn sources_mut(&mut self) -> &mut Vec<Option<Source>>;
-    fn lines(&self) -> &Vec<Option<String>>;
-    fn lines_mut(&mut self) -> &mut Vec<Option<String>>;
     fn last_token(&mut self) -> &mut Option<String>;
     fn set_last_token(&mut self, buffer: String);
+    fn regs(&mut self) -> &mut [usize; 2];
     fn s_stack(&mut self) -> &mut Stack<isize>;
     fn r_stack(&mut self) -> &mut Stack<isize>;
     fn c_stack(&mut self) -> &mut Stack<Control>;
@@ -522,18 +493,6 @@ pub trait Core: Sized {
     ///
     /// No operation if there is no task `i`.
     fn set_awake(&mut self, i: usize, v: bool);
-    /// Bitset to check forward declaration of labels.
-    fn forward_bitset(&self) -> &BitSet;
-    /// Mutable bitset to check forward declaration of labels.
-    fn forward_bitset_mut(&mut self) -> &mut BitSet;
-    /// Bitset to check resolved labels.
-    fn resolved_bitset(&self) -> &BitSet;
-    /// Mutable bitset to check resolved labels.
-    fn resolved_bitset_mut(&mut self) -> &mut BitSet;
-    /// Labels to support BASIC-like goto, label, call.
-    fn labels(&self) -> &Vec<usize>;
-    /// Labels to support BASIC-like goto, label, call.
-    fn labels_mut(&mut self) -> &mut Vec<usize>;
 
     /// Add core primitives to self.
     fn add_core(&mut self) {
@@ -621,17 +580,12 @@ pub trait Core: Sized {
         self.add_immediate_and_compile_only("repeat", Core::imm_repeat);
         self.add_immediate_and_compile_only("until", Core::imm_until);
         self.add_immediate_and_compile_only("again", Core::imm_again);
-        self.add_immediate("0labels", Core::imm_clear_labels);
-        self.add_immediate_and_compile_only("label", Core::imm_label);
-        self.add_immediate_and_compile_only("goto", Core::imm_goto);
-        self.add_immediate_and_compile_only("call", Core::imm_call);
         self.add_immediate_and_compile_only("recurse", Core::imm_recurse);
         self.add_immediate_and_compile_only("do", Core::imm_do);
         self.add_immediate_and_compile_only("?do", Core::imm_qdo);
         self.add_immediate_and_compile_only("loop", Core::imm_loop);
         self.add_immediate_and_compile_only("+loop", Core::imm_plus_loop);
         self.add_immediate_and_compile_only("postpone", Core::postpone);
-        self.add_immediate_and_compile_only("does>", Core::does);
 
         // More Primitives
         self.add_primitive("true", Core::p_true);
@@ -663,7 +617,6 @@ pub trait Core: Sized {
         self.add_primitive("create", Core::create);
         self.add_primitive("'", Core::tick);
         self.add_primitive(">body", Core::to_body);
-        self.add_primitive(">name", Core::to_name);
         self.add_primitive("]", Core::right_bracket);
         self.add_primitive(",", Core::comma);
         self.add_primitive("marker", Core::marker);
@@ -680,11 +633,6 @@ pub trait Core: Sized {
         self.add_primitive("!token", Core::store_token);
         self.add_primitive("compile-token", Core::compile_token);
         self.add_primitive("interpret-token", Core::interpret_token);
-        self.add_primitive("source-id", Core::p_source_id);
-        self.add_primitive("source-id!", Core::p_set_source_id);
-        self.add_primitive("source-idx", Core::p_source_idx);
-        self.add_primitive("source-idx!", Core::p_set_source_idx);
-        self.add_primitive("bye", Core::bye);
 
         self.references().idx_lit = self.find("lit").expect("lit undefined");
         self.references().idx_flit = self.find("flit").expect("flit undefined");
@@ -699,19 +647,15 @@ pub trait Core: Sized {
         self.references().idx_equal = self.find("=").expect("= undefined");
         self.references().idx_drop = self.find("drop").expect("drop undefined");
         self.references().idx__postpone = self.find("_postpone").expect("_postpone undefined");
-        self.references().idx_to_r = self.find(">r").expect(">r");
-        self.references().idx__does = self.find("_does").expect("_does");
 
         self.patch_compilation_semanticses();
 
-        {
-            // Multitasker
-            self.add_compile_only("pause", Core::pause);
-            self.add_compile_only("activate", Core::activate);
-            self.add_primitive("me", Core::me);
-            self.add_primitive("suspend", Core::suspend);
-            self.add_primitive("resume", Core::resume);
-        }
+        // Multitasker
+        self.add_compile_only("pause", Core::pause);
+        self.add_compile_only("activate", Core::activate);
+        self.add_primitive("me", Core::me);
+        self.add_primitive("suspend", Core::suspend);
+        self.add_primitive("resume", Core::resume);
         self.set_awake(0, true);
     }
 
@@ -719,7 +663,14 @@ pub trait Core: Sized {
     fn add_primitive(&mut self, name: &str, action: fn(&mut Self)) {
         let nfa = self.data_space().compile_str(name);
         self.data_space().align();
-        let word = Word::new(action, Core::compile_word, nfa, self.data_space().here());
+        self.code_space().align();
+        let word = Word::new(
+            action,
+            Core::compile_word,
+            nfa,
+            self.data_space().here(),
+            self.code_space().here(),
+        );
         self.wordlist_mut().push(name, word);
     }
 
@@ -802,24 +753,6 @@ pub trait Core: Sized {
             self.state().instruction_pointer += mem::size_of::<isize>();
             self.execute_word(w);
             ip = self.state().instruction_pointer;
-        }
-    }
-
-    // Execute one step of vm loop.
-    //
-    // Return true if there are more steps to execute, false if otherwise.
-    fn forth(&mut self) -> bool {
-        let mut ip = self.state().instruction_pointer;
-        if self.data_space().start() <= ip
-            && ip + mem::size_of::<isize>() <= self.data_space().limit()
-        {
-            let w = unsafe { self.data_space().get_isize(ip) as usize };
-            self.state().instruction_pointer += mem::size_of::<isize>();
-            self.execute_word(w);
-            ip = self.state().instruction_pointer;
-            true
-        } else {
-            false
         }
     }
 
@@ -954,10 +887,7 @@ pub trait Core: Sized {
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
         self.state().instruction_pointer += mem::size_of::<isize>();
-        let (n, t) = self.s_stack().pop2();
-        let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
-        let rn = t.wrapping_sub(rt);
-        self.r_stack().push2(rn, rt);
+        self.two_to_r();
     }
 
     /// ( n1|u1 n2|u2 -- ) ( R: -- loop-sys )
@@ -980,16 +910,14 @@ pub trait Core: Sized {
     ///          ip
     ///
     fn _qdo(&mut self) {
-        let (n, t) = self.s_stack().pop2();
-        if n == t {
+        let (n1, n2) = self.s_stack().pop2();
+        if n1 == n2 {
             self.branch();
         } else {
             let ip = self.state().instruction_pointer as isize;
             self.r_stack().push(ip);
             self.state().instruction_pointer += mem::size_of::<isize>();
-            let rt = isize::min_value().wrapping_add(t).wrapping_sub(n);
-            let rn = t.wrapping_sub(rt);
-            self.r_stack().push2(rn, rt);
+            self.r_stack().push2(n1, n2);
         }
     }
 
@@ -1001,16 +929,13 @@ pub trait Core: Sized {
     /// immediately following the loop. Otherwise continue execution at the
     /// beginning of the loop.
     fn _loop(&mut self) {
-        let rt = self.r_stack().pop();
-        match rt.checked_add(1) {
-            Some(sum) => {
-                self.r_stack().push(sum);
-                self.branch();
-            }
-            None => {
-                let _ = self.r_stack().pop2();
-                self.state().instruction_pointer += mem::size_of::<isize>();
-            }
+        let (rn, rt) = self.r_stack().pop2();
+        if rt + 1 < rn {
+            self.r_stack().push2(rn, rt + 1);
+            self.branch();
+        } else {
+            let _ = self.r_stack().pop();
+            self.state().instruction_pointer += mem::size_of::<isize>();
         }
     }
 
@@ -1023,17 +948,14 @@ pub trait Core: Sized {
     /// current loop control parameters and continue execution immediately
     /// following the loop.
     fn _plus_loop(&mut self) {
-        let rt = self.r_stack().pop();
+        let (rn, rt) = self.r_stack().pop2();
         let t = self.s_stack().pop();
-        match rt.checked_add(t) {
-            Some(sum) => {
-                self.r_stack().push(sum);
-                self.branch();
-            }
-            None => {
-                let _ = self.r_stack().pop2();
-                self.state().instruction_pointer += mem::size_of::<isize>();
-            }
+        if rt + t < rn {
+            self.r_stack().push2(rn, rt + t);
+            self.branch();
+        } else {
+            let _ = self.r_stack().pop();
+            self.state().instruction_pointer += mem::size_of::<isize>();
         }
     }
 
@@ -1072,12 +994,7 @@ pub trait Core: Sized {
     fn p_j(&mut self) {
         let pos = self.r_stack().len() - 4;
         match self.r_stack().get(pos) {
-            Some(jt) => match self.r_stack().get(pos - 1) {
-                Some(jn) => {
-                    self.s_stack().push(jt.wrapping_add(jn));
-                }
-                None => self.abort_with(ReturnStackUnderflow),
-            },
+            Some(j) => self.s_stack().push(j),
             None => self.abort_with(ReturnStackUnderflow),
         }
     }
@@ -1371,104 +1288,6 @@ pub trait Core: Sized {
         }
     }
 
-    /// Clear labels, `0labels ( -- )`
-    fn imm_clear_labels(&mut self) {
-        self.forward_bitset_mut().clear();
-        self.resolved_bitset_mut().clear();
-    }
-
-    /// Create a label `n`, `label ( n -- )`
-    ///
-    /// Valid `n`: `0 < n < labels.capacity()`.
-    fn imm_label(&mut self) {
-        let n = self.s_stack().pop() as usize;
-        if 0 < n && n < self.labels().capacity() {
-            let here = self.data_space().here();
-            if self.forward_bitset().contains(n as u32) {
-                // Resolve forward references.
-                let mut p = self.labels()[n];
-                loop {
-                    let last = unsafe { self.data_space().get_usize(p) };
-                    unsafe {
-                        self.data_space().put_isize(here as isize, p as usize);
-                    }
-                    if last == 0 {
-                        break;
-                    }
-                    p = last;
-                }
-                self.labels_mut()[n] = here;
-                self.forward_bitset_mut().remove(n as u32);
-                self.resolved_bitset_mut().add(n as u32);
-            } else if self.resolved_bitset().contains(n as u32) {
-                self.abort_with(Exception::InvalidNumericArgument);
-            } else {
-                self.labels_mut()[n] = here;
-                self.resolved_bitset_mut().add(n as u32);
-            }
-        } else {
-            self.abort_with(Exception::InvalidNumericArgument);
-        }
-    }
-
-    /// goto ( n -- )
-    ///
-    /// Go to label `n`.
-    ///
-    /// +------------+-------------------------+--+---
-    /// | BRANCH | data ptr of label n | ... |  addr at label n
-    /// +------------+-------------------------+--+---
-    ///                         |                                               ^
-    ///                         +-----------------------------+
-    ///
-    /// ```
-    /// [ n ] goto ... [ n ] label ...
-    /// [ n ] label ... [ n ]  goto
-    /// ```
-    fn imm_goto(&mut self) {
-        let n = self.s_stack().pop() as usize;
-        if 0 < n && n < self.labels().capacity() {
-            if self.forward_bitset().contains(n as u32) {
-                let p = self.labels()[n];
-                let to_patch = self.compile_branch(p) - mem::size_of::<isize>();
-                self.labels_mut()[n] = to_patch;
-            } else if self.resolved_bitset().contains(n as u32) {
-                let p = self.labels()[n];
-                let _ = self.compile_branch(p);
-            } else {
-                let to_patch = self.compile_branch(0) - mem::size_of::<isize>();
-                self.labels_mut()[n] = to_patch;
-                self.forward_bitset_mut().add(n as u32);
-            }
-        } else {
-            self.abort_with(Exception::InvalidNumericArgument);
-        }
-    }
-
-    /// call ( n -- )
-    ///
-    /// Call subroutine at label `n`.
-    ///
-    /// +----+-----------------+----+------------+-------------------------+--+------+
-    /// | LIT | return_addr | >R |  BRANCH | data ptr of label n | ... | EXIT |
-    /// +----+-----------------+----+------------+-------------------------+--+------+
-    ///                       |                                                                                       ^
-    ///                       +-------------------------------------------------------+
-    ///
-    /// Usage:
-    ///
-    /// ```
-    /// [ n ] call ... [ n ] label ... exit ...
-    /// [ n ] label .. exit ... [ n ] call ...
-    /// ```
-    fn imm_call(&mut self) {
-        let return_addr = self.data_space().here() + 5 * mem::size_of::<isize>();
-        self.compile_integer(return_addr as _);
-        let idx_to_r = self.references().idx_to_r;
-        self.compile_word(idx_to_r);
-        self.imm_goto();
-    }
-
     /// Execution: ( -- a-ddr )
     ///
     /// Append the run-time semantics of `_do` to the current definition.
@@ -1627,15 +1446,7 @@ pub trait Core: Sized {
 
     fn p_i(&mut self) {
         match self.r_stack().last() {
-            Some(it) => {
-                let next = self.r_stack().len - 2;
-                match self.r_stack().get(next) {
-                    Some(inext) => {
-                        self.s_stack().push(it.wrapping_add(inext));
-                    }
-                    None => self.abort_with(ReturnStackUnderflow),
-                }
-            }
+            Some(i) => self.s_stack().push(i),
             None => self.abort_with(ReturnStackUnderflow),
         }
     }
@@ -2065,9 +1876,9 @@ pub trait Core: Sized {
                             self.set_error(Some(UnsupportedOperation));
                         } else {
                             if self.state().is_compiling {
-                                self.compile_integer(sign.wrapping_mul(value));
+                                self.compile_integer(sign * value);
                             } else {
-                                self.s_stack().push(sign.wrapping_mul(value));
+                                self.s_stack().push(sign * value);
                             }
                         }
                     }
@@ -2262,7 +2073,14 @@ pub trait Core: Sized {
         } else {
             let nfa = self.data_space().compile_str(&last_token);
             self.data_space().align();
-            let word = Word::new(action, compilation_semantics, nfa, self.data_space().here());
+            self.code_space().align();
+            let word = Word::new(
+                action,
+                compilation_semantics,
+                nfa,
+                self.data_space().here(),
+                self.code_space().here(),
+            );
             self.wordlist_mut().push(&last_token, word);
             self.set_last_token(last_token);
         }
@@ -2279,7 +2097,7 @@ pub trait Core: Sized {
     }
 
     fn semicolon(&mut self) {
-        if self.c_stack().len != 0 || self.forward_bitset().layer3() != 0 {
+        if self.c_stack().len != 0 {
             self.abort_with(ControlStructureMismatch);
         } else {
             let idx = self.references().idx_exit;
@@ -2305,9 +2123,9 @@ pub trait Core: Sized {
 
     fn unmark(&mut self) {
         let wp = self.state().word_pointer;
-        let (nfa, mut dfa) = {
+        let (nfa, cfa, mut dfa) = {
             let w = &self.wordlist()[wp];
-            (w.nfa(), w.dfa())
+            (w.nfa(), w.cfa(), w.dfa())
         };
         let x = unsafe { self.data_space().get_usize(dfa) };
         self.wordlist_mut().last = x;
@@ -2317,6 +2135,7 @@ pub trait Core: Sized {
             self.wordlist_mut().buckets[i] = x;
         }
         self.data_space().truncate(nfa);
+        self.code_space().truncate(cfa);
         self.wordlist_mut().truncate(wp);
     }
 
@@ -2358,11 +2177,11 @@ pub trait Core: Sized {
     /// range                             |
     ///                                   |
     ///   action                          |
-    ///   +-------+                       |
-    ///   | xdoes |                       |
-    ///   +-------+                       |
+    ///   +------+                        |
+    ///   | does |                        |
+    ///   +------+                        |
     ///                                   |
-    ///   doer                            |
+    ///   cfa                             |
     ///   +------+                        |
     ///   | x    |------------------------+
     ///   +------+
@@ -2373,22 +2192,13 @@ pub trait Core: Sized {
     ///   +---+----+
     ///
     fn does(&mut self) {
-        let idx = self.references().idx__does;
-        self.s_stack().push(idx as isize);
-        self.compile_comma();
-        let idx = self.references().idx_exit;
-        self.s_stack().push(idx as isize);
-        self.compile_comma();
-    }
-
-    fn xdoes(&mut self) {
         // Push DFA.
         let wp = self.state().word_pointer;
-        let word = &self.wordlist()[wp];
-        let dfa = word.dfa();
-        let doer = word.doer;
+        let dfa = self.wordlist()[wp].dfa();
+        let cfa = self.wordlist()[wp].cfa();
         self.s_stack().push(dfa as isize);
         // Execute words behind DOES>.
+        let doer = unsafe { self.code_space().get_usize(cfa) };
         let ip = self.state().instruction_pointer as isize;
         self.r_stack().push(ip);
         self.state().instruction_pointer = doer;
@@ -2397,11 +2207,10 @@ pub trait Core: Sized {
     /// Run time behavior of does>.
     fn _does(&mut self) {
         let doer = self.state().instruction_pointer + mem::size_of::<isize>();
-        self.data_space().compile_usize(doer);
+        self.code_space().compile_usize(doer);
         let def = self.wordlist().last;
         let word = &mut self.wordlist_mut()[def];
-        word.action = Core::xdoes;
-        word.doer = doer;
+        word.action = Core::does;
     }
 
     // -----------
@@ -2742,13 +2551,6 @@ pub trait Core: Sized {
         self.r_stack().len = rlen;
     }
 
-    /// Execution: ( -- )
-    ///
-    /// Set the instruction pointer to zero in order to terminate inner interpreter.
-    fn bye(&mut self) {
-        self.state().instruction_pointer = 0;
-    }
-
     /// Run-time: ( a-addr -- x )
     ///
     /// `x` is the value stored at `a-addr`.
@@ -2880,18 +2682,6 @@ pub trait Core: Sized {
         if t < self.wordlist().len() {
             let dfa = self.wordlist()[t].dfa() as isize;
             self.s_stack().push(dfa);
-        } else {
-            self.abort_with(InvalidNumericArgument);
-        }
-    }
-
-    /// ( xt -- a-addr )
-    /// a-addr is the name-field address corresponding to xt.
-    fn to_name(&mut self) {
-        let t = self.s_stack().pop() as usize;
-        if t < self.wordlist().len() {
-            let nfa = self.wordlist()[t].nfa() as isize;
-            self.s_stack().push(nfa);
         } else {
             self.abort_with(InvalidNumericArgument);
         }
@@ -3046,7 +2836,9 @@ pub trait Core: Sized {
             self.abort_with(ReturnStackOverflow);
         } else if self.r_stack().underflow() {
             self.abort_with(ReturnStackUnderflow);
-        } else if self.c_stack().overflow() || self.c_stack().underflow() {
+        } else if self.c_stack().overflow() {
+            self.abort_with(ControlStructureMismatch);
+        } else if self.c_stack().underflow() {
             self.abort_with(ControlStructureMismatch);
         } else if self.f_stack().overflow() {
             self.abort_with(FloatingPointStackOverflow);
@@ -3098,69 +2890,20 @@ pub trait Core: Sized {
         self.c_stack().reset();
     }
 
-    /// ( -- source-id )
-    ///
-    /// Current source id.
-    fn p_source_id(&mut self) {
-        let source_id = self.source_id();
-        self.s_stack().push(source_id);
-    }
-
-    /// ( source-id -- )
-    ///
-    /// Set source id.
-    fn p_set_source_id(&mut self) {
-        let id = self.s_stack().pop();
-        self.set_source_id(id);
-    }
-
-    /// Set source id.
-    fn set_source_id(&mut self, id: isize) {
-        if id > 0 {
-            // File source
-            if id - 1 < self.sources().len() as isize
-                && self.sources()[id as usize - 1].is_some()
-                && self.lines()[id as usize - 1].is_some()
-            {
-                self.state().source_id = id;
-            } else {
-                self.abort_with(Exception::InvalidNumericArgument);
-            }
-        } else if id == 0 {
-            self.state().source_id = id;
-        } else {
-            self.abort_with(Exception::InvalidNumericArgument);
-        }
-    }
-
-    /// ( -- source-idx )
-    ///
-    /// Current source index.
-    fn p_source_idx(&mut self) {
-        let source_idx = self.state().source_index as isize;
-        self.s_stack().push(source_idx);
-    }
-
-    /// ( source-idx -- )
-    ///
-    /// Set source index.
-    fn p_set_source_idx(&mut self) {
-        let idx = self.s_stack().pop() as usize;
-        self.state().source_index = idx;
-    }
-
     /// Reset VM, do not clear data stack, floating point and control stack.
     /// Called by VM's client upon Quit.
     fn reset(&mut self) {
         self.r_stack().reset();
-        self.set_source_id(0);
         if let Some(ref mut buf) = *self.input_buffer() {
             buf.clear()
         }
-        self.state().aborted_word_pointer = 0;
         self.state().source_index = 0;
         self.left_bracket();
         self.set_error(None);
+    }
+
+    fn _regs(&mut self) -> &mut [usize; 2] {
+        self.regs()
     }
 
     /// Abort the inner loop with an exception, reset VM and clears stacks.
@@ -3168,7 +2911,6 @@ pub trait Core: Sized {
         self.clear_stacks();
         self.set_error(Some(e));
         let h = self.handler();
-        self.state().aborted_word_pointer = self.state().word_pointer;
         self.execute_word(h);
     }
 
@@ -3232,13 +2974,13 @@ mod tests {
 
     // #[bench]
     // fn bench_noop(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     b.iter(|| vm.noop());
     // }
 
     #[test]
     fn test_find() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         assert!(vm.find("").is_none());
         assert!(vm.find("word-not-exist").is_none());
         vm.find("noop").expect("noop not found");
@@ -3246,19 +2988,19 @@ mod tests {
 
     // #[bench]
     // fn bench_find_word_not_exist(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     b.iter(|| vm.find("unknown"));
     // }
 
     // #[bench]
     // fn bench_find_word_at_beginning_of_wordlist(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     b.iter(|| vm.find("noop"));
     // }
 
     // #[bench]
     // fn bench_inner_interpreter_without_nest(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     let ip = vm.data_space().here();
     //     let idx = vm.find("noop").expect("noop not exists");
     //     vm.compile_word(idx);
@@ -3276,7 +3018,7 @@ mod tests {
 
     #[test]
     fn test_drop() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.p_drop();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3291,7 +3033,7 @@ mod tests {
 
     // #[bench]
     // fn bench_drop(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     b.iter(|| {
     //         vm.p_drop();
@@ -3301,7 +3043,7 @@ mod tests {
 
     #[test]
     fn test_nip() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.nip();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3324,7 +3066,7 @@ mod tests {
 
     // #[bench]
     // fn bench_nip(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     vm.s_stack().push(1);
     //     b.iter(|| {
@@ -3335,7 +3077,7 @@ mod tests {
 
     #[test]
     fn test_swap() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.swap();
         vm.check_stacks();
         // check_stacks() cannot detect this kind of underflow.
@@ -3362,7 +3104,7 @@ mod tests {
 
     // #[bench]
     // fn bench_swap(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     vm.s_stack().push(2);
     //     b.iter(|| vm.swap());
@@ -3370,7 +3112,7 @@ mod tests {
 
     #[test]
     fn test_dup() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.dup();
         vm.check_stacks();
         // check_stacks can not detect this underflow();
@@ -3390,7 +3132,7 @@ mod tests {
 
     // #[bench]
     // fn bench_dup(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     b.iter(|| {
     //         vm.dup();
@@ -3400,7 +3142,7 @@ mod tests {
 
     #[test]
     fn test_over() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.over();
         vm.check_stacks();
         // check_stacks() cannot detect stack underflow of over().
@@ -3429,7 +3171,7 @@ mod tests {
 
     // #[bench]
     // fn bench_over(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     vm.s_stack().push(2);
     //     b.iter(|| {
@@ -3440,7 +3182,7 @@ mod tests {
 
     #[test]
     fn test_rot() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.rot();
         vm.check_stacks();
         // check_stacks() cannot detect this kind of stack underflow of over().
@@ -3476,7 +3218,7 @@ mod tests {
 
     // #[bench]
     // fn bench_rot(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     vm.s_stack().push(2);
     //     vm.s_stack().push(3);
@@ -3485,7 +3227,7 @@ mod tests {
 
     #[test]
     fn test_pick() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(0);
         vm.s_stack().push(0);
         vm.pick();
@@ -3493,7 +3235,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().as_slice(), [0, 0]);
 
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(1);
         vm.s_stack().push(0);
         vm.s_stack().push(1);
@@ -3502,7 +3244,7 @@ mod tests {
         assert_eq!(vm.last_error(), None);
         assert_eq!(vm.s_stack().as_slice(), [1, 0, 1]);
 
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(2);
         vm.s_stack().push(1);
         vm.s_stack().push(0);
@@ -3515,7 +3257,7 @@ mod tests {
 
     #[test]
     fn test_2drop() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.two_drop();
         assert!(vm.s_stack().underflow());
         vm.reset();
@@ -3536,7 +3278,7 @@ mod tests {
 
     // #[bench]
     // fn bench_2drop(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     b.iter(|| {
     //         vm.s_stack().push(1);
     //         vm.s_stack().push(2);
@@ -3546,7 +3288,7 @@ mod tests {
 
     #[test]
     fn test_2dup() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.two_dup();
         assert!(!vm.s_stack().underflow());
         vm.reset();
@@ -3571,7 +3313,7 @@ mod tests {
 
     // #[bench]
     // fn bench_2dup(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     vm.s_stack().push(2);
     //     b.iter(|| {
@@ -3582,7 +3324,7 @@ mod tests {
 
     #[test]
     fn test_2swap() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.two_swap();
         assert!(!vm.s_stack().underflow());
         vm.reset();
@@ -3621,7 +3363,7 @@ mod tests {
 
     // #[bench]
     // fn bench_2swap(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     vm.s_stack().push(2);
     //     vm.s_stack().push(3);
@@ -3631,7 +3373,7 @@ mod tests {
 
     #[test]
     fn test_2over() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.two_over();
         assert!(!vm.s_stack().underflow());
         vm.reset();
@@ -3668,7 +3410,7 @@ mod tests {
 
     // #[bench]
     // fn bench_2over(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     vm.s_stack().push(2);
     //     vm.s_stack().push(3);
@@ -3681,7 +3423,7 @@ mod tests {
 
     #[test]
     fn test_depth() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.depth();
         vm.depth();
         vm.depth();
@@ -3690,7 +3432,7 @@ mod tests {
 
     #[test]
     fn test_one_plus() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.one_plus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3706,7 +3448,7 @@ mod tests {
 
     // #[bench]
     // fn bench_one_plus(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(0);
     //     b.iter(|| {
     //         vm.one_plus();
@@ -3715,7 +3457,7 @@ mod tests {
 
     #[test]
     fn test_one_minus() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.one_minus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3731,7 +3473,7 @@ mod tests {
 
     // #[bench]
     // fn bench_one_minus(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(0);
     //     b.iter(|| {
     //         vm.one_minus();
@@ -3740,7 +3482,7 @@ mod tests {
 
     #[test]
     fn test_minus() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.minus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3763,7 +3505,7 @@ mod tests {
 
     // #[bench]
     // fn bench_minus(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(0);
     //     b.iter(|| {
     //         vm.dup();
@@ -3773,7 +3515,7 @@ mod tests {
 
     #[test]
     fn test_plus() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.plus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3796,7 +3538,7 @@ mod tests {
 
     // #[bench]
     // fn bench_plus(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     b.iter(|| {
     //         vm.dup();
@@ -3806,7 +3548,7 @@ mod tests {
 
     #[test]
     fn test_star() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.star();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3829,7 +3571,7 @@ mod tests {
 
     // #[bench]
     // fn bench_star(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     b.iter(|| {
     //         vm.dup();
@@ -3839,7 +3581,7 @@ mod tests {
 
     #[test]
     fn test_slash() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.slash();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3862,7 +3604,7 @@ mod tests {
 
     // #[bench]
     // fn bench_slash(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     b.iter(|| {
     //         vm.dup();
@@ -3872,7 +3614,7 @@ mod tests {
 
     #[test]
     fn test_mod() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.p_mod();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3895,7 +3637,7 @@ mod tests {
 
     // #[bench]
     // fn bench_mod(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push(1);
     //     vm.s_stack().push(2);
     //     b.iter(|| {
@@ -3906,7 +3648,7 @@ mod tests {
 
     #[test]
     fn test_slash_mod() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.slash_mod();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3930,7 +3672,7 @@ mod tests {
 
     // #[bench]
     // fn bench_slash_mod(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.s_stack().push2(1, 2);
     //     b.iter(|| {
     //         vm.slash_mod();
@@ -3941,7 +3683,7 @@ mod tests {
 
     #[test]
     fn test_abs() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(-30);
         vm.abs();
         assert!(vm.last_error().is_none());
@@ -3951,7 +3693,7 @@ mod tests {
 
     #[test]
     fn test_negate() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.negate();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3967,7 +3709,7 @@ mod tests {
 
     #[test]
     fn test_zero_less() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.zero_less();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -3989,7 +3731,7 @@ mod tests {
 
     #[test]
     fn test_zero_equals() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.zero_equals();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4017,7 +3759,7 @@ mod tests {
 
     #[test]
     fn test_zero_greater() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.zero_greater();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4039,7 +3781,7 @@ mod tests {
 
     #[test]
     fn test_zero_not_equals() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.zero_not_equals();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4067,7 +3809,7 @@ mod tests {
 
     #[test]
     fn test_less_than() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.less_than();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4097,7 +3839,7 @@ mod tests {
 
     #[test]
     fn test_equals() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.equals();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4134,7 +3876,7 @@ mod tests {
 
     #[test]
     fn test_greater_than() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.greater_than();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4164,7 +3906,7 @@ mod tests {
 
     #[test]
     fn test_not_equals() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.not_equals();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4201,7 +3943,7 @@ mod tests {
 
     #[test]
     fn test_within() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.within();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4256,7 +3998,7 @@ mod tests {
 
     #[test]
     fn test_invert() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.invert();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4272,7 +4014,7 @@ mod tests {
 
     #[test]
     fn test_and() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.s_stack().push(707);
         vm.s_stack().push(007);
         vm.and();
@@ -4286,7 +4028,7 @@ mod tests {
 
     #[test]
     fn test_or() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.or();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4309,7 +4051,7 @@ mod tests {
 
     #[test]
     fn test_xor() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.xor();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4332,7 +4074,7 @@ mod tests {
 
     #[test]
     fn test_lshift() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.lshift();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4362,7 +4104,7 @@ mod tests {
 
     #[test]
     fn test_rshift() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.rshift();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4392,7 +4134,7 @@ mod tests {
 
     #[test]
     fn test_parse_word() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.set_source("hello world\t\r\n\"");
         vm.parse_word();
         assert_eq!(vm.last_token().clone().unwrap(), "hello");
@@ -4406,7 +4148,7 @@ mod tests {
 
     #[test]
     fn test_evaluate_input() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // >r
         vm.set_source(">r");
         vm.evaluate_input();
@@ -4446,7 +4188,7 @@ mod tests {
     /*
         #[bench]
         fn bench_compile_words_at_beginning_of_wordlist(b: &mut Bencher) {
-            let vm = &mut VM::new();
+            let vm = &mut VM::new(16, 16);
             b.iter(|| {
                 vm.set_source("marker empty : main noop noop noop noop noop noop noop noop ; empty");
                 vm.evaluate_input();
@@ -4456,7 +4198,7 @@ mod tests {
 
         #[bench]
         fn bench_compile_words_at_end_of_wordlist(b: &mut Bencher) {
-            let vm = &mut VM::new();
+            let vm = &mut VM::new(16, 16);
             b.iter(|| {
                        vm.set_source("marker empty : main bye bye bye bye bye bye bye bye ; empty");
                        vm.evaluate_input();
@@ -4468,7 +4210,7 @@ mod tests {
 
     #[test]
     fn test_push_source() {
-        let mut vm = VM::new();
+        let mut vm = VM::new(16, 16);
         vm.set_source(": x");
         vm.push_source(" ");
         vm.push_source("1");
@@ -4479,7 +4221,7 @@ mod tests {
 
     #[test]
     fn test_colon_and_semi_colon() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // :
         vm.set_source(":");
         vm.evaluate_input();
@@ -4496,7 +4238,7 @@ mod tests {
 
     #[test]
     fn test_constant() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // constant x
         vm.set_source("constant");
         vm.evaluate_input();
@@ -4515,7 +4257,7 @@ mod tests {
 
     #[test]
     fn test_constant_in_colon() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // 77 constant x
         // : 2x  x 2 * ;  2x
         vm.set_source("77 constant x  : 2x x 2 * ;  2x");
@@ -4527,7 +4269,7 @@ mod tests {
 
     #[test]
     fn test_create_and_store_fetch() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // @
         vm.set_source("@");
         vm.evaluate_input();
@@ -4557,7 +4299,7 @@ mod tests {
 
     #[test]
     fn test_create_and_fetch_in_colon() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // create x  1 cells allot
         // 7 x !
         // : x@ x @ ; x@
@@ -4570,7 +4312,7 @@ mod tests {
 
     #[test]
     fn test_create_in_colon() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // create x 7 ,
         // : x@ x @ ; x@
         vm.set_source("create x 7 ,  : x@ x @ ;  x@");
@@ -4582,7 +4324,7 @@ mod tests {
 
     #[test]
     fn test_char_plus() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.char_plus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4596,7 +4338,7 @@ mod tests {
 
     #[test]
     fn test_cell_plus_and_cells() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.cell_plus();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -4619,7 +4361,7 @@ mod tests {
 
     #[test]
     fn test_tick() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // '
         vm.tick();
         assert_eq!(vm.last_error(), Some(UnexpectedEndOfFile));
@@ -4639,7 +4381,7 @@ mod tests {
 
     #[test]
     fn test_execute() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // execute
         vm.execute();
         vm.check_stacks();
@@ -4665,7 +4407,7 @@ mod tests {
 
     #[test]
     fn test_here_allot() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // allot
         vm.allot();
         vm.check_stacks();
@@ -4684,7 +4426,7 @@ mod tests {
 
     #[test]
     fn test_to_r_r_fetch_r_from() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": t 3 >r 2 r@ + r> + ; t");
         vm.evaluate_input();
         assert!(vm.last_error().is_none());
@@ -4694,7 +4436,7 @@ mod tests {
 
     // #[bench]
     // fn bench_to_r_r_fetch_r_from(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.set_source(": main 3 >r r@ drop r> drop ;");
     //     vm.evaluate_input();
     //     vm.set_source("' main");
@@ -4708,7 +4450,7 @@ mod tests {
 
     #[test]
     fn test_two_to_r_two_r_fetch_two_r_from() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": t 1 2 2>r 2r@ + 2r> - * ; t");
         vm.evaluate_input();
         assert!(vm.last_error().is_none());
@@ -4718,7 +4460,7 @@ mod tests {
 
     // #[bench]
     // fn bench_two_to_r_two_r_fetch_two_r_from(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.set_source(": main 1 2 2>r 2r@ 2drop 2r> 2drop ;");
     //     vm.evaluate_input();
     //     vm.set_source("' main");
@@ -4732,7 +4474,7 @@ mod tests {
 
     #[test]
     fn test_if_then() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // : t5 if ; t5
         vm.set_source(": t5 if ;");
         vm.evaluate_input();
@@ -4763,15 +4505,18 @@ mod tests {
 
     #[test]
     fn test_if_else_then() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // : t3 else then ; t3
         vm.set_source(": t3 else then ;");
         vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
         vm.reset();
         vm.clear_stacks();
+        // : t1 0 if true else false then ; t1
+        // let action = vm.code_space().here();
         vm.set_source(": t1 0 if true else false then ; t1");
         vm.evaluate_input();
+        // dump(vm, action);
         assert!(vm.last_error().is_none());
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 0);
@@ -4785,7 +4530,7 @@ mod tests {
 
     #[test]
     fn test_begin_again() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // : t3 begin ;
         vm.set_source(": t3 begin ;");
         vm.evaluate_input();
@@ -4808,7 +4553,7 @@ mod tests {
 
     #[test]
     fn test_begin_while_repeat() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // : t1 begin ;
         vm.set_source(": t1 begin ;");
         vm.evaluate_input();
@@ -4854,58 +4599,8 @@ mod tests {
     }
 
     #[test]
-    fn test_label_goto_call() {
-        let vm = &mut VM::new();
-        // Go backwards.
-        vm.set_source(
-            ": test1   0labels  0  [ 10 ] label 1+ dup 3 > if exit then [ 10 ] goto ; test1",
-        );
-        vm.evaluate_input();
-        assert_eq!(vm.s_stack().pop(), 4);
-        // Go forwards.
-        vm.clear_stacks();
-        vm.set_source(": test2   0labels  [ 10 ] goto 1 [ 10 ] label 2 3 ; test2");
-        vm.evaluate_input();
-        assert_eq!(vm.s_stack().len(), 2);
-        // Call backwards
-        vm.clear_stacks();
-        vm.set_source(": test3   0labels  [ 10 ] goto [ 20 ] label 2 3  exit  [ 10 ] label  [ 20 ] call 4 5 ; test3");
-        vm.evaluate_input();
-        assert_eq!(vm.s_stack().len(), 4);
-        // Call forwards
-        vm.clear_stacks();
-        vm.set_source(": test4   0labels  [ 10 ] call 1 exit [ 10 ] label 2 3 ; test4");
-        vm.evaluate_input();
-        assert_eq!(vm.s_stack().len(), 3);
-        assert_eq!(vm.s_stack().pop(), 1);
-        // Foward reference not resolved.
-        vm.clear_stacks();
-        vm.set_source(": test5   0labels  [ 10 ] call ; test5");
-        vm.evaluate_input();
-        assert_eq!(vm.last_error(), Some(ControlStructureMismatch));
-        // 0 goto
-        vm.clear_stacks();
-        vm.clear_error();
-        vm.set_source(": test6   [ 0 ] goto ;");
-        vm.evaluate_input();
-        assert!(vm.last_error() != None);
-        // 0 label
-        vm.clear_stacks();
-        vm.clear_error();
-        vm.set_source(": test7   [ 0 ] label ;");
-        vm.evaluate_input();
-        assert!(vm.last_error() != None);
-        // 0 call
-        vm.clear_stacks();
-        vm.clear_error();
-        vm.set_source(": test8   [ 0 ] call ;");
-        vm.evaluate_input();
-        assert!(vm.last_error() != None);
-    }
-
-    #[test]
     fn test_backslash() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.set_source("1 2 3 \\ 5 6 7");
         vm.evaluate_input();
         assert!(vm.last_error().is_none());
@@ -4917,7 +4612,7 @@ mod tests {
 
     #[test]
     fn test_marker_unmark() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         let wordlist_len = vm.wordlist().len();
         vm.set_source("here marker empty empty here =");
         vm.evaluate_input();
@@ -4929,7 +4624,7 @@ mod tests {
 
     #[test]
     fn test_abort() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.set_source("1 2 3 abort 5 6 7");
         vm.evaluate_input();
         assert_eq!(vm.last_error(), Some(Abort));
@@ -4938,7 +4633,7 @@ mod tests {
 
     #[test]
     fn test_do_loop() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // : t1 do ;
         vm.set_source(": t1 do ;");
         vm.evaluate_input();
@@ -4961,7 +4656,7 @@ mod tests {
 
     #[test]
     fn test_do_unloop_exit_loop() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // : t1 unloop ;
         vm.set_source(": t1 unloop ; t1");
         vm.evaluate_input();
@@ -4978,7 +4673,7 @@ mod tests {
 
     #[test]
     fn test_do_plus_loop() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // : t1 +loop ;
         vm.set_source(": t1 +loop ;");
         vm.evaluate_input();
@@ -5007,7 +4702,7 @@ mod tests {
 
     #[test]
     fn test_do_leave_loop() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // : t1 leave ;
         vm.set_source(": t1 leave ;  t1");
         vm.evaluate_input();
@@ -5024,7 +4719,7 @@ mod tests {
 
     #[test]
     fn test_do_leave_plus_loop() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // : main 1 5 0 do 1+ dup 3 = if drop 88 leave then 2 +loop 9 ;  main
         vm.set_source(": main 1 5 0 do 1+ dup 3 = if drop 88 leave then 2 +loop 9 ;  main");
         vm.evaluate_input();
@@ -5035,7 +4730,7 @@ mod tests {
 
     #[test]
     fn test_do_i_loop() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         // : main 3 0 do i loop ;  main
         vm.set_source(": main 3 0 do i loop ;  main");
         vm.evaluate_input();
@@ -5046,7 +4741,7 @@ mod tests {
 
     #[test]
     fn test_do_i_j_loop() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": main 6 4 do 3 1 do i j * loop loop ;  main");
         vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
@@ -5056,7 +4751,7 @@ mod tests {
 
     // #[bench]
     // fn bench_fib(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.set_source(": fib dup 2 < if drop 1 else dup 1- recurse swap 2 - recurse + then ;");
     //     vm.evaluate_input();
     //     assert!(vm.last_error().is_none());
@@ -5074,10 +4769,10 @@ mod tests {
     //         };
     //     });
     // }
-    //
+
     // #[bench]
     // fn bench_repeat(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.set_source(": bench 0 begin over over > while 1 + repeat drop drop ;");
     //     vm.evaluate_input();
     //     vm.set_source(": main 8000 bench ;");
@@ -5094,10 +4789,10 @@ mod tests {
     //         };
     //     });
     // }
-    //
+
     // #[bench]
     // fn bench_sieve(b: &mut Bencher) {
-    //     let vm = &mut VM::new();
+    //     let vm = &mut VM::new(16, 16);
     //     vm.load_core_fs();
     //     if vm.last_error().is_some() {
     //         eprintln!(
@@ -5156,7 +4851,7 @@ mod tests {
 
     #[test]
     fn test_here_comma_compile_interpret() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.comma();
         vm.check_stacks();
         assert_eq!(vm.last_error(), Some(StackUnderflow));
@@ -5183,6 +4878,32 @@ mod tests {
                     .get_isize(here + 3 * mem::size_of::<isize>()),
                 vm.references().idx_exit as isize
             );
+        }
+    }
+
+    fn dump(vm: &mut VM, addr: usize) {
+        if vm.code_space().has(addr) {
+            for i in 0..8 {
+                if vm.code_space().has(addr + 7 + i * 8) {
+                    unsafe {
+                        println!(
+                            "{:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x} {:2x}",
+                            vm.code_space().get_u8(addr + 0 + i * 8),
+                            vm.code_space().get_u8(addr + 1 + i * 8),
+                            vm.code_space().get_u8(addr + 2 + i * 8),
+                            vm.code_space().get_u8(addr + 3 + i * 8),
+                            vm.code_space().get_u8(addr + 4 + i * 8),
+                            vm.code_space().get_u8(addr + 5 + i * 8),
+                            vm.code_space().get_u8(addr + 6 + i * 8),
+                            vm.code_space().get_u8(addr + 7 + i * 8),
+                        );
+                    }
+                } else {
+                    panic!("Error: invaild dump address.");
+                }
+            }
+        } else {
+            panic!("Error: invaild dump address.");
         }
     }
 }

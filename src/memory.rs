@@ -1,8 +1,71 @@
+extern crate libc;
+
 use exception::Exception;
-use region::{Allocation, Protection};
 use std::marker;
 use std::mem;
 use std::slice;
+
+extern "C" {
+    fn memset(s: *mut libc::c_void, c: libc::uint32_t, n: libc::size_t) -> *mut libc::c_void;
+}
+
+const PAGE_SIZE: usize = 4096;
+
+#[allow(dead_code)]
+pub struct CodeSpace {
+    pub(crate) inner: *mut u8,
+    cap: usize,
+    len: usize,
+}
+
+impl CodeSpace {
+    /// The memory is populated with `0x00`.
+    pub fn new(num_pages: usize) -> CodeSpace {
+        let mut ptr: *mut libc::c_void;
+        let size = num_pages * PAGE_SIZE;
+        unsafe {
+            ptr = mem::uninitialized();
+            libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
+            libc::mprotect(
+                ptr,
+                size,
+                libc::PROT_EXEC | libc::PROT_READ | libc::PROT_WRITE,
+            );
+            memset(ptr, 0x00, size);
+        }
+        let mut result = CodeSpace {
+            inner: ptr as *mut u8,
+            cap: size,
+            len: 0,
+        };
+        result
+    }
+}
+
+impl Memory for CodeSpace {
+    fn start(&self) -> usize {
+        unsafe { self.inner.offset(0) as usize }
+    }
+
+    fn limit(&self) -> usize {
+        unsafe { self.inner.offset(self.cap as isize) as usize }
+    }
+
+    fn here(&mut self) -> usize {
+        unsafe { self.inner.offset(self.len as isize) as usize }
+    }
+
+    fn set_here(&mut self, pos: usize) -> Result<(), Exception> {
+        // here is allowed to be 1 place after the last memory address.
+        if self.start() <= pos && pos <= self.limit() {
+            let len = pos as isize - self.start() as isize;
+            self.len = len as usize;
+            Ok(())
+        } else {
+            Err(Exception::InvalidMemoryAddress)
+        }
+    }
+}
 
 pub struct SystemVariables {
     null: isize,
@@ -17,7 +80,6 @@ impl SystemVariables {
 
 #[allow(dead_code)]
 pub struct DataSpace {
-    alloc: Allocation,
     pub inner: *mut u8,
     cap: usize,
     len: usize,
@@ -25,20 +87,19 @@ pub struct DataSpace {
 }
 
 impl DataSpace {
-    pub fn new(num_pages: usize) -> Self {
-        let cap = num_pages * page_size::get();
-        Self::with_capacity(cap)
-    }
+    pub fn new(num_pages: usize) -> DataSpace {
+        let mut ptr: *mut libc::c_void;
+        let size = num_pages * PAGE_SIZE;
+        unsafe {
+            ptr = mem::uninitialized();
+            libc::posix_memalign(&mut ptr, PAGE_SIZE, size);
+            libc::mprotect(ptr, size, libc::PROT_READ | libc::PROT_WRITE);
 
-    pub fn with_capacity(cap: usize) -> Self {
-        let pages = cap.div_ceil(region::page::size());
-        let mut alloc = region::alloc(pages, Protection::READ_WRITE_EXECUTE)
-            .expect("Cannot allocate data space");
-        let ptr = alloc.as_mut_ptr();
+            memset(ptr, 0x00, size);
+        }
         let mut result = DataSpace {
-            alloc,
-            inner: ptr,
-            cap,
+            inner: ptr as *mut u8,
+            cap: size,
             len: mem::size_of::<SystemVariables>(),
             marker: marker::PhantomData,
         };
@@ -67,11 +128,7 @@ impl Memory for DataSpace {
         unsafe { self.inner.offset(self.cap as isize) as usize }
     }
 
-    fn capacity(&self) -> usize {
-        self.limit() - self.start()
-    }
-
-    fn here(&self) -> usize {
+    fn here(&mut self) -> usize {
         unsafe { self.inner.offset(self.len as isize) as usize }
     }
 
@@ -94,9 +151,6 @@ pub(crate) trait Memory {
     /// Upper limit of address
     fn limit(&self) -> usize;
 
-    /// Capacity
-    fn capacity(&self) -> usize;
-
     /// Does memory contains addresss `pos`?
     ///
     /// True if self.start() <= pos < self.limit()
@@ -105,7 +159,7 @@ pub(crate) trait Memory {
     }
 
     /// Next free space
-    fn here(&self) -> usize;
+    fn here(&mut self) -> usize;
 
     /// Set next free space.
     fn set_here(&mut self, pos: usize) -> Result<(), Exception>;
@@ -133,15 +187,7 @@ pub(crate) trait Memory {
     }
 
     unsafe fn str_from_raw_parts(&self, addr: usize, len: usize) -> &str {
-        mem::transmute(slice::from_raw_parts::<u8>(addr as *const u8, len))
-    }
-
-    unsafe fn buffer_from_raw_parts(&self, addr: usize, len: usize) -> &[u8] {
-        slice::from_raw_parts::<u8>(addr as *const u8, len)
-    }
-
-    unsafe fn buffer_from_raw_parts_mut(&mut self, addr: usize, len: usize) -> &mut [u8] {
-        slice::from_raw_parts_mut::<u8>(addr as *mut u8, len)
+        mem::transmute(slice::from_raw_parts::<u8>(addr as *mut u8, len))
     }
 
     // Basic operations

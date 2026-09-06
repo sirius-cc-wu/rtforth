@@ -19,16 +19,6 @@ pub trait Output: Core {
         self.references().idx_type = self.find("type").expect("type undefined");
     }
 
-    fn push_output(&mut self, text: &str) {
-        match self.output_buffer().take() {
-            Some(mut buffer) => {
-                buffer.push_str(text);
-                self.set_output_buffer(buffer);
-            }
-            None => {}
-        }
-    }
-
     /// Run-time: ( x -- )
     ///
     /// Put x into output buffer.
@@ -55,10 +45,10 @@ pub trait Output: Core {
         match self.output_buffer().take() {
             Some(mut buffer) => {
                 {
-                    let s = unsafe{
-                        &self.data_space().str_from_raw_parts(
-                            addr as usize, len as usize
-                        )
+                    let s = unsafe {
+                        &self
+                            .data_space()
+                            .str_from_raw_parts(addr as usize, len as usize)
                     };
                     buffer.push_str(s);
                 }
@@ -80,13 +70,10 @@ pub trait Output: Core {
     fn s_quote(&mut self) {
         let input_buffer = self.input_buffer().take().unwrap();
         {
-            let source = &input_buffer[self.state().source_index+1..input_buffer.len()];
+            let source = &input_buffer[self.state().source_index + 1..input_buffer.len()];
             let s = match source.find('"') {
                 Some(n) => {
-                    &input_buffer[
-                        self.state().source_index+1..
-                        self.state().source_index + 1 + n
-                    ]
+                    &input_buffer[self.state().source_index + 1..self.state().source_index + 1 + n]
                 }
                 None => source,
             };
@@ -134,7 +121,7 @@ pub trait Output: Core {
     /// Display `n1` right aligned in a field `n2` characters wide.
     fn dot_r(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
-        let base = unsafe{ self.data_space().get_isize(base_addr) };
+        let base = unsafe { self.data_space().get_isize(base_addr) };
         let mut valid_base = true;
         let (n1, n2) = self.s_stack().pop2();
         if let Some(mut buf) = self.output_buffer().take() {
@@ -228,7 +215,7 @@ mod tests {
 
     #[test]
     fn test_s_quote_and_type() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.set_source(": hi   s\" Hi, how are you\" type ; hi");
         vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
@@ -238,7 +225,7 @@ mod tests {
 
     #[test]
     fn test_emit() {
-        let vm = &mut VM::new();
+        let vm = &mut VM::new(16, 16);
         vm.set_source("42 emit 43 emit");
         vm.evaluate_input();
         assert_eq!(vm.last_error(), None);
